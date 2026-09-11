@@ -211,6 +211,15 @@ npm run clean     # smaže výstupy buildu
 > používej **ukázkový režim** — ve vlastnostech web partu přepni „Odkud brát data“
 > na *Ukázková data*. Aplikace pak běží kompletně na smyšlených datech.
 
+### Když build skončí chybou `EPERM: operation not permitted, rmdir`
+
+Windows drží některý soubor ve složce s výstupy (obvykle kvůli antiviru nebo
+otevřenému okně Průzkumníka). Smaž složky s výstupy ručně a spusť příkaz znovu:
+
+```bash
+rmdir /s /q jest-output lib lib-commonjs temp
+```
+
 ### Struktura kódu
 
 ```
