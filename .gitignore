@@ -1,0 +1,43 @@
+# Závislosti
+node_modules/
+.rush/
+common/temp/
+
+# Výstupy buildu SPFx / Heft
+dist/
+lib/
+lib-commonjs/
+temp/
+release/
+solution/
+*.sppkg
+.heft/build-cache/
+.heft/temp/
+.heft/*.log
+
+# Konfigurace prostředí
+.env
+.env.local
+spfx/config/copy-assets.json
+spfx/temp/
+
+# Editory
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+
+# Systém
+Thumbs.db
+ehthumbs.db
+desktop.ini
+.DS_Store
+
+# Logy
+npm-debug.log*
+yarn-error.log*
+*.log
+
+# Testy
+coverage/
