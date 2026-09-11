@@ -101,7 +101,32 @@ Pokud firma katalog ještě nemá:
 
 ---
 
-## Část C — Nasazení aplikace
+## Část C — Rychlý náhled na svém počítači (bez SharePointu)
+
+Chceš aplikaci jen vidět a proklikat, bez čekání na správce M365?
+Ve složce `C:\Projekty\prm-revoltum` spusť postupně:
+
+```bash
+cd spfx && npm run test && cd ..
+```
+
+```bash
+cd nahled && node build.js && node serve.js
+```
+
+Pak otevři v prohlížeči **http://localhost:4322**.
+Server ukončíš klávesami **Ctrl+C**.
+
+Náhled používá **stejné komponenty** jako ostrá aplikace, jen místo SharePointu
+bere ukázková data. Takže uvidíš přesně, jak aplikace vypadá a ovládá se.
+
+**Co náhled neumí a umět nemůže** — cokoli, co sahá na SharePoint:
+skutečné založení seznamů, uložení nastavení, skutečné role, složky zakázek.
+Na těchto místech se chová jako ukázkový režim.
+
+---
+
+## Část D — Nasazení aplikace
 
 ### 1. Sestavit balíček
 
@@ -171,7 +196,7 @@ Web part podporuje i Teams. V kanálu týmu: **+** → *SharePoint* → vyber st
 
 ---
 
-## Část D — Aktualizace na novou verzi
+## Část E — Aktualizace na novou verzi
 
 1. Ve `spfx/package.json` zvyš `version` (např. `0.1.0` → `0.2.0`).
 2. Ve `spfx/config/package-solution.json` zvyš `solution.version` **a** `features[0].version`
@@ -183,7 +208,7 @@ Web part podporuje i Teams. V kanálu týmu: **+** → *SharePoint* → vyber st
 
 ---
 
-## Část E — Vývoj
+## Část F — Vývoj
 
 ```bash
 cd C:\Projekty\prm-revoltum\spfx

@@ -45,3 +45,6 @@ coverage/
 # Výstupy testů Heft
 jest-output/
 sharepoint/solution/
+
+# Sestavený lokální náhled
+nahled/dist/
