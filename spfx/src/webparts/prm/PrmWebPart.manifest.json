@@ -1,0 +1,27 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx/client-side-web-part-manifest.schema.json",
+  "id": "d971591f-73ef-496e-949d-083fe1f2ad5b",
+  "alias": "PrmWebPart",
+  "componentType": "WebPart",
+
+  // Verze se přebírá z package.json.
+  "version": "*",
+  "manifestVersion": 2,
+
+  // Aplikace nespouští žádný vlastní skript zadaný uživatelem.
+  "requiresCustomScript": false,
+  "supportedHosts": ["SharePointWebPart", "TeamsTab", "SharePointFullPage"],
+  "supportsThemeVariants": false,
+
+  "preconfiguredEntries": [{
+    "groupId": "5c03119e-3074-46fd-976b-c60198311f70",
+    "group": { "default": "Pokročilé" },
+    "title": { "default": "PRM Revoltum" },
+    "description": { "default": "Řízení zakázek Revoltum Engineering & Services" },
+    "officeFabricIconFontName": "ViewList",
+    "properties": {
+      "dataSource": "sharepoint",
+      "financeSiteUrl": ""
+    }
+  }]
+}

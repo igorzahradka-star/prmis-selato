@@ -1,0 +1,23 @@
+{
+  "@microsoft/generator-sharepoint": {
+    "whichFolder": "subdir",
+    "solutionName": "prm-revoltum",
+    "skipFeatureDeployment": true,
+    "useGulp": false,
+    "componentType": "webpart",
+    "template": "react",
+    "componentName": "Prm",
+    "componentDescription": "PRM Revoltum - rizeni zakazek",
+    "plusBeta": false,
+    "isCreatingSolution": true,
+    "nodeVersion": "22.23.2",
+    "sdksVersions": {},
+    "version": "1.23.2",
+    "libraryName": "prm-revoltum",
+    "libraryId": "5af5efa5-3d7c-447d-b4e7-571588e46cb1",
+    "environment": "spo",
+    "packageManager": "npm",
+    "solutionShortDescription": "prm-revoltum description",
+    "isDomainIsolated": false
+  }
+}

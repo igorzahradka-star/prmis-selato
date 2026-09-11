@@ -46,7 +46,8 @@ a Excel report pro finančního ředitele holdingu.
 | Položka | Verze | Poznámka |
 |---|---|---|
 | SharePoint Framework (SPFx) | **1.23.2** | GA, vydáno 30. 6. 2026. Verze 1.23.1 byla stažena kvůli regresím — nepoužívat. |
-| Node.js | **22 LTS** (22.23.2) | SPFx 1.23 běží **jen** na Node 22. Ne 24, ne 26. |
+| Node.js | **22 LTS** (22.23.2) | SPFx 1.23 běží **jen** na Node 22. Ne 24, ne 26. Nainstalováno přes `winget install OpenJS.NodeJS.22` — jde o přenosnou (zip) variantu v `%LOCALAPPDATA%\Microsoft\WinGet\Packages\OpenJS.NodeJS.22_*\node-v22.23.2-win-x64`. |
+| PnPjs | **4.21.0** | Přístup k SharePoint REST. |
 | Build toolchain | **Heft** (`@rushstack/heft`) | Od SPFx 1.22 **není gulp**. Návody s `gulp serve` / `gulp bundle` jsou zastaralé. |
 | React | **17.0.1** (přesně) | Instalovat s `--save-exact`. Jiná verze = tichá selhání za běhu. |
 | TypeScript | 5.8 | Rozsah podporovaný SPFx 1.23: 2.9–5.8. |
@@ -176,7 +177,7 @@ Testovací scénáře pro každou fázi: [`docs/testy/`](docs/testy/).
 
 | Fáze | Obsah | Stav |
 |---|---|---|
-| **0 — Základ** | kostra SPFx, CLAUDE.md, git, theme RES + logo, layout a navigace, detekce uživatele a rolí, mock data, průvodce Instalace a diagnostika, Nastavení (základ), návod na nasazení | 🔄 probíhá |
+| **0 — Základ** | kostra SPFx, CLAUDE.md, git, theme RES + logo, layout a navigace, detekce uživatele a rolí, mock data, průvodce Instalace a diagnostika, Nastavení (základ), návod na nasazení | ✅ kód hotov (11. 9. 2026), build i 120 testů prochází · **čeká na nasazení a otestování na tenantu** |
 | 1 — Zakázky (MVP) | číselné řady, partneři, založení zakázky, struktura složek, dashboard, detail zakázky, import z Excelu | ⏳ čeká |
 | 2 — Objednávky, fakturace, dokumenty | objednávky + schvalování, „Čeká na mě", e-maily, PDF, podklady pro fakturaci, protokoly, audit | ⏳ čeká |
 | 3 — Realizační rozpočet a CF projektu | RR editor, verze a baseline, semafor, fakturační milníky, CF projektu | ⏳ čeká |
@@ -191,16 +192,7 @@ Akceptační kritéria jednotlivých fází: `docs/ZADANI.md`, kapitola 12.
 ## 10. Otevřené otázky na zadavatele
 
 Ptát se **ve správné fázi**, ne předem (viz `docs/ZADANI.md`, kap. 13).
-Zodpovězené otázky přesouvej do `docs/ROZHODNUTI.md`.
+Aktuální seznam otázek i zodpovězených rozhodnutí je v [`docs/ROZHODNUTI.md`](docs/ROZHODNUTI.md).
 
-| # | Otázka | Fáze | Stav |
-|---|---|---|---|
-| 1 | Přesný formát čísla zakázky a dosavadní číslování | 1 | otevřeno |
-| 2 | Finální šablona složek, případně podle typu zakázky | 1 | otevřeno |
-| 3 | Limity schvalování a jména schvalovatelů | 2 | otevřeno |
-| 4 | Vzory PDF a fakturační údaje RES | 2 | otevřeno |
-| 5 | Účetní systém a formát exportu skutečných plateb | 3 | otevřeno |
-| 6 | Kategorie rozpočtu, prahy semaforu, minimální marže | 3 | otevřeno |
-| 7 | Struktura reportu pro FO holdingu, perioda, kategorie firemního CF | 5 | otevřeno |
-| 8 | Kdo je admin M365 a může nahrát aplikaci do App Catalogu | 0 | otevřeno |
-| 9 | URL tenanta SharePointu (`https://<tenant>.sharepoint.com`) | 0 | otevřeno |
+Blokující pro dokončení Fáze 0: **kdo je správce M365** (otázka 8)
+a **adresa tenanta a webů PRM / PRM-Finance** (otázka 9).

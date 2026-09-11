@@ -110,9 +110,14 @@ export function toIsoDate(value: Date | string | undefined | null): string {
     return '';
   }
   const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
+  const m = pad2(date.getMonth() + 1);
+  const d = pad2(date.getDate());
   return `${y}-${m}-${d}`;
+}
+
+/** Doplní číslo na dvě místa nulou. (`padStart` není v cílové knihovně SPFx.) */
+function pad2(value: number): string {
+  return value < 10 ? `0${value}` : String(value);
 }
 
 /** Převede hodnotu ze SharePointu (řetězec nebo Date) na Date, nebo undefined. */

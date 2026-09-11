@@ -41,3 +41,7 @@ yarn-error.log*
 
 # Testy
 coverage/
+
+# Výstupy testů Heft
+jest-output/
+sharepoint/solution/

@@ -1,0 +1,40 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/package-solution.schema.json",
+  "solution": {
+    "name": "PRM Revoltum",
+    "id": "5af5efa5-3d7c-447d-b4e7-571588e46cb1",
+    "version": "0.1.0.0",
+    "includeClientSideAssets": true,
+    "skipFeatureDeployment": true,
+    "isDomainIsolated": false,
+    "developer": {
+      "name": "Revoltum Engineering & Services",
+      "websiteUrl": "",
+      "privacyUrl": "",
+      "termsOfUseUrl": "",
+      "mpnId": "Undefined-1.23.2"
+    },
+    "metadata": {
+      "shortDescription": {
+        "default": "Řízení zakázek Revoltum Engineering & Services"
+      },
+      "longDescription": {
+        "default": "PRM Revoltum – evidence zakázek, struktura složek projektů, nákupní objednávky se schvalováním, podklady pro fakturaci, realizační rozpočet, cashflow a harmonogram."
+      },
+      "screenshotPaths": [],
+      "videoUrl": "",
+      "categories": []
+    },
+    "features": [
+      {
+        "title": "PRM Revoltum",
+        "description": "Aktivuje web part PRM Revoltum na webu.",
+        "id": "aaf74d1b-37d9-4c7f-be9d-3cb2057f2abd",
+        "version": "0.1.0.0"
+      }
+    ]
+  },
+  "paths": {
+    "zippedPackage": "solution/prm-revoltum.sppkg"
+  }
+}
