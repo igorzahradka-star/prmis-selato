@@ -83,7 +83,8 @@ function extractMessage(error: unknown): string {
   return String(error);
 }
 
-function extractStatus(error: unknown): number | undefined {
+/** HTTP status z chyby PnPjs, pokud jde zjistit. Používá i `describeSpError`. */
+export function extractStatus(error: unknown): number | undefined {
   const e = error as { status?: number; httpStatus?: number; message?: string };
   if (typeof e?.status === 'number') {
     return e.status;

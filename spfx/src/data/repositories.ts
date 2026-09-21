@@ -48,6 +48,33 @@ export interface IProjectRepository {
   getByNumber(projectNumber: string): Promise<Project | undefined>;
 }
 
+/** Jedna číselná řada z PRM_DocTypes (viz zadání kap. 7). */
+export interface DocTypeConfig {
+  /** Kód řady — PRJ, OBJ, FP, PP… */
+  code: string;
+  name: string;
+  pattern: string;
+  padding: number;
+  resetPeriod: 'Ročně' | 'Nikdy';
+  scope: 'Globální' | 'Projekt';
+  startValue: number;
+  active: boolean;
+}
+
+/**
+ * Číslování dokladů. `allocateNumber` čte a zvyšuje čítač v PRM_Counters —
+ * SharePoint nemá transakce, takže ostrá implementace musí souběh řešit
+ * optimistickým zámkem (ETag) a při konfliktu (HTTP 412) to zopakovat.
+ */
+export interface INumberingRepository {
+  listDocTypes(): Promise<DocTypeConfig[]>;
+  /**
+   * Přidělí a rovnou zapíše další číslo v řadě `docTypeCode`.
+   * `projectNumber` je potřeba u řad se Scope = Projekt (např. protokoly PP-{PRJ}-{N}).
+   */
+  allocateNumber(docTypeCode: string, opts?: { projectNumber?: string; date?: Date }): Promise<string>;
+}
+
 /** Výsledek jedné kontroly instalačního průvodce. */
 export interface DiagnosticItem {
   /** Co se kontrolovalo, česky. */
@@ -97,5 +124,6 @@ export interface RepositorySet {
   users: IUserRepository;
   settings: ISettingsRepository;
   projects: IProjectRepository;
+  numbering: INumberingRepository;
   install: IInstallRepository;
 }

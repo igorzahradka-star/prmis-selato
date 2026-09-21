@@ -11,18 +11,21 @@
 import { CurrentUser, Project, ACTIVE_PROJECT_STATUSES } from '../../core/types';
 import { AppSettings, DEFAULT_SETTINGS, withDefaults } from '../../core/settings';
 import { normalizeLogin } from '../../core/roles';
+import { renderDocumentNumber, nextSequence, counterScopeKey, CounterState } from '../../core/numbering';
 import {
   IInstallRepository,
   IProjectRepository,
+  INumberingRepository,
   ISettingsRepository,
   IUserRepository,
   ProjectFilter,
+  DocTypeConfig,
   DiagnosticReport,
   InstallProgress,
   RepositorySet
 } from '../repositories';
 import { LISTS, ListDef, SCHEMA_VERSION, creationOrder } from '../schema';
-import { MOCK_PROJECTS, MOCK_USER } from './mockData';
+import { DEFAULT_DOC_TYPES, MOCK_PROJECTS, MOCK_USER } from './mockData';
 
 /** Umělé zdržení, aby bylo v UI vidět načítání stejně jako na ostro. */
 function delay<T>(value: T, ms: number = 180): Promise<T> {
@@ -65,6 +68,71 @@ class MockProjectRepository implements IProjectRepository {
 
   public getByNumber(projectNumber: string): Promise<Project | undefined> {
     return delay(MOCK_PROJECTS.filter((p) => p.projectNumber === projectNumber)[0]);
+  }
+}
+
+/** Jeden řádek PRM_Counters, jak si ho drží mock v paměti. */
+interface MockCounterRow extends CounterState {
+  /** Pro simulaci optimistického zámku (ekvivalent ETag) — roste při každém zápisu. */
+  version: number;
+}
+
+/**
+ * Přidělování čísel dokladů — mock nad polem v paměti.
+ *
+ * Souběh se simuluje schválně: mezi přečtením a zápisem čítače je čekání,
+ * takže při souběžných voláních se stihnou „potkat" — přesně jako při
+ * konfliktu na SharePointu (HTTP 412). Kdo přijde pozdě, zjistí, že se
+ * verze mezitím změnila, a zkusí to znovu s čerstvým čtením.
+ */
+export class MockNumberingRepository implements INumberingRepository {
+  private readonly docTypes: DocTypeConfig[];
+  private readonly counters = new Map<string, MockCounterRow>();
+
+  public constructor(docTypes: DocTypeConfig[] = DEFAULT_DOC_TYPES) {
+    this.docTypes = docTypes;
+  }
+
+  public listDocTypes(): Promise<DocTypeConfig[]> {
+    return delay(this.docTypes.map((d) => ({ ...d })));
+  }
+
+  public async allocateNumber(
+    docTypeCode: string,
+    opts?: { projectNumber?: string; date?: Date }
+  ): Promise<string> {
+    const docType = this.docTypes.filter((d) => d.code === docTypeCode && d.active)[0];
+    if (!docType) {
+      throw new Error(`Neznámá nebo neaktivní číselná řada „${docTypeCode}".`);
+    }
+
+    const year = (opts?.date ?? new Date()).getFullYear();
+    const key = `${docTypeCode}:${counterScopeKey(docType.scope, opts?.projectNumber)}`;
+
+    for (let attempt = 0; attempt < 30; attempt++) {
+      const before = this.counters.get(key);
+      const readVersion = before?.version ?? 0;
+
+      // Umělé zdržení mezi čtením a zápisem — dá prostor souběžnému volání
+      // se „vetřít" mezi ně, stejně jako na síti.
+      await delay(undefined, 5);
+
+      const sequence = nextSequence(before, docType, year);
+
+      const current = this.counters.get(key);
+      if ((current?.version ?? 0) !== readVersion) {
+        continue; // někdo jiný mezitím zapsal — čti znovu (ekvivalent HTTP 412)
+      }
+
+      this.counters.set(key, { year, lastValue: sequence, version: readVersion + 1 });
+      return renderDocumentNumber(docType, {
+        prefix: docType.code,
+        year,
+        sequence,
+        projectNumber: opts?.projectNumber
+      });
+    }
+    throw new Error('Nepodařilo se přidělit číslo — příliš mnoho současných pokusů, zkuste to prosím znovu.');
   }
 }
 
@@ -157,6 +225,7 @@ export function createMockRepositories(): RepositorySet {
     users: new MockUserRepository(),
     settings: new MockSettingsRepository(),
     projects: new MockProjectRepository(),
+    numbering: new MockNumberingRepository(),
     install: new MockInstallRepository()
   };
 }

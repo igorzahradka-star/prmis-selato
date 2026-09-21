@@ -7,6 +7,7 @@
  */
 
 import { BudgetStatus, Project, ProjectStatus, Role } from '../../core/types';
+import { DocTypeConfig } from '../repositories';
 
 /** Pomocník: datum relativně ke dnešku, aby ukázka nezestárla. */
 function den(offset: number): Date {
@@ -177,5 +178,52 @@ export const MOCK_PROJECTS: Project[] = [
     startDate: den(-254),
     isOverhead: true,
     budgetStatus: BudgetStatus.Bez
+  }
+];
+
+/**
+ * Výchozí číselné řady (PRM_DocTypes) — návrh podle zadání kap. 7.
+ * Administrátor je bude moct upravit v Nastavení; tohle je jen startovní sada.
+ */
+export const DEFAULT_DOC_TYPES: DocTypeConfig[] = [
+  {
+    code: 'PRJ',
+    name: 'Číslo projektu',
+    pattern: '{YY}-{N}',
+    padding: 3,
+    resetPeriod: 'Ročně',
+    scope: 'Globální',
+    startValue: 1,
+    active: true
+  },
+  {
+    code: 'OBJ',
+    name: 'Objednávka',
+    pattern: 'OBJ-{YYYY}-{N}',
+    padding: 4,
+    resetPeriod: 'Ročně',
+    scope: 'Globální',
+    startValue: 1,
+    active: true
+  },
+  {
+    code: 'FP',
+    name: 'Podklad pro fakturaci',
+    pattern: 'FP{YY}{N}',
+    padding: 3,
+    resetPeriod: 'Ročně',
+    scope: 'Globální',
+    startValue: 1,
+    active: true
+  },
+  {
+    code: 'PP',
+    name: 'Předávací protokol',
+    pattern: 'PP-{PRJ}-{N}',
+    padding: 2,
+    resetPeriod: 'Nikdy',
+    scope: 'Projekt',
+    startValue: 1,
+    active: true
   }
 ];

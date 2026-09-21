@@ -25,6 +25,7 @@ import { createMockRepositories } from '../../data/mock/mockRepositories';
 import { SpUserRepository } from '../../data/sharepoint/spUserRepository';
 import { SpSettingsRepository } from '../../data/sharepoint/spSettingsRepository';
 import { SpProjectRepository } from '../../data/sharepoint/spProjectRepository';
+import { SpNumberingRepository } from '../../data/sharepoint/spNumberingRepository';
 import { SpInstallRepository } from '../../data/sharepoint/spInstallRepository';
 
 export type DataSource = 'sharepoint' | 'mock';
@@ -74,6 +75,7 @@ export default class PrmWebPart extends BaseClientSideWebPart<IPrmWebPartProps> 
       // ID uživatele je už v kontextu stránky — kvůli filtru „moje projekty"
       // tak nemusíme čekat na další dotaz do SharePointu.
       projects: new SpProjectRepository(this.context, userId),
+      numbering: new SpNumberingRepository(this.context),
       install: new SpInstallRepository(this.context, financeSiteUrl, settings)
     };
   }
