@@ -10,7 +10,6 @@ import * as React from 'react';
 import { DetailsList, DetailsListLayoutMode, IColumn, SelectionMode } from '@fluentui/react/lib/DetailsList';
 import { SearchBox } from '@fluentui/react/lib/SearchBox';
 import { Dropdown, IDropdownOption } from '@fluentui/react/lib/Dropdown';
-import { Toggle } from '@fluentui/react/lib/Toggle';
 import { PrimaryButton } from '@fluentui/react/lib/Button';
 import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
@@ -26,14 +25,12 @@ import { formatDate, formatMoney, dueLabel } from '../../core/format';
 import { canCreateProject } from '../../core/roles';
 
 export const DashboardPage: React.FC = () => {
-  const { repos, settings, user } = useApp();
+  const { repos, user } = useApp();
 
   const [projects, setProjects] = React.useState<Project[] | undefined>(undefined);
   const [error, setError] = React.useState<string | undefined>(undefined);
   const [search, setSearch] = React.useState<string>('');
-  const [onlyMine, setOnlyMine] = React.useState<boolean>(false);
   const [statuses, setStatuses] = React.useState<string[]>([]);
-  const [types, setTypes] = React.useState<string[]>([]);
   const [pms, setPms] = React.useState<string[]>([]);
   const [pmOptions, setPmOptions] = React.useState<IDropdownOption[]>([]);
 
@@ -43,7 +40,7 @@ export const DashboardPage: React.FC = () => {
     setError(undefined);
 
     repos.projects
-      .list({ onlyMine, statuses, projectTypes: types, projectManagerNames: pms, search })
+      .list({ statuses, projectManagerNames: pms, search })
       .then((data) => {
         if (!cancelled) {
           setProjects(data);
@@ -58,7 +55,7 @@ export const DashboardPage: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [repos, onlyMine, statuses.join(','), types.join(','), pms.join(','), search]);
+  }, [repos, statuses.join(','), pms.join(','), search]);
 
   // Nabídka jmen PM do filtru — ze všech zakázek, nezávisle na aktuálním filtru.
   React.useEffect(() => {
@@ -84,11 +81,6 @@ export const DashboardPage: React.FC = () => {
   const statusOptions: IDropdownOption[] = Object.keys(ProjectStatus).map((k) => ({
     key: ProjectStatus[k as keyof typeof ProjectStatus],
     text: ProjectStatus[k as keyof typeof ProjectStatus]
-  }));
-
-  const typeOptions: IDropdownOption[] = settings.projects.projectTypes.map((t) => ({
-    key: t,
-    text: t
   }));
 
   return (
@@ -143,22 +135,6 @@ export const DashboardPage: React.FC = () => {
           onChange={(_, option) => option && setStatuses(toggle(statuses, String(option.key), !!option.selected))}
           styles={{ root: { minWidth: 180 } }}
           placeholder="Všechny stavy"
-        />
-        <Dropdown
-          label="Typ zakázky"
-          multiSelect
-          options={typeOptions}
-          selectedKeys={types}
-          onChange={(_, option) => option && setTypes(toggle(types, String(option.key), !!option.selected))}
-          styles={{ root: { minWidth: 180 } }}
-          placeholder="Všechny typy"
-        />
-        <Toggle
-          label="Jen moje zakázky"
-          inlineLabel
-          checked={onlyMine}
-          onChange={(_, checked) => setOnlyMine(!!checked)}
-          styles={{ root: { marginBottom: 4 } }}
         />
       </div>
 
@@ -221,7 +197,10 @@ function buildColumns(): IColumn[] {
       minWidth: 220,
       isResizable: true,
       isMultiline: false,
-      onRender: (p: Project) => <span title={p.title}>{p.title}</span>
+      onRender: (p: Project) => {
+        const name = titleWithoutNumber(p);
+        return <span title={name}>{name}</span>;
+      }
     },
     {
       key: 'pm',
@@ -301,6 +280,15 @@ function buildColumns(): IColumn[] {
       onRender: (p: Project) => <StatusBadge status={p.status} />
     }
   ];
+}
+
+/**
+ * Název zakázky pro tabulku — bez čísla na začátku, to je už ve svém sloupci.
+ * Číslo zůstává v `title` (generovaný název s číslem se používá jinde, např. na PDF).
+ */
+function titleWithoutNumber(p: Project): string {
+  const prefix = `${p.projectNumber} `;
+  return p.title.startsWith(prefix) ? p.title.slice(prefix.length) : p.title;
 }
 
 /** Zakázky, které se počítají jako aktivní. Používá i KpiTiles. */

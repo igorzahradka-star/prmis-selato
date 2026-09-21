@@ -13,6 +13,10 @@ import { Icon } from '@fluentui/react/lib/Icon';
 import { Project, BudgetStatus, ACTIVE_PROJECT_STATUSES } from '../../core/types';
 import { formatMoney, daysBetween } from '../../core/format';
 import { RES } from '../../ui/theme';
+import streakUrl from '../../webparts/prm/assets/res-kpi-streak.png';
+
+/** Stejný diagonální přechod (tmavá → navy → modrá) jako v grafickém manuálu RES. */
+const KPI_GRADIENT = `linear-gradient(135deg, ${RES.text} 0%, ${RES.navyDark} 55%, ${RES.blue} 100%)`;
 
 /** Kolik dní dopředu se hlídají smluvní termíny. Ze zadání: 14 dní. */
 export const DEADLINE_WINDOW_DAYS = 14;
@@ -64,40 +68,43 @@ export const KpiTiles: React.FC<{ projects: Project[] | undefined }> = ({ projec
       style={{
         display: 'flex',
         flexWrap: 'wrap',
-        background: RES.white,
-        border: `1px solid ${RES.grayBlue}`,
-        borderRadius: 4
+        borderRadius: 4,
+        overflow: 'hidden',
+        backgroundImage: `url(${streakUrl}), ${KPI_GRADIENT}`,
+        backgroundRepeat: 'no-repeat, no-repeat',
+        backgroundPosition: 'center, center',
+        backgroundSize: 'cover, cover'
       }}
     >
       <Tile
         icon="ViewList"
         label="Aktivní zakázky"
         value={String(kpi.activeCount)}
-        color={RES.blue}
+        color={RES.blueLight}
       />
       <Tile
         icon="Money"
         label="Hodnota aktivních"
         value={formatMoney(kpi.activeValue)}
-        color={RES.greenDark}
+        color={RES.green}
       />
       <Tile
         icon="StatusErrorFull"
         label="V červené"
         value={String(kpi.redCount)}
-        color={kpi.redCount > 0 ? RES.red : RES.gray}
+        color={kpi.redCount > 0 ? RES.red : RES.grayBlue}
       />
       <Tile
         icon="Clock"
         label={`Termíny do ${DEADLINE_WINDOW_DAYS} dní`}
         value={String(kpi.upcomingDeadlines)}
-        color={RES.blueMid}
+        color={RES.blueLight}
       />
       <Tile
         icon="Warning"
         label="Po splatnosti"
         value={String(kpi.overdueDeadlines)}
-        color={kpi.overdueDeadlines > 0 ? RES.red : RES.gray}
+        color={kpi.overdueDeadlines > 0 ? RES.red : RES.grayBlue}
         isLast
       />
     </div>
@@ -118,12 +125,12 @@ const Tile: React.FC<{ icon: string; label: string; value: string; color: string
       gap: 8,
       flex: '1 1 auto',
       minWidth: 150,
-      padding: '8px 14px',
-      borderRight: isLast ? 'none' : `1px solid ${RES.grayBlue}`
+      padding: '10px 14px',
+      borderRight: isLast ? 'none' : '1px solid rgba(255,255,255,0.2)'
     }}
   >
     <Icon iconName={icon} style={{ fontSize: 14, color }} />
-    <span style={{ fontSize: 16, fontWeight: 700, color: RES.text }}>{value}</span>
-    <span style={{ fontSize: 11, color: RES.gray, lineHeight: 1.2 }}>{label}</span>
+    <span style={{ fontSize: 16, fontWeight: 700, color: RES.white }}>{value}</span>
+    <span style={{ fontSize: 11, color: RES.bluePale, lineHeight: 1.2 }}>{label}</span>
   </div>
 );
