@@ -45,7 +45,12 @@ http
         res.end('Soubor nenalezen: ' + relative);
         return;
       }
-      res.writeHead(200, { 'Content-Type': TYPES[path.extname(file)] || 'application/octet-stream' });
+      res.writeHead(200, {
+        'Content-Type': TYPES[path.extname(file)] || 'application/octet-stream',
+        // Bez tohohle prohlížeč po přestavění náhledu klidně ukáže starou
+        // verzi z cache — soubor se pořád jmenuje stejně (nahled.js).
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
+      });
       res.end(data);
     });
   })

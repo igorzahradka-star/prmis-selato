@@ -1,14 +1,15 @@
 /**
  * Partneři — zákazníci a dodavatelé (PRM_Partners).
  *
- * Fáze 1: seznam, hledání, založení a úprava. Napojení na ARES podle IČO
- * je volitelné rozšíření ze zadání — zatím se IČO/DIČ vyplňují ručně.
+ * Fáze 1: seznam, hledání, založení a úprava. Název, adresu a DIČ jde
+ * dotáhnout z ARES podle IČO — kontaktní osobu, e-mail a telefon ARES nezná,
+ * ty se doplňují ručně.
  */
 
 import * as React from 'react';
 import { DetailsList, DetailsListLayoutMode, IColumn, SelectionMode } from '@fluentui/react/lib/DetailsList';
 import { SearchBox } from '@fluentui/react/lib/SearchBox';
-import { PrimaryButton, DefaultButton } from '@fluentui/react/lib/Button';
+import { PrimaryButton, DefaultButton, IconButton } from '@fluentui/react/lib/Button';
 import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
 import { Panel, PanelType } from '@fluentui/react/lib/Panel';
@@ -16,12 +17,15 @@ import { TextField } from '@fluentui/react/lib/TextField';
 import { Dropdown, IDropdownOption } from '@fluentui/react/lib/Dropdown';
 import { Toggle } from '@fluentui/react/lib/Toggle';
 import { Link } from '@fluentui/react/lib/Link';
+import { TooltipHost } from '@fluentui/react/lib/Tooltip';
 
 import { useApp } from '../../ui/AppContext';
 import { RES } from '../../ui/theme';
 import { PageHeading } from '../../ui/components/PageHeading';
 import { Partner, PartnerType } from '../../core/types';
 import { canManagePartners } from '../../core/roles';
+import { isValidIco } from '../../core/ico';
+import { lookupCompanyByIco } from '../../data/ares';
 
 const PARTNER_TYPE_OPTIONS: IDropdownOption[] = [
   { key: PartnerType.Zakaznik, text: PartnerType.Zakaznik },
@@ -51,6 +55,8 @@ export const PartnersPage: React.FC = () => {
   const [search, setSearch] = React.useState<string>('');
   const [editing, setEditing] = React.useState<Partner | undefined>(undefined);
   const [isNew, setIsNew] = React.useState<boolean>(false);
+  const [aresLoading, setAresLoading] = React.useState<boolean>(false);
+  const [aresError, setAresError] = React.useState<string | undefined>(undefined);
   // Chrání proti tomu, aby pomalejší starší odpověď (např. při rychlém psaní
   // do hledání) přepsala výsledek novějšího dotazu.
   const requestId = React.useRef(0);
@@ -80,14 +86,35 @@ export const PartnersPage: React.FC = () => {
   const openNew = (): void => {
     setEditing({ ...EMPTY_DRAFT, id: 0 });
     setIsNew(true);
+    setAresError(undefined);
   };
 
   const openEdit = (partner: Partner): void => {
     setEditing({ ...partner });
     setIsNew(false);
+    setAresError(undefined);
   };
 
   const close = (): void => setEditing(undefined);
+
+  const loadFromAres = (): void => {
+    if (!editing || !editing.ico) {
+      return;
+    }
+    setAresError(undefined);
+    setAresLoading(true);
+    lookupCompanyByIco(editing.ico)
+      .then((company) => {
+        setEditing((current) =>
+          current ? { ...current, name: company.name || current.name, address: company.address, dic: company.dic } : current
+        );
+        setAresLoading(false);
+      })
+      .catch((e: Error) => {
+        setAresError(e.message);
+        setAresLoading(false);
+      });
+  };
 
   const save = (): void => {
     if (!editing) {
@@ -168,7 +195,34 @@ export const PartnersPage: React.FC = () => {
               selectedKey={editing.partnerType}
               onChange={(_, o) => o && setEditing({ ...editing, partnerType: o.key as PartnerType })}
             />
-            <TextField label="IČO" value={editing.ico ?? ''} onChange={(_, v) => setEditing({ ...editing, ico: v })} />
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4 }}>
+              <TextField
+                label="IČO"
+                value={editing.ico ?? ''}
+                onChange={(_, v) => {
+                  setAresError(undefined);
+                  setEditing({ ...editing, ico: v });
+                }}
+                styles={{ root: { flex: '1 1 auto' } }}
+              />
+              <TooltipHost content="Načíst název, adresu a DIČ z ARES podle IČO">
+                {aresLoading ? (
+                  <Spinner size={SpinnerSize.small} styles={{ root: { padding: '0 8px', height: 32 } }} />
+                ) : (
+                  <IconButton
+                    iconProps={{ iconName: 'Search' }}
+                    ariaLabel="Načíst z ARES"
+                    disabled={!editing.ico || !isValidIco(editing.ico)}
+                    onClick={loadFromAres}
+                  />
+                )}
+              </TooltipHost>
+            </div>
+            {aresError && (
+              <MessageBar messageBarType={MessageBarType.warning} onDismiss={() => setAresError(undefined)}>
+                {aresError}
+              </MessageBar>
+            )}
             <TextField label="DIČ" value={editing.dic ?? ''} onChange={(_, v) => setEditing({ ...editing, dic: v })} />
             <TextField
               label="Adresa"
