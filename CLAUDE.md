@@ -21,6 +21,16 @@ a Excel report pro finančního ředitele holdingu.
 
 ---
 
+## 1a. Jak navázat v nové relaci
+
+Historie předchozích konverzací se nepřenáší — **tento soubor a `docs/` jsou
+jediná paměť projektu.** Na začátku každé relace:
+
+1. Přečti tento soubor, `docs/ZADANI.md`, `docs/ROZHODNUTI.md` a `CHANGELOG.md`.
+2. Podívej se na `git log --oneline` — co se dělalo naposledy.
+3. Stav fází je v kapitole 9, otevřené otázky v `docs/ROZHODNUTI.md`.
+4. Node.js 22 musí být v PATH (`node --version` → `v22.x`). Pokud není, viz kap. 3.
+
 ## 2. Pravidla spolupráce (závazná)
 
 1. **Komunikuj česky**, srozumitelně, bez žargonu. Technické kroky (instalace,
@@ -121,6 +131,19 @@ Web part má vlastnost **„Zdroj dat"** (v panelu vlastností web partu):
 
 Mock repozitáře implementují **stejná rozhraní** jako ostré. Díky tomu se dá
 celé UI vyvíjet a předvést i bez hotových seznamů.
+
+### Lokální náhled (bez SharePointu)
+
+Složka `nahled/` vykreslí **stejné komponenty** s mock daty do obyčejné stránky —
+jediný způsob, jak aplikaci vidět bez tenanta (lokální workbench SPFx už neexistuje).
+
+```bash
+cd spfx && npm run test && cd ..\nahled && node build.js && node serve.js
+```
+
+Pak `http://localhost:4322`. Náhled bere přeložený kód ze `spfx/lib`, proto
+nejdřív `npm run test` (nebo `heft build`). Po každé změně UI náhled znovu sestav
+a ověř v prohlížeči, než řekneš, že je hotovo.
 
 ---
 
