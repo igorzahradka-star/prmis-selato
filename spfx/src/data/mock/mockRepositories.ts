@@ -127,6 +127,11 @@ export function applyProjectFilter(
   if (f.projectTypes && f.projectTypes.length > 0) {
     result = result.filter((p) => !!p.projectType && (f.projectTypes as string[]).indexOf(p.projectType) !== -1);
   }
+  if (f.projectManagerNames && f.projectManagerNames.length > 0) {
+    result = result.filter(
+      (p) => !!p.projectManagerName && (f.projectManagerNames as string[]).indexOf(p.projectManagerName) !== -1
+    );
+  }
   if (f.year) {
     result = result.filter((p) => !!p.startDate && p.startDate.getFullYear() === f.year);
   }

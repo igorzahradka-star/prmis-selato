@@ -96,7 +96,8 @@ export class SpProjectRepository implements IProjectRepository {
       // Fulltext se dělá až v prohlížeči: SharePoint umí `substringof` jen
       // na indexovaných textových sloupcích a kombinace s dalšími filtry
       // často narazí na limit 5 000 položek. Zakázek jsou stovky, ne miliony.
-      return applyTextSearch(projects, filter?.search);
+      const withSearch = applyTextSearch(projects, filter?.search);
+      return applyPmFilter(withSearch, filter?.projectManagerNames);
     } catch (error) {
       throw new Error(describeSpError(error, 'Nepodařilo se načíst seznam zakázek'));
     }
@@ -149,6 +150,17 @@ export function buildProjectFilter(
   }
 
   return parts.join(' and ');
+}
+
+/**
+ * Filtr podle jména PM. Stejně jako u asistentů (viz `buildProjectFilter`)
+ * OData filtr na zobrazované jméno z Person pole neumí, dofiltruje se tady.
+ */
+export function applyPmFilter(projects: Project[], names: string[] | undefined): Project[] {
+  if (!names || names.length === 0) {
+    return projects;
+  }
+  return projects.filter((p) => !!p.projectManagerName && names.indexOf(p.projectManagerName) !== -1);
 }
 
 /** Fulltext přes číslo, název, zákazníka, lokalitu a zkratku. */

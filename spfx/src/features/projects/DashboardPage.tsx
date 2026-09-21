@@ -34,6 +34,8 @@ export const DashboardPage: React.FC = () => {
   const [onlyMine, setOnlyMine] = React.useState<boolean>(false);
   const [statuses, setStatuses] = React.useState<string[]>([]);
   const [types, setTypes] = React.useState<string[]>([]);
+  const [pms, setPms] = React.useState<string[]>([]);
+  const [pmOptions, setPmOptions] = React.useState<IDropdownOption[]>([]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -41,7 +43,7 @@ export const DashboardPage: React.FC = () => {
     setError(undefined);
 
     repos.projects
-      .list({ onlyMine, statuses, projectTypes: types, search })
+      .list({ onlyMine, statuses, projectTypes: types, projectManagerNames: pms, search })
       .then((data) => {
         if (!cancelled) {
           setProjects(data);
@@ -56,7 +58,28 @@ export const DashboardPage: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [repos, onlyMine, statuses.join(','), types.join(','), search]);
+  }, [repos, onlyMine, statuses.join(','), types.join(','), pms.join(','), search]);
+
+  // Nabídka jmen PM do filtru — ze všech zakázek, nezávisle na aktuálním filtru.
+  React.useEffect(() => {
+    let cancelled = false;
+    repos.projects
+      .list({})
+      .then((all) => {
+        if (cancelled) {
+          return;
+        }
+        const names = Array.from(new Set(all.map((p) => p.projectManagerName).filter((n): n is string => !!n)));
+        names.sort((a, b) => a.localeCompare(b, 'cs-CZ'));
+        setPmOptions(names.map((n) => ({ key: n, text: n })));
+      })
+      .catch(() => {
+        // Nabídka PM je jen doplněk filtru — když se nenačte, dropdown zůstane prázdný.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [repos]);
 
   const statusOptions: IDropdownOption[] = Object.keys(ProjectStatus).map((k) => ({
     key: ProjectStatus[k as keyof typeof ProjectStatus],
@@ -93,7 +116,7 @@ export const DashboardPage: React.FC = () => {
           flexWrap: 'wrap',
           gap: 12,
           alignItems: 'flex-end',
-          margin: '20px 0 12px'
+          margin: '12px 0'
         }}
       >
         <SearchBox
@@ -102,6 +125,15 @@ export const DashboardPage: React.FC = () => {
           onChange={(_, v) => setSearch(v ?? '')}
           onClear={() => setSearch('')}
           styles={{ root: { width: 320 } }}
+        />
+        <Dropdown
+          label="Projektový manažer"
+          multiSelect
+          options={pmOptions}
+          selectedKeys={pms}
+          onChange={(_, option) => option && setPms(toggle(pms, String(option.key), !!option.selected))}
+          styles={{ root: { minWidth: 200 } }}
+          placeholder="Všichni PM"
         />
         <Dropdown
           label="Stav"

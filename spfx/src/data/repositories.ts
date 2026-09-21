@@ -33,6 +33,8 @@ export interface ProjectFilter {
   onlyMine?: boolean;
   statuses?: string[];
   projectTypes?: string[];
+  /** Filtr podle jména PM (zobrazovaného, ne ID) — dofiltruje se v prohlížeči. */
+  projectManagerNames?: string[];
   year?: number;
   /** Fulltext přes číslo, název, zákazníka a lokalitu. */
   search?: string;

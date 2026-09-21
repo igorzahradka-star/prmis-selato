@@ -54,19 +54,21 @@ export function computeKpi(projects: Project[], today: Date = new Date()): KpiSu
 
 export const KpiTiles: React.FC<{ projects: Project[] | undefined }> = ({ projects }) => {
   if (!projects) {
-    return (
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-        {[0, 1, 2, 3].map((i) => (
-          <Shimmer key={i} width={200} styles={{ root: { height: 86 } }} />
-        ))}
-      </div>
-    );
+    return <Shimmer styles={{ root: { height: 40 } }} />;
   }
 
   const kpi = computeKpi(projects);
 
   return (
-    <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+    <div
+      style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        background: RES.white,
+        border: `1px solid ${RES.grayBlue}`,
+        borderRadius: 4
+      }}
+    >
       <Tile
         icon="ViewList"
         label="Aktivní zakázky"
@@ -75,13 +77,13 @@ export const KpiTiles: React.FC<{ projects: Project[] | undefined }> = ({ projec
       />
       <Tile
         icon="Money"
-        label="Hodnota aktivních zakázek"
+        label="Hodnota aktivních"
         value={formatMoney(kpi.activeValue)}
         color={RES.greenDark}
       />
       <Tile
         icon="StatusErrorFull"
-        label="Zakázky v červené"
+        label="V červené"
         value={String(kpi.redCount)}
         color={kpi.redCount > 0 ? RES.red : RES.gray}
       />
@@ -93,35 +95,35 @@ export const KpiTiles: React.FC<{ projects: Project[] | undefined }> = ({ projec
       />
       <Tile
         icon="Warning"
-        label="Termíny po splatnosti"
+        label="Po splatnosti"
         value={String(kpi.overdueDeadlines)}
         color={kpi.overdueDeadlines > 0 ? RES.red : RES.gray}
+        isLast
       />
     </div>
   );
 };
 
-const Tile: React.FC<{ icon: string; label: string; value: string; color: string }> = ({
+const Tile: React.FC<{ icon: string; label: string; value: string; color: string; isLast?: boolean }> = ({
   icon,
   label,
   value,
-  color
+  color,
+  isLast
 }) => (
   <div
     style={{
-      flex: '1 1 180px',
-      maxWidth: 280,
-      background: RES.white,
-      border: `1px solid ${RES.grayBlue}`,
-      borderRadius: 4,
-      borderLeft: `3px solid ${color}`,
-      padding: '12px 16px'
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      flex: '1 1 auto',
+      minWidth: 150,
+      padding: '8px 14px',
+      borderRight: isLast ? 'none' : `1px solid ${RES.grayBlue}`
     }}
   >
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: RES.gray, fontSize: 12 }}>
-      <Icon iconName={icon} style={{ fontSize: 13 }} />
-      {label}
-    </div>
-    <div style={{ fontSize: 22, fontWeight: 600, color: RES.text, marginTop: 4 }}>{value}</div>
+    <Icon iconName={icon} style={{ fontSize: 14, color }} />
+    <span style={{ fontSize: 16, fontWeight: 700, color: RES.text }}>{value}</span>
+    <span style={{ fontSize: 11, color: RES.gray, lineHeight: 1.2 }}>{label}</span>
   </div>
 );
