@@ -7,11 +7,11 @@
 
 ## 1. Co to je
 
-**PRM Revoltum** — informační systém pro řízení zakázek firmy
+**PRM Revoltum** — informační systém pro řízení projektů firmy
 Revoltum Engineering & Services a.s. (dále RES).
 
 Jedna webová aplikace na firemním SharePointu, kde projektoví manažeři (PM)
-a jejich asistenti vedou celou zakázku: evidence, složky, objednávky, fakturace,
+a jejich asistenti vedou celý projekt: evidence, složky, objednávky, fakturace,
 realizační rozpočet, cashflow, harmonogram. Pro vedení navíc celofiremní cashflow
 a Excel report pro finančního ředitele holdingu.
 
@@ -85,7 +85,7 @@ npm run package          # produkční .sppkg do sharepoint/solution/
 ## 4. Architektura (závazná — neměnit bez domluvy)
 
 Aplikace je **jeden full-width web part** na stránce typu *single part app page*
-na webu PRM. Interní navigace přes hash router (`#/zakazky`, `#/zakazky/26-014`, …).
+na webu PRM. Interní navigace přes hash router (`#/projekty`, `#/projekt/26-014`, …).
 Stejný web part lze přidat jako záložku do Microsoft Teams.
 
 ```
@@ -201,7 +201,7 @@ Testovací scénáře pro každou fázi: [`docs/testy/`](docs/testy/).
 | Fáze | Obsah | Stav |
 |---|---|---|
 | **0 — Základ** | kostra SPFx, CLAUDE.md, git, theme RES + logo, layout a navigace, detekce uživatele a rolí, mock data, průvodce Instalace a diagnostika, Nastavení (základ), návod na nasazení | ✅ kód hotov (11. 9. 2026), build i 120 testů prochází · **čeká na nasazení a otestování na tenantu** |
-| 1 — Zakázky (MVP) | číselné řady, partneři, založení zakázky, struktura složek, dashboard, detail zakázky, import z Excelu | ⏳ čeká |
+| 1 — Projekty (MVP) | číselné řady, partneři, založení projektu, struktura složek, dashboard, detail projektu, import z Excelu | ⏳ čeká |
 | 2 — Objednávky, fakturace, dokumenty | objednávky + schvalování, „Čeká na mě", e-maily, PDF, podklady pro fakturaci, protokoly, audit | ⏳ čeká |
 | 3 — Realizační rozpočet a CF projektu | RR editor, verze a baseline, semafor, fakturační milníky, CF projektu | ⏳ čeká |
 | 4 — Harmonogram | Gantt, závislosti, CPM a kritická cesta, baseline, vazba na RR a CF | ⏳ čeká |

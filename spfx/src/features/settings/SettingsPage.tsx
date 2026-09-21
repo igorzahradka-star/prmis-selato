@@ -1,8 +1,8 @@
 /**
  * Nastavení aplikace (jen administrátor).
  *
- * Fáze 0: umístění projektových složek, šablona složek, vzor názvu zakázky,
- * typy zakázek, kategorie rozpočtu, prahy semaforu, limity schvalování,
+ * Fáze 0: umístění projektových složek, šablona složek, vzor názvu projektu,
+ * typy projektů, kategorie rozpočtu, prahy semaforu, limity schvalování,
  * názvy skupin rolí a fakturační údaje RES.
  *
  * Číselné řady dokumentů se doplní ve Fázi 1 (až budou k dispozici čítače),
@@ -120,16 +120,16 @@ export const SettingsPage: React.FC = () => {
       )}
 
       <Pivot styles={{ root: { marginTop: 12 } }}>
-        <PivotItem headerText="Složky zakázek" itemIcon="FolderHorizontal">
+        <PivotItem headerText="Složky projektů" itemIcon="FolderHorizontal">
           <Panel>
             <Hint>
-              Kam se zakládají složky nových zakázek. Knihovnu doporučujeme mít v Průzkumníku
+              Kam se zakládají složky nových projektů. Knihovnu doporučujeme mít v Průzkumníku
               trvale synchronizovanou přes OneDrive — viz Nápověda.
             </Hint>
             <TextField
               label="Adresa webu s knihovnou"
               description="Nechte prázdné, pokud je knihovna na stejném webu jako aplikace."
-              placeholder="https://firma.sharepoint.com/sites/RES-Zakazky"
+              placeholder="https://firma.sharepoint.com/sites/RES-Projekty"
               value={draft.folders.siteUrl}
               onChange={(_, v) => patch('folders', { siteUrl: v || '' })}
             />
@@ -141,14 +141,14 @@ export const SettingsPage: React.FC = () => {
             />
             <TextField
               label="Kořenová složka v knihovně"
-              description="Například „Zakázky“. Prázdné = složky vznikají přímo v kořeni knihovny."
+              description="Například „Projekty“. Prázdné = složky vznikají přímo v kořeni knihovny."
               value={draft.folders.rootFolder}
               onChange={(_, v) => patch('folders', { rootFolder: v || '' })}
             />
             <Toggle
               label="Zakládat podsložku podle roku"
-              onText="Ano – Zakázky / 2026 / 26-014"
-              offText="Ne – Zakázky / 26-014"
+              onText="Ano – Projekty / 2026 / 26-014"
+              offText="Ne – Projekty / 26-014"
               checked={draft.folders.subfolderByYear}
               onChange={(_, c) => patch('folders', { subfolderByYear: !!c })}
             />
@@ -159,18 +159,18 @@ export const SettingsPage: React.FC = () => {
           </Panel>
         </PivotItem>
 
-        <PivotItem headerText="Zakázky" itemIcon="ViewList">
+        <PivotItem headerText="Projekty" itemIcon="ViewList">
           <Panel>
             <TextField
-              label="Vzor názvu zakázky"
+              label="Vzor názvu projektu"
               required
               description="Tokeny: {CISLO}, {ZAKAZNIK}, {LOKALITA}, {TYP}, {ROK}. Projektový manažer může název před uložením upravit."
               value={draft.projects.titlePattern}
               onChange={(_, v) => patch('projects', { titlePattern: v || '' })}
             />
             <ListEditor
-              label="Typy zakázek"
-              description="Nabídka v průvodci založením zakázky. Odebráním typu se nezmění už založené zakázky."
+              label="Typy projektů"
+              description="Nabídka v průvodci založením projektu. Odebráním typu se nezmění už založené projekty."
               values={draft.projects.projectTypes}
               onChange={(projectTypes) => patch('projects', { projectTypes })}
             />

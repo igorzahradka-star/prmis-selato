@@ -36,7 +36,7 @@ describe('validateSettings', () => {
     expect(validateSettings(s).join(' ')).toContain('Šablona složek');
   });
 
-  it('vyžaduje token {CISLO} ve vzoru názvu zakázky', () => {
+  it('vyžaduje token {CISLO} ve vzoru názvu projektu', () => {
     const s = withDefaults({
       projects: { ...DEFAULT_SETTINGS.projects, titlePattern: '{ZAKAZNIK} – {TYP}' }
     });

@@ -46,17 +46,17 @@ export const HelpPage: React.FC = () => {
           )}
         </Article>
 
-        <Article title="Proč se složka zakázky neotevře rovnou v Průzkumníku">
+        <Article title="Proč se složka projektu neotevře rovnou v Průzkumníku">
           <p>
             Webový prohlížeč z bezpečnostních důvodů nesmí spouštět programy ve Windows —
-            nemůže tedy otevřít Průzkumník. Tlačítko „Otevřít složku zakázky“ proto otevře
+            nemůže tedy otevřít Průzkumník. Tlačítko „Otevřít složku projektu“ proto otevře
             složku v SharePointu v novém okně.
           </p>
           <p>
             <strong>Doporučený postup, jak mít složky i v Průzkumníku:</strong>
           </p>
           <ol style={{ margin: '6px 0 0 20px', lineHeight: 1.7 }}>
-            <li>Otevřete knihovnu zakázek v SharePointu.</li>
+            <li>Otevřete knihovnu projektů v SharePointu.</li>
             <li>
               Nahoře klikněte na <strong>Synchronizovat</strong> (nebo{' '}
               <strong>Přidat zástupce do Mé soubory</strong>).
@@ -68,14 +68,14 @@ export const HelpPage: React.FC = () => {
             </li>
           </ol>
           <p style={{ marginTop: 8 }}>
-            Tlačítkem <strong>Kopírovat název složky</strong> u zakázky si navíc zkopírujete
+            Tlačítkem <strong>Kopírovat název složky</strong> u projektu si navíc zkopírujete
             název do schránky a v Průzkumníku ho jen vložíte do vyhledávání.
           </p>
         </Article>
 
-        <Article title="Kde se berou čísla a názvy zakázek">
+        <Article title="Kde se berou čísla a názvy projektů">
           <p>
-            Číslo přiděluje aplikace sama při založení zakázky podle číselné řady nastavené
+            Číslo přiděluje aplikace sama při založení projektu podle číselné řady nastavené
             administrátorem. Název se vygeneruje podle vzoru{' '}
             <code style={codeStyle}>{settings.projects.titlePattern}</code> a projektový manažer
             ho může před uložením upravit.
@@ -99,7 +99,7 @@ export const HelpPage: React.FC = () => {
               nebo marže pod {settings.budget.minimumMarginPercent} %.
             </li>
             <li>
-              <strong>Bez rozpočtu</strong> — zakázka nemá schválený realizační rozpočet, semafor
+              <strong>Bez rozpočtu</strong> — projekt nemá schválený realizační rozpočet, semafor
               se nepočítá.
             </li>
           </ul>

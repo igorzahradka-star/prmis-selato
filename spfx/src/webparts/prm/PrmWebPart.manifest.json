@@ -17,7 +17,7 @@
     "groupId": "5c03119e-3074-46fd-976b-c60198311f70",
     "group": { "default": "Pokročilé" },
     "title": { "default": "PRM Revoltum" },
-    "description": { "default": "Řízení zakázek Revoltum Engineering & Services" },
+    "description": { "default": "Řízení projektů Revoltum Engineering & Services" },
     "officeFabricIconFontName": "ViewList",
     "properties": {
       "dataSource": "sharepoint",

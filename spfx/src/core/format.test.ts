@@ -159,10 +159,10 @@ describe('české skloňování', () => {
     expect(pluralDays(21)).toBe('21 dní');
   });
 
-  it('skloňuje zakázky', () => {
-    expect(pluralProjects(0)).toBe('0 zakázek');
-    expect(pluralProjects(1)).toBe('1 zakázka');
-    expect(pluralProjects(3)).toBe('3 zakázky');
-    expect(pluralProjects(11)).toBe('11 zakázek');
+  it('skloňuje projekty', () => {
+    expect(pluralProjects(0)).toBe('0 projektů');
+    expect(pluralProjects(1)).toBe('1 projekt');
+    expect(pluralProjects(3)).toBe('3 projekty');
+    expect(pluralProjects(11)).toBe('11 projektů');
   });
 });

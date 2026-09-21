@@ -3,9 +3,9 @@
  *
  * Proč XML a ne `fields.addText()` a spol.: jen přes XML se dá spolehlivě
  * nastavit zároveň **interní název** (anglicky, bez diakritiky) a **zobrazovaný
- * název** (česky). Kdybychom použili `addText('Číslo zakázky')`, SharePoint by
- * z českého názvu vyrobil interní název `_x010d_slo_x0020_zak_x00e1_zky`
- * a všechny dotazy by byly nečitelné.
+ * název** (česky). Kdybychom použili `addText('Číslo projektu')`, SharePoint by
+ * z českého názvu vyrobil nečitelný interní název a všechny dotazy by byly
+ * nesrozumitelné.
  *
  * Vrstva bez závislosti na PnPjs — jde otestovat samostatně.
  */

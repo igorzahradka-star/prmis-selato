@@ -145,7 +145,7 @@ const PRM_DOCTYPES: ListDef = {
     { name: 'Pattern', title: 'Vzor čísla', type: 'Text', required: true, description: 'Tokeny {PREFIX} {YYYY} {YY} {N} {PRJ}' },
     { name: 'Padding', title: 'Počet míst', type: 'Number', decimals: 0, defaultValue: '3' },
     { name: 'ResetPeriod', title: 'Reset', type: 'Choice', choices: ['Ročně', 'Nikdy'], defaultValue: 'Ročně' },
-    { name: 'Scope', title: 'Rozsah', type: 'Choice', choices: ['Globální', 'Zakázka'], defaultValue: 'Globální' },
+    { name: 'Scope', title: 'Rozsah', type: 'Choice', choices: ['Globální', 'Projekt'], defaultValue: 'Globální' },
     { name: 'StartValue', title: 'Počáteční hodnota', type: 'Number', decimals: 0, defaultValue: '1' },
     { name: 'Active', title: 'Aktivní', type: 'Boolean', defaultValue: '1' }
   ]
@@ -162,7 +162,7 @@ const PRM_COUNTERS: ListDef = {
   fields: [
     { name: 'DocTypeCode', title: 'Kód typu', type: 'Text', required: true, indexed: true },
     { name: 'Year', title: 'Rok', type: 'Number', decimals: 0, indexed: true },
-    { name: 'ScopeKey', title: 'Klíč rozsahu', type: 'Text', indexed: true, description: 'Prázdné u globální řady, jinak číslo zakázky.' },
+    { name: 'ScopeKey', title: 'Klíč rozsahu', type: 'Text', indexed: true, description: 'Prázdné u globální řady, jinak číslo projektu.' },
     { name: 'LastValue', title: 'Poslední hodnota', type: 'Number', decimals: 0, defaultValue: '0' }
   ]
 };
@@ -189,20 +189,20 @@ const PRM_PARTNERS: ListDef = {
 
 const PRM_PROJECTS: ListDef = {
   name: 'PRM_Projects',
-  title: 'PRM – Zakázky',
-  description: 'Evidence zakázek. Sloupec Název (Title) drží vygenerovaný název zakázky.',
+  title: 'PRM – Projekty',
+  description: 'Evidence projektů. Sloupec Název (Title) drží vygenerovaný název projektu.',
   kind: 'list',
   site: 'PRM',
   versioning: true,
   fields: [
-    { name: 'ProjectNumber', title: 'Číslo zakázky', type: 'Text', required: true, indexed: true },
+    { name: 'ProjectNumber', title: 'Číslo projektu', type: 'Text', required: true, indexed: true },
     { name: 'ShortName', title: 'Zkrácený název', type: 'Text' },
     { name: 'Customer', title: 'Zákazník', type: 'Lookup', lookupList: 'PRM_Partners', lookupField: 'Title', indexed: true },
     { name: 'ProjectManager', title: 'Projektový manažer', type: 'User', indexed: true },
     { name: 'Assistants', title: 'Asistenti', type: 'UserMulti' },
     { name: 'ProjectStatus', title: 'Stav', type: 'Choice', choices: PROJECT_STATUS_CHOICES, defaultValue: 'Nabídka', indexed: true },
-    { name: 'ProjectType', title: 'Typ zakázky', type: 'Choice', choices: ['FVE', 'BESS', 'MVE', 'Vítr', 'Kogenerace', 'Připojení DS', 'Servis', 'Režie', 'Jiné'], indexed: true },
-    { name: 'ProjectYear', title: 'Rok', type: 'Number', decimals: 0, indexed: true, description: 'Rok zakázky – pro filtrování dashboardu.' },
+    { name: 'ProjectType', title: 'Typ projektu', type: 'Choice', choices: ['FVE', 'BESS', 'MVE', 'Vítr', 'Kogenerace', 'Připojení DS', 'Servis', 'Režie', 'Jiné'], indexed: true },
+    { name: 'ProjectYear', title: 'Rok', type: 'Number', decimals: 0, indexed: true, description: 'Rok projektu – pro filtrování dashboardu.' },
     { name: 'Location', title: 'Lokalita', type: 'Text' },
     { name: 'InstalledPowerKWp', title: 'Výkon (kWp)', type: 'Number', decimals: 2 },
     { name: 'StorageCapacityKWh', title: 'Kapacita úložiště (kWh)', type: 'Number', decimals: 2 },
@@ -213,8 +213,8 @@ const PRM_PROJECTS: ListDef = {
     { name: 'StartDate', title: 'Zahájení', type: 'DateTime', indexed: true },
     { name: 'EndDatePlanned', title: 'Ukončení plánované', type: 'DateTime', indexed: true },
     { name: 'EndDateActual', title: 'Ukončení skutečné', type: 'DateTime' },
-    { name: 'FolderUrl', title: 'Složka zakázky', type: 'Url' },
-    { name: 'IsOverhead', title: 'Režie', type: 'Boolean', defaultValue: '0', description: 'Zakázka Režie sbírá režijní objednávky a náklady.' },
+    { name: 'FolderUrl', title: 'Složka projektu', type: 'Url' },
+    { name: 'IsOverhead', title: 'Režie', type: 'Boolean', defaultValue: '0', description: 'Projekt Režie sbírá režijní objednávky a náklady.' },
     { name: 'BudgetStatus', title: 'Semafor rozpočtu', type: 'Choice', choices: BUDGET_STATUS_CHOICES, defaultValue: 'Bez rozpočtu', indexed: true, description: 'Uložený výsledek výpočtu – kvůli rychlosti dashboardu.' },
     { name: 'BudgetBaselineTotal', title: 'Baseline rozpočtu', type: 'Currency', decimals: 2 },
     { name: 'CostForecastTotal', title: 'Prognóza nákladů', type: 'Currency', decimals: 2 },
@@ -231,7 +231,7 @@ const PRM_TASKS: ListDef = {
   site: 'PRM',
   versioning: true,
   fields: [
-    { name: 'Project', title: 'Zakázka', type: 'Lookup', lookupList: 'PRM_Projects', lookupField: 'ProjectNumber', required: true, indexed: true },
+    { name: 'Project', title: 'Projekt', type: 'Lookup', lookupList: 'PRM_Projects', lookupField: 'ProjectNumber', required: true, indexed: true },
     { name: 'WBS', title: 'WBS', type: 'Text' },
     { name: 'TaskType', title: 'Typ', type: 'Choice', choices: TASK_TYPE_CHOICES, defaultValue: 'Činnost', indexed: true },
     { name: 'StartDate', title: 'Zahájení', type: 'DateTime', indexed: true },
@@ -252,12 +252,12 @@ const PRM_TASKS: ListDef = {
 const PRM_BUDGET_ITEMS: ListDef = {
   name: 'PRM_BudgetItems',
   title: 'PRM – Položky rozpočtu',
-  description: 'Položky realizačního rozpočtu zakázky.',
+  description: 'Položky realizačního rozpočtu projektu.',
   kind: 'list',
   site: 'PRM',
   versioning: true,
   fields: [
-    { name: 'Project', title: 'Zakázka', type: 'Lookup', lookupList: 'PRM_Projects', lookupField: 'ProjectNumber', required: true, indexed: true },
+    { name: 'Project', title: 'Projekt', type: 'Lookup', lookupList: 'PRM_Projects', lookupField: 'ProjectNumber', required: true, indexed: true },
     { name: 'ItemCode', title: 'Kód / WBS', type: 'Text' },
     { name: 'Category', title: 'Kategorie', type: 'Choice', choices: ['Materiál', 'Subdodávky a služby', 'Vlastní práce', 'Doprava', 'Ostatní', 'Rezerva'], indexed: true },
     { name: 'Supplier', title: 'Dodavatel', type: 'Lookup', lookupList: 'PRM_Partners', lookupField: 'Title' },
@@ -283,7 +283,7 @@ const PRM_BUDGET_VERSIONS: ListDef = {
   site: 'PRM',
   versioning: true,
   fields: [
-    { name: 'Project', title: 'Zakázka', type: 'Lookup', lookupList: 'PRM_Projects', lookupField: 'ProjectNumber', required: true, indexed: true },
+    { name: 'Project', title: 'Projekt', type: 'Lookup', lookupList: 'PRM_Projects', lookupField: 'ProjectNumber', required: true, indexed: true },
     { name: 'VersionNo', title: 'Verze', type: 'Number', decimals: 0, required: true },
     { name: 'VersionStatus', title: 'Stav', type: 'Choice', choices: ['Koncept', 'Ke schválení', 'Schváleno'], defaultValue: 'Koncept', indexed: true },
     { name: 'ApprovedBy', title: 'Schválil', type: 'User' },
@@ -297,12 +297,12 @@ const PRM_BUDGET_VERSIONS: ListDef = {
 const PRM_INCOME_PLAN: ListDef = {
   name: 'PRM_IncomePlan',
   title: 'PRM – Fakturační milníky',
-  description: 'Plán příjmů zakázky.',
+  description: 'Plán příjmů projektu.',
   kind: 'list',
   site: 'PRM',
   versioning: true,
   fields: [
-    { name: 'Project', title: 'Zakázka', type: 'Lookup', lookupList: 'PRM_Projects', lookupField: 'ProjectNumber', required: true, indexed: true },
+    { name: 'Project', title: 'Projekt', type: 'Lookup', lookupList: 'PRM_Projects', lookupField: 'ProjectNumber', required: true, indexed: true },
     { name: 'PlannedDate', title: 'Plánované datum', type: 'DateTime', indexed: true },
     { name: 'AmountNet', title: 'Částka bez DPH', type: 'Currency', decimals: 2 },
     { name: 'VATRate', title: 'Sazba DPH (%)', type: 'Number', decimals: 0, defaultValue: '21' },
@@ -321,7 +321,7 @@ const PRM_PURCHASE_ORDERS: ListDef = {
   versioning: true,
   fields: [
     { name: 'PONumber', title: 'Číslo objednávky', type: 'Text', required: true, indexed: true },
-    { name: 'Project', title: 'Zakázka', type: 'Lookup', lookupList: 'PRM_Projects', lookupField: 'ProjectNumber', required: true, indexed: true },
+    { name: 'Project', title: 'Projekt', type: 'Lookup', lookupList: 'PRM_Projects', lookupField: 'ProjectNumber', required: true, indexed: true },
     { name: 'Supplier', title: 'Dodavatel', type: 'Lookup', lookupList: 'PRM_Partners', lookupField: 'Title', indexed: true },
     { name: 'BudgetItem', title: 'Položka rozpočtu', type: 'Lookup', lookupList: 'PRM_BudgetItems', lookupField: 'Title' },
     { name: 'Subject', title: 'Předmět', type: 'Text' },
@@ -349,7 +349,7 @@ const PRM_INVOICE_BASES: ListDef = {
   versioning: true,
   fields: [
     { name: 'BasisNumber', title: 'Číslo podkladu', type: 'Text', required: true, indexed: true },
-    { name: 'Project', title: 'Zakázka', type: 'Lookup', lookupList: 'PRM_Projects', lookupField: 'ProjectNumber', required: true, indexed: true },
+    { name: 'Project', title: 'Projekt', type: 'Lookup', lookupList: 'PRM_Projects', lookupField: 'ProjectNumber', required: true, indexed: true },
     { name: 'Customer', title: 'Zákazník', type: 'Lookup', lookupList: 'PRM_Partners', lookupField: 'Title' },
     { name: 'IncomeMilestone', title: 'Fakturační milník', type: 'Lookup', lookupList: 'PRM_IncomePlan', lookupField: 'Title' },
     { name: 'Lines', title: 'Položky (JSON)', type: 'Note' },
@@ -375,7 +375,7 @@ const PRM_DOCUMENTS: ListDef = {
   fields: [
     { name: 'DocNumber', title: 'Číslo dokumentu', type: 'Text', required: true, indexed: true },
     { name: 'DocTypeCode', title: 'Typ dokumentu', type: 'Text', required: true, indexed: true },
-    { name: 'Project', title: 'Zakázka', type: 'Lookup', lookupList: 'PRM_Projects', lookupField: 'ProjectNumber', indexed: true },
+    { name: 'Project', title: 'Projekt', type: 'Lookup', lookupList: 'PRM_Projects', lookupField: 'ProjectNumber', indexed: true },
     { name: 'DocDate', title: 'Datum', type: 'DateTime', indexed: true },
     { name: 'Parties', title: 'Strany', type: 'Note' },
     { name: 'DocStatus', title: 'Stav', type: 'Choice', choices: ['Koncept', 'Vystaveno', 'Podepsáno', 'Storno'], defaultValue: 'Koncept', indexed: true },
@@ -386,12 +386,12 @@ const PRM_DOCUMENTS: ListDef = {
 const PRM_ACTUAL_CASHFLOWS: ListDef = {
   name: 'PRM_ActualCashflows',
   title: 'PRM – Skutečné platby',
-  description: 'Skutečné příjmy a výdaje zakázek — import z účetnictví nebo ruční zadání.',
+  description: 'Skutečné příjmy a výdaje projektů — import z účetnictví nebo ruční zadání.',
   kind: 'list',
   site: 'PRM',
   versioning: true,
   fields: [
-    { name: 'Project', title: 'Zakázka', type: 'Lookup', lookupList: 'PRM_Projects', lookupField: 'ProjectNumber', required: true, indexed: true },
+    { name: 'Project', title: 'Projekt', type: 'Lookup', lookupList: 'PRM_Projects', lookupField: 'ProjectNumber', required: true, indexed: true },
     { name: 'PaymentDate', title: 'Datum platby', type: 'DateTime', required: true, indexed: true },
     { name: 'Direction', title: 'Směr', type: 'Choice', choices: DIRECTION_CHOICES, required: true, indexed: true },
     { name: 'AmountNet', title: 'Částka bez DPH', type: 'Currency', decimals: 2 },
@@ -446,19 +446,19 @@ const PRM_SNAPSHOTS: ListDef = {
   versioning: true,
   fields: [
     { name: 'SnapshotType', title: 'Typ', type: 'Choice', choices: ['Rozpočet', 'Cashflow'], indexed: true },
-    { name: 'ProjectNumber', title: 'Číslo zakázky', type: 'Text', indexed: true }
+    { name: 'ProjectNumber', title: 'Číslo projektu', type: 'Text', indexed: true }
   ]
 };
 
 const PRM_OUTPUTS: ListDef = {
   name: 'PRM_Outputs',
   title: 'PRM – Výstupy',
-  description: 'Vygenerovaná PDF a Excel soubory, které nepatří do složky zakázky.',
+  description: 'Vygenerovaná PDF a Excel soubory, které nepatří do složky projektu.',
   kind: 'library',
   site: 'PRM',
   versioning: true,
   fields: [
-    { name: 'ProjectNumber', title: 'Číslo zakázky', type: 'Text', indexed: true },
+    { name: 'ProjectNumber', title: 'Číslo projektu', type: 'Text', indexed: true },
     { name: 'OutputType', title: 'Typ výstupu', type: 'Text', indexed: true }
   ]
 };

@@ -1,5 +1,5 @@
 /**
- * Semafor rozpočtu a štítek stavu zakázky.
+ * Semafor rozpočtu a štítek stavu projektu.
  *
  * Barva nikdy nestojí sama — vždy je doplněná ikonou a textem.
  * Důvod: barvoslepost, černobílý tisk a čtečky obrazovky.
@@ -54,7 +54,7 @@ export function buildBudgetTooltip(
   forecast?: number
 ): string {
   if (status === BudgetStatus.Bez || !baseline) {
-    return 'Zakázka zatím nemá schválený realizační rozpočet, semafor se nepočítá.';
+    return 'Projekt zatím nemá schválený realizační rozpočet, semafor se nepočítá.';
   }
   if (forecast === undefined) {
     return `Schválený rozpočet ${formatMoney(baseline)}, prognóza zatím není zadaná.`;
@@ -67,7 +67,7 @@ export function buildBudgetTooltip(
   );
 }
 
-/** Barvy štítků stavu zakázky. Jen odstíny palety RES, nic křiklavého. */
+/** Barvy štítků stavu projektu. Jen odstíny palety RES, nic křiklavého. */
 const STATUS_STYLE: Record<string, { color: string; background: string }> = {
   [ProjectStatus.Nabidka]: { color: RES.navy, background: '#EAF0F5' },
   [ProjectStatus.Priprava]: { color: RES.blueMid, background: '#E4F0F8' },
@@ -78,7 +78,7 @@ const STATUS_STYLE: Record<string, { color: string; background: string }> = {
   [ProjectStatus.Storno]: { color: RES.red, background: '#FBE8EB' }
 };
 
-/** Štítek stavu zakázky. */
+/** Štítek stavu projektu. */
 export const StatusBadge: React.FC<{ status: ProjectStatus }> = ({ status }) => {
   const style = STATUS_STYLE[status] ?? { color: RES.gray, background: '#F1F3F5' };
   return (

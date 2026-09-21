@@ -104,7 +104,7 @@ class MockInstallRepository implements IInstallRepository {
 }
 
 /**
- * Filtrování zakázek. Vytaženo ven, protože stejná pravidla musí platit
+ * Filtrování projektů. Vytaženo ven, protože stejná pravidla musí platit
  * i pro ostrou implementaci — ta je ale překládá do dotazu na SharePoint.
  */
 export function applyProjectFilter(
@@ -146,7 +146,7 @@ export function applyProjectFilter(
   return result;
 }
 
-/** Zakázky, které se na dashboardu počítají jako aktivní. */
+/** Projekty, které se na dashboardu počítají jako aktivní. */
 export function activeProjects(projects: Project[]): Project[] {
   return projects.filter((p) => !p.isOverhead && ACTIVE_PROJECT_STATUSES.indexOf(p.status) !== -1);
 }

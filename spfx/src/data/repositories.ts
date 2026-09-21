@@ -27,9 +27,9 @@ export interface ISettingsRepository {
   setSchemaVersion(version: number): Promise<void>;
 }
 
-/** Filtr pro seznam zakázek na dashboardu. */
+/** Filtr pro seznam projektů na dashboardu. */
 export interface ProjectFilter {
-  /** Jen zakázky, kde je přihlášený uživatel PM nebo asistent. */
+  /** Jen projekty, kde je přihlášený uživatel PM nebo asistent. */
   onlyMine?: boolean;
   statuses?: string[];
   projectTypes?: string[];
@@ -38,11 +38,11 @@ export interface ProjectFilter {
   year?: number;
   /** Fulltext přes číslo, název, zákazníka a lokalitu. */
   search?: string;
-  /** Zahrnout i zakázku Režie. Výchozí: ne. */
+  /** Zahrnout i projekt Režie. Výchozí: ne. */
   includeOverhead?: boolean;
 }
 
-/** Zakázky. Ve Fázi 0 jen čtení — zakládání přijde ve Fázi 1. */
+/** Projekty. Ve Fázi 0 jen čtení — zakládání přijde ve Fázi 1. */
 export interface IProjectRepository {
   list(filter?: ProjectFilter): Promise<Project[]>;
   getByNumber(projectNumber: string): Promise<Project | undefined>;

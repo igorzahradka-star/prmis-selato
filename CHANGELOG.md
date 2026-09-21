@@ -17,19 +17,19 @@ založit svou datovou strukturu na SharePointu.
 - Vzhled v barvách RES — vlastní Fluent UI theme, logo v hlavičce,
   claim v patičce, české formáty čísel a dat (`1 234 567 Kč`, `11. 9. 2026`).
 - Rámec aplikace: hlavička, levá navigace skládaná podle rolí, patička,
-  navigace přes adresu v prohlížeči (`#/zakazky`, `#/zakazka/26-014`).
+  navigace přes adresu v prohlížeči (`#/projekty`, `#/projekt/26-014`).
 - Rozpoznání přihlášeného uživatele a jeho rolí ze skupin SharePointu.
   Přístup k důvěrným finančním modulům se ověřuje **skutečným dotazem**
   na web PRM-Finance, ne jen podle role.
-- Dashboard zakázek: dlaždice KPI, tabulka se sloupci podle zadání,
+- Dashboard projektů: dlaždice KPI, tabulka se sloupci podle zadání,
   filtry (stav, typ, jen moje), fulltext, semafor rozpočtu s vysvětlením.
-- Detail zakázky — záložka Přehled; ostatní záložky připravené s popisem,
+- Detail projektu — záložka Přehled; ostatní záložky připravené s popisem,
   ve které fázi přijdou.
 - **Instalace a diagnostika**: aplikace si sama zkontroluje a založí
   21 seznamů a knihoven včetně sloupců a indexů. Nikdy nic nemaže,
   jde spustit opakovaně.
-- **Nastavení**: složky zakázek a jejich šablona, vzor názvu zakázky, typy
-  zakázek, kategorie rozpočtu, prahy semaforu, limity schvalování, názvy
+- **Nastavení**: složky projektů a jejich šablona, vzor názvu projektu, typy
+  projektů, kategorie rozpočtu, prahy semaforu, limity schvalování, názvy
   skupin rolí, fakturační údaje RES.
 - Nápověda v aplikaci — mimo jiné vysvětlení, proč prohlížeč neotevře
   Průzkumník a jak si knihovnu synchronizovat přes OneDrive.

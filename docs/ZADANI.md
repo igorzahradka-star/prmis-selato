@@ -1,6 +1,6 @@
 # PRM Revoltum – zadání pro Claude Code
 
-**Informační systém pro řízení zakázek Revoltum Engineering & Services (RES)**
+**Informační systém pro řízení projektů Revoltum Engineering & Services (RES)**
 Verze zadání: 1.0 · Datum: 11. 9. 2026 · Vlastník: Igor Zahrádka
 
 ---
@@ -12,7 +12,7 @@ Verze zadání: 1.0 · Datum: 11. 9. 2026 · Vlastník: Igor Zahrádka
    - tento soubor jako `docs/ZADANI.md`,
    - loga RES (ideálně SVG + PNG, barevné i bílé/negativní) do `brand/loga/`,
    - grafický manuál (PDF) do `brand/`,
-   - pokud existuje: šablonu CF reportu holdingu (Excel) do `docs/sablony/`, stávající seznam zakázek (Excel) do `docs/import/`, vzorovou objednávku a podklad pro fakturaci (PDF/Word) do `docs/sablony/`.
+   - pokud existuje: šablonu CF reportu holdingu (Excel) do `docs/sablony/`, stávající seznam projektů (Excel) do `docs/import/`, vzorovou objednávku a podklad pro fakturaci (PDF/Word) do `docs/sablony/`.
 3. Ve složce spusť Claude Code a napiš první zprávu:
 
    > Přečti si `docs/ZADANI.md` a všechny soubory ve složkách `docs/` a `brand/`. Pak proveď **Fázi 0** podle zadání. Na konci každé fáze se zastav, shrň česky, co jsi udělal, co mám otestovat a jaké rozhodnutí potřebuješ ode mě.
@@ -41,9 +41,9 @@ Jsi vývojář a architekt aplikace PRM Revoltum. Zadavatel (Igor) **není progr
 
 ## 2. Cíl aplikace
 
-Jedna webová aplikace na SharePointu Revoltum Engineering & Services, kam chodí všichni projektoví manažeři (PM) a jejich asistenti a kde udělají veškerou práci se zakázkou:
+Jedna webová aplikace na SharePointu Revoltum Engineering & Services, kam chodí všichni projektoví manažeři (PM) a jejich asistenti a kde udělají veškerou práci s projektem:
 
-- evidence zakázek, přidělování čísel a názvů, seznam/dashboard zakázek,
+- evidence projektů, přidělování čísel a názvů, seznam/dashboard projektů,
 - automatické založení struktury složek projektu na firemním SharePointu a rychlý přístup k nim,
 - nákupní objednávky se schvalovacím workflow,
 - podklady pro fakturaci, předávací protokoly a další číslované dokumenty,
@@ -71,7 +71,7 @@ Aplikace se bude dlouhodobě rozšiřovat – architektura musí být modulárn�
 ### 4.1 Technologie
 
 - **SharePoint Framework (SPFx)** – aktuální GA verze, React + TypeScript, **Fluent UI** (vzhled M365, upravený do barev RES).
-- Aplikace = jeden full-width web part na stránce typu *single part app page* na webu **PRM** (např. `https://<tenant>.sharepoint.com/sites/RES-PRM`). Interní navigace aplikace přes hash router (`#/zakazky`, `#/zakazky/26-014`, `#/objednavky` …).
+- Aplikace = jeden full-width web part na stránce typu *single part app page* na webu **PRM** (např. `https://<tenant>.sharepoint.com/sites/RES-PRM`). Interní navigace aplikace přes hash router (`#/projekty`, `#/projekt/26-014`, `#/objednavky` …).
 - Stejný web part zpřístupnit i jako **záložku v Microsoft Teams** (SPFx to podporuje) – PM mohou pracovat z Teams.
 - Přístup k datům: **PnPjs** (SharePoint REST) v kontextu přihlášeného uživatele. Microsoft Graph použij jen tam, kde to REST neumí, a vždy předem popiš, jaké oprávnění musí admin schválit.
 - Data: **SharePoint seznamy** (kap. 6). Snapshoty a vygenerované PDF/Excel: **knihovny dokumentů**.
@@ -102,7 +102,7 @@ SPFx běží v prohlížeči s oprávněními přihlášeného uživatele. **Sku
 - Aplikace zjistí, zda uživatel na PRM-Finance vidí; pokud ne, finanční moduly vůbec nezobrazí (a i kdyby je někdo vyvolal, SharePoint data nevydá).
 - Agregovaná čísla z důvěrných dat **nikdy neukládej** do seznamů na webu PRM.
 - Na všech seznamech zapnout **historii verzí** (audit: kdo, kdy, co změnil) + vlastní `PRM_AuditLog` pro schvalování a změny stavů.
-- UI kontroluje role (kdo smí schválit, editovat cizí zakázku). Tam, kde je to důležité (schválení objednávky), ověřuj pravidla znovu těsně před zápisem a zapisuj do auditu.
+- UI kontroluje role (kdo smí schválit, editovat cizí projekt). Tam, kde je to důležité (schválení objednávky), ověřuj pravidla znovu těsně před zápisem a zapisuj do auditu.
 
 ### 4.4 Instalační a diagnostický průvodce (místo PowerShellu)
 
@@ -122,13 +122,13 @@ Role = SharePoint skupiny (název konfigurovatelný v Nastavení):
 | Role | Co smí |
 |---|---|
 | **Administrátor PRM** | vše, Nastavení, Instalace, správa rolí, číselné řady, šablony složek |
-| **Vedení** | vidí všechny zakázky, schvaluje objednávky nad limit, schvaluje realizační rozpočty, benchmark |
+| **Vedení** | vidí všechny projekty, schvaluje objednávky nad limit, schvaluje realizační rozpočty, benchmark |
 | **Finance – důvěrné** | firemní CF, důvěrné položky, Excel report pro FO, odevzdané verze CF |
-| **Projektový manažer** | zakládá zakázky, spravuje své zakázky (RR, CF, harmonogram), vystavuje a schvaluje objednávky ve svém limitu, vystavuje podklady pro fakturaci |
-| **Asistent PM** | pracuje na zakázkách přiřazených PM/zakázce; objednávky a podklady vytváří, ale neschvaluje |
-| **Čtenář** | jen čtení zakázek (volitelné) |
+| **Projektový manažer** | zakládá projekty, spravuje své projekty (RR, CF, harmonogram), vystavuje a schvaluje objednávky ve svém limitu, vystavuje podklady pro fakturaci |
+| **Asistent PM** | pracuje na projektech přiřazených PM/projektu; objednávky a podklady vytváří, ale neschvaluje |
+| **Čtenář** | jen čtení projektů (volitelné) |
 
-Výchozí pravidla (konfigurovatelná): všichni PM vidí seznam všech zakázek, editovat mohou jen zakázky, kde jsou PM nebo asistent. Uživatel může mít více rolí.
+Výchozí pravidla (konfigurovatelná): všichni PM vidí seznam všech projektů, editovat mohou jen projekty, kde jsou PM nebo asistent. Uživatel může mít více rolí.
 
 ---
 
@@ -138,18 +138,18 @@ Interní názvy sloupců anglicky bez diakritiky, zobrazované názvy česky. Č
 
 ### Web PRM
 
-**PRM_Settings** – klíč/hodnota (JSON): cesta ke knihovně projektů, šablony složek, limity schvalování, prahy semaforu, názvy skupin, vzor názvu zakázky, splatnosti apod.
+**PRM_Settings** – klíč/hodnota (JSON): cesta ke knihovně projektů, šablony složek, limity schvalování, prahy semaforu, názvy skupin, vzor názvu projektu, splatnosti apod.
 
 **PRM_DocTypes** – číselné řady dokumentů (kap. 7):
-Code (PRJ, OBJ, FP, PP, …), Name, Pattern, Padding, ResetPeriod (Ročně / Nikdy), Scope (Globální / Zakázka), StartValue, Active.
+Code (PRJ, OBJ, FP, PP, …), Name, Pattern, Padding, ResetPeriod (Ročně / Nikdy), Scope (Globální / Projekt), StartValue, Active.
 
 **PRM_Counters** – čítače: DocTypeCode, Year, ScopeKey, LastValue.
 
 **PRM_Partners** – zákazníci a dodavatelé: Name, Type (Zákazník/Dodavatel/Obojí), ICO, DIC, Address, ContactName, Email, Phone, PaymentTermDays. Volitelně načtení údajů z **ARES podle IČO** (ověř, zda veřejné API ARES dovolí volání z prohlížeče – pokud ne, funkci vynech a napiš proč).
 
-**PRM_Projects** – zakázky:
+**PRM_Projects** – projekty:
 ProjectNumber, Title (generovaný název), ShortName, Customer (lookup), ProjectManager (osoba), Assistants (osoby), Status (Nabídka / Příprava / Realizace / Pozastaveno / Dokončeno / Uzavřeno / Storno), ProjectType (FVE, BESS, MVE, Vítr, Kogenerace, Připojení DS, Servis, Režie, Jiné – konfigurovatelné), Location, InstalledPowerKWp, StorageCapacityKWh, ContractNumber, ContractPriceNet, Currency, StartDate, EndDatePlanned, EndDateActual, FolderUrl, IsOverhead, BudgetStatus (Zelená/Žlutá/Červená – cache výpočtu), BudgetBaselineTotal, CostForecastTotal, NextDeadline (cache), Description.
-Jedna zakázka je **Režie** (IsOverhead = true) – vlastní číslo, sbírá režijní objednávky a náklady.
+Jeden projekt je **Režie** (IsOverhead = true) – vlastní číslo, sbírá režijní objednávky a náklady.
 
 **PRM_Tasks** – položky harmonogramu i smluvní termíny plnění:
 Project, WBS, Title, TaskType (Činnost / Dodávka materiálu / Služba / Milník), Start, Finish, DurationDays, Predecessors (JSON: `[{taskId, type: FS|SS|FF|SF, lagDays}]`), PercentComplete, IsContractualDeadline, Responsible, BaselineStart, BaselineFinish, IsCritical (cache CPM), WatchAsCritical (ruční příznak), SortOrder.
@@ -173,7 +173,7 @@ Project, WBS/Code, Category (Materiál / Subdodávky a služby / Vlastní práce
 
 **PRM_AuditLog** – kdo, kdy, entita, akce, stará/nová hodnota (stručně).
 
-**Knihovny:** PRM_Snapshots (JSON verze RR, CF), PRM_Outputs (vygenerovaná PDF/Excel, pokud se neukládají do složky zakázky).
+**Knihovny:** PRM_Snapshots (JSON verze RR, CF), PRM_Outputs (vygenerovaná PDF/Excel, pokud se neukládají do složky projektu).
 
 ### Web PRM-Finance (důvěrné)
 
@@ -191,15 +191,15 @@ Project, WBS/Code, Category (Materiál / Subdodávky a služby / Vlastní práce
 
 Každý typ dokumentu má v Nastavení svou číselnou řadu:
 
-- **Vzor** s tokeny: `{PREFIX}`, `{YYYY}`, `{YY}`, `{N}` (s doplněním nul dle Padding), `{PRJ}` (číslo zakázky). Příklady: `{YY}-{N}` → `26-014` (zakázky), `OBJ-{YYYY}-{N}` → `OBJ-2026-0153`, `FP{YY}{N}` → `FP260042`, `PP-{PRJ}-{N}` → `PP-26-014-02`.
+- **Vzor** s tokeny: `{PREFIX}`, `{YYYY}`, `{YY}`, `{N}` (s doplněním nul dle Padding), `{PRJ}` (číslo projektu). Příklady: `{YY}-{N}` → `26-014` (projekty), `OBJ-{YYYY}-{N}` → `OBJ-2026-0153`, `FP{YY}{N}` → `FP260042`, `PP-{PRJ}-{N}` → `PP-26-014-02`.
 - **Reset**: ročně (podle roku data dokumentu) nebo nikdy.
-- **Rozsah**: globální (napříč zakázkami) nebo v rámci zakázky.
-- Výchozí nastavení podle zadání: **objednávky** – společná řada napříč zakázkami (zobrazují se u své zakázky); **podklady pro fakturaci** – společná řada, **reset každý rok**; předávací protokoly – dle nastavení.
+- **Rozsah**: globální (napříč projekty) nebo v rámci projektu.
+- Výchozí nastavení podle zadání: **objednávky** – společná řada napříč projekty (zobrazují se u svého projektu); **podklady pro fakturaci** – společná řada, **reset každý rok**; předávací protokoly – dle nastavení.
 - **Bez duplicit při souběhu**: SharePoint nemá transakce → čítač v PRM_Counters zvyšuj optimistickým zámkem (ETag / `If-Match`), při konfliktu (HTTP 412) načti znovu a opakuj. Pokryj testem i simulaci souběhu.
 - Číslo se přiděluje při založení dokumentu. Dokumenty **se nemažou**, jen stornují (řada zůstane bez děr – důležité pro audit).
 - Změna vzoru se týká jen nových dokumentů. Počáteční hodnotu čítače jde nastavit (navázání na dosavadní číslování).
 
-**Název zakázky** se generuje podle konfigurovatelného vzoru, např. `{ČÍSLO} {Zákazník} – {Lokalita} – {Typ}`; PM ho může před uložením upravit. Název složky se odvodí z názvu a očistí od znaků, které SharePoint nepovoluje (`" * : < > ? / \ |`, počáteční/koncové mezery a tečky), a omezí délku.
+**Název projektu** se generuje podle konfigurovatelného vzoru, např. `{ČÍSLO} {Zákazník} – {Lokalita} – {Typ}`; PM ho může před uložením upravit. Název složky se odvodí z názvu a očistí od znaků, které SharePoint nepovoluje (`" * : < > ? / \ |`, počáteční/koncové mezery a tečky), a omezí délku.
 
 ---
 
@@ -208,50 +208,50 @@ Každý typ dokumentu má v Nastavení svou číselnou řadu:
 ### 8.1 Přihlášení a úvodní dashboard
 
 - Uživatel je přihlášen automaticky účtem M365 (kontext SharePointu), žádné další přihlašování.
-- Úvodní obrazovka = **dashboard zakázek**:
-  - dlaždice KPI: počet aktivních zakázek, součet cen aktivních zakázek, počet zakázek v červené, objednávky čekající na mé schválení, nejbližší smluvní termíny (14 dní),
-  - **tabulka zakázek** se sloupci: **Číslo, Název, Projektový manažer, Rozpočet (semafor zelená/žlutá/červená), Celková cena, Nejbližší termín plnění, Zahájení, Ukončení**, Stav,
-  - filtry (moje zakázky, stav, typ, PM, rok), fulltext, řazení, uložení oblíbeného filtru (localStorage), export tabulky do Excelu,
-  - tlačítko **Nová zakázka**.
+- Úvodní obrazovka = **dashboard projektů**:
+  - dlaždice KPI: počet aktivních projektů, součet cen aktivních projektů, počet projektů v červené, objednávky čekající na mé schválení, nejbližší smluvní termíny (14 dní),
+  - **tabulka projektů** se sloupci: **Číslo, Název, Projektový manažer, Rozpočet (semafor zelená/žlutá/červená), Celková cena, Nejbližší termín plnění, Zahájení, Ukončení**, Stav,
+  - filtry (moje projekty, stav, typ, PM, rok), fulltext, řazení, uložení oblíbeného filtru (localStorage), export tabulky do Excelu,
+  - tlačítko **Nový projekt**.
 - Semafor ukazuje po najetí myší vysvětlení (rozpočet vs. prognóza, odchylka v %).
 
-### 8.2 Založení zakázky
+### 8.2 Založení projektu
 
 Průvodce: zákazník (výběr/nový), typ, lokalita, PM, asistenti, cena, termíny → náhled čísla a názvu → uložit. Po uložení:
 1. přidělí číslo (kap. 7),
 2. **založí strukturu složek** podle šablony (kap. 8.3),
-3. uloží odkaz na složku, zapíše audit, otevře detail zakázky.
-Pokud založení složek selže, zakázka zůstane uložená s upozorněním a tlačítkem „Zkusit znovu založit složky“.
+3. uloží odkaz na složku, zapíše audit, otevře detail projektu.
+Pokud založení složek selže, projekt zůstane uložený s upozorněním a tlačítkem „Zkusit znovu založit složky“.
 
 ### 8.3 Struktura složek projektu
 
-- V Nastavení: **cílový web + knihovna + kořenová složka** (např. Teams web „RES – Zakázky“, knihovna Dokumenty, složka `Zakázky/2026`) – volitelně podsložka podle roku.
-- **Šablona složek** editovatelná ve stromu v Nastavení, možnost více šablon podle typu zakázky. Výchozí návrh (upřesní zadavatel):
+- V Nastavení: **cílový web + knihovna + kořenová složka** (např. Teams web „RES – Projekty“, knihovna Dokumenty, složka `Projekty/2026`) – volitelně podsložka podle roku.
+- **Šablona složek** editovatelná ve stromu v Nastavení, možnost více šablon podle typu projektu. Výchozí návrh (upřesní zadavatel):
   `01_Smlouvy a objednávky zákazníka`, `02_Projektová dokumentace`, `03_Nákup` (`Objednávky`, `Nabídky dodavatelů`), `04_Fakturace`, `05_Realizace` (`Fotodokumentace`, `Stavební deník`), `06_Předání a revize`, `07_Korespondence`, `08_Rozpočet a harmonogram`.
-- Vygenerovaná PDF objednávek, podkladů a protokolů se **automaticky ukládají do příslušné složky zakázky**.
-- **Otevření složky:** ikona u zakázky otevře složku v novém okně SharePointu/Teams. V detailu zakázky zobraz i posledních ~10 změněných souborů ve složce.
-  *Omezení, které vysvětli uživatelům v nápovědě:* webový prohlížeč z bezpečnostních důvodů nemůže přímo otevřít Průzkumník Windows. Doporučený postup: knihovnu zakázek mít jednou provždy **synchronizovanou přes OneDrive** („Synchronizovat“ / „Přidat zástupce do Mé soubory“) – pak jsou stejné složky v Průzkumníku pod stejným názvem. Ve web partu přidej tlačítko „Kopírovat název složky“ pro rychlé dohledání v Průzkumníku. Pokud najdeš spolehlivější podporovaný způsob, navrhni ho.
+- Vygenerovaná PDF objednávek, podkladů a protokolů se **automaticky ukládají do příslušné složky projektu**.
+- **Otevření složky:** ikona u projektu otevře složku v novém okně SharePointu/Teams. V detailu projektu zobraz i posledních ~10 změněných souborů ve složce.
+  *Omezení, které vysvětli uživatelům v nápovědě:* webový prohlížeč z bezpečnostních důvodů nemůže přímo otevřít Průzkumník Windows. Doporučený postup: knihovnu projektů mít jednou provždy **synchronizovanou přes OneDrive** („Synchronizovat“ / „Přidat zástupce do Mé soubory“) – pak jsou stejné složky v Průzkumníku pod stejným názvem. Ve web partu přidej tlačítko „Kopírovat název složky“ pro rychlé dohledání v Průzkumníku. Pokud najdeš spolehlivější podporovaný způsob, navrhni ho.
 
-### 8.4 Detail zakázky
+### 8.4 Detail projektu
 
 Záložky:
-- **Přehled** – všechny údaje zakázky, PM a tým, zákazník, finanční souhrn (cena, baseline, prognóza, odchylka, marže plán/prognóza, vyfakturováno, uhrazeno, objednáno), nejbližší termíny, odkaz na složku, historie změn.
+- **Přehled** – všechny údaje projektu, PM a tým, zákazník, finanční souhrn (cena, baseline, prognóza, odchylka, marže plán/prognóza, vyfakturováno, uhrazeno, objednáno), nejbližší termíny, odkaz na složku, historie změn.
 - **Realizační rozpočet** (8.7), **Cashflow** (8.8), **Harmonogram** (8.9),
-- **Objednávky** (této zakázky), **Fakturace** (podklady + plán fakturačních milníků), **Dokumenty** (protokoly a další číslované dokumenty + soubory ve složce).
+- **Objednávky** (tohoto projektu), **Fakturace** (podklady + plán fakturačních milníků), **Dokumenty** (protokoly a další číslované dokumenty + soubory ve složce).
 
 ### 8.5 Objednávky na nákup + schvalování
 
-- Vystavit může PM i asistent; objednávka se váže na zakázku (vč. Režie) a volitelně na položku rozpočtu.
+- Vystavit může PM i asistent; objednávka se váže na projekt (vč. Režie) a volitelně na položku rozpočtu.
 - Stavy: **Koncept → Ke schválení → Schváleno / Vráceno k úpravě / Zamítnuto → Odesláno dodavateli → Dodáno → Uzavřeno**, kdykoli **Storno** (s důvodem).
-- **Schvalovací pravidla v Nastavení** (limity bez DPH), výchozí návrh: do X Kč schvaluje PM zakázky (pokud objednávku vystavil asistent); objednávka vystavená samotným PM do X Kč se považuje za schválenou (přepínač v Nastavení – lze vypnout, pak ji schvaluje Vedení); nad X Kč navíc Vedení; nad Y Kč jednatel. Nikdo nesmí ručně schválit objednávku, kterou sám vystavil. U Režie schvaluje Vedení.
+- **Schvalovací pravidla v Nastavení** (limity bez DPH), výchozí návrh: do X Kč schvaluje PM projektu (pokud objednávku vystavil asistent); objednávka vystavená samotným PM do X Kč se považuje za schválenou (přepínač v Nastavení – lze vypnout, pak ji schvaluje Vedení); nad X Kč navíc Vedení; nad Y Kč jednatel. Nikdo nesmí ručně schválit objednávku, kterou sám vystavil. U Režie schvaluje Vedení.
 - Schvalovatel dostane e-mail s odkazem; v aplikaci stránka **„Čeká na mě“**. Schválení/zamítnutí s komentářem → PRM_Approvals + audit.
-- Upozornění při vystavení: objednávka překračuje zbývající rozpočet položky/zakázky (zobrazit, nezakazovat; překročení vyžaduje komentář).
-- PDF objednávky v grafice RES (logo, hlavička, dodavatel, položky, termín, splatnost, fakturační údaje, číslo zakázky, podpis/schválil) → uložení do složky zakázky `03_Nákup/Objednávky`.
-- Celkový seznam všech objednávek (napříč zakázkami) s filtry + export Excel.
+- Upozornění při vystavení: objednávka překračuje zbývající rozpočet položky/projektu (zobrazit, nezakazovat; překročení vyžaduje komentář).
+- PDF objednávky v grafice RES (logo, hlavička, dodavatel, položky, termín, splatnost, fakturační údaje, číslo projektu, podpis/schválil) → uložení do složky projektu `03_Nákup/Objednávky`.
+- Celkový seznam všech objednávek (napříč projekty) s filtry + export Excel.
 
 ### 8.6 Podklady pro fakturaci a další dokumenty
 
-- Podklad vždy ke konkrétní zakázce (volitelně k fakturačnímu milníku), číslování **napříč zakázkami s ročním resetem**.
+- Podklad vždy ke konkrétnímu projektu (volitelně k fakturačnímu milníku), číslování **napříč projekty s ročním resetem**.
 - Stavy: Koncept → Ke kontrole → Předáno účtárně → Vyfakturováno (doplní se číslo faktury z účetnictví) → Uhrazeno (datum úhrady) / Storno.
 - PDF podkladu v grafice RES → složka `04_Fakturace`; volitelně e-mail účtárně.
 - Předávací protokoly a další typy dokumentů podle PRM_DocTypes: číslo, šablona PDF, uložení do složky `06_Předání a revize`.
@@ -301,12 +301,12 @@ Záložky:
 
 ### 8.12 Benchmark projektů (Vedení)
 
-- Porovnání dokončených zakázek: marže plán/skutečnost, odchylka rozpočtu, odchylka termínu (plán vs. skutečné ukončení), náklady na kWp / kWh podle typu (FVE, BESS…), podíl kategorií nákladů, počet a objem objednávek.
+- Porovnání dokončených projektů: marže plán/skutečnost, odchylka rozpočtu, odchylka termínu (plán vs. skutečné ukončení), náklady na kWp / kWh podle typu (FVE, BESS…), podíl kategorií nákladů, počet a objem objednávek.
 - Filtry podle typu, roku, PM; grafy + export Excel.
 
 ### 8.13 Nastavení (Administrátor)
 
-Cesta ke knihovně projektů, šablony složek, číselné řady, vzor názvu zakázky, typy zakázek, kategorie rozpočtu, prahy semaforu, limity schvalování a schvalovatelé, názvy skupin rolí, e-mail účtárny, fakturační údaje RES pro PDF, kategorie firemního CF (Finance), import stávajících zakázek.
+Cesta ke knihovně projektů, šablony složek, číselné řady, vzor názvu projektu, typy projektů, kategorie rozpočtu, prahy semaforu, limity schvalování a schvalovatelé, názvy skupin rolí, e-mail účtárny, fakturační údaje RES pro PDF, kategorie firemního CF (Finance), import stávajících projektů.
 
 ---
 
@@ -325,9 +325,9 @@ Cesta ke knihovně projektů, šablony složek, číselné řady, vzor názvu za
 
 ## 10. Nefunkční požadavky
 
-- Rychlost: dashboard do 2 s při 500 zakázkách; načítej jen potřebné sloupce, stránkuj, cachuj číselníky.
+- Rychlost: dashboard do 2 s při 500 projektech; načítej jen potřebné sloupce, stránkuj, cachuj číselníky.
 - Robustnost: srozumitelné chybové hlášky česky (co se stalo, co dělat), žádné tiché selhání. Při chybě oprávnění vysvětlit, koho požádat.
-- Souběh: optimistické zamykání (ETag) i u editace rozpočtu a zakázky – upozornění „mezitím změnil kolega X“.
+- Souběh: optimistické zamykání (ETag) i u editace rozpočtu a projektu – upozornění „mezitím změnil kolega X“.
 - Testy: unit testy `src/core` (číslování, semafor, CF, CPM, názvy složek), ruční testovací scénáře pro každou fázi v `docs/testy/`.
 - Dokumentace: `README.md` (pro admina: instalace, nasazení, aktualizace), `docs/NAVOD_UZIVATEL.md` (pro PM, česky, se snímky obrazovek později), `CHANGELOG.md`.
 - Připravenost na budoucí migraci: repozitáře (4.2), žádná logika rozprostřená v komponentách UI.
@@ -340,7 +340,7 @@ Cesta ke knihovně projektů, šablony složek, číselné řady, vzor názvu za
 2. Admin M365: založení webů PRM a PRM-Finance, **App Catalog** (tenantový nebo site-collection), skupiny rolí.
 3. Build `.sppkg` → nahrání do App Catalogu → přidání aplikace na web PRM → stránka s web partem (single part app page) → volitelně přidání do Teams.
 4. Spuštění průvodce Instalace a diagnostika → založení seznamů.
-5. Nastavení (knihovna, šablony, řady, limity) → import stávajících zakázek → test.
+5. Nastavení (knihovna, šablony, řady, limity) → import stávajících projektů → test.
 6. Postup pro aktualizaci na novou verzi (zvýšení verze balíčku, nahrání, kontrola schématu).
 7. Ladění během vývoje: použij aktuálně podporovaný způsob Microsoftu (hostovaný workbench se ruší 1. 12. 2026) + režim s mock daty pro vývoj UI.
 
@@ -351,10 +351,10 @@ Cesta ke knihovně projektů, šablony složek, číselné řady, vzor názvu za
 **Fáze 0 – Základ** · kostra SPFx projektu, `CLAUDE.md`, git, theme RES + logo, layout a navigace, detekce uživatele a rolí, mock data, průvodce Instalace a diagnostika (weby, seznamy, indexy), stránka Nastavení (základ), návod na nasazení.
 ✔ Aplikace běží na webu PRM, ukazuje přihlášeného uživatele a jeho role, průvodce založí seznamy.
 
-**Fáze 1 – Zakázky (MVP)** · číselné řady a čítače, partneři, založení zakázky + generování názvu, **struktura složek**, dashboard, detail zakázky (Přehled, Dokumenty), smluvní termíny (PRM_Tasks jako milníky), zakázka Režie, **import stávajících zakázek z Excelu** a navázání číslování, export tabulky.
-✔ PM založí zakázku, dostane číslo, složky vzniknou, dashboard ukazuje požadované sloupce.
+**Fáze 1 – Projekty (MVP)** · číselné řady a čítače, partneři, založení projektu + generování názvu, **struktura složek**, dashboard, detail projektu (Přehled, Dokumenty), smluvní termíny (PRM_Tasks jako milníky), projekt Režie, **import stávajících projektů z Excelu** a navázání číslování, export tabulky.
+✔ PM založí projekt, dostane číslo, složky vzniknou, dashboard ukazuje požadované sloupce.
 
-**Fáze 2 – Objednávky, fakturace, dokumenty** · objednávky + schvalovací workflow, „Čeká na mě“, e-maily, PDF v grafice RES do složky zakázky, podklady pro fakturaci s ročním resetem, předávací protokoly, přehledy napříč zakázkami, audit.
+**Fáze 2 – Objednávky, fakturace, dokumenty** · objednávky + schvalovací workflow, „Čeká na mě“, e-maily, PDF v grafice RES do složky projektu, podklady pro fakturaci s ročním resetem, předávací protokoly, přehledy napříč projekty, audit.
 ✔ Asistent vystaví objednávku, PM/Vedení schválí podle limitu, PDF je ve složce, čísla jsou bez duplicit.
 
 **Fáze 3 – Realizační rozpočet a CF projektu** · RR editor + import z Excelu, verze a schválení baseline, objednáno/uhrazeno, semafor, fakturační milníky, CF projektu (plán vs. skutečnost), import skutečnosti.
@@ -366,14 +366,14 @@ Cesta ke knihovně projektů, šablony složek, číselné řady, vzor názvu za
 **Fáze 5 – Firma a vedení** · web PRM-Finance, důvěrné položky, celofiremní CF, odevzdání CF na FO se snapshotem, Excel report pro FO (dle šablony holdingu), benchmark projektů.
 ✔ Uživatel bez role Finance nevidí žádná důvěrná data (ověřeno i přímým přístupem na seznam); report pro FO se vygeneruje jedním kliknutím.
 
-**Fáze 6+ – Rozvoj (návrhy)** · Power Automate připomínky (splatnosti, termíny), napojení na účetní systém, nabídky (před zakázkou), výkazy práce, mobilní schvalování, AI shrnutí stavu zakázky.
+**Fáze 6+ – Rozvoj (návrhy)** · Power Automate připomínky (splatnosti, termíny), napojení na účetní systém, nabídky (před projektem), výkazy práce, mobilní schvalování, AI shrnutí stavu projektu.
 
 ---
 
 ## 13. Otevřené body, na které se máš zeptat (ve správné fázi)
 
-1. Přesný formát čísla zakázky a dosavadní číslování (Fáze 1).
-2. Finální šablona složek, případně podle typu zakázky (Fáze 1).
+1. Přesný formát čísla projektu a dosavadní číslování (Fáze 1).
+2. Finální šablona složek, případně podle typu projektu (Fáze 1).
 3. Limity schvalování a jména schvalovatelů (Fáze 2).
 4. Vzory PDF (objednávka, podklad pro fakturaci, protokol) a fakturační údaje RES (Fáze 2).
 5. Účetní systém a formát exportu skutečných plateb (Fáze 3).

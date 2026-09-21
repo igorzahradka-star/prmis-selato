@@ -3,14 +3,14 @@
  *
  * Proč vlastní a ne react-router: aplikace je jeden web part na stránce
  * SharePointu. Plnohodnotný router by si přivlastnil URL celé stránky
- * a rozbil navigaci SharePointu. Hash (`#/zakazky/26-014`) je bezpečný —
+ * a rozbil navigaci SharePointu. Hash (`#/projekt/26-014`) je bezpečný —
  * SharePoint ho ignoruje a uživatel si může odkaz poslat kolegovi.
  */
 
 /** Obrazovky aplikace. */
 export enum RouteName {
-  Dashboard = 'zakazky',
-  ProjectDetail = 'zakazka',
+  Dashboard = 'projekty',
+  ProjectDetail = 'projekt',
   Orders = 'objednavky',
   WaitingForMe = 'ceka-na-me',
   Invoicing = 'fakturace',
@@ -23,7 +23,7 @@ export enum RouteName {
 
 export interface Route {
   name: RouteName;
-  /** Další část cesty — např. číslo zakázky u detailu. */
+  /** Další část cesty — např. číslo projektu u detailu. */
   param?: string;
 }
 
@@ -51,7 +51,7 @@ export function parseHash(hash: string): Route {
   };
 }
 
-/** Složí hash pro odkaz. `buildHash(ProjectDetail, '26-014')` → `#/zakazka/26-014` */
+/** Složí hash pro odkaz. `buildHash(ProjectDetail, '26-014')` → `#/projekt/26-014` */
 export function buildHash(name: RouteName, param?: string): string {
   return param ? `#/${name}/${encodeURIComponent(param)}` : `#/${name}`;
 }

@@ -1,8 +1,8 @@
 /**
- * Dashboard zakázek — úvodní obrazovka aplikace.
+ * Dashboard projektů — úvodní obrazovka aplikace.
  *
- * Fáze 0: KPI dlaždice, tabulka zakázek, filtry a fulltext nad daty,
- * která už v seznamu jsou. Zakládání zakázek, export do Excelu a uložené
+ * Fáze 0: KPI dlaždice, tabulka projektů, filtry a fulltext nad daty,
+ * která už v seznamu jsou. Zakládání projektů, export do Excelu a uložené
  * filtry přijdou ve Fázi 1.
  */
 
@@ -60,7 +60,7 @@ export const DashboardPage: React.FC = () => {
     };
   }, [repos, statuses.join(','), pms.join(','), search]);
 
-  // Nabídka jmen PM do filtru — ze všech zakázek, nezávisle na aktuálním filtru.
+  // Nabídka jmen PM do filtru — ze všech projektů, nezávisle na aktuálním filtru.
   React.useEffect(() => {
     let cancelled = false;
     repos.projects
@@ -105,18 +105,18 @@ export const DashboardPage: React.FC = () => {
       >
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap', marginBottom: 16 }}>
           <div style={{ flex: '1 1 auto', minWidth: 0 }}>
-            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 600, color: RES.white }}>Zakázky</h1>
+            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 600, color: RES.white }}>Projekty</h1>
             <p style={{ margin: '4px 0 0', color: RES.bluePale, fontSize: 13 }}>
-              Přehled zakázek Revoltum Engineering & Services
+              Přehled projektů Revoltum Engineering & Services
             </p>
           </div>
           {canCreateProject(user.roles) && (
             <div style={{ flex: '0 0 auto' }}>
               <PrimaryButton
                 iconProps={{ iconName: 'Add' }}
-                text="Nová zakázka"
+                text="Nový projekt"
                 disabled
-                title="Zakládání zakázek přijde ve Fázi 1."
+                title="Zakládání projektů přijde ve Fázi 1."
               />
             </div>
           )}
@@ -167,11 +167,11 @@ export const DashboardPage: React.FC = () => {
         </MessageBar>
       )}
 
-      {!projects && !error && <Spinner size={SpinnerSize.large} label="Načítám zakázky…" />}
+      {!projects && !error && <Spinner size={SpinnerSize.large} label="Načítám projekty…" />}
 
       {projects && projects.length === 0 && !error && (
         <MessageBar messageBarType={MessageBarType.info}>
-          Žádná zakázka neodpovídá zadaným filtrům.
+          Žádný projekt neodpovídá zadaným filtrům.
         </MessageBar>
       )}
 
@@ -184,7 +184,7 @@ export const DashboardPage: React.FC = () => {
             layoutMode={DetailsListLayoutMode.justified}
             compact
             isHeaderVisible
-            ariaLabelForGrid="Seznam zakázek"
+            ariaLabelForGrid="Seznam projektů"
           />
         </div>
       )}
@@ -306,7 +306,7 @@ function buildColumns(): IColumn[] {
 }
 
 /**
- * Název zakázky pro tabulku — bez čísla na začátku, to je už ve svém sloupci.
+ * Název projektu pro tabulku — bez čísla na začátku, to je už ve svém sloupci.
  * Číslo zůstává v `title` (generovaný název s číslem se používá jinde, např. na PDF).
  */
 function titleWithoutNumber(p: Project): string {
@@ -314,7 +314,7 @@ function titleWithoutNumber(p: Project): string {
   return p.title.startsWith(prefix) ? p.title.slice(prefix.length) : p.title;
 }
 
-/** Zakázky, které se počítají jako aktivní. Používá i KpiTiles. */
+/** Projekty, které se počítají jako aktivní. Používá i KpiTiles. */
 export function isActive(p: Project): boolean {
   return !p.isOverhead && ACTIVE_PROJECT_STATUSES.indexOf(p.status) !== -1;
 }

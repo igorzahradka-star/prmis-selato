@@ -132,7 +132,7 @@ function renderRoute(route: Route): React.ReactNode {
         <ComingSoonPage
           title="Objednávky"
           phase="Fáze 2"
-          description="Nákupní objednávky napříč zakázkami se schvalovacím workflow a PDF v grafice RES."
+          description="Nákupní objednávky napříč projekty se schvalovacím workflow a PDF v grafice RES."
         />
       );
     case RouteName.Invoicing:
@@ -148,7 +148,7 @@ function renderRoute(route: Route): React.ReactNode {
         <ComingSoonPage
           title="Benchmark projektů"
           phase="Fáze 5"
-          description="Porovnání dokončených zakázek: marže, odchylky rozpočtu a termínů, náklady na kWp."
+          description="Porovnání dokončených projektů: marže, odchylky rozpočtu a termínů, náklady na kWp."
         />
       );
     case RouteName.Finance:

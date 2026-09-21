@@ -9,15 +9,15 @@
 export enum Role {
   /** Vše: Nastavení, Instalace, správa rolí, číselné řady, šablony složek. */
   Administrator = 'Administrator',
-  /** Vidí všechny zakázky, schvaluje objednávky nad limit a realizační rozpočty. */
+  /** Vidí všechny projekty, schvaluje objednávky nad limit a realizační rozpočty. */
   Vedeni = 'Vedeni',
   /** Firemní CF, důvěrné položky, Excel report pro FO. Ověřuje se i přístupem na web PRM-Finance. */
   Finance = 'Finance',
-  /** Zakládá a spravuje své zakázky, schvaluje objednávky ve svém limitu. */
+  /** Zakládá a spravuje své projekty, schvaluje objednávky ve svém limitu. */
   ProjektovyManazer = 'ProjektovyManazer',
-  /** Pracuje na přiřazených zakázkách, ale neschvaluje. */
+  /** Pracuje na přiřazených projektech, ale neschvaluje. */
   AsistentPM = 'AsistentPM',
-  /** Jen čtení zakázek. */
+  /** Jen čtení projektů. */
   Ctenar = 'Ctenar'
 }
 
@@ -51,7 +51,7 @@ export interface CurrentUser {
   hasFinanceAccess: boolean;
 }
 
-/** Stav zakázky. */
+/** Stav projektu. */
 export enum ProjectStatus {
   Nabidka = 'Nabídka',
   Priprava = 'Příprava',
@@ -62,7 +62,7 @@ export enum ProjectStatus {
   Storno = 'Storno'
 }
 
-/** Stavy, které se počítají jako „aktivní zakázka" na dashboardu. */
+/** Stavy, které se počítají jako „aktivní projekt" na dashboardu. */
 export const ACTIVE_PROJECT_STATUSES: ProjectStatus[] = [
   ProjectStatus.Nabidka,
   ProjectStatus.Priprava,
@@ -78,11 +78,11 @@ export enum BudgetStatus {
   Zluta = 'Žlutá',
   /** Odchylka > +5 % nebo marže pod minimem. */
   Cervena = 'Červená',
-  /** Zakázka nemá schválenou baseline — semafor se nepočítá. */
+  /** Projekt nemá schválenou baseline — semafor se nepočítá. */
   Bez = 'Bez rozpočtu'
 }
 
-/** Zakázka — minimální tvar pro Fázi 0 (dashboard a mock data). Rozšiřuje se ve Fázi 1. */
+/** Projekt — minimální tvar pro Fázi 0 (dashboard a mock data). Rozšiřuje se ve Fázi 1. */
 export interface Project {
   id: number;
   projectNumber: string;
@@ -101,7 +101,7 @@ export interface Project {
   /** Nejbližší smluvní termín plnění — cache, počítá se z PRM_Tasks. */
   nextDeadline?: Date;
   folderUrl?: string;
-  /** Zakázka „Režie" sbírá režijní objednávky a náklady. */
+  /** Projekt „Režie" sbírá režijní objednávky a náklady. */
   isOverhead: boolean;
   budgetStatus: BudgetStatus;
   budgetBaselineTotal?: number;

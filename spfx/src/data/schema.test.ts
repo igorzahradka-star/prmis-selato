@@ -84,7 +84,7 @@ describe('schéma — základní kontroly', () => {
 });
 
 describe('indexy', () => {
-  it('zakázky mají index na sloupcích, podle kterých dashboard filtruje', () => {
+  it('projekty mají index na sloupcích, podle kterých dashboard filtruje', () => {
     const projects = LISTS.filter((l) => l.name === 'PRM_Projects')[0];
     const indexed = indexedFields(projects).map((f) => f.name);
     ['ProjectNumber', 'ProjectStatus', 'ProjectManager', 'ProjectYear', 'ProjectType'].forEach(
@@ -92,7 +92,7 @@ describe('indexy', () => {
     );
   });
 
-  it('každý seznam vázaný na zakázku má index na sloupci Project', () => {
+  it('každý seznam vázaný na projekt má index na sloupci Project', () => {
     LISTS.filter((l) => l.fields.some((f) => f.name === 'Project')).forEach((list) => {
       const project = list.fields.filter((f) => f.name === 'Project')[0];
       expect(project.indexed).toBe(true);

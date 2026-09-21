@@ -62,54 +62,54 @@ describe('hasAnyRole', () => {
 });
 
 describe('canCreateProject', () => {
-  it('projektový manažer smí založit zakázku', () => {
+  it('projektový manažer smí založit projekt', () => {
     expect(canCreateProject([Role.ProjektovyManazer])).toBe(true);
   });
 
-  it('asistent zakázku zakládat nesmí', () => {
+  it('asistent projekt zakládat nesmí', () => {
     expect(canCreateProject([Role.AsistentPM])).toBe(false);
   });
 
-  it('čtenář zakázku zakládat nesmí', () => {
+  it('čtenář projekt zakládat nesmí', () => {
     expect(canCreateProject([Role.Ctenar])).toBe(false);
   });
 });
 
 describe('canEditProject', () => {
-  const zakazka = {
+  const projekt = {
     projectManagerLogin: 'i:0#.f|membership|jan.novak@revoltum.cz',
     assistantLogins: ['i:0#.f|membership|eva.mala@revoltum.cz']
   };
 
-  it('PM smí editovat svou zakázku', () => {
-    expect(canEditProject([Role.ProjektovyManazer], 'jan.novak@revoltum.cz', zakazka)).toBe(true);
+  it('PM smí editovat svůj projekt', () => {
+    expect(canEditProject([Role.ProjektovyManazer], 'jan.novak@revoltum.cz', projekt)).toBe(true);
   });
 
-  it('PM nesmí editovat cizí zakázku', () => {
-    expect(canEditProject([Role.ProjektovyManazer], 'petr.cizi@revoltum.cz', zakazka)).toBe(false);
+  it('PM nesmí editovat cizí projekt', () => {
+    expect(canEditProject([Role.ProjektovyManazer], 'petr.cizi@revoltum.cz', projekt)).toBe(false);
   });
 
-  it('asistent přiřazený k zakázce ji editovat smí', () => {
-    expect(canEditProject([Role.AsistentPM], 'eva.mala@revoltum.cz', zakazka)).toBe(true);
+  it('asistent přiřazený k projektu ho editovat smí', () => {
+    expect(canEditProject([Role.AsistentPM], 'eva.mala@revoltum.cz', projekt)).toBe(true);
   });
 
-  it('asistent nepřiřazený k zakázce ji editovat nesmí', () => {
-    expect(canEditProject([Role.AsistentPM], 'jiny.asistent@revoltum.cz', zakazka)).toBe(false);
+  it('asistent nepřiřazený k projektu ho editovat nesmí', () => {
+    expect(canEditProject([Role.AsistentPM], 'jiny.asistent@revoltum.cz', projekt)).toBe(false);
   });
 
-  it('administrátor smí editovat jakoukoli zakázku', () => {
-    expect(canEditProject([Role.Administrator], 'kdokoli@revoltum.cz', zakazka)).toBe(true);
+  it('administrátor smí editovat jakýkoli projekt', () => {
+    expect(canEditProject([Role.Administrator], 'kdokoli@revoltum.cz', projekt)).toBe(true);
   });
 
-  it('vedení smí editovat jakoukoli zakázku', () => {
-    expect(canEditProject([Role.Vedeni], 'kdokoli@revoltum.cz', zakazka)).toBe(true);
+  it('vedení smí editovat jakýkoli projekt', () => {
+    expect(canEditProject([Role.Vedeni], 'kdokoli@revoltum.cz', projekt)).toBe(true);
   });
 
   it('čtenář needituje nic', () => {
-    expect(canEditProject([Role.Ctenar], 'jan.novak@revoltum.cz', zakazka)).toBe(false);
+    expect(canEditProject([Role.Ctenar], 'jan.novak@revoltum.cz', projekt)).toBe(false);
   });
 
-  it('zakázka bez přiřazeného PM se needituje omylem', () => {
+  it('projekt bez přiřazeného PM se needituje omylem', () => {
     expect(canEditProject([Role.ProjektovyManazer], 'jan.novak@revoltum.cz', {})).toBe(false);
   });
 });

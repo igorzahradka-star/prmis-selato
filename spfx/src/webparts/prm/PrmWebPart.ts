@@ -71,7 +71,7 @@ export default class PrmWebPart extends BaseClientSideWebPart<IPrmWebPartProps> 
     return {
       users: new SpUserRepository(this.context, financeSiteUrl),
       settings,
-      // ID uživatele je už v kontextu stránky — kvůli filtru „moje zakázky"
+      // ID uživatele je už v kontextu stránky — kvůli filtru „moje projekty"
       // tak nemusíme čekat na další dotaz do SharePointu.
       projects: new SpProjectRepository(this.context, userId),
       install: new SpInstallRepository(this.context, financeSiteUrl, settings)

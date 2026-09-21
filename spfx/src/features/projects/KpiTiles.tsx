@@ -1,7 +1,7 @@
 /**
- * Dlaždice KPI nad tabulkou zakázek.
+ * Dlaždice KPI nad tabulkou projektů.
  *
- * Počítají se z už načtených zakázek — žádné další dotazy do SharePointu.
+ * Počítají se z už načtených projektů — žádné další dotazy do SharePointu.
  * Dlaždice, které potřebují data z dalších modulů (objednávky ke schválení),
  * se doplní v příslušné fázi; do té doby se nezobrazují, aby neukazovaly nuly,
  * které nejsou pravda.
@@ -67,7 +67,7 @@ export const KpiTiles: React.FC<{ projects: Project[] | undefined }> = ({ projec
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
       <Tile
         icon="ViewList"
-        label="Aktivní zakázky"
+        label="Aktivní projekty"
         value={String(kpi.activeCount)}
         color={RES.blueLight}
       />

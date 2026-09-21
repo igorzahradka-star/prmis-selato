@@ -28,28 +28,28 @@ export interface FolderTemplateNode {
 
 /** Nastavení umístění a struktury projektových složek. */
 export interface FolderSettings {
-  /** Absolutní URL webu, kde leží knihovna zakázek. Prázdné = stejný web jako aplikace. */
+  /** Absolutní URL webu, kde leží knihovna projektů. Prázdné = stejný web jako aplikace. */
   siteUrl: string;
   /** Název knihovny dokumentů, např. „Dokumenty" nebo „Shared Documents". */
   libraryTitle: string;
-  /** Kořenová složka v knihovně, např. „Zakázky". Prázdné = kořen knihovny. */
+  /** Kořenová složka v knihovně, např. „Projekty". Prázdné = kořen knihovny. */
   rootFolder: string;
-  /** Zakládat podsložku podle roku zakázky (Zakázky/2026/26-014 …). */
+  /** Zakládat podsložku podle roku projektu (Projekty/2026/26-014 …). */
   subfolderByYear: boolean;
-  /** Šablona složek. Více šablon podle typu zakázky se doplní ve Fázi 1. */
+  /** Šablona složek. Více šablon podle typu projektu se doplní ve Fázi 1. */
   template: FolderTemplateNode[];
 }
 
-/** Nastavení generování názvu zakázky. */
+/** Nastavení generování názvu projektu. */
 export interface ProjectSettings {
   /**
-   * Vzor názvu zakázky. Tokeny: {CISLO}, {ZAKAZNIK}, {LOKALITA}, {TYP}, {ROK}.
+   * Vzor názvu projektu. Tokeny: {CISLO}, {ZAKAZNIK}, {LOKALITA}, {TYP}, {ROK}.
    * PM může vygenerovaný název před uložením upravit.
    */
   titlePattern: string;
-  /** Typy zakázek — nabídka v průvodci. */
+  /** Typy projektů — nabídka v průvodci. */
   projectTypes: string[];
-  /** Číslo zakázky „Režie" (IsOverhead = true). Vyplní se po jejím založení. */
+  /** Číslo projektu „Režie" (IsOverhead = true). Vyplní se po jejím založení. */
   overheadProjectNumber: string;
 }
 
@@ -65,7 +65,7 @@ export interface BudgetSettings {
 
 /** Nastavení schvalování objednávek (limity bez DPH v Kč). */
 export interface ApprovalSettings {
-  /** Do této částky schvaluje PM zakázky. */
+  /** Do této částky schvaluje PM projektu. */
   pmLimit: number;
   /** Nad pmLimit do vedeniLimit schvaluje navíc Vedení. */
   vedeniLimit: number;
@@ -74,7 +74,7 @@ export interface ApprovalSettings {
    * Vypnuto = i vlastní objednávku PM musí schválit Vedení.
    */
   pmSelfApprovalEnabled: boolean;
-  /** Zakázka Režie: schvaluje vždy Vedení bez ohledu na částku. */
+  /** Projekt Režie: schvaluje vždy Vedení bez ohledu na částku. */
   overheadRequiresVedeni: boolean;
 }
 
@@ -132,7 +132,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   folders: {
     siteUrl: '',
     libraryTitle: 'Dokumenty',
-    rootFolder: 'Zakázky',
+    rootFolder: 'Projekty',
     subfolderByYear: true,
     template: DEFAULT_FOLDER_TEMPLATE
   },
@@ -212,16 +212,16 @@ export function validateSettings(settings: AppSettings): string[] {
   const problems: string[] = [];
 
   if (!settings.folders.libraryTitle.trim()) {
-    problems.push('Není vyplněn název knihovny, kam se zakládají složky zakázek.');
+    problems.push('Není vyplněn název knihovny, kam se zakládají složky projektů.');
   }
   if (settings.folders.template.length === 0) {
-    problems.push('Šablona složek je prázdná — u nové zakázky by nevznikly žádné podsložky.');
+    problems.push('Šablona složek je prázdná — u nového projektu by nevznikly žádné podsložky.');
   }
   if (!settings.projects.titlePattern.includes('{CISLO}')) {
-    problems.push('Vzor názvu zakázky musí obsahovat token {CISLO}, jinak by názvy nebyly jednoznačné.');
+    problems.push('Vzor názvu projektu musí obsahovat token {CISLO}, jinak by názvy nebyly jednoznačné.');
   }
   if (settings.projects.projectTypes.length === 0) {
-    problems.push('Není zadán žádný typ zakázky.');
+    problems.push('Není zadán žádný typ projektu.');
   }
   if (settings.budget.categories.length === 0) {
     problems.push('Není zadána žádná kategorie rozpočtu.');

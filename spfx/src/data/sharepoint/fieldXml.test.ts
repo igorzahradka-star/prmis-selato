@@ -16,11 +16,11 @@ describe('escapeXml', () => {
 
 describe('buildFieldXml', () => {
   it('u textového sloupce zachová anglický interní název a český zobrazovaný', () => {
-    const f: FieldDef = { name: 'ProjectNumber', title: 'Číslo zakázky', type: 'Text', required: true, indexed: true };
+    const f: FieldDef = { name: 'ProjectNumber', title: 'Číslo projektu', type: 'Text', required: true, indexed: true };
     const xml = buildFieldXml(f);
     expect(xml).toContain('Name="ProjectNumber"');
     expect(xml).toContain('StaticName="ProjectNumber"');
-    expect(xml).toContain('DisplayName="Číslo zakázky"');
+    expect(xml).toContain('DisplayName="Číslo projektu"');
     expect(xml).toContain('Required="TRUE"');
     expect(xml).toContain('Indexed="TRUE"');
   });
@@ -66,12 +66,12 @@ describe('buildFieldXml', () => {
   });
 
   it('lookup vyžaduje ID cílového seznamu', () => {
-    const f: FieldDef = { name: 'Project', title: 'Zakázka', type: 'Lookup', lookupList: 'PRM_Projects', lookupField: 'ProjectNumber' };
+    const f: FieldDef = { name: 'Project', title: 'Projekt', type: 'Lookup', lookupList: 'PRM_Projects', lookupField: 'ProjectNumber' };
     expect(() => buildFieldXml(f)).toThrow(/PRM_Projects/);
   });
 
   it('lookup se správným ID ukazuje na zvolený sloupec', () => {
-    const f: FieldDef = { name: 'Project', title: 'Zakázka', type: 'Lookup', lookupList: 'PRM_Projects', lookupField: 'ProjectNumber' };
+    const f: FieldDef = { name: 'Project', title: 'Projekt', type: 'Lookup', lookupList: 'PRM_Projects', lookupField: 'ProjectNumber' };
     const xml = buildFieldXml(f, '{11111111-2222-3333-4444-555555555555}');
     expect(xml).toContain('List="{11111111-2222-3333-4444-555555555555}"');
     expect(xml).toContain('ShowField="ProjectNumber"');

@@ -172,15 +172,15 @@ export function pluralDays(count: number): string {
 }
 
 /**
- * Skloňování slova „zakázka": 1 zakázka, 2–4 zakázky, 5+ zakázek.
+ * Skloňování slova „projekt": 1 projekt, 2–4 projekty, 5+ projektů.
  * Používá dashboard v dlaždicích KPI.
  */
 export function pluralProjects(count: number): string {
   if (count === 1) {
-    return '1 zakázka';
+    return '1 projekt';
   }
   if (count >= 2 && count <= 4) {
-    return `${count} zakázky`;
+    return `${count} projekty`;
   }
-  return `${count} zakázek`;
+  return `${count} projektů`;
 }

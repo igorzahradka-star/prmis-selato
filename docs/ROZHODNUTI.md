@@ -18,9 +18,10 @@ když se něco změní, uprav řádek a doplň datum.
 
 | Datum | Otázka | Rozhodnutí |
 |---|---|---|
-| 21. 9. 2026 | Formát čísla zakázky (ot. 1) | Formát podle návrhu v zadání (`{YY}-{N}`, např. `26-014`) zůstává. Od jakého čísla navázat se nastaví v *Nastavení* (počáteční hodnota čítače) — konkrétní hodnotu doplníme při zakládání číselné řady. |
-| 21. 9. 2026 | Šablona složek projektu (ot. 2) | Jedna společná šablona pro všechny typy zakázek (ne různá podle typu). Zůstává ale editovatelná v *Nastavení*, kdyby se to v budoucnu změnilo. |
-| 21. 9. 2026 | Import stávajících zakázek (ot. 11) | Žádný Excel k dispozici — Igor dodá printscreen složky se seznamem zakázek (čísla a názvy). Import/navázání číslování se podle toho navrhne ručně, ne přes hromadný import z Excelu. |
+| 21. 9. 2026 | Formát čísla projektu (ot. 1) | Formát podle návrhu v zadání (`{YY}-{N}`, např. `26-014`) zůstává. Od jakého čísla navázat se nastaví v *Nastavení* (počáteční hodnota čítače) — konkrétní hodnotu doplníme při zakládání číselné řady. |
+| 21. 9. 2026 | Šablona složek projektu (ot. 2) | Jedna společná šablona pro všechny typy projektů (ne různá podle typu). Zůstává ale editovatelná v *Nastavení*, kdyby se to v budoucnu změnilo. |
+| 21. 9. 2026 | Import stávajících projektů (ot. 11) | Žádný Excel k dispozici — Igor dodá printscreen složky se seznamem projektů (čísla a názvy). Import/navázání číslování se podle toho navrhne ručně, ne přes hromadný import z Excelu. |
+| 21. 9. 2026 | Terminologie: „zakázka" vs. „projekt" | Aplikace nikde nepoužívá slovo „zakázka" — správný a jediný pojem je **projekt** (viz kap. 2, „Cíl aplikace"). Přejmenováno v celém kódu, UI i dokumentaci (route `#/zakazky` → `#/projekty` apod.). |
 
 ## Zatím nezodpovězené
 
@@ -31,7 +32,7 @@ kdy nejpozději ji potřebujeme znát.
 |---|---|---|---|
 | 8 | Kdo je správce Microsoftu 365 a může nahrát aplikaci do katalogu aplikací | **0** | Bez toho se aplikace nedostane na SharePoint a Fázi 0 nelze otestovat v ostrém provozu. |
 | 9 | Adresa tenanta (`https://<firma>.sharepoint.com`) a adresy webů PRM a PRM-Finance | **0** | Potřebné pro ladění i pro nastavení web partu. |
-| 10 | Kde přesně leží knihovna zakázek (web, knihovna, kořenová složka) | 1 | Cíl, kam aplikace zakládá složky. |
+| 10 | Kde přesně leží knihovna projektů (web, knihovna, kořenová složka) | 1 | Cíl, kam aplikace zakládá složky. |
 | 3 | Limity schvalování objednávek a jména schvalovatelů | 2 | Peníze a oprávnění — nelze odhadovat. |
 | 4 | Vzory PDF (objednávka, podklad pro fakturaci, protokol) a fakturační údaje RES (IČO, DIČ, e-mail účtárny) | 2 | Dokumenty jdou ven k dodavatelům a zákazníkům. |
 | 5 | Účetní systém a formát exportu skutečných plateb | 3 | Určuje podobu importu skutečnosti do cashflow. |

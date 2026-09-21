@@ -3,8 +3,8 @@
 Pro projektové manažery a asistenty. Snímky obrazovek doplníme, až bude
 aplikace nasazená.
 
-> Stav: **Fáze 0**. Aplikace zatím umí zobrazit zakázky a nastavení.
-> Zakládání zakázek, objednávky, rozpočty a harmonogramy přibývají postupně —
+> Stav: **Fáze 0**. Aplikace zatím umí zobrazit projekty a nastavení.
+> Zakládání projektů, objednávky, rozpočty a harmonogramy přibývají postupně —
 > v navigaci je u nich štítek „brzy“ a po kliknutí se dozvíte, kdy přijdou.
 
 ---
@@ -25,9 +25,9 @@ přiděluje je administrátor PRM.
 
 | Role | Co smí |
 |---|---|
-| **Projektový manažer** | zakládá zakázky, spravuje své zakázky, schvaluje objednávky ve svém limitu |
-| **Asistent PM** | pracuje na zakázkách, kam je přiřazen; objednávky vytváří, ale neschvaluje |
-| **Vedení** | vidí všechny zakázky, schvaluje objednávky nad limit a realizační rozpočty |
+| **Projektový manažer** | zakládá projekty, spravuje své projekty, schvaluje objednávky ve svém limitu |
+| **Asistent PM** | pracuje na projektech, kam je přiřazen; objednávky vytváří, ale neschvaluje |
+| **Vedení** | vidí všechny projekty, schvaluje objednávky nad limit a realizační rozpočty |
 | **Finance – důvěrné** | firemní cashflow a report pro holding |
 | **Administrátor PRM** | Nastavení, instalace, správa rolí |
 | **Čtenář** | jen čtení |
@@ -37,23 +37,22 @@ není to chyba aplikace, ale nastavení skupin.
 
 ---
 
-## Přehled zakázek
+## Přehled projektů
 
 Úvodní obrazovka. Nahoře jsou dlaždice s rychlým přehledem:
 
-- **Aktivní zakázky** — ve stavu Nabídka, Příprava, Realizace nebo Pozastaveno.
-- **Hodnota aktivních zakázek** — součet smluvních cen bez DPH.
-- **Zakázky v červené** — rozpočet výrazně překročen (viz semafor níže).
+- **Aktivní projekty** — ve stavu Nabídka, Příprava, Realizace nebo Pozastaveno.
+- **Hodnota aktivních projektů** — součet smluvních cen bez DPH.
+- **Projekty v červené** — rozpočet výrazně překročen (viz semafor níže).
 - **Termíny do 14 dní** — blížící se smluvní termíny plnění.
 - **Termíny po splatnosti** — už zmeškané termíny.
 
-Zakázka **Režie** se do dlaždic nepočítá — není to obchodní případ.
+Projekt **Režie** se do dlaždic nepočítá — není to obchodní případ.
 
 ### Filtrování a hledání
 
 - **Hledání** funguje přes číslo, název, zákazníka, lokalitu i zkrácený název.
-- **Stav** a **Typ zakázky** umožňují vybrat víc hodnot najednou.
-- **Jen moje zakázky** nechá jen ty, kde jste projektový manažer.
+- **Projektový manažer** a **Stav** umožňují vybrat víc hodnot najednou.
 
 Filtry se dají kombinovat. Když nic nezbude, aplikace to napíše.
 
@@ -61,7 +60,7 @@ Filtry se dají kombinovat. Když nic nezbude, aplikace to napíše.
 
 ## Semafor rozpočtu
 
-Barevný štítek ve sloupci *Rozpočet* říká, jak si zakázka stojí proti
+Barevný štítek ve sloupci *Rozpočet* říká, jak si projekt stojí proti
 schválenému realizačnímu rozpočtu.
 
 | Štítek | Co znamená |
@@ -69,7 +68,7 @@ schválenému realizačnímu rozpočtu.
 | 🟢 **Zelená** | prognóza nákladů nepřekračuje schválený rozpočet |
 | 🟡 **Žlutá** | mírné překročení (práh nastavuje administrátor, výchozí 5 %) |
 | 🔴 **Červená** | výraznější překročení, nebo marže pod minimem |
-| ⚪ **Bez rozpočtu** | zakázka nemá schválený realizační rozpočet |
+| ⚪ **Bez rozpočtu** | projekt nemá schválený realizační rozpočet |
 
 **Najeďte na štítek myší** — zobrazí se konkrétní čísla: schválený rozpočet,
 prognóza nákladů a odchylka v procentech.
@@ -79,22 +78,22 @@ Barva nikdy nestojí sama — vždy je doplněná ikonou a slovem, aby byl semaf
 
 ---
 
-## Detail zakázky
+## Detail projektu
 
-Otevřete kliknutím na číslo zakázky.
+Otevřete kliknutím na číslo projektu.
 
 - **Přehled** — základní údaje, finance, termíny.
 - **Realizační rozpočet**, **Cashflow**, **Harmonogram**, **Objednávky**,
   **Fakturace**, **Dokumenty** — připravují se, po kliknutí uvidíte v jaké fázi.
 
 Adresu detailu můžete zkopírovat z prohlížeče a poslat kolegovi — odkaz
-otevře přesně tu samou zakázku.
+otevře přesně ten samý projekt.
 
 ---
 
-## Složky zakázky
+## Složky projektu
 
-U zakázky, která už má založenou složku, je tlačítko **Otevřít složku zakázky**.
+U projektu, který už má založenou složku, je tlačítko **Otevřít složku projektu**.
 Otevře ji v SharePointu v novém okně.
 
 ### Proč se složka neotevře rovnou v Průzkumníku Windows
@@ -104,7 +103,7 @@ obejít — je to vlastnost všech prohlížečů, ne chyba aplikace.
 
 **Řešení, které stačí udělat jednou:**
 
-1. Otevřete knihovnu zakázek v SharePointu.
+1. Otevřete knihovnu projektů v SharePointu.
 2. Nahoře klikněte na **Synchronizovat** (nebo **Přidat zástupce do Mé soubory**).
 3. Potvrďte otevření aplikace OneDrive.
 4. Od té chvíle máte stejné složky v Průzkumníku pod stejnými názvy —
@@ -138,4 +137,4 @@ a pošlete ji administrátorovi.
 
 V levé navigaci je položka **Nápověda**. Obsahuje to samé co tento návod,
 ale doplněné o vaše konkrétní údaje — vaše role, aktuálně nastavený vzor
-názvu zakázky a platné prahy semaforu.
+názvu projektu a platné prahy semaforu.

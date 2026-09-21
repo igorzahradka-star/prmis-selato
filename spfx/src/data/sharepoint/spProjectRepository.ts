@@ -1,7 +1,7 @@
 /**
- * Čtení zakázek ze seznamu PRM_Projects.
+ * Čtení projektů ze seznamu PRM_Projects.
  *
- * Ve Fázi 0 jen čtení — zakládání zakázek, číselné řady a složky přijdou ve Fázi 1.
+ * Ve Fázi 0 jen čtení — zakládání projektů, číselné řady a složky přijdou ve Fázi 1.
  */
 
 import { WebPartContext } from '@microsoft/sp-webpart-base';
@@ -15,7 +15,7 @@ const PROJECTS_LIST = 'PRM_Projects';
 
 /**
  * Sloupce, které dashboard potřebuje. Načítáme jen je — načítání všech
- * sloupců by u 500 zakázek dashboard zpomalilo nad limit 2 s ze zadání.
+ * sloupců by u 500 projektů dashboard zpomalilo nad limit 2 s ze zadání.
  */
 const SELECT_FIELDS = [
   'Id',
@@ -71,7 +71,7 @@ interface ProjectItem {
 export class SpProjectRepository implements IProjectRepository {
   public constructor(
     private readonly context: WebPartContext,
-    /** Přihlašovací jméno uživatele — pro filtr „moje zakázky". */
+    /** Přihlašovací jméno uživatele — pro filtr „moje projekty". */
     private readonly currentUserId: number
   ) {}
 
@@ -95,11 +95,11 @@ export class SpProjectRepository implements IProjectRepository {
 
       // Fulltext se dělá až v prohlížeči: SharePoint umí `substringof` jen
       // na indexovaných textových sloupcích a kombinace s dalšími filtry
-      // často narazí na limit 5 000 položek. Zakázek jsou stovky, ne miliony.
+      // často narazí na limit 5 000 položek. Projektů jsou stovky, ne miliony.
       const withSearch = applyTextSearch(projects, filter?.search);
       return applyPmFilter(withSearch, filter?.projectManagerNames);
     } catch (error) {
-      throw new Error(describeSpError(error, 'Nepodařilo se načíst seznam zakázek'));
+      throw new Error(describeSpError(error, 'Nepodařilo se načíst seznam projektů'));
     }
   }
 
@@ -114,7 +114,7 @@ export class SpProjectRepository implements IProjectRepository {
         .top(1)();
       return items.length > 0 ? mapProject(items[0]) : undefined;
     } catch (error) {
-      throw new Error(describeSpError(error, `Nepodařilo se načíst zakázku ${projectNumber}`));
+      throw new Error(describeSpError(error, `Nepodařilo se načíst projekt ${projectNumber}`));
     }
   }
 }

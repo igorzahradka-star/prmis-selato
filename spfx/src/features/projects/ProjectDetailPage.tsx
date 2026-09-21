@@ -1,5 +1,5 @@
 /**
- * Detail zakázky.
+ * Detail projektu.
  *
  * Fáze 0: záložka Přehled se základními údaji. Ostatní záložky (rozpočet,
  * cashflow, harmonogram, objednávky, fakturace, dokumenty) přibývají po fázích.
@@ -57,13 +57,13 @@ export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projec
     );
   }
   if (project === undefined) {
-    return <Spinner size={SpinnerSize.large} label="Načítám zakázku…" />;
+    return <Spinner size={SpinnerSize.large} label="Načítám projekt…" />;
   }
   if (project === null) {
     return (
       <MessageBar messageBarType={MessageBarType.warning} isMultiline>
-        Zakázka nebyla nalezena. Mohla být přečíslovaná, nebo na ni nemáte oprávnění. Vraťte se
-        prosím na <Link href="#/zakazky">seznam zakázek</Link>.
+        Projekt nebyl nalezen. Mohl být přečíslovaný, nebo na něj nemáte oprávnění. Vraťte se
+        prosím na <Link href="#/projekty">seznam projektů</Link>.
       </MessageBar>
     );
   }
@@ -77,7 +77,7 @@ export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projec
           project.folderUrl ? (
             <DefaultButton
               iconProps={{ iconName: 'FolderHorizontal' }}
-              text="Otevřít složku zakázky"
+              text="Otevřít složku projektu"
               href={project.folderUrl}
               target="_blank"
             />
@@ -98,9 +98,9 @@ export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projec
         </PivotItem>
         <PivotItem headerText="Cashflow" itemIcon="Money">
           <ComingSoonPage
-            title="Cashflow zakázky"
+            title="Cashflow projektu"
             phase="Fáze 3"
-            description="Měsíční plán příjmů a výdajů zakázky, plán proti skutečnosti."
+            description="Měsíční plán příjmů a výdajů projektu, plán proti skutečnosti."
           />
         </PivotItem>
         <PivotItem headerText="Harmonogram" itemIcon="TimelineProgress">
@@ -112,9 +112,9 @@ export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projec
         </PivotItem>
         <PivotItem headerText="Objednávky" itemIcon="ShoppingCart">
           <ComingSoonPage
-            title="Objednávky zakázky"
+            title="Objednávky projektu"
             phase="Fáze 2"
-            description="Nákupní objednávky této zakázky včetně schvalování a PDF v grafice RES."
+            description="Nákupní objednávky tohoto projektu včetně schvalování a PDF v grafice RES."
           />
         </PivotItem>
         <PivotItem headerText="Fakturace" itemIcon="M365InvoicingLogo">
@@ -128,7 +128,7 @@ export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projec
           <ComingSoonPage
             title="Dokumenty"
             phase="Fáze 2"
-            description="Předávací protokoly a další číslované dokumenty, plus poslední změněné soubory ve složce zakázky."
+            description="Předávací protokoly a další číslované dokumenty, plus poslední změněné soubory ve složce projektu."
           />
         </PivotItem>
       </Pivot>
@@ -146,7 +146,7 @@ const Overview: React.FC<{ project: Project }> = ({ project }) => (
     }}
   >
     <Card title="Základní údaje">
-      <Row label="Číslo zakázky" value={project.projectNumber} />
+      <Row label="Číslo projektu" value={project.projectNumber} />
       <Row label="Stav" value={<StatusBadge status={project.status} />} />
       <Row label="Typ" value={project.projectType || '—'} />
       <Row label="Zákazník" value={project.customerName || '—'} />

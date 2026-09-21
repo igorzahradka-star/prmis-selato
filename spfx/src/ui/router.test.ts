@@ -11,19 +11,19 @@ describe('parseHash', () => {
     expect(parseHash('#/objednavky')).toEqual({ name: RouteName.Orders, param: undefined });
   });
 
-  it('přečte parametr — číslo zakázky', () => {
-    expect(parseHash('#/zakazka/26-014')).toEqual({
+  it('přečte parametr — číslo projektu', () => {
+    expect(parseHash('#/projekt/26-014')).toEqual({
       name: RouteName.ProjectDetail,
       param: '26-014'
     });
   });
 
   it('zvládne hash bez úvodního lomítka', () => {
-    expect(parseHash('#zakazky')).toEqual({ name: RouteName.Dashboard, param: undefined });
+    expect(parseHash('#projekty')).toEqual({ name: RouteName.Dashboard, param: undefined });
   });
 
   it('dekóduje parametr s diakritikou', () => {
-    expect(parseHash('#/zakazka/26-014%20Hav%C3%AD%C5%99sk%C3%A1').param).toBe(
+    expect(parseHash('#/projekt/26-014%20Hav%C3%AD%C5%99sk%C3%A1').param).toBe(
       '26-014 Havířská'
     );
   });
@@ -33,7 +33,7 @@ describe('parseHash', () => {
   });
 
   it('ignoruje přebytečná lomítka', () => {
-    expect(parseHash('#//zakazky//')).toEqual({ name: RouteName.Dashboard, param: undefined });
+    expect(parseHash('#//projekty//')).toEqual({ name: RouteName.Dashboard, param: undefined });
   });
 });
 
@@ -43,11 +43,11 @@ describe('buildHash', () => {
   });
 
   it('složí odkaz s parametrem', () => {
-    expect(buildHash(RouteName.ProjectDetail, '26-014')).toBe('#/zakazka/26-014');
+    expect(buildHash(RouteName.ProjectDetail, '26-014')).toBe('#/projekt/26-014');
   });
 
   it('zakóduje znaky, které by rozbily URL', () => {
-    expect(buildHash(RouteName.ProjectDetail, 'a b/c')).toBe('#/zakazka/a%20b%2Fc');
+    expect(buildHash(RouteName.ProjectDetail, 'a b/c')).toBe('#/projekt/a%20b%2Fc');
   });
 });
 
@@ -56,7 +56,7 @@ describe('buildHash a parseHash jsou navzájem obrácené', () => {
     const cases: { name: RouteName; param?: string }[] = [
       { name: RouteName.Dashboard },
       { name: RouteName.ProjectDetail, param: '26-014' },
-      { name: RouteName.ProjectDetail, param: 'Zakázka / test' },
+      { name: RouteName.ProjectDetail, param: 'Projekt / test' },
       { name: RouteName.Install }
     ];
     cases.forEach((c) => {

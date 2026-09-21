@@ -69,7 +69,7 @@ export function hasAnyRole(userRoles: Role[], ...required: Role[]): boolean {
 }
 
 /**
- * Smí uživatel zakládat nové zakázky?
+ * Smí uživatel zakládat nové projekty?
  * PM a administrátor ano, asistent ne (asistent pracuje na už založených).
  */
 export function canCreateProject(userRoles: Role[]): boolean {
@@ -77,10 +77,10 @@ export function canCreateProject(userRoles: Role[]): boolean {
 }
 
 /**
- * Smí uživatel editovat konkrétní zakázku?
+ * Smí uživatel editovat konkrétní projekt?
  *
- * Výchozí pravidlo (konfigurovatelné): všichni PM vidí seznam všech zakázek,
- * ale editovat mohou jen zakázky, kde jsou PM nebo asistentem.
+ * Výchozí pravidlo (konfigurovatelné): všichni PM vidí seznam všech projektů,
+ * ale editovat mohou jen projekty, kde jsou PM nebo asistentem.
  * Administrátor a Vedení mohou vždy.
  */
 export function canEditProject(
