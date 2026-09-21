@@ -8,10 +8,11 @@
  * jiná logika než do ostré implementace, UI by se chovalo jinak na ostro.
  */
 
-import { CurrentUser, Partner, Project, ACTIVE_PROJECT_STATUSES } from '../../core/types';
+import { BudgetStatus, CurrentUser, Partner, Project, ProjectStatus, ACTIVE_PROJECT_STATUSES } from '../../core/types';
 import { AppSettings, DEFAULT_SETTINGS, withDefaults } from '../../core/settings';
 import { normalizeLogin } from '../../core/roles';
 import { renderDocumentNumber, nextSequence, counterScopeKey, CounterState } from '../../core/numbering';
+import { buildProjectFolderPlan } from '../../core/folders';
 import {
   IInstallRepository,
   IPartnerRepository,
@@ -21,6 +22,8 @@ import {
   IUserRepository,
   PartnerFilter,
   ProjectFilter,
+  NewProjectInput,
+  CreateProjectResult,
   DocTypeConfig,
   DiagnosticReport,
   InstallProgress,
@@ -64,12 +67,69 @@ class MockSettingsRepository implements ISettingsRepository {
 }
 
 class MockProjectRepository implements IProjectRepository {
+  private projects: Project[] = MOCK_PROJECTS.map((p) => ({ ...p }));
+  private nextId = Math.max(...MOCK_PROJECTS.map((p) => p.id)) + 1;
+
+  public constructor(
+    private readonly numbering: INumberingRepository,
+    private readonly settings: ISettingsRepository
+  ) {}
+
   public list(filter?: ProjectFilter): Promise<Project[]> {
-    return delay(applyProjectFilter(MOCK_PROJECTS, filter, MOCK_USER.displayName));
+    return delay(applyProjectFilter(this.projects, filter, MOCK_USER.displayName));
   }
 
   public getByNumber(projectNumber: string): Promise<Project | undefined> {
-    return delay(MOCK_PROJECTS.filter((p) => p.projectNumber === projectNumber)[0]);
+    return delay(this.projects.filter((p) => p.projectNumber === projectNumber)[0]);
+  }
+
+  public async create(input: NewProjectInput): Promise<CreateProjectResult> {
+    // Číslo se řídí datem založení (dneškem), ne plánovaným zahájením — projekt
+    // ve stavu Nabídka může vzniknout, ještě než je známé, kdy se začne realizovat.
+    const projectNumber = await this.numbering.allocateNumber('PRJ');
+
+    const project: Project = {
+      id: this.nextId++,
+      projectNumber,
+      title: input.title,
+      customerName: input.customerName,
+      projectManagerName: input.projectManagerName,
+      status: ProjectStatus.Priprava,
+      projectType: input.projectType,
+      location: input.location,
+      contractPriceNet: input.contractPriceNet,
+      currency: input.currency,
+      startDate: input.startDate,
+      endDatePlanned: input.endDatePlanned,
+      isOverhead: false,
+      budgetStatus: BudgetStatus.Bez
+    };
+    this.projects = [...this.projects, project];
+
+    const folderError = await this.tryCreateFolders(project);
+    return { project, folderError };
+  }
+
+  public async retryCreateFolders(projectNumber: string): Promise<void> {
+    const project = this.projects.filter((p) => p.projectNumber === projectNumber)[0];
+    if (!project) {
+      throw new Error(`Projekt ${projectNumber} nebyl nalezen.`);
+    }
+    const error = await this.tryCreateFolders(project);
+    if (error) {
+      throw new Error(error);
+    }
+  }
+
+  /** V ukázkovém režimu se nic nezakládá — jen se simuluje výsledek a nastaví se odkaz. */
+  private async tryCreateFolders(project: Project): Promise<string | undefined> {
+    const settings = await this.settings.get();
+    // Rok podsložky = rok založení (dnešek), ne plánované zahájení projektu —
+    // odpovídá tak roku v přiděleném čísle, i při pozdějším opakovaném pokusu.
+    const plan = buildProjectFolderPlan(settings.folders, project.title, new Date());
+    const folderUrl = `#/ukazkovy-rezim/slozka/${encodeURIComponent(plan[plan.length - 1] ?? project.title)}`;
+    this.projects = this.projects.map((p) => (p.id === project.id ? { ...p, folderUrl } : p));
+    return undefined;
   }
 }
 
@@ -95,8 +155,33 @@ export class MockNumberingRepository implements INumberingRepository {
     this.docTypes = docTypes;
   }
 
+  /**
+   * Nastaví počáteční stav čítače — použije se při startu mocku, aby nově
+   * založené doklady nekolidovaly s čísly, která už mají ukázková data
+   * (viz `seedProjectCounter` v `createMockRepositories`).
+   */
+  public seedCounter(docTypeCode: string, state: CounterState, scopeKey: string = ''): void {
+    this.counters.set(`${docTypeCode}:${scopeKey}`, { ...state, version: 0 });
+  }
+
   public listDocTypes(): Promise<DocTypeConfig[]> {
     return delay(this.docTypes.map((d) => ({ ...d })));
+  }
+
+  public async previewNextNumber(
+    docTypeCode: string,
+    opts?: { projectNumber?: string; date?: Date }
+  ): Promise<string> {
+    const docType = this.docTypes.filter((d) => d.code === docTypeCode && d.active)[0];
+    if (!docType) {
+      throw new Error(`Neznámá nebo neaktivní číselná řada „${docTypeCode}".`);
+    }
+    const year = (opts?.date ?? new Date()).getFullYear();
+    const key = `${docTypeCode}:${counterScopeKey(docType.scope, opts?.projectNumber)}`;
+    const sequence = nextSequence(this.counters.get(key), docType, year);
+    return delay(
+      renderDocumentNumber(docType, { prefix: docType.code, year, sequence, projectNumber: opts?.projectNumber })
+    );
   }
 
   public async allocateNumber(
@@ -267,14 +352,35 @@ export function activeProjects(projects: Project[]): Project[] {
   return projects.filter((p) => !p.isOverhead && ACTIVE_PROJECT_STATUSES.indexOf(p.status) !== -1);
 }
 
+/**
+ * Odvodí, u jakého pořadového čísla už ukázková data v aktuálním roce skončila —
+ * aby nově založený projekt nedostal číslo, které už jedna z ukázkových
+ * zakázek má (formát {YY}-{N} podle výchozí řady PRJ).
+ */
+export function seedProjectCounter(): CounterState {
+  const year = new Date().getFullYear();
+  const yy = String(year).slice(-2);
+  const maxSequence = MOCK_PROJECTS.reduce((max, p) => {
+    const match = /^(\d{2})-(\d+)$/.exec(p.projectNumber);
+    if (!match || match[1] !== yy) {
+      return max;
+    }
+    return Math.max(max, parseInt(match[2], 10));
+  }, 0);
+  return { year, lastValue: maxSequence };
+}
+
 /** Vytvoří kompletní sadu mock repozitářů. */
 export function createMockRepositories(): RepositorySet {
+  const settings = new MockSettingsRepository();
+  const numbering = new MockNumberingRepository();
+  numbering.seedCounter('PRJ', seedProjectCounter());
   return {
     users: new MockUserRepository(),
-    settings: new MockSettingsRepository(),
-    projects: new MockProjectRepository(),
+    settings,
+    projects: new MockProjectRepository(numbering, settings),
     partners: new MockPartnerRepository(),
-    numbering: new MockNumberingRepository(),
+    numbering,
     install: new MockInstallRepository()
   };
 }

@@ -19,6 +19,7 @@ import { RES, LAYOUT } from '../../ui/theme';
 import { buildHash, RouteName } from '../../ui/router';
 import { BudgetBadge, StatusBadge } from '../../ui/components/StatusBadge';
 import { KpiTiles } from './KpiTiles';
+import { NewProjectPanel } from './NewProjectPanel';
 import { BudgetStatus, Project, ProjectStatus, ACTIVE_PROJECT_STATUSES } from '../../core/types';
 import { formatDate, formatMoney, dueLabel } from '../../core/format';
 import { canCreateProject } from '../../core/roles';
@@ -36,6 +37,8 @@ export const DashboardPage: React.FC = () => {
   const [statuses, setStatuses] = React.useState<string[]>([]);
   const [pms, setPms] = React.useState<string[]>([]);
   const [pmOptions, setPmOptions] = React.useState<IDropdownOption[]>([]);
+  const [isNewProjectOpen, setIsNewProjectOpen] = React.useState(false);
+  const [refreshKey, setRefreshKey] = React.useState(0);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -58,7 +61,7 @@ export const DashboardPage: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [repos, statuses.join(','), pms.join(','), search]);
+  }, [repos, statuses.join(','), pms.join(','), search, refreshKey]);
 
   // Nabídka jmen PM do filtru — ze všech projektů, nezávisle na aktuálním filtru.
   React.useEffect(() => {
@@ -115,8 +118,7 @@ export const DashboardPage: React.FC = () => {
               <PrimaryButton
                 iconProps={{ iconName: 'Add' }}
                 text="Nový projekt"
-                disabled
-                title="Zakládání projektů přijde ve Fázi 1."
+                onClick={() => setIsNewProjectOpen(true)}
               />
             </div>
           )}
@@ -124,6 +126,12 @@ export const DashboardPage: React.FC = () => {
 
         <KpiTiles projects={projects} />
       </div>
+
+      <NewProjectPanel
+        isOpen={isNewProjectOpen}
+        onDismiss={() => setIsNewProjectOpen(false)}
+        onCreated={() => setRefreshKey((k) => k + 1)}
+      />
 
       <div
         style={{

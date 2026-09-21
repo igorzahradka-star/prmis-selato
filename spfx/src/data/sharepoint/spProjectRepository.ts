@@ -1,15 +1,27 @@
 /**
- * Čtení projektů ze seznamu PRM_Projects.
+ * Čtení a zakládání projektů v seznamu PRM_Projects.
  *
- * Ve Fázi 0 jen čtení — zakládání projektů, číselné řady a složky přijdou ve Fázi 1.
+ * Založení projektu (kap. 8.2): přidělí číslo, uloží položku seznamu
+ * a založí strukturu složek podle šablony z Nastavení (kap. 8.3). Když
+ * založení složek selže, projekt zůstává uložený — jen se vrátí chyba,
+ * kterou UI zobrazí s tlačítkem na nový pokus (`retryCreateFolders`).
  */
 
 import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { BudgetStatus, Project, ProjectStatus } from '../../core/types';
 import { toDate } from '../../core/format';
-import { IProjectRepository, ProjectFilter } from '../repositories';
-import { getSp, describeSpError } from './spContext';
+import { buildProjectFolderPlan } from '../../core/folders';
+import {
+  IProjectRepository,
+  INumberingRepository,
+  ISettingsRepository,
+  ProjectFilter,
+  NewProjectInput,
+  CreateProjectResult
+} from '../repositories';
+import { getSp, getSpForSite, describeSpError } from './spContext';
 import { escapeODataString } from './spSettingsRepository';
+import { SPFI } from '@pnp/sp';
 
 const PROJECTS_LIST = 'PRM_Projects';
 
@@ -72,7 +84,9 @@ export class SpProjectRepository implements IProjectRepository {
   public constructor(
     private readonly context: WebPartContext,
     /** Přihlašovací jméno uživatele — pro filtr „moje projekty". */
-    private readonly currentUserId: number
+    private readonly currentUserId: number,
+    private readonly numbering: INumberingRepository,
+    private readonly settings: ISettingsRepository
   ) {}
 
   public async list(filter?: ProjectFilter): Promise<Project[]> {
@@ -116,6 +130,148 @@ export class SpProjectRepository implements IProjectRepository {
     } catch (error) {
       throw new Error(describeSpError(error, `Nepodařilo se načíst projekt ${projectNumber}`));
     }
+  }
+
+  public async create(input: NewProjectInput): Promise<CreateProjectResult> {
+    // Číslo se řídí datem založení (dneškem), ne plánovaným zahájením — projekt
+    // ve stavu Nabídka může vzniknout, ještě než je známé, kdy se začne realizovat.
+    const projectNumber = await this.numbering.allocateNumber('PRJ');
+    const sp = getSp(this.context);
+
+    const customerId = input.customerId;
+    const projectManagerId = await this.resolveUserId(sp, input.projectManagerName);
+
+    let newId: number | undefined;
+    try {
+      const added = await sp.web.lists.getByTitle(PROJECTS_LIST).items.add({
+        Title: input.title,
+        ProjectNumber: projectNumber,
+        CustomerId: customerId,
+        ProjectManagerId: projectManagerId,
+        ProjectStatus: ProjectStatus.Priprava,
+        ProjectType: input.projectType,
+        // Rok založení (stejný rok jako v přiděleném čísle), ne plánované zahájení.
+        ProjectYear: new Date().getFullYear(),
+        Location: input.location,
+        ContractPriceNet: input.contractPriceNet,
+        Currency: input.currency,
+        StartDate: input.startDate ? input.startDate.toISOString() : null,
+        EndDatePlanned: input.endDatePlanned ? input.endDatePlanned.toISOString() : null,
+        IsOverhead: false,
+        BudgetStatus: BudgetStatus.Bez
+      });
+      newId = extractAddedId(added);
+    } catch (error) {
+      throw new Error(describeSpError(error, `Nepodařilo se uložit projekt ${projectNumber}`));
+    }
+
+    const project = (newId !== undefined ? await this.getByNumber(projectNumber) : undefined) ?? {
+      id: newId ?? 0,
+      projectNumber,
+      title: input.title,
+      customerName: input.customerName,
+      projectManagerName: input.projectManagerName,
+      status: ProjectStatus.Priprava,
+      projectType: input.projectType,
+      location: input.location,
+      contractPriceNet: input.contractPriceNet,
+      currency: input.currency,
+      startDate: input.startDate,
+      endDatePlanned: input.endDatePlanned,
+      isOverhead: false,
+      budgetStatus: BudgetStatus.Bez
+    };
+
+    let folderError: string | undefined;
+    try {
+      const folderUrl = await this.createProjectFolders(project);
+      if (folderUrl) {
+        await sp.web.lists
+          .getByTitle(PROJECTS_LIST)
+          .items.getById(project.id)
+          .update({ FolderUrl: { Url: folderUrl, Description: project.title } });
+        project.folderUrl = folderUrl;
+      }
+    } catch (error) {
+      folderError = describeSpError(
+        error,
+        'Projekt je uložený, ale založení složek se nepodařilo. Zkuste to prosím znovu tlačítkem níže'
+      );
+    }
+
+    return { project, folderError };
+  }
+
+  public async retryCreateFolders(projectNumber: string): Promise<void> {
+    const project = await this.getByNumber(projectNumber);
+    if (!project) {
+      throw new Error(`Projekt ${projectNumber} nebyl nalezen.`);
+    }
+    try {
+      const folderUrl = await this.createProjectFolders(project);
+      if (folderUrl) {
+        const sp = getSp(this.context);
+        await sp.web.lists
+          .getByTitle(PROJECTS_LIST)
+          .items.getById(project.id)
+          .update({ FolderUrl: { Url: folderUrl, Description: project.title } });
+      }
+    } catch (error) {
+      throw new Error(describeSpError(error, 'Založení složek se znovu nepodařilo'));
+    }
+  }
+
+  /** Najde ID uživatele webu podle zobrazovaného jména — pro sloupec typu Osoba. */
+  private async resolveUserId(sp: SPFI, displayName: string): Promise<number | undefined> {
+    if (!displayName) {
+      return undefined;
+    }
+    const users: { Id: number }[] = await sp.web.siteUsers
+      .select('Id')
+      .filter(`Title eq '${escapeODataString(displayName)}'`)
+      .top(1)();
+    if (users.length === 0) {
+      throw new Error(`Uživatel „${displayName}" se nenašel mezi uživateli webu — musí se na web aspoň jednou přihlásit.`);
+    }
+    return users[0].Id;
+  }
+
+  /**
+   * Založí strukturu složek podle šablony z Nastavení a vrátí odkaz na
+   * kořenovou složku projektu. `undefined`, pokud v Nastavení není
+   * vyplněná knihovna (nedá se tedy nic založit).
+   */
+  private async createProjectFolders(project: Project): Promise<string | undefined> {
+    const settings = await this.settings.get();
+    const folders = settings.folders;
+    if (!folders.libraryTitle.trim()) {
+      return undefined;
+    }
+
+    const foldersSp = folders.siteUrl ? getSpForSite(this.context, folders.siteUrl) : getSp(this.context);
+    const libraryRoot = await this.getLibraryServerRelativeUrl(foldersSp, folders.libraryTitle);
+    // Rok podsložky = rok založení (dnešek), ne plánované zahájení projektu —
+    // odpovídá tak roku v přiděleném čísle, i při pozdějším opakovaném pokusu.
+    const plan = buildProjectFolderPlan(folders, project.title, new Date());
+
+    for (const relativePath of plan) {
+      const fullPath = `${libraryRoot}/${relativePath}`;
+      await foldersSp.web.folders.addUsingPath(fullPath);
+    }
+
+    const projectFolderPath = `${libraryRoot}/${plan[plan.length - 1]}`;
+    const siteAbsoluteUrl = folders.siteUrl || this.context.pageContext.web.absoluteUrl;
+    const origin = new URL(siteAbsoluteUrl).origin;
+    return `${origin}${projectFolderPath}`;
+  }
+
+  /** Server-relativní cesta ke kořeni knihovny — spolehlivější než skládání textu z názvu. */
+  private async getLibraryServerRelativeUrl(sp: SPFI, libraryTitle: string): Promise<string> {
+    const list = await sp.web.lists
+      .getByTitle(libraryTitle)
+      .select('RootFolder/ServerRelativeUrl')
+      .expand('RootFolder')();
+    return (list as { RootFolder: { ServerRelativeUrl: string } }).RootFolder.ServerRelativeUrl;
   }
 }
 
@@ -200,4 +356,9 @@ export function mapProject(item: ProjectItem): Project {
     budgetBaselineTotal: item.BudgetBaselineTotal,
     costForecastTotal: item.CostForecastTotal
   };
+}
+
+function extractAddedId(added: unknown): number | undefined {
+  const a = added as { data?: { Id?: number }; Id?: number };
+  return a?.data?.Id ?? a?.Id;
 }

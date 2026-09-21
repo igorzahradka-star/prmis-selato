@@ -68,6 +68,7 @@ export default class PrmWebPart extends BaseClientSideWebPart<IPrmWebPartProps> 
 
     const financeSiteUrl = (this.properties.financeSiteUrl || '').trim();
     const settings = new SpSettingsRepository(this.context);
+    const numbering = new SpNumberingRepository(this.context);
     const userId = (this.context.pageContext.legacyPageContext || {}).userId as number;
 
     return {
@@ -75,9 +76,9 @@ export default class PrmWebPart extends BaseClientSideWebPart<IPrmWebPartProps> 
       settings,
       // ID uživatele je už v kontextu stránky — kvůli filtru „moje projekty"
       // tak nemusíme čekat na další dotaz do SharePointu.
-      projects: new SpProjectRepository(this.context, userId),
+      projects: new SpProjectRepository(this.context, userId, numbering, settings),
       partners: new SpPartnerRepository(this.context),
-      numbering: new SpNumberingRepository(this.context),
+      numbering,
       install: new SpInstallRepository(this.context, financeSiteUrl, settings)
     };
   }

@@ -1,5 +1,5 @@
-import { MockNumberingRepository, applyPartnerFilter } from './mockRepositories';
-import { DEFAULT_DOC_TYPES, MOCK_PARTNERS } from './mockData';
+import { MockNumberingRepository, applyPartnerFilter, seedProjectCounter } from './mockRepositories';
+import { DEFAULT_DOC_TYPES, MOCK_PARTNERS, MOCK_PROJECTS } from './mockData';
 import { PartnerType } from '../../core/types';
 
 describe('MockNumberingRepository', () => {
@@ -56,6 +56,16 @@ describe('MockNumberingRepository', () => {
     prvni[0].active = false;
     const druhe = await repo.listDocTypes();
     expect(druhe[0].active).toBe(DEFAULT_DOC_TYPES[0].active);
+  });
+
+  it('po nasazení počátečního stavu z ukázkových dat nevydá číslo, které už některý projekt má', async () => {
+    const repo = new MockNumberingRepository();
+    repo.seedCounter('PRJ', seedProjectCounter());
+
+    const existujici = new Set(MOCK_PROJECTS.map((p) => p.projectNumber));
+    const dalsi = await repo.allocateNumber('PRJ');
+
+    expect(existujici.has(dalsi)).toBe(false);
   });
 });
 

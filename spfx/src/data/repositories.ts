@@ -6,7 +6,7 @@
  * a UI se dá vyvíjet proti mock implementaci (viz `data/mock/`).
  */
 
-import { CurrentUser, Partner, Project } from '../core/types';
+import { CurrentUser, Currency, Partner, Project } from '../core/types';
 import { AppSettings } from '../core/settings';
 import { ListDef } from './schema';
 
@@ -42,10 +42,39 @@ export interface ProjectFilter {
   includeOverhead?: boolean;
 }
 
-/** Projekty. Ve Fázi 0 jen čtení — zakládání přijde ve Fázi 1. */
+/** Údaje z průvodce založením projektu (zadání kap. 8.2). */
+export interface NewProjectInput {
+  customerId?: number;
+  customerName?: string;
+  projectManagerName: string;
+  assistantNames?: string[];
+  projectType?: string;
+  location?: string;
+  contractPriceNet?: number;
+  currency: Currency;
+  startDate?: Date;
+  endDatePlanned?: Date;
+  /** Vygenerovaný název, který PM mohl před uložením upravit. */
+  title: string;
+}
+
+export interface CreateProjectResult {
+  project: Project;
+  /**
+   * Založení složek mohlo selhat — projekt zůstává uložený i tak (zadání 8.2).
+   * Vyplněno jen když se složky nepodařilo založit.
+   */
+  folderError?: string;
+}
+
+/** Projekty. Ve Fázi 0 jen čtení — zakládání přišlo ve Fázi 1. */
 export interface IProjectRepository {
   list(filter?: ProjectFilter): Promise<Project[]>;
   getByNumber(projectNumber: string): Promise<Project | undefined>;
+  /** Přidělí číslo, vygeneruje/uloží projekt a založí strukturu složek. */
+  create(input: NewProjectInput): Promise<CreateProjectResult>;
+  /** Znovu založí složky u už uloženého projektu — pro tlačítko „Zkusit znovu založit složky". */
+  retryCreateFolders(projectNumber: string): Promise<void>;
 }
 
 /** Filtr pro seznam partnerů. */
@@ -84,6 +113,13 @@ export interface DocTypeConfig {
  */
 export interface INumberingRepository {
   listDocTypes(): Promise<DocTypeConfig[]>;
+  /**
+   * Ukáže, jaké by bylo další číslo v řadě, ANIŽ by čítač zvýšil — pro náhled
+   * v průvodci založením před uložením. Mezi náhledem a skutečným uložením
+   * ho může přidělit někdo jiný — po uložení je proto potřeba zobrazit
+   * skutečně přidělené číslo, ne to, co ukázal náhled.
+   */
+  previewNextNumber(docTypeCode: string, opts?: { projectNumber?: string; date?: Date }): Promise<string>;
   /**
    * Přidělí a rovnou zapíše další číslo v řadě `docTypeCode`.
    * `projectNumber` je potřeba u řad se Scope = Projekt (např. protokoly PP-{PRJ}-{N}).

@@ -59,6 +59,39 @@ export class SpNumberingRepository implements INumberingRepository {
     }
   }
 
+  public async previewNextNumber(
+    docTypeCode: string,
+    opts?: { projectNumber?: string; date?: Date }
+  ): Promise<string> {
+    const docType = await this.getActiveDocType(docTypeCode);
+    if (!docType) {
+      throw new Error(`Neznámá nebo neaktivní číselná řada „${docTypeCode}".`);
+    }
+    const year = (opts?.date ?? new Date()).getFullYear();
+    const scopeKey = counterScopeKey(docType.scope, opts?.projectNumber);
+
+    try {
+      const sp = getSp(this.context);
+      const rows: CounterItem[] = await sp.web.lists
+        .getByTitle(COUNTERS_LIST)
+        .items.select('LastValue')
+        .filter(
+          `DocTypeCode eq '${escapeODataString(docType.code)}' and Year eq ${year} and ScopeKey eq '${escapeODataString(scopeKey)}'`
+        )
+        .top(1)();
+      const existing = rows[0];
+      const sequence = nextSequence(existing ? { year, lastValue: existing.LastValue } : undefined, docType, year);
+      return renderDocumentNumber(docType, {
+        prefix: docType.code,
+        year,
+        sequence,
+        projectNumber: opts?.projectNumber
+      });
+    } catch (error) {
+      throw new Error(describeSpError(error, 'Nepodařilo se načíst náhled čísla'));
+    }
+  }
+
   public async allocateNumber(
     docTypeCode: string,
     opts?: { projectNumber?: string; date?: Date }
