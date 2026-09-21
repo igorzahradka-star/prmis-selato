@@ -1,9 +1,9 @@
 /**
  * Partneři — zákazníci a dodavatelé (PRM_Partners).
  *
- * Fáze 1: seznam, hledání, založení a úprava. Název, adresu a DIČ jde
- * dotáhnout z ARES podle IČO — kontaktní osobu, e-mail a telefon ARES nezná,
- * ty se doplňují ručně.
+ * Fáze 1: seznam, hledání, založení a úprava. Název, adresu, DIČ a příznak
+ * plátce DPH jde dotáhnout z ARES podle IČO — kontaktní osobu, e-mail
+ * a telefon ARES nezná, ty se doplňují ručně.
  */
 
 import * as React from 'react';
@@ -38,6 +38,7 @@ const EMPTY_DRAFT: Omit<Partner, 'id'> = {
   partnerType: PartnerType.Zakaznik,
   ico: '',
   dic: '',
+  isVatPayer: false,
   address: '',
   contactName: '',
   email: '',
@@ -106,7 +107,15 @@ export const PartnersPage: React.FC = () => {
     lookupCompanyByIco(editing.ico)
       .then((company) => {
         setEditing((current) =>
-          current ? { ...current, name: company.name || current.name, address: company.address, dic: company.dic } : current
+          current
+            ? {
+                ...current,
+                name: company.name || current.name,
+                address: company.address,
+                dic: company.dic,
+                isVatPayer: company.isVatPayer
+              }
+            : current
         );
         setAresLoading(false);
       })
@@ -183,6 +192,47 @@ export const PartnersPage: React.FC = () => {
       >
         {editing && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
+              <TextField
+                label="IČO"
+                description="Vyplňte a dotáhněte zbytek údajů z ARES."
+                value={editing.ico ?? ''}
+                onChange={(_, v) => {
+                  setAresError(undefined);
+                  setEditing({ ...editing, ico: v });
+                }}
+                styles={{ root: { flex: '1 1 auto' } }}
+              />
+              <TooltipHost content="Načíst název, adresu, DIČ a plátce DPH z ARES podle IČO">
+                {aresLoading ? (
+                  <Spinner size={SpinnerSize.medium} styles={{ root: { width: 40, height: 36 } }} />
+                ) : (
+                  <IconButton
+                    iconProps={{ iconName: 'Search' }}
+                    ariaLabel="Načíst z ARES"
+                    disabled={!editing.ico || !isValidIco(editing.ico)}
+                    onClick={loadFromAres}
+                    styles={{
+                      root: {
+                        width: 40,
+                        height: 36,
+                        backgroundColor: RES.blue,
+                        color: RES.white,
+                        borderRadius: 4
+                      },
+                      rootHovered: { backgroundColor: RES.blueMid, color: RES.white },
+                      rootDisabled: { backgroundColor: RES.grayBlue, color: RES.white },
+                      icon: { fontSize: 16 }
+                    }}
+                  />
+                )}
+              </TooltipHost>
+            </div>
+            {aresError && (
+              <MessageBar messageBarType={MessageBarType.warning} onDismiss={() => setAresError(undefined)}>
+                {aresError}
+              </MessageBar>
+            )}
             <TextField
               label="Název"
               required
@@ -195,35 +245,21 @@ export const PartnersPage: React.FC = () => {
               selectedKey={editing.partnerType}
               onChange={(_, o) => o && setEditing({ ...editing, partnerType: o.key as PartnerType })}
             />
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
               <TextField
-                label="IČO"
-                value={editing.ico ?? ''}
-                onChange={(_, v) => {
-                  setAresError(undefined);
-                  setEditing({ ...editing, ico: v });
-                }}
+                label="DIČ"
+                value={editing.dic ?? ''}
+                onChange={(_, v) => setEditing({ ...editing, dic: v })}
                 styles={{ root: { flex: '1 1 auto' } }}
               />
-              <TooltipHost content="Načíst název, adresu a DIČ z ARES podle IČO">
-                {aresLoading ? (
-                  <Spinner size={SpinnerSize.small} styles={{ root: { padding: '0 8px', height: 32 } }} />
-                ) : (
-                  <IconButton
-                    iconProps={{ iconName: 'Search' }}
-                    ariaLabel="Načíst z ARES"
-                    disabled={!editing.ico || !isValidIco(editing.ico)}
-                    onClick={loadFromAres}
-                  />
-                )}
-              </TooltipHost>
+              <Toggle
+                label="Plátce DPH"
+                inlineLabel
+                checked={!!editing.isVatPayer}
+                onChange={(_, c) => setEditing({ ...editing, isVatPayer: !!c })}
+                styles={{ root: { marginBottom: 4 } }}
+              />
             </div>
-            {aresError && (
-              <MessageBar messageBarType={MessageBarType.warning} onDismiss={() => setAresError(undefined)}>
-                {aresError}
-              </MessageBar>
-            )}
-            <TextField label="DIČ" value={editing.dic ?? ''} onChange={(_, v) => setEditing({ ...editing, dic: v })} />
             <TextField
               label="Adresa"
               multiline
@@ -288,6 +324,13 @@ function buildColumns(canManage: boolean, onEdit: (p: Partner) => void): IColumn
     },
     { key: 'type', name: 'Typ', fieldName: 'partnerType', minWidth: 90, maxWidth: 100, isResizable: true },
     { key: 'ico', name: 'IČO', fieldName: 'ico', minWidth: 90, maxWidth: 110, isResizable: true },
+    {
+      key: 'vat',
+      name: 'Plátce DPH',
+      minWidth: 80,
+      maxWidth: 90,
+      onRender: (p: Partner) => (p.isVatPayer ? 'Ano' : <span style={{ color: RES.gray }}>Ne</span>)
+    },
     {
       key: 'contact',
       name: 'Kontaktní osoba',

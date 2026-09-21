@@ -126,6 +126,8 @@ export interface Partner {
   partnerType: PartnerType;
   ico?: string;
   dic?: string;
+  /** Plátce DPH — dá se dotáhnout z ARES podle IČO, nebo nastavit ručně. */
+  isVatPayer?: boolean;
   address?: string;
   contactName?: string;
   email?: string;

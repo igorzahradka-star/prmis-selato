@@ -17,6 +17,7 @@ export interface AresCompany {
   name: string;
   address?: string;
   dic?: string;
+  isVatPayer: boolean;
 }
 
 interface AresErrorResponse {
@@ -28,6 +29,8 @@ interface AresSubjectResponse {
   obchodniJmeno?: string;
   dic?: string;
   sidlo?: { textovaAdresa?: string };
+  /** Stav zdrojových registrů — `stavZdrojeDph` „AKTIVNI" = aktivní plátce DPH. */
+  seznamRegistraci?: { stavZdrojeDph?: string };
 }
 
 /**
@@ -69,6 +72,7 @@ export function mapAresResponse(data: AresSubjectResponse): AresCompany {
   return {
     name: data.obchodniJmeno ?? '',
     address: data.sidlo?.textovaAdresa,
-    dic: data.dic
+    dic: data.dic,
+    isVatPayer: data.seznamRegistraci?.stavZdrojeDph === 'AKTIVNI'
   };
 }

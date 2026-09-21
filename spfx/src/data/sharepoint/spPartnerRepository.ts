@@ -15,6 +15,7 @@ const SELECT_FIELDS = [
   'PartnerType',
   'ICO',
   'DIC',
+  'IsVatPayer',
   'Address',
   'ContactName',
   'Email',
@@ -29,6 +30,7 @@ interface PartnerItem {
   PartnerType?: string;
   ICO?: string;
   DIC?: string;
+  IsVatPayer?: boolean;
   Address?: string;
   ContactName?: string;
   Email?: string;
@@ -105,6 +107,7 @@ function toPayload(partner: Omit<Partner, 'id'>): Record<string, unknown> {
     PartnerType: partner.partnerType,
     ICO: partner.ico ?? '',
     DIC: partner.dic ?? '',
+    IsVatPayer: !!partner.isVatPayer,
     Address: partner.address ?? '',
     ContactName: partner.contactName ?? '',
     Email: partner.email ?? '',
@@ -121,6 +124,7 @@ function mapPartner(item: PartnerItem): Partner {
     partnerType: (item.PartnerType as PartnerType) ?? PartnerType.Zakaznik,
     ico: item.ICO || undefined,
     dic: item.DIC || undefined,
+    isVatPayer: !!item.IsVatPayer,
     address: item.Address || undefined,
     contactName: item.ContactName || undefined,
     email: item.Email || undefined,
