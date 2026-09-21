@@ -16,7 +16,7 @@ import { Route, RouteName, buildHash } from '../router';
 import { ROLE_LABELS } from '../../core/types';
 import { canOpenAdmin, canOpenBenchmark, canOpenFinance } from '../../core/roles';
 
-import logoUrl from '../../webparts/prm/assets/res-logo-dark.png';
+import logoUrl from '../../webparts/prm/assets/res-logo-header.svg';
 
 interface NavItem {
   route: RouteName;
@@ -187,11 +187,12 @@ const Header: React.FC<{ onToggleNav: () => void }> = ({ onToggleNav }) => {
         <Icon iconName="GlobalNavButton" />
       </button>
 
-      <img src={logoUrl} alt="Revoltum Engineering & Services" style={{ height: 26 }} />
+      <img src={logoUrl} alt="Revoltum Engineering & Services" style={{ height: 32 }} />
 
-      <span style={{ fontSize: 16, fontWeight: 600, letterSpacing: 0.2 }}>PRM Revoltum</span>
+      <span style={{ fontSize: 17, fontWeight: 600, letterSpacing: 0.2 }}>PRM Revoltum</span>
 
-      <div style={{ marginLeft: 'auto' }}>
+      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 18 }}>
+        <HeaderTools />
         <Persona
           text={user.displayName}
           secondaryText={user.email}
@@ -205,6 +206,38 @@ const Header: React.FC<{ onToggleNav: () => void }> = ({ onToggleNav }) => {
     </header>
   );
 };
+
+/**
+ * Místo pro ikonky propojení s dalšími nástroji (Outlook, Teams, …).
+ * Zatím jen připravené — funkčnost přibude s konkrétním nástrojem.
+ */
+const HEADER_TOOLS: ReadonlyArray<{ icon: string; label: string }> = [
+  { icon: 'OutlookLogo', label: 'Outlook' },
+  { icon: 'Plug', label: 'Další propojení' }
+];
+
+const HeaderTools: React.FC = () => (
+  <div aria-label="Nástroje a propojení" style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+    {HEADER_TOOLS.map((tool) => (
+      <TooltipHost key={tool.icon} content={`${tool.label} (připravujeme)`}>
+        <span
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 30,
+            height: 30,
+            borderRadius: 4,
+            color: RES.grayBlue,
+            opacity: 0.65
+          }}
+        >
+          <Icon iconName={tool.icon} style={{ fontSize: 16 }} />
+        </span>
+      </TooltipHost>
+    ))}
+  </div>
+);
 
 const Footer: React.FC<{ userRoles: string }> = ({ userRoles }) => {
   const { settings } = useApp();

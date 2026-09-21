@@ -106,7 +106,7 @@ export const resTheme: ITheme = createTheme({
 
 /** Rozměry používané v layoutu — aby byly na jednom místě. */
 export const LAYOUT = {
-  headerHeight: 56,
+  headerHeight: 64,
   navWidth: 236,
   navWidthCollapsed: 48,
   /** Pod touto šířkou se navigace sbalí — tablet na výšku a mobil. */
