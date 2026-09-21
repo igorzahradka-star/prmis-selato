@@ -18,11 +18,14 @@ import { useApp } from '../../ui/AppContext';
 import { RES } from '../../ui/theme';
 import { buildHash, RouteName } from '../../ui/router';
 import { BudgetBadge, StatusBadge } from '../../ui/components/StatusBadge';
-import { PageHeading } from '../../ui/components/PageHeading';
 import { KpiTiles } from './KpiTiles';
 import { BudgetStatus, Project, ProjectStatus, ACTIVE_PROJECT_STATUSES } from '../../core/types';
 import { formatDate, formatMoney, dueLabel } from '../../core/format';
 import { canCreateProject } from '../../core/roles';
+import streakUrl from '../../webparts/prm/assets/res-kpi-streak.png';
+
+/** Stejný diagonální přechod (tmavá → navy → modrá) jako v grafickém manuálu RES. */
+const HERO_GRADIENT = `linear-gradient(135deg, ${RES.text} 0%, ${RES.navyDark} 55%, ${RES.blue} 100%)`;
 
 export const DashboardPage: React.FC = () => {
   const { repos, user } = useApp();
@@ -85,22 +88,39 @@ export const DashboardPage: React.FC = () => {
 
   return (
     <>
-      <PageHeading
-        title="Zakázky"
-        subtitle="Přehled zakázek Revoltum Engineering & Services"
-        action={
-          canCreateProject(user.roles) ? (
-            <PrimaryButton
-              iconProps={{ iconName: 'Add' }}
-              text="Nová zakázka"
-              disabled
-              title="Zakládání zakázek přijde ve Fázi 1."
-            />
-          ) : undefined
-        }
-      />
+      <div
+        style={{
+          borderRadius: 4,
+          overflow: 'hidden',
+          backgroundImage: `url(${streakUrl}), ${HERO_GRADIENT}`,
+          backgroundRepeat: 'no-repeat, no-repeat',
+          backgroundPosition: 'center, center',
+          backgroundSize: 'cover, cover',
+          padding: '20px 24px',
+          marginBottom: 16
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap', marginBottom: 16 }}>
+          <div style={{ flex: '1 1 auto', minWidth: 0 }}>
+            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 600, color: RES.white }}>Zakázky</h1>
+            <p style={{ margin: '4px 0 0', color: RES.bluePale, fontSize: 13 }}>
+              Přehled zakázek Revoltum Engineering & Services
+            </p>
+          </div>
+          {canCreateProject(user.roles) && (
+            <div style={{ flex: '0 0 auto' }}>
+              <PrimaryButton
+                iconProps={{ iconName: 'Add' }}
+                text="Nová zakázka"
+                disabled
+                title="Zakládání zakázek přijde ve Fázi 1."
+              />
+            </div>
+          )}
+        </div>
 
-      <KpiTiles projects={projects} />
+        <KpiTiles projects={projects} />
+      </div>
 
       <div
         style={{

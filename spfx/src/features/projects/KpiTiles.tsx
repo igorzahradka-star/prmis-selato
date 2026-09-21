@@ -13,10 +13,6 @@ import { Icon } from '@fluentui/react/lib/Icon';
 import { Project, BudgetStatus, ACTIVE_PROJECT_STATUSES } from '../../core/types';
 import { formatMoney, daysBetween } from '../../core/format';
 import { RES } from '../../ui/theme';
-import streakUrl from '../../webparts/prm/assets/res-kpi-streak.png';
-
-/** Stejný diagonální přechod (tmavá → navy → modrá) jako v grafickém manuálu RES. */
-const KPI_GRADIENT = `linear-gradient(135deg, ${RES.text} 0%, ${RES.navyDark} 55%, ${RES.blue} 100%)`;
 
 /** Kolik dní dopředu se hlídají smluvní termíny. Ze zadání: 14 dní. */
 export const DEADLINE_WINDOW_DAYS = 14;
@@ -56,6 +52,10 @@ export function computeKpi(projects: Project[], today: Date = new Date()): KpiSu
   };
 }
 
+/**
+ * Vykresluje se na tmavém gradientovém podkladu hlavičky dashboardu
+ * (viz `DashboardPage`) — sama žádné pozadí nemá, jen řadu dlaždic.
+ */
 export const KpiTiles: React.FC<{ projects: Project[] | undefined }> = ({ projects }) => {
   if (!projects) {
     return <Shimmer styles={{ root: { height: 40 } }} />;
@@ -64,18 +64,7 @@ export const KpiTiles: React.FC<{ projects: Project[] | undefined }> = ({ projec
   const kpi = computeKpi(projects);
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexWrap: 'wrap',
-        borderRadius: 4,
-        overflow: 'hidden',
-        backgroundImage: `url(${streakUrl}), ${KPI_GRADIENT}`,
-        backgroundRepeat: 'no-repeat, no-repeat',
-        backgroundPosition: 'center, center',
-        backgroundSize: 'cover, cover'
-      }}
-    >
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
       <Tile
         icon="ViewList"
         label="Aktivní zakázky"
@@ -105,18 +94,20 @@ export const KpiTiles: React.FC<{ projects: Project[] | undefined }> = ({ projec
         label="Po splatnosti"
         value={String(kpi.overdueDeadlines)}
         color={kpi.overdueDeadlines > 0 ? RES.red : RES.grayBlue}
-        isLast
       />
     </div>
   );
 };
 
-const Tile: React.FC<{ icon: string; label: string; value: string; color: string; isLast?: boolean }> = ({
+/**
+ * Poloprůhledný šedý „čip" za textem — motiv v pozadí (viz `DashboardPage`)
+ * zůstane vidět, ale číslo a popisek jsou čitelnější.
+ */
+const Tile: React.FC<{ icon: string; label: string; value: string; color: string }> = ({
   icon,
   label,
   value,
-  color,
-  isLast
+  color
 }) => (
   <div
     style={{
@@ -125,8 +116,9 @@ const Tile: React.FC<{ icon: string; label: string; value: string; color: string
       gap: 8,
       flex: '1 1 auto',
       minWidth: 150,
-      padding: '10px 14px',
-      borderRight: isLast ? 'none' : '1px solid rgba(255,255,255,0.2)'
+      padding: '8px 12px',
+      background: 'rgba(120,128,140,0.3)',
+      borderRadius: 6
     }}
   >
     <Icon iconName={icon} style={{ fontSize: 14, color }} />
