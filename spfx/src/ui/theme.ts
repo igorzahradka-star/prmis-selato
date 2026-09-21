@@ -111,5 +111,9 @@ export const LAYOUT = {
   navWidthCollapsed: 48,
   /** Pod touto šířkou se navigace sbalí — tablet na výšku a mobil. */
   breakpointNarrow: 900,
-  contentMaxWidth: 1680
+  contentMaxWidth: 1680,
+  /** Vnitřní okraje `<main>` — na jednom místě, aby se podle nich dal spočítat "full-bleed" prvek (viz DashboardPage). */
+  contentPaddingTop: 20,
+  contentPaddingX: 24,
+  contentPaddingBottom: 40
 } as const;

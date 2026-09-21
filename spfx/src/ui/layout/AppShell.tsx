@@ -69,7 +69,7 @@ export const AppShell: React.FC<AppShellProps> = ({ route, children }) => {
           style={{
             flex: '1 1 auto',
             minWidth: 0,
-            padding: '20px 24px 40px',
+            padding: `${LAYOUT.contentPaddingTop}px ${LAYOUT.contentPaddingX}px ${LAYOUT.contentPaddingBottom}px`,
             maxWidth: LAYOUT.contentMaxWidth
           }}
         >

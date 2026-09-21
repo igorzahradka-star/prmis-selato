@@ -15,7 +15,7 @@ import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
 import { Link } from '@fluentui/react/lib/Link';
 import { useApp } from '../../ui/AppContext';
-import { RES } from '../../ui/theme';
+import { RES, LAYOUT } from '../../ui/theme';
 import { buildHash, RouteName } from '../../ui/router';
 import { BudgetBadge, StatusBadge } from '../../ui/components/StatusBadge';
 import { KpiTiles } from './KpiTiles';
@@ -90,14 +90,17 @@ export const DashboardPage: React.FC = () => {
     <>
       <div
         style={{
-          borderRadius: 4,
-          overflow: 'hidden',
+          // "Full-bleed": vykompenzuje padding <main> (viz AppShell), aby podklad
+          // sahal až k menu, k pravému okraji a k žluté liště ukázkového režimu.
+          marginTop: -LAYOUT.contentPaddingTop,
+          marginLeft: -LAYOUT.contentPaddingX,
+          marginRight: -LAYOUT.contentPaddingX,
+          marginBottom: 0,
           backgroundImage: `url(${streakUrl}), ${HERO_GRADIENT}`,
           backgroundRepeat: 'no-repeat, no-repeat',
           backgroundPosition: 'center, center',
           backgroundSize: 'cover, cover',
-          padding: '20px 24px',
-          marginBottom: 16
+          padding: `${LAYOUT.contentPaddingTop}px ${LAYOUT.contentPaddingX}px`
         }}
       >
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap', marginBottom: 16 }}>
