@@ -3,6 +3,7 @@ import {
   hasAnyRole,
   canCreateProject,
   canEditProject,
+  canManagePartners,
   canOpenAdmin,
   canOpenFinance,
   canOpenBenchmark,
@@ -111,6 +112,22 @@ describe('canEditProject', () => {
 
   it('projekt bez přiřazeného PM se needituje omylem', () => {
     expect(canEditProject([Role.ProjektovyManazer], 'jan.novak@revoltum.cz', {})).toBe(false);
+  });
+});
+
+describe('canManagePartners', () => {
+  it('PM a asistent partnery spravovat smí', () => {
+    expect(canManagePartners([Role.ProjektovyManazer])).toBe(true);
+    expect(canManagePartners([Role.AsistentPM])).toBe(true);
+  });
+
+  it('administrátor smí vždy', () => {
+    expect(canManagePartners([Role.Administrator])).toBe(true);
+  });
+
+  it('čtenář a vedení bez dalších rolí partnery upravovat nesmí', () => {
+    expect(canManagePartners([Role.Ctenar])).toBe(false);
+    expect(canManagePartners([Role.Vedeni])).toBe(false);
   });
 });
 

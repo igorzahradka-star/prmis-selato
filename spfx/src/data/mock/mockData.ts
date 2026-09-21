@@ -6,7 +6,7 @@
  * Slouží k ladění vzhledu, ne k testování logiky.
  */
 
-import { BudgetStatus, Project, ProjectStatus, Role } from '../../core/types';
+import { BudgetStatus, Partner, PartnerType, Project, ProjectStatus, Role } from '../../core/types';
 import { DocTypeConfig } from '../repositories';
 
 /** Pomocník: datum relativně ke dnešku, aby ukázka nezestárla. */
@@ -178,6 +178,77 @@ export const MOCK_PROJECTS: Project[] = [
     startDate: den(-254),
     isOverhead: true,
     budgetStatus: BudgetStatus.Bez
+  }
+];
+
+export const MOCK_PARTNERS: Partner[] = [
+  {
+    id: 1,
+    name: 'ČEZ Distribuce, a.s.',
+    partnerType: PartnerType.Zakaznik,
+    ico: '24729035',
+    dic: 'CZ24729035',
+    address: 'Teplická 874/8, 405 02 Děčín',
+    contactName: 'Petra Svobodová',
+    email: 'svobodova@cezdistribuce.cz',
+    phone: '+420 601 100 200',
+    paymentTermDays: 30,
+    isActive: true
+  },
+  {
+    id: 2,
+    name: 'AgroFarma Lipnice s.r.o.',
+    partnerType: PartnerType.Zakaznik,
+    ico: '28112233',
+    address: 'Lipnice nad Sázavou 45, 582 32',
+    contactName: 'Martin Král',
+    email: 'kral@agrolipnice.cz',
+    phone: '+420 602 300 400',
+    paymentTermDays: 30,
+    isActive: true
+  },
+  {
+    id: 3,
+    name: 'Teplárna Chotěboř a.s.',
+    partnerType: PartnerType.Zakaznik,
+    ico: '25887744',
+    dic: 'CZ25887744',
+    contactName: 'Ing. Pavel Dvořák',
+    email: 'dvorak@teplarnachb.cz',
+    paymentTermDays: 45,
+    isActive: true
+  },
+  {
+    id: 4,
+    name: 'Město Přibyslav',
+    partnerType: PartnerType.Zakaznik,
+    ico: '00268097',
+    address: 'Bechyňovo náměstí 1, 582 22 Přibyslav',
+    paymentTermDays: 30,
+    isActive: true
+  },
+  {
+    id: 5,
+    name: 'FVE Komponenty s.r.o.',
+    partnerType: PartnerType.Dodavatel,
+    ico: '06556677',
+    dic: 'CZ06556677',
+    contactName: 'Jana Nová',
+    email: 'obchod@fvekomponenty.cz',
+    phone: '+420 725 111 222',
+    paymentTermDays: 14,
+    isActive: true
+  },
+  {
+    id: 6,
+    name: 'ElektroMontáže Vysočina s.r.o.',
+    partnerType: PartnerType.Oboji,
+    ico: '04998877',
+    contactName: 'Tomáš Beneš',
+    email: 'benes@elektromontaze-vysocina.cz',
+    phone: '+420 606 555 111',
+    paymentTermDays: 21,
+    isActive: true
   }
 ];
 

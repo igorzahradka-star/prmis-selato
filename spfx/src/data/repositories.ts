@@ -6,7 +6,7 @@
  * a UI se dá vyvíjet proti mock implementaci (viz `data/mock/`).
  */
 
-import { CurrentUser, Project } from '../core/types';
+import { CurrentUser, Partner, Project } from '../core/types';
 import { AppSettings } from '../core/settings';
 import { ListDef } from './schema';
 
@@ -46,6 +46,22 @@ export interface ProjectFilter {
 export interface IProjectRepository {
   list(filter?: ProjectFilter): Promise<Project[]>;
   getByNumber(projectNumber: string): Promise<Project | undefined>;
+}
+
+/** Filtr pro seznam partnerů. */
+export interface PartnerFilter {
+  /** Fulltext přes název, IČO, kontaktní osobu. */
+  search?: string;
+  /** Zahrnout i neaktivní partnery. Výchozí: ne. */
+  includeInactive?: boolean;
+}
+
+/** Zákazníci a dodavatelé (PRM_Partners). */
+export interface IPartnerRepository {
+  list(filter?: PartnerFilter): Promise<Partner[]>;
+  getById(id: number): Promise<Partner | undefined>;
+  create(partner: Omit<Partner, 'id'>): Promise<Partner>;
+  update(id: number, partner: Omit<Partner, 'id'>): Promise<void>;
 }
 
 /** Jedna číselná řada z PRM_DocTypes (viz zadání kap. 7). */
@@ -124,6 +140,7 @@ export interface RepositorySet {
   users: IUserRepository;
   settings: ISettingsRepository;
   projects: IProjectRepository;
+  partners: IPartnerRepository;
   numbering: INumberingRepository;
   install: IInstallRepository;
 }

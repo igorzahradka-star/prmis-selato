@@ -19,6 +19,7 @@ import { CurrentUser } from '../../../core/types';
 
 import { DashboardPage } from '../../../features/projects/DashboardPage';
 import { ProjectDetailPage } from '../../../features/projects/ProjectDetailPage';
+import { PartnersPage } from '../../../features/partners/PartnersPage';
 import { InstallPage } from '../../../features/admin/InstallPage';
 import { SettingsPage } from '../../../features/settings/SettingsPage';
 import { HelpPage } from '../../../features/help/HelpPage';
@@ -113,6 +114,8 @@ function renderRoute(route: Route): React.ReactNode {
       return <DashboardPage />;
     case RouteName.ProjectDetail:
       return <ProjectDetailPage projectNumber={route.param} />;
+    case RouteName.Partners:
+      return <PartnersPage />;
     case RouteName.Install:
       return <InstallPage />;
     case RouteName.Settings:

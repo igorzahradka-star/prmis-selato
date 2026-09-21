@@ -8,16 +8,18 @@
  * jiná logika než do ostré implementace, UI by se chovalo jinak na ostro.
  */
 
-import { CurrentUser, Project, ACTIVE_PROJECT_STATUSES } from '../../core/types';
+import { CurrentUser, Partner, Project, ACTIVE_PROJECT_STATUSES } from '../../core/types';
 import { AppSettings, DEFAULT_SETTINGS, withDefaults } from '../../core/settings';
 import { normalizeLogin } from '../../core/roles';
 import { renderDocumentNumber, nextSequence, counterScopeKey, CounterState } from '../../core/numbering';
 import {
   IInstallRepository,
+  IPartnerRepository,
   IProjectRepository,
   INumberingRepository,
   ISettingsRepository,
   IUserRepository,
+  PartnerFilter,
   ProjectFilter,
   DocTypeConfig,
   DiagnosticReport,
@@ -25,7 +27,7 @@ import {
   RepositorySet
 } from '../repositories';
 import { LISTS, ListDef, SCHEMA_VERSION, creationOrder } from '../schema';
-import { DEFAULT_DOC_TYPES, MOCK_PROJECTS, MOCK_USER } from './mockData';
+import { DEFAULT_DOC_TYPES, MOCK_PARTNERS, MOCK_PROJECTS, MOCK_USER } from './mockData';
 
 /** Umělé zdržení, aby bylo v UI vidět načítání stejně jako na ostro. */
 function delay<T>(value: T, ms: number = 180): Promise<T> {
@@ -136,6 +138,30 @@ export class MockNumberingRepository implements INumberingRepository {
   }
 }
 
+class MockPartnerRepository implements IPartnerRepository {
+  private partners: Partner[] = MOCK_PARTNERS.map((p) => ({ ...p }));
+  private nextId = Math.max(...MOCK_PARTNERS.map((p) => p.id)) + 1;
+
+  public list(filter?: PartnerFilter): Promise<Partner[]> {
+    return delay(applyPartnerFilter(this.partners, filter));
+  }
+
+  public getById(id: number): Promise<Partner | undefined> {
+    return delay(this.partners.filter((p) => p.id === id)[0]);
+  }
+
+  public create(partner: Omit<Partner, 'id'>): Promise<Partner> {
+    const created: Partner = { ...partner, id: this.nextId++ };
+    this.partners = [...this.partners, created];
+    return delay(created);
+  }
+
+  public update(id: number, partner: Omit<Partner, 'id'>): Promise<void> {
+    this.partners = this.partners.map((p) => (p.id === id ? { ...partner, id } : p));
+    return delay(undefined);
+  }
+}
+
 class MockInstallRepository implements IInstallRepository {
   public diagnose(): Promise<DiagnosticReport> {
     return delay(this.report());
@@ -214,6 +240,28 @@ export function applyProjectFilter(
   return result;
 }
 
+/**
+ * Filtrování partnerů. Vytaženo ven ze stejného důvodu jako u projektů —
+ * stejná pravidla platí i pro ostrou implementaci.
+ */
+export function applyPartnerFilter(partners: Partner[], filter: PartnerFilter | undefined): Partner[] {
+  const f = filter ?? {};
+  let result = partners;
+
+  if (!f.includeInactive) {
+    result = result.filter((p) => p.isActive);
+  }
+  if (f.search && f.search.trim()) {
+    const q = f.search.trim().toLocaleLowerCase('cs-CZ');
+    result = result.filter((p) =>
+      [p.name, p.ico, p.contactName]
+        .filter((v) => !!v)
+        .some((v) => (v as string).toLocaleLowerCase('cs-CZ').indexOf(q) !== -1)
+    );
+  }
+  return result;
+}
+
 /** Projekty, které se na dashboardu počítají jako aktivní. */
 export function activeProjects(projects: Project[]): Project[] {
   return projects.filter((p) => !p.isOverhead && ACTIVE_PROJECT_STATUSES.indexOf(p.status) !== -1);
@@ -225,6 +273,7 @@ export function createMockRepositories(): RepositorySet {
     users: new MockUserRepository(),
     settings: new MockSettingsRepository(),
     projects: new MockProjectRepository(),
+    partners: new MockPartnerRepository(),
     numbering: new MockNumberingRepository(),
     install: new MockInstallRepository()
   };

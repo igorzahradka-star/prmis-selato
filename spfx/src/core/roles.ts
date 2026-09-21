@@ -101,6 +101,14 @@ export function canEditProject(
   return (project.assistantLogins ?? []).some((l) => normalizeLogin(l) === me);
 }
 
+/**
+ * Smí uživatel zakládat a upravovat partnery (zákazníky, dodavatele)?
+ * PM a asistent je zakládají za chodu při vystavování objednávek a zakázek.
+ */
+export function canManagePartners(userRoles: Role[]): boolean {
+  return hasAnyRole(userRoles, Role.Administrator, Role.ProjektovyManazer, Role.AsistentPM);
+}
+
 /** Smí uživatel vidět stránku Nastavení a Instalaci? */
 export function canOpenAdmin(userRoles: Role[]): boolean {
   return hasAnyRole(userRoles, Role.Administrator);

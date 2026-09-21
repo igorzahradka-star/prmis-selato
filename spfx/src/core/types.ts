@@ -110,3 +110,26 @@ export interface Project {
 
 /** Měna. Výchozí CZK; EUR se ukládá s kurzem k datu. */
 export type Currency = 'CZK' | 'EUR';
+
+/** Typ partnera. */
+export enum PartnerType {
+  Zakaznik = 'Zákazník',
+  Dodavatel = 'Dodavatel',
+  Oboji = 'Obojí'
+}
+
+/** Zákazník nebo dodavatel (PRM_Partners). */
+export interface Partner {
+  id: number;
+  /** Název — uložený ve sloupci Title. */
+  name: string;
+  partnerType: PartnerType;
+  ico?: string;
+  dic?: string;
+  address?: string;
+  contactName?: string;
+  email?: string;
+  phone?: string;
+  paymentTermDays?: number;
+  isActive: boolean;
+}

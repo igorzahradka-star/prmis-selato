@@ -87,6 +87,7 @@ function useNavItems(): NavItem[] {
   const { user, financeSiteUrl } = useApp();
   const items: NavItem[] = [
     { route: RouteName.Dashboard, label: 'Projekty', icon: 'ViewList' },
+    { route: RouteName.Partners, label: 'Partneři', icon: 'ContactCard' },
     { route: RouteName.WaitingForMe, label: 'Čeká na mě', icon: 'Inbox', comingSoon: true },
     { route: RouteName.Orders, label: 'Objednávky', icon: 'ShoppingCart', comingSoon: true },
     { route: RouteName.Invoicing, label: 'Fakturace', icon: 'M365InvoicingLogo', comingSoon: true }

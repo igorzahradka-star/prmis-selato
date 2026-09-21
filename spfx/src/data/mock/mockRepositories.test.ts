@@ -1,5 +1,6 @@
-import { MockNumberingRepository } from './mockRepositories';
-import { DEFAULT_DOC_TYPES } from './mockData';
+import { MockNumberingRepository, applyPartnerFilter } from './mockRepositories';
+import { DEFAULT_DOC_TYPES, MOCK_PARTNERS } from './mockData';
+import { PartnerType } from '../../core/types';
 
 describe('MockNumberingRepository', () => {
   it('přidělí číslo podle vzoru dané řady', async () => {
@@ -55,5 +56,35 @@ describe('MockNumberingRepository', () => {
     prvni[0].active = false;
     const druhe = await repo.listDocTypes();
     expect(druhe[0].active).toBe(DEFAULT_DOC_TYPES[0].active);
+  });
+});
+
+describe('applyPartnerFilter', () => {
+  const neaktivni = {
+    id: 999,
+    name: 'Zaniklá firma s.r.o.',
+    partnerType: PartnerType.Dodavatel,
+    isActive: false
+  };
+  const partneri = [...MOCK_PARTNERS, neaktivni];
+
+  it('bez filtru vynechá neaktivní partnery', () => {
+    const result = applyPartnerFilter(partneri, undefined);
+    expect(result.some((p) => p.id === neaktivni.id)).toBe(false);
+  });
+
+  it('s includeInactive vrátí i neaktivní partnery', () => {
+    const result = applyPartnerFilter(partneri, { includeInactive: true });
+    expect(result.some((p) => p.id === neaktivni.id)).toBe(true);
+  });
+
+  it('hledá bez ohledu na velikost písmen v názvu', () => {
+    const result = applyPartnerFilter(partneri, { search: 'lipnice' });
+    expect(result.map((p) => p.name)).toEqual(['AgroFarma Lipnice s.r.o.']);
+  });
+
+  it('hledá i podle IČO', () => {
+    const result = applyPartnerFilter(partneri, { search: '24729035' });
+    expect(result.map((p) => p.name)).toEqual(['ČEZ Distribuce, a.s.']);
   });
 });
