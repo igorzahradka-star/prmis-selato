@@ -28,7 +28,13 @@ To stačí. Claude si zbytek dohledá sám.
 | Náhled v prohlížeči | `http://localhost:4322` |
 | Ostrý SharePoint | zatím **nikde** — čeká se na adresu tenanta (otázka 9) |
 
-**Spuštění náhledu** (PowerShell, v kořeni projektu):
+**Spuštění náhledu — nejjednodušeji:** na ploše je zástupce
+**„PRM Revoltum – náhled"**. Dvojklik sestaví náhled, spustí server a otevře
+prohlížeč. Černé okno, které se přitom objeví, **nechte otevřené** — dokud běží,
+běží i náhled. Zavřením okna se náhled ukončí.
+Druhý zástupce **„PRM Revoltum – složka projektu"** otevře složku s kódem.
+
+Ručně (PowerShell, v kořeni projektu):
 
 ```bash
 cd spfx; npm run test; cd ..\nahled; node build.js; node serve.js
