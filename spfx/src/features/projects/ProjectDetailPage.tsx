@@ -21,6 +21,7 @@ import { Project } from '../../core/types';
 import { formatDate, formatMoney } from '../../core/format';
 import { canEditProject } from '../../core/roles';
 import { EditProjectPanel } from './EditProjectPanel';
+import { DeadlinesTab } from './DeadlinesTab';
 
 export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projectNumber }) => {
   const { repos, user } = useApp();
@@ -114,6 +115,21 @@ export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projec
       <Pivot>
         <PivotItem headerText="Přehled" itemIcon="Info">
           <Overview project={project} />
+        </PivotItem>
+        <PivotItem headerText="Termíny" itemIcon="Clock">
+          <DeadlinesTab
+            project={project}
+            onChanged={() => {
+              // Změna termínu přepočítá nejbližší termín projektu — načti ho znovu,
+              // aby ho záložka Přehled ukazovala aktuální.
+              repos.projects
+                .getByNumber(project.projectNumber)
+                .then((p) => p && setProject(p))
+                .catch(() => {
+                  // Detail zůstane se starou hodnotou; termíny samotné jsou uložené.
+                });
+            }}
+          />
         </PivotItem>
         <PivotItem headerText="Realizační rozpočet" itemIcon="Table">
           <ComingSoonPage

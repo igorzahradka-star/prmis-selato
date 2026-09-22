@@ -6,7 +6,7 @@
  * a UI se dá vyvíjet proti mock implementaci (viz `data/mock/`).
  */
 
-import { CurrentUser, Currency, Partner, Project, ProjectStatus } from '../core/types';
+import { CurrentUser, Currency, Partner, Project, ProjectStatus, ProjectTask, TaskType } from '../core/types';
 import { AppSettings } from '../core/settings';
 import { ListDef } from './schema';
 
@@ -139,6 +139,32 @@ export interface IProjectRepository {
   retryCreateFolders(projectNumber: string): Promise<void>;
 }
 
+/** Údaje z formuláře smluvního termínu (PRM_Tasks). */
+export interface TaskInput {
+  title: string;
+  taskType: TaskType;
+  finishDate?: Date;
+  startDate?: Date;
+  isContractualDeadline: boolean;
+  percentComplete: number;
+  responsibleName?: string;
+}
+
+/**
+ * Položky harmonogramu (PRM_Tasks). Ve Fázi 1 se přes ně vedou jen
+ * **smluvní termíny** jako milníky; celý Gantt přijde ve Fázi 4.
+ *
+ * Po každé změně se přepočítá `NextDeadline` na projektu — je to cache,
+ * ze které čte dashboard, aby nemusel načítat termíny všech projektů.
+ */
+export interface ITaskRepository {
+  /** Položky jednoho projektu, seřazené podle termínu. */
+  listByProject(projectNumber: string): Promise<ProjectTask[]>;
+  create(projectNumber: string, input: TaskInput): Promise<ProjectTask>;
+  update(id: number, input: TaskInput): Promise<ProjectTask>;
+  remove(id: number): Promise<void>;
+}
+
 /** Filtr pro seznam partnerů. */
 export interface PartnerFilter {
   /** Fulltext přes název, IČO, kontaktní osobu. */
@@ -239,6 +265,7 @@ export interface RepositorySet {
   settings: ISettingsRepository;
   projects: IProjectRepository;
   partners: IPartnerRepository;
+  tasks: ITaskRepository;
   numbering: INumberingRepository;
   install: IInstallRepository;
 }

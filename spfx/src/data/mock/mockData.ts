@@ -6,7 +6,7 @@
  * Slouží k ladění vzhledu, ne k testování logiky.
  */
 
-import { BudgetStatus, Partner, PartnerType, Project, ProjectStatus, Role } from '../../core/types';
+import { BudgetStatus, Partner, PartnerType, Project, ProjectStatus, ProjectTask, Role, TaskType } from '../../core/types';
 import { DocTypeConfig } from '../repositories';
 
 /** Pomocník: datum relativně ke dnešku, aby ukázka nezestárla. */
@@ -178,6 +178,73 @@ export const MOCK_PROJECTS: Project[] = [
     startDate: den(-254),
     isOverhead: true,
     budgetStatus: BudgetStatus.Bez
+  }
+];
+
+/**
+ * Smluvní termíny ukázkových projektů. Data jsou zvolená tak, aby šly vidět
+ * všechny stavy: termín v budoucnu, termín za pár dní, zmeškaný i splněný.
+ * Odpovídají hodnotám `nextDeadline` u projektů výše.
+ */
+export const MOCK_TASKS: ProjectTask[] = [
+  {
+    id: 1,
+    projectNumber: '26-001',
+    title: 'Předání přípojky do zkušebního provozu',
+    taskType: TaskType.Milnik,
+    finishDate: den(9),
+    isContractualDeadline: true,
+    percentComplete: 0,
+    responsibleName: 'Igor Zahrádka'
+  },
+  {
+    id: 2,
+    projectNumber: '26-001',
+    title: 'Dokončení revizí',
+    taskType: TaskType.Milnik,
+    finishDate: den(34),
+    isContractualDeadline: true,
+    percentComplete: 0
+  },
+  {
+    id: 3,
+    projectNumber: '26-001',
+    title: 'Předání projektové dokumentace',
+    taskType: TaskType.Milnik,
+    finishDate: den(-40),
+    isContractualDeadline: true,
+    percentComplete: 100,
+    responsibleName: 'Igor Zahrádka'
+  },
+  {
+    id: 4,
+    projectNumber: '26-002',
+    title: 'Dodávka panelů na stavbu',
+    taskType: TaskType.DodavkaMaterialu,
+    finishDate: den(3),
+    isContractualDeadline: true,
+    percentComplete: 60,
+    responsibleName: 'Jan Novák'
+  },
+  {
+    id: 5,
+    projectNumber: '26-003',
+    title: 'Uvedení bateriového úložiště do provozu',
+    taskType: TaskType.Milnik,
+    finishDate: den(-2),
+    isContractualDeadline: true,
+    percentComplete: 80,
+    responsibleName: 'Jan Novák'
+  },
+  {
+    id: 6,
+    projectNumber: '26-004',
+    title: 'Podpis smlouvy o připojení',
+    taskType: TaskType.Milnik,
+    finishDate: den(21),
+    isContractualDeadline: true,
+    percentComplete: 0,
+    responsibleName: 'Eva Malá'
   }
 ];
 

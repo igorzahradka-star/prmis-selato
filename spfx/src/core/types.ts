@@ -112,6 +112,35 @@ export interface Project {
   costForecastTotal?: number;
 }
 
+/** Typ položky harmonogramu (PRM_Tasks). */
+export enum TaskType {
+  Cinnost = 'Činnost',
+  DodavkaMaterialu = 'Dodávka materiálu',
+  Sluzba = 'Služba',
+  Milnik = 'Milník'
+}
+
+/**
+ * Položka harmonogramu. Ve Fázi 1 se používají jen **smluvní termíny**
+ * (`isContractualDeadline`) jako milníky; zbytek polí naplní Fáze 4 (Gantt).
+ */
+export interface ProjectTask {
+  id: number;
+  /** Číslo projektu, ke kterému termín patří. */
+  projectNumber: string;
+  title: string;
+  taskType: TaskType;
+  /** Termín plnění. U milníku je to jediné datum, které dává smysl. */
+  finishDate?: Date;
+  startDate?: Date;
+  /** Smluvní termín plnění — počítá se do „nejbližšího termínu" na dashboardu. */
+  isContractualDeadline: boolean;
+  percentComplete: number;
+  responsibleName?: string;
+  /** Pořadí v seznamu. Chybí-li, řadí se podle termínu. */
+  sortOrder?: number;
+}
+
 /** Měna. Výchozí CZK; EUR se ukládá s kurzem k datu. */
 export type Currency = 'CZK' | 'EUR';
 

@@ -8,16 +8,19 @@
  * jiná logika než do ostré implementace, UI by se chovalo jinak na ostro.
  */
 
-import { BudgetStatus, CurrentUser, Partner, Project, ProjectStatus, ACTIVE_PROJECT_STATUSES } from '../../core/types';
+import { BudgetStatus, CurrentUser, Partner, Project, ProjectStatus, ProjectTask, ACTIVE_PROJECT_STATUSES } from '../../core/types';
 import { AppSettings, DEFAULT_SETTINGS, withDefaults } from '../../core/settings';
 import { canDeleteProject, normalizeLogin } from '../../core/roles';
 import { renderDocumentNumber, nextSequence, counterScopeKey, CounterState } from '../../core/numbering';
 import { buildProjectFolderPlan } from '../../core/folders';
 import { overheadProjectNumber, overheadProjectTitle, OVERHEAD_PROJECT_TYPE } from '../../core/overhead';
+import { nextContractualDeadline, sortDeadlines } from '../../core/deadlines';
 import {
   IInstallRepository,
   IPartnerRepository,
   IProjectRepository,
+  ITaskRepository,
+  TaskInput,
   INumberingRepository,
   ISettingsRepository,
   IUserRepository,
@@ -32,7 +35,7 @@ import {
   RepositorySet
 } from '../repositories';
 import { LISTS, ListDef, SCHEMA_VERSION, creationOrder } from '../schema';
-import { DEFAULT_DOC_TYPES, MOCK_PARTNERS, MOCK_PROJECTS, MOCK_USER } from './mockData';
+import { DEFAULT_DOC_TYPES, MOCK_PARTNERS, MOCK_PROJECTS, MOCK_TASKS, MOCK_USER } from './mockData';
 
 /** Umělé zdržení, aby bylo v UI vidět načítání stejně jako na ostro. */
 function delay<T>(value: T, ms: number = 180): Promise<T> {
@@ -156,6 +159,13 @@ export class MockProjectRepository implements IProjectRepository {
     return this.versions.get(projectNumber) ?? '1';
   }
 
+  /** Přepíše cache nejbližšího termínu — volá `MockTaskRepository` po změně termínů. */
+  public setNextDeadline(projectNumber: string, next?: Date): void {
+    this.projects = this.projects.map((p) =>
+      p.projectNumber === projectNumber ? { ...p, nextDeadline: next } : p
+    );
+  }
+
   public async remove(projectNumber: string, actor: CurrentUser, reason?: string): Promise<void> {
     // Stejná kontrola jako v ostré implementaci — skrytí tlačítka v UI není ochrana.
     if (!canDeleteProject(actor.roles)) {
@@ -221,6 +231,56 @@ export class MockProjectRepository implements IProjectRepository {
     const folderUrl = `#/ukazkovy-rezim/slozka/${encodeURIComponent(plan[plan.length - 1] ?? project.title)}`;
     this.projects = this.projects.map((p) => (p.id === project.id ? { ...p, folderUrl } : p));
     return undefined;
+  }
+}
+
+/**
+ * Smluvní termíny nad polem v paměti.
+ *
+ * Po každé změně přepočítá `nextDeadline` projektu — stejně jako ostrá
+ * implementace, aby se dashboard v ukázkovém režimu choval stejně.
+ */
+export class MockTaskRepository implements ITaskRepository {
+  private tasks: ProjectTask[] = MOCK_TASKS.map((t) => ({ ...t }));
+  private nextId = MOCK_TASKS.length > 0 ? Math.max(...MOCK_TASKS.map((t) => t.id)) + 1 : 1;
+
+  public constructor(private readonly onDeadlineChange: (projectNumber: string, next?: Date) => void) {}
+
+  public listByProject(projectNumber: string): Promise<ProjectTask[]> {
+    return delay(sortDeadlines(this.tasks.filter((t) => t.projectNumber === projectNumber)));
+  }
+
+  public async create(projectNumber: string, input: TaskInput): Promise<ProjectTask> {
+    const task: ProjectTask = { id: this.nextId++, projectNumber, ...input };
+    this.tasks = [...this.tasks, task];
+    this.recalculate(projectNumber);
+    return delay(task);
+  }
+
+  public async update(id: number, input: TaskInput): Promise<ProjectTask> {
+    const current = this.tasks.filter((t) => t.id === id)[0];
+    if (!current) {
+      throw new Error('Termín nebyl nalezen. Nejspíš ho mezitím někdo smazal.');
+    }
+    const updated: ProjectTask = { ...current, ...input };
+    this.tasks = this.tasks.map((t) => (t.id === id ? updated : t));
+    this.recalculate(current.projectNumber);
+    return delay(updated);
+  }
+
+  public async remove(id: number): Promise<void> {
+    const current = this.tasks.filter((t) => t.id === id)[0];
+    if (!current) {
+      throw new Error('Termín nebyl nalezen. Nejspíš ho mezitím někdo smazal.');
+    }
+    this.tasks = this.tasks.filter((t) => t.id !== id);
+    this.recalculate(current.projectNumber);
+    return delay(undefined);
+  }
+
+  private recalculate(projectNumber: string): void {
+    const projektove = this.tasks.filter((t) => t.projectNumber === projectNumber);
+    this.onDeadlineChange(projectNumber, nextContractualDeadline(projektove));
   }
 }
 
@@ -466,11 +526,13 @@ export function createMockRepositories(): RepositorySet {
   const settings = new MockSettingsRepository();
   const numbering = new MockNumberingRepository();
   numbering.seedCounter('PRJ', seedProjectCounter());
+  const projects = new MockProjectRepository(numbering, settings);
   return {
     users: new MockUserRepository(),
     settings,
-    projects: new MockProjectRepository(numbering, settings),
+    projects,
     partners: new MockPartnerRepository(),
+    tasks: new MockTaskRepository((projectNumber, next) => projects.setNextDeadline(projectNumber, next)),
     numbering,
     install: new MockInstallRepository()
   };

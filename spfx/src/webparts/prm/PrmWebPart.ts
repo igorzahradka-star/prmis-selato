@@ -26,6 +26,7 @@ import { SpUserRepository } from '../../data/sharepoint/spUserRepository';
 import { SpSettingsRepository } from '../../data/sharepoint/spSettingsRepository';
 import { SpProjectRepository } from '../../data/sharepoint/spProjectRepository';
 import { SpPartnerRepository } from '../../data/sharepoint/spPartnerRepository';
+import { SpTaskRepository } from '../../data/sharepoint/spTaskRepository';
 import { SpNumberingRepository } from '../../data/sharepoint/spNumberingRepository';
 import { SpInstallRepository } from '../../data/sharepoint/spInstallRepository';
 
@@ -78,6 +79,7 @@ export default class PrmWebPart extends BaseClientSideWebPart<IPrmWebPartProps> 
       // tak nemusíme čekat na další dotaz do SharePointu.
       projects: new SpProjectRepository(this.context, userId, numbering, settings),
       partners: new SpPartnerRepository(this.context),
+      tasks: new SpTaskRepository(this.context),
       numbering,
       install: new SpInstallRepository(this.context, financeSiteUrl, settings)
     };
