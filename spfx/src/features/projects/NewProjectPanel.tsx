@@ -23,7 +23,7 @@ import { CS_CALENDAR_STRINGS } from '../../ui/csCalendarStrings';
 import { navigate, RouteName } from '../../ui/router';
 import { Currency, Partner, PartnerType, Project } from '../../core/types';
 import { renderProjectTitle } from '../../core/numbering';
-import { formatDate } from '../../core/format';
+import { formatDate, parseCzechDate } from '../../core/format';
 
 const CURRENCY_OPTIONS: IDropdownOption[] = [
   { key: 'CZK', text: 'CZK' },
@@ -304,6 +304,8 @@ export const NewProjectPanel: React.FC<NewProjectPanelProps> = ({ isOpen, onDism
             onSelectDate={(d) => setStartDate(d ?? undefined)}
             formatDate={(d) => (d ? formatDate(d) : '')}
             strings={CS_CALENDAR_STRINGS}
+            parseDateFromString={(t) => parseCzechDate(t) ?? null}
+            allowTextInput
             styles={{ root: { flex: '1 1 auto' } }}
           />
           <DatePicker
@@ -312,6 +314,8 @@ export const NewProjectPanel: React.FC<NewProjectPanelProps> = ({ isOpen, onDism
             onSelectDate={(d) => setEndDatePlanned(d ?? undefined)}
             formatDate={(d) => (d ? formatDate(d) : '')}
             strings={CS_CALENDAR_STRINGS}
+            parseDateFromString={(t) => parseCzechDate(t) ?? null}
+            allowTextInput
             styles={{ root: { flex: '1 1 auto' } }}
           />
         </div>

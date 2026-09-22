@@ -120,6 +120,41 @@ function pad2(value: number): string {
   return value < 10 ? `0${value}` : String(value);
 }
 
+/**
+ * Přečte datum zapsané česky: `20. 9. 2026`, `20.9.2026`, `20/9/2026`,
+ * `20. 9.` (dopočítá se aktuální rok), `20. 9. 26` (dvojciferný rok → 2026).
+ *
+ * Potřebné proto, aby šlo datum ve formulářích **napsat**, ne jen vyklikat
+ * v kalendáři. Fluent DatePicker umí sám jen anglické formáty.
+ *
+ * Vrací `undefined`, když text není platné datum — včetně zjevných nesmyslů
+ * jako `31. 2. 2026` (prohlížeč by z nich jinak tiše udělal 3. března).
+ */
+export function parseCzechDate(text: string | undefined | null, today: Date = new Date()): Date | undefined {
+  if (!text || !text.trim()) {
+    return undefined;
+  }
+  const match = /^(\d{1,2})\s*[.\-/]\s*(\d{1,2})\s*(?:[.\-/]\s*(\d{1,4}))?\s*\.?$/.exec(text.trim());
+  if (!match) {
+    return undefined;
+  }
+
+  const day = parseInt(match[1], 10);
+  const month = parseInt(match[2], 10);
+  let year = match[3] === undefined ? today.getFullYear() : parseInt(match[3], 10);
+  if (match[3] !== undefined && match[3].length <= 2) {
+    // Dvojciferný rok bereme jako tenhle věk: 26 → 2026.
+    year += 2000;
+  }
+
+  const date = new Date(year, month - 1, day);
+  // Kontrola, že se datum „nepřeteklo" — 31. 2. by se jinak stalo 3. 3.
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
+    return undefined;
+  }
+  return date;
+}
+
 /** Převede hodnotu ze SharePointu (řetězec nebo Date) na Date, nebo undefined. */
 export function toDate(value: Date | string | undefined | null): Date | undefined {
   if (value === undefined || value === null || value === '') {

@@ -17,9 +17,10 @@ import {
   ISettingsRepository,
   ProjectFilter,
   NewProjectInput,
-  CreateProjectResult
+  CreateProjectResult,
+  ProjectEditInput
 } from '../repositories';
-import { getSp, getSpForSite, describeSpError } from './spContext';
+import { getSp, getSpForSite, describeSpError, extractStatus } from './spContext';
 import { escapeODataString } from './spSettingsRepository';
 import { SPFI } from '@pnp/sp';
 
@@ -202,6 +203,73 @@ export class SpProjectRepository implements IProjectRepository {
     return { project, folderError };
   }
 
+  /**
+   * Uloží změny projektu. `expectedVersion` je ETag načtený spolu s projektem
+   * (viz `getVersion`) — SharePoint při neshodě vrátí HTTP 412 a nic nezapíše.
+   * Konflikt se **nezkouší znovu**: na rozdíl od čítače tady nejde o technickou
+   * kolizi, ale o dvě různé lidské úpravy. Tiché přepsání by znamenalo ztrátu dat.
+   */
+  public async update(
+    projectNumber: string,
+    input: ProjectEditInput,
+    expectedVersion?: string
+  ): Promise<Project> {
+    const existing = await this.getByNumber(projectNumber);
+    if (!existing) {
+      throw new Error(`Projekt ${projectNumber} nebyl nalezen.`);
+    }
+
+    const sp = getSp(this.context);
+    const projectManagerId = await this.resolveUserId(sp, input.projectManagerName);
+
+    const fields = {
+      Title: input.title,
+      ShortName: input.shortName ?? null,
+      CustomerId: input.customerId ?? null,
+      ProjectManagerId: projectManagerId ?? null,
+      ProjectStatus: input.status,
+      ProjectType: input.projectType ?? null,
+      Location: input.location ?? null,
+      ContractPriceNet: input.contractPriceNet ?? null,
+      Currency: input.currency,
+      StartDate: input.startDate ? input.startDate.toISOString() : null,
+      EndDatePlanned: input.endDatePlanned ? input.endDatePlanned.toISOString() : null,
+      EndDateActual: input.endDateActual ? input.endDateActual.toISOString() : null
+    };
+
+    try {
+      const item = sp.web.lists.getByTitle(PROJECTS_LIST).items.getById(existing.id);
+      // Bez známé verze zapisujeme natvrdo ("*"), s verzí necháme SharePoint
+      // ohlídat, že se položka mezitím nezměnila.
+      await item.update(fields, expectedVersion ?? '*');
+    } catch (error) {
+      if (isConflict(error)) {
+        throw new Error(
+          `Projekt ${projectNumber} mezitím někdo jiný změnil. Zavřete panel, načtěte projekt znovu a proveďte úpravu ještě jednou — jinak byste přepsali cizí změny.`
+        );
+      }
+      throw new Error(describeSpError(error, `Nepodařilo se uložit změny projektu ${projectNumber}`));
+    }
+
+    return (await this.getByNumber(projectNumber)) ?? existing;
+  }
+
+  /** ETag položky — otisk stavu, se kterým uživatel začal editovat. */
+  public async getVersion(projectNumber: string): Promise<string | undefined> {
+    try {
+      const sp = getSp(this.context);
+      const items: unknown[] = await sp.web.lists
+        .getByTitle(PROJECTS_LIST)
+        .items.select('Id')
+        .filter(`ProjectNumber eq '${escapeODataString(projectNumber)}'`)
+        .top(1)();
+      return extractEtag(items[0]);
+    } catch {
+      // Bez verze se uloží natvrdo — horší než ideál, ale lepší než nejít uložit vůbec.
+      return undefined;
+    }
+  }
+
   public async retryCreateFolders(projectNumber: string): Promise<void> {
     const project = await this.getByNumber(projectNumber);
     if (!project) {
@@ -341,6 +409,7 @@ export function mapProject(item: ProjectItem): Project {
     shortName: item.ShortName,
     customerName: item.Customer?.Title,
     projectManagerName: item.ProjectManager?.Title,
+    projectManagerLogin: item.ProjectManager?.Name,
     status: (item.ProjectStatus as ProjectStatus) ?? ProjectStatus.Nabidka,
     projectType: item.ProjectType,
     location: item.Location,
@@ -361,4 +430,15 @@ export function mapProject(item: ProjectItem): Project {
 function extractAddedId(added: unknown): number | undefined {
   const a = added as { data?: { Id?: number }; Id?: number };
   return a?.data?.Id ?? a?.Id;
+}
+
+/** HTTP 412 Precondition Failed = položku mezitím někdo změnil. */
+export function isConflict(error: unknown): boolean {
+  return extractStatus(error) === 412;
+}
+
+/** ETag položky vrácený SharePointem. Tvar `"3"` včetně uvozovek — posílá se zpět beze změny. */
+export function extractEtag(item: unknown): string | undefined {
+  const i = item as { 'odata.etag'?: string; odata?: { etag?: string } } | undefined;
+  return i?.['odata.etag'] ?? i?.odata?.etag;
 }

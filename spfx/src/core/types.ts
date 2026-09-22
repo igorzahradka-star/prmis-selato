@@ -90,6 +90,10 @@ export interface Project {
   shortName?: string;
   customerName?: string;
   projectManagerName?: string;
+  /** Přihlašovací jméno PM — podle něj se rozhoduje, kdo smí projekt upravovat. */
+  projectManagerLogin?: string;
+  /** Přihlašovací jména asistentů PM — ti smí projekt upravovat také. */
+  assistantLogins?: string[];
   status: ProjectStatus;
   projectType?: string;
   location?: string;

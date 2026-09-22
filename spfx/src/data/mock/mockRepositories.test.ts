@@ -1,6 +1,13 @@
-import { MockNumberingRepository, applyPartnerFilter, seedProjectCounter } from './mockRepositories';
+import {
+  MockNumberingRepository,
+  MockProjectRepository,
+  applyPartnerFilter,
+  createMockRepositories,
+  seedProjectCounter
+} from './mockRepositories';
 import { DEFAULT_DOC_TYPES, MOCK_PARTNERS, MOCK_PROJECTS } from './mockData';
-import { PartnerType } from '../../core/types';
+import { PartnerType, ProjectStatus } from '../../core/types';
+import { ProjectEditInput } from '../repositories';
 
 describe('MockNumberingRepository', () => {
   it('přidělí číslo podle vzoru dané řady', async () => {
@@ -66,6 +73,90 @@ describe('MockNumberingRepository', () => {
     const dalsi = await repo.allocateNumber('PRJ');
 
     expect(existujici.has(dalsi)).toBe(false);
+  });
+});
+
+describe('MockProjectRepository.update', () => {
+  function repo(): MockProjectRepository {
+    return createMockRepositories().projects as MockProjectRepository;
+  }
+
+  function edit(over: Partial<ProjectEditInput> = {}): ProjectEditInput {
+    return {
+      title: 'Upravený název',
+      projectManagerName: 'Igor Zahrádka',
+      status: ProjectStatus.Realizace,
+      currency: 'CZK',
+      ...over
+    };
+  }
+
+  const cislo = MOCK_PROJECTS[0].projectNumber;
+
+  it('uloží změněné údaje a vrátí novou podobu projektu', async () => {
+    const r = repo();
+    const updated = await r.update(cislo, edit({ contractPriceNet: 2500000 }));
+
+    expect(updated.title).toBe('Upravený název');
+    expect(updated.contractPriceNet).toBe(2500000);
+    expect(await r.getByNumber(cislo)).toEqual(updated);
+  });
+
+  it('číslo projektu ani jeho id se úpravou nemění', async () => {
+    const r = repo();
+    const puvodni = await r.getByNumber(cislo);
+    const updated = await r.update(cislo, edit());
+
+    expect(updated.projectNumber).toBe(cislo);
+    expect(updated.id).toBe(puvodni?.id);
+  });
+
+  it('nevyplněné nepovinné pole hodnotu smaže', async () => {
+    const r = repo();
+    await r.update(cislo, edit({ location: 'Havlíčkův Brod' }));
+    const updated = await r.update(cislo, edit({ location: undefined }));
+
+    expect(updated.location).toBeUndefined();
+  });
+
+  it('zachová údaje, které formulář neposílá (semafor, složka, režie)', async () => {
+    const r = repo();
+    const puvodni = await r.getByNumber(cislo);
+    const updated = await r.update(cislo, edit());
+
+    expect(updated.budgetStatus).toBe(puvodni?.budgetStatus);
+    expect(updated.budgetBaselineTotal).toBe(puvodni?.budgetBaselineTotal);
+    expect(updated.isOverhead).toBe(puvodni?.isOverhead);
+  });
+
+  it('neznámé číslo projektu odmítne', async () => {
+    const r = repo();
+    await expect(r.update('99-999', edit())).rejects.toThrow(/nebyl nalezen/);
+  });
+
+  it('se správnou verzí uloží', async () => {
+    const r = repo();
+    const verze = r.getVersion(cislo);
+    const updated = await r.update(cislo, edit({ title: 'S verzí' }), verze);
+    expect(updated.title).toBe('S verzí');
+  });
+
+  it('se zastaralou verzí neuloží nic — cizí změnu nepřepíše', async () => {
+    const r = repo();
+    const stara = r.getVersion(cislo);
+    await r.update(cislo, edit({ title: 'Změna kolegy' }));
+
+    await expect(r.update(cislo, edit({ title: 'Moje změna' }), stara)).rejects.toThrow(/změnil/);
+
+    const aktualni = await r.getByNumber(cislo);
+    expect(aktualni?.title).toBe('Změna kolegy');
+  });
+
+  it('bez zadané verze uloží natvrdo', async () => {
+    const r = repo();
+    await r.update(cislo, edit({ title: 'První' }));
+    const updated = await r.update(cislo, edit({ title: 'Druhá' }));
+    expect(updated.title).toBe('Druhá');
   });
 });
 

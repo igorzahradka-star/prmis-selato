@@ -4,6 +4,7 @@ import {
   formatNumber,
   formatPercent,
   formatDate,
+  parseCzechDate,
   toIsoDate,
   toDate,
   daysBetween,
@@ -164,5 +165,54 @@ describe('české skloňování', () => {
     expect(pluralProjects(1)).toBe('1 projekt');
     expect(pluralProjects(3)).toBe('3 projekty');
     expect(pluralProjects(11)).toBe('11 projektů');
+  });
+});
+
+describe('parseCzechDate', () => {
+  const dnes = new Date(2026, 8, 22);
+
+  it('přečte datum s mezerami, jak se píše česky', () => {
+    expect(parseCzechDate('20. 9. 2026')).toEqual(new Date(2026, 8, 20));
+  });
+
+  it('přečte datum bez mezer', () => {
+    expect(parseCzechDate('20.9.2026')).toEqual(new Date(2026, 8, 20));
+  });
+
+  it('přečte datum s lomítky i pomlčkami', () => {
+    expect(parseCzechDate('20/9/2026')).toEqual(new Date(2026, 8, 20));
+    expect(parseCzechDate('20-9-2026')).toEqual(new Date(2026, 8, 20));
+  });
+
+  it('bez roku doplní letošek', () => {
+    expect(parseCzechDate('20. 9.', dnes)).toEqual(new Date(2026, 8, 20));
+  });
+
+  it('dvojciferný rok bere jako 20xx', () => {
+    expect(parseCzechDate('20. 9. 26')).toEqual(new Date(2026, 8, 20));
+  });
+
+  it('tichý nesmysl odmítne místo přetečení na další měsíc', () => {
+    expect(parseCzechDate('31. 2. 2026')).toBeUndefined();
+    expect(parseCzechDate('32. 1. 2026')).toBeUndefined();
+    expect(parseCzechDate('1. 13. 2026')).toBeUndefined();
+  });
+
+  it('přestupný rok respektuje', () => {
+    expect(parseCzechDate('29. 2. 2028')).toEqual(new Date(2028, 1, 29));
+    expect(parseCzechDate('29. 2. 2026')).toBeUndefined();
+  });
+
+  it('prázdný nebo nesmyslný text vrátí undefined', () => {
+    expect(parseCzechDate('')).toBeUndefined();
+    expect(parseCzechDate('   ')).toBeUndefined();
+    expect(parseCzechDate(undefined)).toBeUndefined();
+    expect(parseCzechDate('zítra')).toBeUndefined();
+    expect(parseCzechDate('20. září 2026')).toBeUndefined();
+  });
+
+  it('to, co formatDate vypíše, umí zase přečíst', () => {
+    const datum = new Date(2026, 10, 6);
+    expect(parseCzechDate(formatDate(datum))).toEqual(datum);
   });
 });

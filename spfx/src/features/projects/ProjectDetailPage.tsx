@@ -9,7 +9,7 @@ import * as React from 'react';
 import { Pivot, PivotItem } from '@fluentui/react/lib/Pivot';
 import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
-import { DefaultButton } from '@fluentui/react/lib/Button';
+import { DefaultButton, PrimaryButton } from '@fluentui/react/lib/Button';
 import { Link } from '@fluentui/react/lib/Link';
 
 import { useApp } from '../../ui/AppContext';
@@ -19,11 +19,14 @@ import { BudgetBadge, StatusBadge } from '../../ui/components/StatusBadge';
 import { ComingSoonPage } from '../../ui/components/ComingSoonPage';
 import { Project } from '../../core/types';
 import { formatDate, formatMoney } from '../../core/format';
+import { canEditProject } from '../../core/roles';
+import { EditProjectPanel } from './EditProjectPanel';
 
 export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projectNumber }) => {
-  const { repos } = useApp();
+  const { repos, user } = useApp();
   const [project, setProject] = React.useState<Project | undefined | null>(undefined);
   const [error, setError] = React.useState<string | undefined>(undefined);
+  const [editOpen, setEditOpen] = React.useState(false);
 
   React.useEffect(() => {
     if (!projectNumber) {
@@ -68,22 +71,45 @@ export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projec
     );
   }
 
+  const mayEdit = canEditProject(user.roles, user.loginName, {
+    projectManagerLogin: project.projectManagerLogin,
+    assistantLogins: project.assistantLogins
+  });
+
   return (
     <>
       <PageHeading
         title={`${project.projectNumber} · ${project.shortName || project.title}`}
         subtitle={project.title}
         action={
-          project.folderUrl ? (
-            <DefaultButton
-              iconProps={{ iconName: 'FolderHorizontal' }}
-              text="Otevřít složku projektu"
-              href={project.folderUrl}
-              target="_blank"
-            />
-          ) : undefined
+          <div style={{ display: 'flex', gap: 8 }}>
+            {mayEdit && (
+              <PrimaryButton
+                iconProps={{ iconName: 'Edit' }}
+                text="Upravit projekt"
+                onClick={() => setEditOpen(true)}
+              />
+            )}
+            {project.folderUrl && (
+              <DefaultButton
+                iconProps={{ iconName: 'FolderHorizontal' }}
+                text="Otevřít složku projektu"
+                href={project.folderUrl}
+                target="_blank"
+              />
+            )}
+          </div>
         }
       />
+
+      {mayEdit && (
+        <EditProjectPanel
+          isOpen={editOpen}
+          project={project}
+          onDismiss={() => setEditOpen(false)}
+          onSaved={(updated) => setProject(updated)}
+        />
+      )}
 
       <Pivot>
         <PivotItem headerText="Přehled" itemIcon="Info">

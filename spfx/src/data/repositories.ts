@@ -2,11 +2,11 @@
  * Rozhraní repozitářů — jediná brána k datům.
  *
  * Pravidlo: UI ani `core` nikdy nevolají SharePoint přímo, vždy přes tato rozhraní.
- * Díky tomu se dá later přejít na Azure SQL / Dataverse bez přepisu aplikace
+ * Díky tomu se dá později přejít na Azure SQL / Dataverse bez přepisu aplikace
  * a UI se dá vyvíjet proti mock implementaci (viz `data/mock/`).
  */
 
-import { CurrentUser, Currency, Partner, Project } from '../core/types';
+import { CurrentUser, Currency, Partner, Project, ProjectStatus } from '../core/types';
 import { AppSettings } from '../core/settings';
 import { ListDef } from './schema';
 
@@ -67,12 +67,47 @@ export interface CreateProjectResult {
   folderError?: string;
 }
 
-/** Projekty. Ve Fázi 0 jen čtení — zakládání přišlo ve Fázi 1. */
+/**
+ * Změny existujícího projektu z formuláře úpravy.
+ *
+ * Číslo projektu se nemění nikdy — je to identifikátor, na který se odkazují
+ * složky, objednávky i faktury. Nemění se ani `isOverhead` a hodnoty
+ * dopočítané z rozpočtu (semafor, baseline, prognóza).
+ *
+ * `undefined` u nepovinného pole znamená „vymazat hodnotu", ne „nech být" —
+ * formulář posílá vždy kompletní stav.
+ */
+export interface ProjectEditInput {
+  title: string;
+  shortName?: string;
+  customerId?: number;
+  customerName?: string;
+  projectManagerName: string;
+  status: ProjectStatus;
+  projectType?: string;
+  location?: string;
+  contractPriceNet?: number;
+  currency: Currency;
+  startDate?: Date;
+  endDatePlanned?: Date;
+  endDateActual?: Date;
+}
+
+/** Projekty. Ve Fázi 0 jen čtení — zakládání a úpravy přišly ve Fázi 1. */
 export interface IProjectRepository {
   list(filter?: ProjectFilter): Promise<Project[]>;
   getByNumber(projectNumber: string): Promise<Project | undefined>;
   /** Přidělí číslo, vygeneruje/uloží projekt a založí strukturu složek. */
   create(input: NewProjectInput): Promise<CreateProjectResult>;
+  /**
+   * Uloží změny existujícího projektu a vrátí jeho novou podobu.
+   *
+   * `expectedVersion` je otisk stavu, se kterým uživatel začal editovat
+   * (u SharePointu ETag). Když se mezitím projekt změnil, implementace
+   * **neuloží nic** a vyhodí chybu — přepsat cizí změny by bylo horší
+   * než uživatele otravovat. Bez `expectedVersion` se uloží natvrdo.
+   */
+  update(projectNumber: string, input: ProjectEditInput, expectedVersion?: string): Promise<Project>;
   /** Znovu založí složky u už uloženého projektu — pro tlačítko „Zkusit znovu založit složky". */
   retryCreateFolders(projectNumber: string): Promise<void>;
 }

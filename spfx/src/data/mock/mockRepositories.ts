@@ -24,6 +24,7 @@ import {
   ProjectFilter,
   NewProjectInput,
   CreateProjectResult,
+  ProjectEditInput,
   DocTypeConfig,
   DiagnosticReport,
   InstallProgress,
@@ -66,9 +67,10 @@ class MockSettingsRepository implements ISettingsRepository {
   }
 }
 
-class MockProjectRepository implements IProjectRepository {
+export class MockProjectRepository implements IProjectRepository {
   private projects: Project[] = MOCK_PROJECTS.map((p) => ({ ...p }));
   private nextId = Math.max(...MOCK_PROJECTS.map((p) => p.id)) + 1;
+  private readonly versions = new Map<string, string>();
 
   public constructor(
     private readonly numbering: INumberingRepository,
@@ -108,6 +110,48 @@ class MockProjectRepository implements IProjectRepository {
 
     const folderError = await this.tryCreateFolders(project);
     return { project, folderError };
+  }
+
+  public async update(
+    projectNumber: string,
+    input: ProjectEditInput,
+    expectedVersion?: string
+  ): Promise<Project> {
+    const current = this.projects.filter((p) => p.projectNumber === projectNumber)[0];
+    if (!current) {
+      throw new Error(`Projekt ${projectNumber} nebyl nalezen.`);
+    }
+    // Ekvivalent kontroly ETagu na SharePointu — v mocku je „verze" počítadlo úprav.
+    const version = this.versions.get(projectNumber) ?? '1';
+    if (expectedVersion !== undefined && expectedVersion !== version) {
+      throw new Error(
+        `Projekt ${projectNumber} mezitím někdo jiný změnil. Zavřete panel, načtěte projekt znovu a proveďte úpravu ještě jednou — jinak byste přepsali cizí změny.`
+      );
+    }
+
+    const updated: Project = {
+      ...current,
+      title: input.title,
+      shortName: input.shortName,
+      customerName: input.customerName,
+      projectManagerName: input.projectManagerName,
+      status: input.status,
+      projectType: input.projectType,
+      location: input.location,
+      contractPriceNet: input.contractPriceNet,
+      currency: input.currency,
+      startDate: input.startDate,
+      endDatePlanned: input.endDatePlanned,
+      endDateActual: input.endDateActual
+    };
+    this.projects = this.projects.map((p) => (p.projectNumber === projectNumber ? updated : p));
+    this.versions.set(projectNumber, String(Number(version) + 1));
+    return delay(updated);
+  }
+
+  /** Verze položky pro simulaci optimistického zámku — viz `update`. */
+  public getVersion(projectNumber: string): string {
+    return this.versions.get(projectNumber) ?? '1';
   }
 
   public async retryCreateFolders(projectNumber: string): Promise<void> {
