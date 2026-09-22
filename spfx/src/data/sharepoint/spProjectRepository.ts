@@ -8,8 +8,9 @@
  */
 
 import { WebPartContext } from '@microsoft/sp-webpart-base';
-import { BudgetStatus, Project, ProjectStatus } from '../../core/types';
+import { BudgetStatus, CurrentUser, Project, ProjectStatus } from '../../core/types';
 import { toDate } from '../../core/format';
+import { canDeleteProject } from '../../core/roles';
 import { buildProjectFolderPlan } from '../../core/folders';
 import {
   IProjectRepository,
@@ -25,6 +26,7 @@ import { escapeODataString } from './spSettingsRepository';
 import { SPFI } from '@pnp/sp';
 
 const PROJECTS_LIST = 'PRM_Projects';
+const AUDIT_LIST = 'PRM_AuditLog';
 
 /**
  * Sloupce, které dashboard potřebuje. Načítáme jen je — načítání všech
@@ -252,6 +254,76 @@ export class SpProjectRepository implements IProjectRepository {
     }
 
     return (await this.getByNumber(projectNumber)) ?? existing;
+  }
+
+  /**
+   * Smaže projekt **do koše SharePointu** (`recycle`), ne natrvalo — správce
+   * webu ho odtud 93 dní obnoví. Složka projektu a dokumenty v ní zůstávají.
+   *
+   * Pořadí je schválně takové: nejdřív zápis do auditního logu, pak smazání.
+   * Kdyby se to obrátilo a zápis logu selhal, zůstal by smazaný projekt bez
+   * jakékoli stopy, kdo ho smazal.
+   */
+  public async remove(projectNumber: string, actor: CurrentUser, reason?: string): Promise<void> {
+    // Oprávnění se ověřuje znovu těsně před zápisem (CLAUDE.md, kap. 4) —
+    // skryté tlačítko v UI není ochrana, ochrana jsou oprávnění SharePointu.
+    if (!canDeleteProject(actor.roles)) {
+      throw new Error('Mazat projekty smí jen administrátor PRM.');
+    }
+
+    const project = await this.getByNumber(projectNumber);
+    if (!project) {
+      throw new Error(`Projekt ${projectNumber} nebyl nalezen.`);
+    }
+
+    const sp = getSp(this.context);
+    await this.writeAuditEntry(sp, project, actor, reason);
+
+    try {
+      await sp.web.lists.getByTitle(PROJECTS_LIST).items.getById(project.id).recycle();
+    } catch (error) {
+      throw new Error(describeSpError(error, `Nepodařilo se smazat projekt ${projectNumber}`));
+    }
+  }
+
+  /**
+   * Zápis do PRM_AuditLog. Selhání zápisu **zastaví mazání** — projekt bez
+   * záznamu, kdo ho smazal, je horší než neprovedené smazání.
+   */
+  private async writeAuditEntry(
+    sp: SPFI,
+    project: Project,
+    actor: CurrentUser,
+    reason?: string
+  ): Promise<void> {
+    try {
+      await sp.web.lists.getByTitle(AUDIT_LIST).items.add({
+        Title: `Smazán projekt ${project.projectNumber}`,
+        EntityType: 'Project',
+        EntityId: project.projectNumber,
+        Action: 'Delete',
+        PerformedById: actor.id,
+        PerformedAt: new Date().toISOString(),
+        OldValue: JSON.stringify({
+          projectNumber: project.projectNumber,
+          title: project.title,
+          customerName: project.customerName,
+          projectManagerName: project.projectManagerName,
+          status: project.status,
+          contractPriceNet: project.contractPriceNet,
+          currency: project.currency,
+          folderUrl: project.folderUrl
+        }),
+        NewValue: reason ? `Důvod: ${reason}` : ''
+      });
+    } catch (error) {
+      throw new Error(
+        describeSpError(
+          error,
+          `Projekt ${project.projectNumber} se nesmazal — nepodařilo se zapsat záznam do auditního logu. Bez něj se maže naslepo`
+        )
+      );
+    }
   }
 
   /** ETag položky — otisk stavu, se kterým uživatel začal editovat. */

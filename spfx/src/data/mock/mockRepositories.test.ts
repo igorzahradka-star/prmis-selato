@@ -5,8 +5,8 @@ import {
   createMockRepositories,
   seedProjectCounter
 } from './mockRepositories';
-import { DEFAULT_DOC_TYPES, MOCK_PARTNERS, MOCK_PROJECTS } from './mockData';
-import { PartnerType, ProjectStatus } from '../../core/types';
+import { DEFAULT_DOC_TYPES, MOCK_PARTNERS, MOCK_PROJECTS, MOCK_USER } from './mockData';
+import { CurrentUser, PartnerType, ProjectStatus, Role } from '../../core/types';
 import { ProjectEditInput } from '../repositories';
 
 describe('MockNumberingRepository', () => {
@@ -157,6 +157,57 @@ describe('MockProjectRepository.update', () => {
     await r.update(cislo, edit({ title: 'První' }));
     const updated = await r.update(cislo, edit({ title: 'Druhá' }));
     expect(updated.title).toBe('Druhá');
+  });
+});
+
+describe('MockProjectRepository.remove', () => {
+  function repo(): MockProjectRepository {
+    return createMockRepositories().projects as MockProjectRepository;
+  }
+
+  const admin: CurrentUser = { ...MOCK_USER, roles: [Role.Administrator] };
+  const pm: CurrentUser = { ...MOCK_USER, roles: [Role.ProjektovyManazer] };
+  const cislo = MOCK_PROJECTS[0].projectNumber;
+
+  it('administrátor projekt smaže a v seznamu už není', async () => {
+    const r = repo();
+    await r.remove(cislo, admin);
+
+    expect(await r.getByNumber(cislo)).toBeUndefined();
+    expect((await r.list({})).some((p) => p.projectNumber === cislo)).toBe(false);
+  });
+
+  it('projektový manažer smazat nesmí — ani když je to jeho projekt', async () => {
+    const r = repo();
+    await expect(r.remove(cislo, pm)).rejects.toThrow(/jen administrátor/);
+    expect(await r.getByNumber(cislo)).toBeDefined();
+  });
+
+  it('kontrola oprávnění je i v datové vrstvě, nejen ve skrytí tlačítka', async () => {
+    const r = repo();
+    const ctenar: CurrentUser = { ...MOCK_USER, roles: [Role.Ctenar] };
+    await expect(r.remove(cislo, ctenar)).rejects.toThrow(/jen administrátor/);
+  });
+
+  it('smazání zaznamená, kdo mazal a proč', async () => {
+    const r = repo();
+    await r.remove(cislo, admin, 'Duplicitní záznam');
+
+    expect(r.listDeleted()).toEqual([
+      { projectNumber: cislo, by: admin.displayName, reason: 'Duplicitní záznam' }
+    ]);
+  });
+
+  it('neznámé číslo projektu odmítne', async () => {
+    const r = repo();
+    await expect(r.remove('99-999', admin)).rejects.toThrow(/nebyl nalezen/);
+  });
+
+  it('smazání se nedotkne ostatních projektů', async () => {
+    const r = repo();
+    const predtim = (await r.list({ includeOverhead: true })).length;
+    await r.remove(cislo, admin);
+    expect((await r.list({ includeOverhead: true })).length).toBe(predtim - 1);
   });
 });
 

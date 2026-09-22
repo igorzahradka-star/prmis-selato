@@ -16,12 +16,15 @@ import { Dropdown, IDropdownOption } from '@fluentui/react/lib/Dropdown';
 import { DatePicker } from '@fluentui/react/lib/DatePicker';
 import { PrimaryButton, DefaultButton } from '@fluentui/react/lib/Button';
 import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
+import { Dialog, DialogType, DialogFooter } from '@fluentui/react/lib/Dialog';
 
 import { useApp } from '../../ui/AppContext';
 import { RES } from '../../ui/theme';
 import { CS_CALENDAR_STRINGS } from '../../ui/csCalendarStrings';
+import { navigate, RouteName } from '../../ui/router';
 import { Currency, Partner, PartnerType, Project, ProjectStatus } from '../../core/types';
-import { formatDate, parseCzechDate } from '../../core/format';
+import { formatDate, parseCzechDate, formatMoney } from '../../core/format';
+import { canDeleteProject } from '../../core/roles';
 import {
   validateProjectEdit,
   projectEditWarnings,
@@ -53,7 +56,7 @@ export const EditProjectPanel: React.FC<EditProjectPanelProps> = ({
   onDismiss,
   onSaved
 }) => {
-  const { repos, settings } = useApp();
+  const { repos, settings, user } = useApp();
 
   const [partners, setPartners] = React.useState<Partner[]>([]);
   const [pmOptions, setPmOptions] = React.useState<string[]>([]);
@@ -76,6 +79,14 @@ export const EditProjectPanel: React.FC<EditProjectPanelProps> = ({
   const [saveError, setSaveError] = React.useState<string | undefined>(undefined);
   const [showIssues, setShowIssues] = React.useState(false);
 
+  const [deleteOpen, setDeleteOpen] = React.useState(false);
+  const [deleteConfirm, setDeleteConfirm] = React.useState('');
+  const [deleteReason, setDeleteReason] = React.useState('');
+  const [deleting, setDeleting] = React.useState(false);
+  const [deleteError, setDeleteError] = React.useState<string | undefined>(undefined);
+
+  const mayDelete = canDeleteProject(user.roles);
+
   // Naplnění formuláře při otevření. Projekt se bere takový, jaký přišel z detailu.
   React.useEffect(() => {
     if (!isOpen) {
@@ -96,6 +107,10 @@ export const EditProjectPanel: React.FC<EditProjectPanelProps> = ({
     setTitle(project.title);
     setSaveError(undefined);
     setShowIssues(false);
+    setDeleteOpen(false);
+    setDeleteConfirm('');
+    setDeleteReason('');
+    setDeleteError(undefined);
 
     repos.partners
       .list({})
@@ -181,6 +196,23 @@ export const EditProjectPanel: React.FC<EditProjectPanelProps> = ({
       .catch((e: Error) => {
         setSaving(false);
         setSaveError(e.message);
+      });
+  };
+
+  const confirmDelete = (): void => {
+    setDeleting(true);
+    setDeleteError(undefined);
+    repos.projects
+      .remove(project.projectNumber, user, deleteReason.trim() || undefined)
+      .then(() => {
+        setDeleting(false);
+        setDeleteOpen(false);
+        onDismiss();
+        navigate(RouteName.Dashboard);
+      })
+      .catch((e: Error) => {
+        setDeleting(false);
+        setDeleteError(e.message);
       });
   };
 
@@ -391,7 +423,88 @@ export const EditProjectPanel: React.FC<EditProjectPanelProps> = ({
             {saveError}
           </MessageBar>
         )}
+
+        {mayDelete && (
+          <div
+            style={{
+              marginTop: 8,
+              paddingTop: 14,
+              borderTop: `1px solid ${RES.grayBlue}`
+            }}
+          >
+            <div style={{ fontSize: 12, color: RES.gray, marginBottom: 8 }}>
+              Projekt se smaže do koše SharePointu — správce webu ho odtud 93 dní obnoví.
+              Složka projektu a dokumenty v ní zůstanou. Běžnému ukončení projektu slouží
+              stav „{ProjectStatus.Storno}&ldquo;, ne mazání.
+            </div>
+            <DefaultButton
+              text="Smazat projekt"
+              iconProps={{ iconName: 'Delete' }}
+              onClick={() => setDeleteOpen(true)}
+              disabled={saving}
+              styles={{
+                root: { borderColor: RES.red, color: RES.red },
+                rootHovered: { backgroundColor: RES.red, color: RES.white, borderColor: RES.red },
+                iconHovered: { color: RES.white }
+              }}
+            />
+          </div>
+        )}
       </div>
+
+      <Dialog
+        hidden={!deleteOpen}
+        onDismiss={() => setDeleteOpen(false)}
+        dialogContentProps={{
+          type: DialogType.normal,
+          title: `Smazat projekt ${project.projectNumber}?`
+        }}
+        modalProps={{ isBlocking: true }}
+      >
+        <div style={{ fontSize: 13, color: RES.text, marginBottom: 12 }}>
+          <div style={{ marginBottom: 8 }}>{project.title}</div>
+          <div style={{ color: RES.gray }}>
+            Zákazník: {project.customerName || '—'} · Cena:{' '}
+            {formatMoney(project.contractPriceNet, project.currency)} · Stav: {project.status}
+          </div>
+        </div>
+
+        <TextField
+          label="Důvod smazání"
+          description="Zapíše se do auditního logu vedle toho, kdo a kdy mazal."
+          multiline
+          rows={2}
+          value={deleteReason}
+          onChange={(_, v) => setDeleteReason(v ?? '')}
+        />
+
+        <TextField
+          label={`Pro potvrzení opište číslo projektu (${project.projectNumber})`}
+          value={deleteConfirm}
+          onChange={(_, v) => setDeleteConfirm(v ?? '')}
+          styles={{ root: { marginTop: 12 } }}
+        />
+
+        {deleteError && (
+          <MessageBar messageBarType={MessageBarType.error} isMultiline styles={{ root: { marginTop: 12 } }}>
+            {deleteError}
+          </MessageBar>
+        )}
+
+        <DialogFooter>
+          <PrimaryButton
+            text={deleting ? 'Mažu…' : 'Smazat projekt'}
+            disabled={deleting || deleteConfirm.trim() !== project.projectNumber}
+            onClick={confirmDelete}
+            styles={{
+              root: { backgroundColor: RES.red, borderColor: RES.red },
+              rootHovered: { backgroundColor: RES.red, borderColor: RES.red },
+              rootDisabled: { backgroundColor: RES.background }
+            }}
+          />
+          <DefaultButton text="Zrušit" onClick={() => setDeleteOpen(false)} disabled={deleting} />
+        </DialogFooter>
+      </Dialog>
     </Panel>
   );
 };

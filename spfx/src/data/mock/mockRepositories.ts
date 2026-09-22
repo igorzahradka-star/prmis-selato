@@ -10,7 +10,7 @@
 
 import { BudgetStatus, CurrentUser, Partner, Project, ProjectStatus, ACTIVE_PROJECT_STATUSES } from '../../core/types';
 import { AppSettings, DEFAULT_SETTINGS, withDefaults } from '../../core/settings';
-import { normalizeLogin } from '../../core/roles';
+import { canDeleteProject, normalizeLogin } from '../../core/roles';
 import { renderDocumentNumber, nextSequence, counterScopeKey, CounterState } from '../../core/numbering';
 import { buildProjectFolderPlan } from '../../core/folders';
 import {
@@ -71,6 +71,7 @@ export class MockProjectRepository implements IProjectRepository {
   private projects: Project[] = MOCK_PROJECTS.map((p) => ({ ...p }));
   private nextId = Math.max(...MOCK_PROJECTS.map((p) => p.id)) + 1;
   private readonly versions = new Map<string, string>();
+  private readonly deleted: { projectNumber: string; by: string; reason?: string }[] = [];
 
   public constructor(
     private readonly numbering: INumberingRepository,
@@ -152,6 +153,26 @@ export class MockProjectRepository implements IProjectRepository {
   /** Verze položky pro simulaci optimistického zámku — viz `update`. */
   public getVersion(projectNumber: string): string {
     return this.versions.get(projectNumber) ?? '1';
+  }
+
+  public async remove(projectNumber: string, actor: CurrentUser, reason?: string): Promise<void> {
+    // Stejná kontrola jako v ostré implementaci — skrytí tlačítka v UI není ochrana.
+    if (!canDeleteProject(actor.roles)) {
+      throw new Error('Mazat projekty smí jen administrátor PRM.');
+    }
+    const project = this.projects.filter((p) => p.projectNumber === projectNumber)[0];
+    if (!project) {
+      throw new Error(`Projekt ${projectNumber} nebyl nalezen.`);
+    }
+    this.projects = this.projects.filter((p) => p.projectNumber !== projectNumber);
+    this.versions.delete(projectNumber);
+    this.deleted.push({ projectNumber, by: actor.displayName, reason });
+    return delay(undefined);
+  }
+
+  /** Co se v ukázkovém režimu „smazalo" — zastupuje koš SharePointu a auditní log. */
+  public listDeleted(): { projectNumber: string; by: string; reason?: string }[] {
+    return this.deleted.map((d) => ({ ...d }));
   }
 
   public async retryCreateFolders(projectNumber: string): Promise<void> {

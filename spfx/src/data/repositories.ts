@@ -108,6 +108,19 @@ export interface IProjectRepository {
    * než uživatele otravovat. Bez `expectedVersion` se uloží natvrdo.
    */
   update(projectNumber: string, input: ProjectEditInput, expectedVersion?: string): Promise<Project>;
+  /**
+   * Smaže projekt — **do koše SharePointu**, ne natrvalo. Odtud ho jde 93 dní
+   * obnovit; o to se stará správce webu, aplikace na to tlačítko nemá.
+   *
+   * Co se **nemaže**: složka projektu v knihovně ani dokumenty v ní. Smaže se
+   * jen evidenční položka. Složku ať smaže člověk vědomě, ne aplikace mimochodem.
+   *
+   * Smí jen administrátor (`canDeleteProject`). Oprávnění se ověřuje znovu
+   * tady v datové vrstvě — skrytí tlačítka v UI není ochrana.
+   *
+   * `reason` se zapíše do auditního logu spolu s tím, kdo a kdy mazal.
+   */
+  remove(projectNumber: string, actor: CurrentUser, reason?: string): Promise<void>;
   /** Znovu založí složky u už uloženého projektu — pro tlačítko „Zkusit znovu založit složky". */
   retryCreateFolders(projectNumber: string): Promise<void>;
 }

@@ -102,6 +102,20 @@ export function canEditProject(
 }
 
 /**
+ * Smí uživatel smazat projekt?
+ *
+ * **Jen administrátor** — a to ani ne proto, že by PM nebyl důvěryhodný, ale
+ * protože smazání projektu shodí i vazby dokladů, které na něj odkazují.
+ * Projektový manažer má místo mazání stav „Storno".
+ *
+ * Záměrně nezávisí na tom, čí je to projekt: administrátor smí smazat každý,
+ * projektový manažer žádný — ani vlastní.
+ */
+export function canDeleteProject(userRoles: Role[]): boolean {
+  return hasAnyRole(userRoles, Role.Administrator);
+}
+
+/**
  * Smí uživatel zakládat a upravovat partnery (zákazníky, dodavatele)?
  * PM a asistent je zakládají za chodu při vystavování objednávek a zakázek.
  */

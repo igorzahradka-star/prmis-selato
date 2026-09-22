@@ -2,6 +2,7 @@ import {
   resolveRoles,
   hasAnyRole,
   canCreateProject,
+  canDeleteProject,
   canEditProject,
   canManagePartners,
   canOpenAdmin,
@@ -73,6 +74,33 @@ describe('canCreateProject', () => {
 
   it('čtenář projekt zakládat nesmí', () => {
     expect(canCreateProject([Role.Ctenar])).toBe(false);
+  });
+});
+
+describe('canDeleteProject', () => {
+  it('administrátor smí smazat projekt', () => {
+    expect(canDeleteProject([Role.Administrator])).toBe(true);
+  });
+
+  it('projektový manažer projekt mazat nesmí — má na to stav Storno', () => {
+    expect(canDeleteProject([Role.ProjektovyManazer])).toBe(false);
+  });
+
+  it('vedení projekt mazat nesmí, i když ho smí editovat', () => {
+    expect(canDeleteProject([Role.Vedeni])).toBe(false);
+  });
+
+  it('asistent ani čtenář mazat nesmí', () => {
+    expect(canDeleteProject([Role.AsistentPM])).toBe(false);
+    expect(canDeleteProject([Role.Ctenar])).toBe(false);
+  });
+
+  it('administrátor v kombinaci s dalšími rolemi mazat smí', () => {
+    expect(canDeleteProject([Role.ProjektovyManazer, Role.Administrator])).toBe(true);
+  });
+
+  it('bez rolí nikdo nemaže', () => {
+    expect(canDeleteProject([])).toBe(false);
   });
 });
 
