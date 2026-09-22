@@ -55,7 +55,8 @@ Node.js 22 musí být v PATH (`node --version` → `v22.x`). Když není, viz CL
 
 **Fáze 0 — Základ:** ✅ kód hotov, čeká na nasazení na tenant (blokuje otázka 8 a 9).
 
-**Fáze 1 — Projekty (MVP):** 🔶 rozpracováno, **213 testů prochází**, pracovní strom čistý.
+**Fáze 1 — Projekty (MVP):** 🔶 **hotová až na import stávajících projektů**
+(ten čeká na printscreen od Igora). **288 testů prochází**, pracovní strom čistý.
 
 Hotovo ve Fázi 1:
 
@@ -83,29 +84,40 @@ Hotovo ve Fázi 1:
 - **Dashboard** — kompaktní pruh KPI, hledání, filtr podle projektového manažera,
   hlavní plocha = seznam projektů. Pod celou hlavičkou podkladová grafika RES
   (modrý gradient + blesky ze šablony prezentace), roztažená od menu ke scrollbaru.
+- **Projekt Režie** — vnitřní projekt pro režijní objednávky a náklady mimo
+  zakázky. Na dashboardu tlačítko „Režie"; když neexistuje, nabídne založení.
+  Číslo `{RR}-000` je mimo běžnou řadu, takže čítač projektů nezvyšuje.
+- **Smluvní termíny plnění** — záložka *Termíny* v detailu projektu. Výběr
+  nejbližšího je v `core/deadlines.ts`: hotové se přeskakují a **zmeškaný termín
+  má přednost před budoucím**. Po každé změně se přepočítá cache `NextDeadline`,
+  ze které čte dashboard.
+- **Záložka Dokumenty** — posledních 10 změněných souborů ve složce projektu
+  včetně podsložek. Jeden CAML dotaz se `Scope="RecursiveAll"`; REST `folder.files`
+  vrací jen jednu úroveň a znamenal by desítky dotazů.
+- **Export tabulky do Excelu** — tlačítko na dashboardu, stáhne to, co je právě
+  vyfiltrované. ExcelJS se načítá až při kliknutí (dynamický import).
+- **Limity schvalování** v Nastavení — 100 tis. / 500 tis. / 1 mil., pod poli
+  výpis vět, co ta čísla znamenají. Workflow samotné je až Fáze 2.
 - **Terminologie** — v celé aplikaci i dokumentaci je „projekt", nikde „zakázka".
 
 ### Čím jsme skončili
 
-Poslední commit `4ee6559`. Naposledy proběhlo ověření v náhledu od začátku do konce:
-nový projekt dostal číslo `26-006` (správně navázal za ukázkovými daty),
-název se vygeneroval jako `26-006 ČEZ Distribuce, a.s. – Havlíčkův Brod`,
-uložení přesměrovalo na detail a na dashboardu přibyl řádek.
+Fáze 1 je hotová až na **import stávajících projektů**, který čeká na podklad
+od Igora. Vše ostatní je ověřené v náhledu od začátku do konce.
 
-**Otevřená otázka na Igora:** projít si to naklikat a dát zpětnou vazbu,
-nebo pokračovat rovnou dál?
+**Potřebuju od Igora:** printscreen složky se stávajícími projekty (čísla
+a názvy), aby šlo navázat číslování a naimportovat je.
 
 ---
 
-## 4. Co zbývá do konce Fáze 1
+## 4. Co je další na řadě
 
 | Co | Poznámka |
 |---|---|
-| Detail projektu — záložka **Dokumenty** | posledních ~10 změněných souborů ve složce projektu |
-| **Projekt Režie** (`IsOverhead`) | vnitřní projekt pro režijní náklady |
-| **Smluvní termíny** | milníky v seznamu `PRM_Tasks` |
-| **Import stávajících projektů** | ⛔ **čeká na Igora** — Excel není, dodá printscreen složky s čísly a názvy projektů (rozhodnutí z 21. 9. 2026) |
-| **Export tabulky do Excelu** | ExcelJS |
+| **Import stávajících projektů** | poslední kus Fáze 1. ⛔ **čeká na Igora** — Excel není, dodá printscreen složky s čísly a názvy projektů (rozhodnutí z 21. 9. 2026) |
+| **Fáze 2 — objednávky a schvalování** | limity už jsou v Nastavení (100 tis. / 500 tis. / 1 mil.). Chybí jména schvalovatelů (ot. 3) a fakturační údaje RES + vzory PDF (ot. 4) |
+
+Igor 22. 9. 2026 rozhodl: dodělat Fázi 1, pak teprve Fáze 2.
 
 ---
 
@@ -115,8 +127,10 @@ nebo pokračovat rovnou dál?
 |---|---|---|
 | 8 | Kdo je správce Microsoftu 365 a může nahrát aplikaci do katalogu | dokončení Fáze 0 — bez toho se aplikace nedostane na SharePoint |
 | 9 | Adresa tenanta a webů PRM a PRM-Finance | totéž |
-| 10 | Kde přesně leží knihovna projektů (web, knihovna, kořenová složka) | zakládání složek naostro |
-| — | Printscreen složky se stávajícími projekty | import a navázání číslování |
+| 10 | Kde přesně leží knihovna projektů (web, knihovna, kořenová složka) | zakládání složek a záložku Dokumenty naostro |
+| — | Printscreen složky se stávajícími projekty | import a navázání číslování — **poslední kus Fáze 1** |
+| 3 | Jména schvalovatelů objednávek (limity už zadané) | Fázi 2 |
+| 4 | Vzory PDF a fakturační údaje RES (IČO, DIČ, e-mail účtárny) | Fázi 2 |
 
 Celý seznam včetně zodpovězených rozhodnutí: [`docs/ROZHODNUTI.md`](docs/ROZHODNUTI.md).
 

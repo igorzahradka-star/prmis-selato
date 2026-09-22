@@ -5,6 +5,51 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.2.0 — 22. 9. 2026 — Fáze 1: Projekty (MVP)
+
+Aplikace umí vést projekt od založení po předání: dá mu číslo, složky,
+termíny a dokumenty. Zbývá import stávajících projektů — čeká na podklad
+od zadavatele.
+
+**Přidáno**
+
+- **Číselné řady a čítače dokladů.** Číslo se přiděluje až při uložení, ne
+  při otevření průvodce. Souběh (dva lidé zakládají projekt naráz) řeší
+  optimistický zámek — nikdo nedostane číslo, které už má někdo jiný.
+- **Partneři** — zákazníci a dodavatelé, s **dotažením údajů z ARES podle
+  IČO**: název, sídlo, DIČ a příznak plátce DPH.
+- **Založení projektu** průvodcem: náhled čísla a názvu, výběr nebo založení
+  zákazníka, cena, termíny. Po uložení vznikne struktura složek podle šablony
+  z Nastavení. Když se složky nepodaří založit, projekt zůstane uložený
+  a nabídne se opakování.
+- **Úprava projektu** — stav, zákazník, cena, termíny, název. Číslo projektu
+  se nemění nikdy. Aplikace hlídá termíny pozpátku, zápornou cenu a ukončený
+  projekt bez data ukončení. Při souběžné úpravě dvou lidí se druhé uložení
+  zastaví, místo aby přepsalo cizí změnu.
+- **Mazání projektu** — jen administrátor, s potvrzením opsáním čísla.
+  Maže se do koše SharePointu (93 dní na obnovu), složka s dokumenty zůstává
+  a do auditního logu se zapíše kdo, kdy a proč.
+- **Projekt Režie** pro režijní objednávky a náklady mimo zakázky. Číslo má
+  tvar `{RR}-000`, mimo běžnou řadu — čítač projektů nezvyšuje.
+- **Smluvní termíny plnění** jako milníky, se sledováním nejbližšího termínu
+  na dashboardu. Zmeškaný termín má přednost před budoucím.
+- **Záložka Dokumenty** — posledních 10 změněných souborů ve složce projektu
+  včetně podsložek, s odkazem na otevření v SharePointu.
+- **Export tabulky do Excelu** — stáhne to, co je právě vyfiltrované. Částky
+  a data jsou čísla a data, ne text, takže se s nimi dá v Excelu počítat.
+- **Limity schvalování objednávek** v Nastavení (100 tis. / 500 tis. / 1 mil.)
+  s výpisem vět, co zadaná čísla znamenají. Workflow přijde ve Fázi 2.
+- Dashboard: kompaktní pruh KPI na podkladové grafice RES, filtr podle
+  projektového manažera.
+- Do formulářů jde datum **napsat** česky (`20. 9. 2026`), nejen vyklikat.
+- 288 unit testů.
+
+**Změněno**
+
+- Terminologie: v celé aplikaci i dokumentaci je „projekt", nikde „zakázka".
+
+---
+
 ## 0.1.0 — 11. 9. 2026 — Fáze 0: Základ
 
 První funkční verze. Aplikace běží, ví, kdo jste a co smíte, a umí si sama
