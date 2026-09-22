@@ -55,7 +55,7 @@ Node.js 22 musí být v PATH (`node --version` → `v22.x`). Když není, viz CL
 
 **Fáze 0 — Základ:** ✅ kód hotov, čeká na nasazení na tenant (blokuje otázka 8 a 9).
 
-**Fáze 1 — Projekty (MVP):** 🔶 rozpracováno, **166 testů prochází**, pracovní strom čistý.
+**Fáze 1 — Projekty (MVP):** 🔶 rozpracováno, **201 testů prochází**, pracovní strom čistý.
 
 Hotovo ve Fázi 1:
 
@@ -67,6 +67,11 @@ Hotovo ve Fázi 1:
 - **Dotažení údajů z ARES podle IČO** — zadá se IČO, tlačítko s lupou dotáhne
   název, sídlo, DIČ a příznak *plátce DPH*. ARES posílá `Access-Control-Allow-Origin: *`,
   takže se volá přímo z prohlížeče, bez mezičlánku.
+- **Úprava existujícího projektu** — tlačítko „Upravit projekt" v detailu.
+  Mění se stav, zákazník, typ, lokalita, PM, cena, termíny, zkratka a název.
+  Číslo projektu se nemění nikdy. Kontroly (termíny pozpátku, záporná cena,
+  ukončený projekt bez data ukončení) jsou v `core/projectEdit.ts`.
+  Datum jde ve formulářích **napsat** česky, nejen vyklikat v kalendáři.
 - **Založení projektu (průvodce)** — náhled čísla (nespotřebuje ho), výběr nebo
   založení zákazníka, typ, PM, cena a měna, termíny, generovaný název projektu,
   přidělení čísla, založení složek. Když selže zakládání složek, projekt se
@@ -130,6 +135,10 @@ opakovaně a v dokumentaci je nenajdeš:
   Instalátor jen přidává, nikdy nemaže.
 - **Souběh a zakládání složek na SharePointu se lokálně neověří.** Otestuje se až
   na ostrém tenantu — dokud se to nestane, tvrdit „ověřeno" by bylo nepoctivé.
+  Týká se to i kontroly ETagu při úpravě projektu (v mocku je jen simulovaná).
+- **Fluent DatePicker neumí česká data** — bez `parseDateFromString` se napsané
+  „20. 9. 2026" tiše zahodí. Každý nový DatePicker musí dostat `allowTextInput`
+  a `parseDateFromString={(t) => parseCzechDate(t) ?? null}`.
 - **Čistá logika patří do `src/core/` a musí mít testy** (číslování, rozpočet,
   cashflow, CPM, semafor). Žádný import SharePointu, PnPjs ani Reactu.
 
