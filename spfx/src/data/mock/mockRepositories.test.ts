@@ -240,3 +240,36 @@ describe('applyPartnerFilter', () => {
     expect(result.map((p) => p.name)).toEqual(['ČEZ Distribuce, a.s.']);
   });
 });
+
+describe('MockProjectRepository.ensureOverheadProject', () => {
+  function repo(): MockProjectRepository {
+    return createMockRepositories().projects as MockProjectRepository;
+  }
+
+  it('vrátí Režii, která už v datech je — nezaloží druhou', async () => {
+    const r = repo();
+    const prvni = await r.ensureOverheadProject('Igor Zahrádka');
+    const druha = await r.ensureOverheadProject('Igor Zahrádka');
+
+    expect(prvni.isOverhead).toBe(true);
+    expect(druha.projectNumber).toBe(prvni.projectNumber);
+
+    const vsechny = await r.list({ includeOverhead: true });
+    expect(vsechny.filter((p) => p.isOverhead).length).toBe(1);
+  });
+
+  it('Režie se v běžném seznamu projektů neukazuje', async () => {
+    const r = repo();
+    const rezie = await r.ensureOverheadProject('Igor Zahrádka');
+    const bezne = await r.list({});
+    expect(bezne.some((p) => p.projectNumber === rezie.projectNumber)).toBe(false);
+  });
+
+  it('Režie nezvyšuje čítač projektů — další projekt dostane číslo, jako by nebyla', async () => {
+    const repos = createMockRepositories();
+    const pred = await repos.numbering.previewNextNumber('PRJ');
+    await repos.projects.ensureOverheadProject('Igor Zahrádka');
+    const po = await repos.numbering.previewNextNumber('PRJ');
+    expect(po).toBe(pred);
+  });
+});

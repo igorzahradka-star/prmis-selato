@@ -121,6 +121,20 @@ export interface IProjectRepository {
    * `reason` se zapíše do auditního logu spolu s tím, kdo a kdy mazal.
    */
   remove(projectNumber: string, actor: CurrentUser, reason?: string): Promise<void>;
+  /**
+   * Vrátí projekt Režie, a když ještě neexistuje, založí ho.
+   *
+   * Režie je **jeden** vnitřní projekt (`isOverhead`), na který se věší
+   * režijní objednávky a náklady, co nepatří konkrétní zakázce — nájem,
+   * telefony, software. Nemá zákazníka ani smluvní cenu.
+   *
+   * Číslo dostane ve tvaru `{RR}-000`, tedy mimo běžnou řadu projektů —
+   * čítač se nezvyšuje a Režie nikomu „neukradne" číslo. Nula na konci ho
+   * zároveň v seznamech řadí před ostatní projekty.
+   *
+   * Je idempotentní: opakované volání vrátí ten samý projekt, nezaloží druhý.
+   */
+  ensureOverheadProject(projectManagerName: string): Promise<Project>;
   /** Znovu založí složky u už uloženého projektu — pro tlačítko „Zkusit znovu založit složky". */
   retryCreateFolders(projectNumber: string): Promise<void>;
 }

@@ -10,7 +10,7 @@ import * as React from 'react';
 import { DetailsList, DetailsListLayoutMode, IColumn, SelectionMode } from '@fluentui/react/lib/DetailsList';
 import { SearchBox } from '@fluentui/react/lib/SearchBox';
 import { Dropdown, IDropdownOption } from '@fluentui/react/lib/Dropdown';
-import { PrimaryButton } from '@fluentui/react/lib/Button';
+import { PrimaryButton, DefaultButton } from '@fluentui/react/lib/Button';
 import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
 import { Link } from '@fluentui/react/lib/Link';
@@ -113,15 +113,16 @@ export const DashboardPage: React.FC = () => {
               Přehled projektů Revoltum Engineering & Services
             </p>
           </div>
-          {canCreateProject(user.roles) && (
-            <div style={{ flex: '0 0 auto' }}>
+          <div style={{ flex: '0 0 auto', display: 'flex', gap: 8 }}>
+            <OverheadButton />
+            {canCreateProject(user.roles) && (
               <PrimaryButton
                 iconProps={{ iconName: 'Add' }}
                 text="Nový projekt"
                 onClick={() => setIsNewProjectOpen(true)}
               />
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         <KpiTiles projects={projects} />
@@ -312,6 +313,83 @@ function buildColumns(): IColumn[] {
     }
   ];
 }
+
+/**
+ * Tlačítko na projekt Režie.
+ *
+ * Režie je v seznamu projektů schválně skrytá (není to zakázka), ale musí
+ * být po ruce — věší se na ni režijní objednávky. Když ještě neexistuje,
+ * nabídne se její založení tomu, kdo smí zakládat projekty.
+ */
+const OverheadButton: React.FC = () => {
+  const { repos, user } = useApp();
+  const [overhead, setOverhead] = React.useState<Project | null | undefined>(undefined);
+  const [creating, setCreating] = React.useState(false);
+  const [error, setError] = React.useState<string | undefined>(undefined);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    repos.projects
+      .list({ includeOverhead: true })
+      .then((all) => {
+        if (!cancelled) {
+          setOverhead(all.filter((p) => p.isOverhead)[0] ?? null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setOverhead(null);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [repos]);
+
+  if (overhead === undefined) {
+    return null;
+  }
+
+  if (overhead) {
+    return (
+      <DefaultButton
+        iconProps={{ iconName: 'Money' }}
+        text="Režie"
+        title={`${overhead.projectNumber} — režijní objednávky a náklady`}
+        href={buildHash(RouteName.ProjectDetail, overhead.projectNumber)}
+      />
+    );
+  }
+
+  if (!canCreateProject(user.roles)) {
+    return null;
+  }
+
+  const create = (): void => {
+    setCreating(true);
+    setError(undefined);
+    repos.projects
+      .ensureOverheadProject(user.displayName)
+      .then((p) => {
+        setCreating(false);
+        setOverhead(p);
+      })
+      .catch((e: Error) => {
+        setCreating(false);
+        setError(e.message);
+      });
+  };
+
+  return (
+    <DefaultButton
+      iconProps={{ iconName: 'Money' }}
+      text={creating ? 'Zakládám…' : 'Založit Režii'}
+      title={error ?? 'Vnitřní projekt pro režijní objednávky a náklady mimo zakázky'}
+      disabled={creating}
+      onClick={create}
+    />
+  );
+};
 
 /**
  * Název projektu pro tabulku — bez čísla na začátku, to je už ve svém sloupci.

@@ -13,6 +13,7 @@ import { AppSettings, DEFAULT_SETTINGS, withDefaults } from '../../core/settings
 import { canDeleteProject, normalizeLogin } from '../../core/roles';
 import { renderDocumentNumber, nextSequence, counterScopeKey, CounterState } from '../../core/numbering';
 import { buildProjectFolderPlan } from '../../core/folders';
+import { overheadProjectNumber, overheadProjectTitle, OVERHEAD_PROJECT_TYPE } from '../../core/overhead';
 import {
   IInstallRepository,
   IPartnerRepository,
@@ -173,6 +174,31 @@ export class MockProjectRepository implements IProjectRepository {
   /** Co se v ukázkovém režimu „smazalo" — zastupuje koš SharePointu a auditní log. */
   public listDeleted(): { projectNumber: string; by: string; reason?: string }[] {
     return this.deleted.map((d) => ({ ...d }));
+  }
+
+  public async ensureOverheadProject(projectManagerName: string): Promise<Project> {
+    const existing = this.projects.filter((p) => p.isOverhead)[0];
+    if (existing) {
+      return delay(existing);
+    }
+
+    const rok = new Date().getFullYear();
+    const project: Project = {
+      id: this.nextId++,
+      projectNumber: overheadProjectNumber(rok),
+      title: overheadProjectTitle(rok),
+      shortName: 'Režie',
+      projectManagerName,
+      status: ProjectStatus.Realizace,
+      projectType: OVERHEAD_PROJECT_TYPE,
+      currency: 'CZK',
+      startDate: new Date(rok, 0, 1),
+      isOverhead: true,
+      budgetStatus: BudgetStatus.Bez
+    };
+    this.projects = [...this.projects, project];
+    await this.tryCreateFolders(project);
+    return this.projects.filter((p) => p.id === project.id)[0];
   }
 
   public async retryCreateFolders(projectNumber: string): Promise<void> {

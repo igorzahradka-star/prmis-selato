@@ -12,6 +12,7 @@ import { BudgetStatus, CurrentUser, Project, ProjectStatus } from '../../core/ty
 import { toDate } from '../../core/format';
 import { canDeleteProject } from '../../core/roles';
 import { buildProjectFolderPlan } from '../../core/folders';
+import { overheadProjectNumber, overheadProjectTitle, OVERHEAD_PROJECT_TYPE } from '../../core/overhead';
 import {
   IProjectRepository,
   INumberingRepository,
@@ -340,6 +341,76 @@ export class SpProjectRepository implements IProjectRepository {
       // Bez verze se uloží natvrdo — horší než ideál, ale lepší než nejít uložit vůbec.
       return undefined;
     }
+  }
+
+  /**
+   * Režie se zakládá jednou. Hledá se podle příznaku `IsOverhead`, ne podle
+   * čísla — kdyby ji někdo v minulosti založil ručně s jiným číslem, chceme
+   * najít tu jeho, ne vyrobit druhou.
+   */
+  public async ensureOverheadProject(projectManagerName: string): Promise<Project> {
+    const existing = await this.list({ includeOverhead: true });
+    const overhead = existing.filter((p) => p.isOverhead)[0];
+    if (overhead) {
+      return overhead;
+    }
+
+    const sp = getSp(this.context);
+    const rok = new Date().getFullYear();
+    const projectNumber = overheadProjectNumber(rok);
+    const title = overheadProjectTitle(rok);
+    const projectManagerId = await this.resolveUserId(sp, projectManagerName);
+
+    let newId: number | undefined;
+    try {
+      const added = await sp.web.lists.getByTitle(PROJECTS_LIST).items.add({
+        Title: title,
+        ProjectNumber: projectNumber,
+        ShortName: 'Režie',
+        ProjectManagerId: projectManagerId,
+        ProjectStatus: ProjectStatus.Realizace,
+        ProjectType: OVERHEAD_PROJECT_TYPE,
+        ProjectYear: rok,
+        Currency: 'CZK',
+        StartDate: new Date(rok, 0, 1).toISOString(),
+        IsOverhead: true,
+        BudgetStatus: BudgetStatus.Bez
+      });
+      newId = extractAddedId(added);
+    } catch (error) {
+      throw new Error(describeSpError(error, 'Nepodařilo se založit projekt Režie'));
+    }
+
+    const project = (await this.getByNumber(projectNumber)) ?? {
+      id: newId ?? 0,
+      projectNumber,
+      title,
+      shortName: 'Režie',
+      projectManagerName,
+      status: ProjectStatus.Realizace,
+      projectType: OVERHEAD_PROJECT_TYPE,
+      currency: 'CZK',
+      startDate: new Date(rok, 0, 1),
+      isOverhead: true,
+      budgetStatus: BudgetStatus.Bez
+    };
+
+    // Složky Režie se zakládají stejně jako u projektu — režijní objednávky
+    // a jejich PDF musí mít kam padat. Selhání složek projekt neshodí.
+    try {
+      const folderUrl = await this.createProjectFolders(project);
+      if (folderUrl) {
+        await sp.web.lists
+          .getByTitle(PROJECTS_LIST)
+          .items.getById(project.id)
+          .update({ FolderUrl: { Url: folderUrl, Description: project.title } });
+        project.folderUrl = folderUrl;
+      }
+    } catch {
+      // Složky jdou doplnit tlačítkem v detailu projektu.
+    }
+
+    return project;
   }
 
   public async retryCreateFolders(projectNumber: string): Promise<void> {
