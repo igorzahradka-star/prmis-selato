@@ -203,7 +203,7 @@ Testovací scénáře pro každou fázi: [`docs/testy/`](docs/testy/).
 | Fáze | Obsah | Stav |
 |---|---|---|
 | **0 — Základ** | kostra SPFx, CLAUDE.md, git, theme RES + logo, layout a navigace, detekce uživatele a rolí, mock data, průvodce Instalace a diagnostika, Nastavení (základ), návod na nasazení | ✅ kód hotov (11. 9. 2026), build i testy prochází · **čeká na nasazení a otestování na tenantu** |
-| 1 — Projekty (MVP) | číselné řady a čítače ✅, partneři + ARES ✅, založení projektu (průvodce, číslo, složky) ✅, úprava projektu ✅, dashboard ✅ · **zbývá:** detail projektu (záložka Dokumenty), projekt Režie, smluvní termíny (PRM_Tasks), import stávajících projektů (čeká na printscreen složky — Excel není), export tabulky | 🔶 rozpracováno (22. 9. 2026), 201 testů prochází |
+| 1 — Projekty (MVP) | číselné řady a čítače ✅, partneři + ARES ✅, založení projektu (průvodce, číslo, složky) ✅, úprava projektu ✅, mazání projektu (admin, do koše + audit) ✅, dashboard ✅ · **zbývá:** detail projektu (záložka Dokumenty), projekt Režie, smluvní termíny (PRM_Tasks), import stávajících projektů (čeká na printscreen složky — Excel není), export tabulky | 🔶 rozpracováno (22. 9. 2026), 213 testů prochází |
 | 2 — Objednávky, fakturace, dokumenty | objednávky + schvalování, „Čeká na mě", e-maily, PDF, podklady pro fakturaci, protokoly, audit | ⏳ čeká |
 | 3 — Realizační rozpočet a CF projektu | RR editor, verze a baseline, semafor, fakturační milníky, CF projektu | ⏳ čeká |
 | 4 — Harmonogram | Gantt, závislosti, CPM a kritická cesta, baseline, vazba na RR a CF | ⏳ čeká |

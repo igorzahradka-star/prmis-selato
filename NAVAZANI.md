@@ -55,7 +55,7 @@ Node.js 22 musí být v PATH (`node --version` → `v22.x`). Když není, viz CL
 
 **Fáze 0 — Základ:** ✅ kód hotov, čeká na nasazení na tenant (blokuje otázka 8 a 9).
 
-**Fáze 1 — Projekty (MVP):** 🔶 rozpracováno, **201 testů prochází**, pracovní strom čistý.
+**Fáze 1 — Projekty (MVP):** 🔶 rozpracováno, **213 testů prochází**, pracovní strom čistý.
 
 Hotovo ve Fázi 1:
 
@@ -72,6 +72,10 @@ Hotovo ve Fázi 1:
   Číslo projektu se nemění nikdy. Kontroly (termíny pozpátku, záporná cena,
   ukončený projekt bez data ukončení) jsou v `core/projectEdit.ts`.
   Datum jde ve formulářích **napsat** česky, nejen vyklikat v kalendáři.
+- **Mazání projektu** — jen role Administrátor PRM, v panelu úprav. Potvrzení
+  vyžaduje opsat číslo projektu. Maže se do koše SharePointu (93 dní na obnovu),
+  složka projektu zůstává, a do `PRM_AuditLog` se zapíše kdo, kdy a proč mazal.
+  Projektový manažer místo mazání používá stav Storno.
 - **Založení projektu (průvodce)** — náhled čísla (nespotřebuje ho), výběr nebo
   založení zákazníka, typ, PM, cena a měna, termíny, generovaný název projektu,
   přidělení čísla, založení složek. Když selže zakládání složek, projekt se
@@ -133,9 +137,13 @@ opakovaně a v dokumentaci je nenajdeš:
   projekt dostane číslo, které už ukázková data mají. Je na to test.
 - **Při jakékoli změně schématu zvýšit `SCHEMA_VERSION`** a doplnit migrační krok.
   Instalátor jen přidává, nikdy nemaže.
-- **Souběh a zakládání složek na SharePointu se lokálně neověří.** Otestuje se až
-  na ostrém tenantu — dokud se to nestane, tvrdit „ověřeno" by bylo nepoctivé.
-  Týká se to i kontroly ETagu při úpravě projektu (v mocku je jen simulovaná).
+- **Souběh, zakládání složek a koš SharePointu se lokálně neověří.** Otestuje se
+  až na ostrém tenantu — dokud se to nestane, tvrdit „ověřeno" by bylo nepoctivé.
+  Týká se to i kontroly ETagu při úpravě projektu (v mocku je jen simulovaná)
+  a zápisu do `PRM_AuditLog` při mazání.
+- **Oprávnění se ověřují i v datové vrstvě, ne jen skrytím tlačítka v UI.**
+  Vzor: `remove()` v `mockRepositories.ts` i `spProjectRepository.ts` volá
+  `canDeleteProject` znovu. Stejně postupuj u každé další destruktivní akce.
 - **Fluent DatePicker neumí česká data** — bez `parseDateFromString` se napsané
   „20. 9. 2026" tiše zahodí. Každý nový DatePicker musí dostat `allowTextInput`
   a `parseDateFromString={(t) => parseCzechDate(t) ?? null}`.
