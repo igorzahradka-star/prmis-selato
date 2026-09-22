@@ -22,6 +22,7 @@ import { formatDate, formatMoney } from '../../core/format';
 import { canEditProject } from '../../core/roles';
 import { EditProjectPanel } from './EditProjectPanel';
 import { DeadlinesTab } from './DeadlinesTab';
+import { DocumentsTab } from './DocumentsTab';
 
 export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projectNumber }) => {
   const { repos, user } = useApp();
@@ -167,11 +168,7 @@ export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projec
           />
         </PivotItem>
         <PivotItem headerText="Dokumenty" itemIcon="DocumentSet">
-          <ComingSoonPage
-            title="Dokumenty"
-            phase="Fáze 2"
-            description="Předávací protokoly a další číslované dokumenty, plus poslední změněné soubory ve složce projektu."
-          />
+          <DocumentsTab project={project} />
         </PivotItem>
       </Pivot>
     </>

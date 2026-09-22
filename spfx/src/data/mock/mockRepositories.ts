@@ -17,6 +17,8 @@ import { overheadProjectNumber, overheadProjectTitle, OVERHEAD_PROJECT_TYPE } fr
 import { nextContractualDeadline, sortDeadlines } from '../../core/deadlines';
 import {
   IInstallRepository,
+  IDocumentRepository,
+  ProjectFile,
   IPartnerRepository,
   IProjectRepository,
   ITaskRepository,
@@ -35,7 +37,7 @@ import {
   RepositorySet
 } from '../repositories';
 import { LISTS, ListDef, SCHEMA_VERSION, creationOrder } from '../schema';
-import { DEFAULT_DOC_TYPES, MOCK_PARTNERS, MOCK_PROJECTS, MOCK_TASKS, MOCK_USER } from './mockData';
+import { DEFAULT_DOC_TYPES, MOCK_FILES, MOCK_PARTNERS, MOCK_PROJECTS, MOCK_TASKS, MOCK_USER } from './mockData';
 
 /** Umělé zdržení, aby bylo v UI vidět načítání stejně jako na ostro. */
 function delay<T>(value: T, ms: number = 180): Promise<T> {
@@ -282,6 +284,33 @@ export class MockTaskRepository implements ITaskRepository {
     const projektove = this.tasks.filter((t) => t.projectNumber === projectNumber);
     this.onDeadlineChange(projectNumber, nextContractualDeadline(projektove));
   }
+}
+
+/**
+ * Soubory ve složce projektu — v ukázkovém režimu smyšlené.
+ *
+ * Odkazy nikam nevedou (na SharePoint se nepřipojujeme), ale seznam vypadá
+ * a chová se stejně jako na ostro, aby šlo ladit vzhled záložky Dokumenty.
+ */
+class MockDocumentRepository implements IDocumentRepository {
+  public listRecentFiles(project: Project, limit: number = 10): Promise<ProjectFile[]> {
+    if (!project.folderUrl) {
+      return delay([]);
+    }
+    const files = MOCK_FILES.map((f, i) => ({
+      ...f,
+      url: `#/ukazkovy-rezim/soubor/${encodeURIComponent(f.name)}`,
+      modified: posun(-i * 3 - 1)
+    }));
+    return delay(files.slice(0, limit));
+  }
+}
+
+/** Datum posunuté o dny vůči dnešku — ať ukázka nezestárne. */
+function posun(dny: number): Date {
+  const d = new Date();
+  d.setDate(d.getDate() + dny);
+  return d;
 }
 
 /** Jeden řádek PRM_Counters, jak si ho drží mock v paměti. */
@@ -533,6 +562,7 @@ export function createMockRepositories(): RepositorySet {
     projects,
     partners: new MockPartnerRepository(),
     tasks: new MockTaskRepository((projectNumber, next) => projects.setNextDeadline(projectNumber, next)),
+    documents: new MockDocumentRepository(),
     numbering,
     install: new MockInstallRepository()
   };

@@ -7,7 +7,7 @@
  */
 
 import { BudgetStatus, Partner, PartnerType, Project, ProjectStatus, ProjectTask, Role, TaskType } from '../../core/types';
-import { DocTypeConfig } from '../repositories';
+import { DocTypeConfig, ProjectFile } from '../repositories';
 
 /** Pomocník: datum relativně ke dnešku, aby ukázka nezestárla. */
 function den(offset: number): Date {
@@ -43,6 +43,7 @@ export const MOCK_PROJECTS: Project[] = [
     startDate: den(-120),
     endDatePlanned: den(45),
     nextDeadline: den(9),
+    folderUrl: '#/ukazkovy-rezim/slozka/2026/26-001',
     isOverhead: false,
     budgetStatus: BudgetStatus.Zelena,
     budgetBaselineTotal: 3900000,
@@ -63,6 +64,7 @@ export const MOCK_PROJECTS: Project[] = [
     startDate: den(-90),
     endDatePlanned: den(75),
     nextDeadline: den(3),
+    folderUrl: '#/ukazkovy-rezim/slozka/2026/26-002',
     isOverhead: false,
     budgetStatus: BudgetStatus.Zluta,
     budgetBaselineTotal: 9800000,
@@ -83,6 +85,7 @@ export const MOCK_PROJECTS: Project[] = [
     startDate: den(-150),
     endDatePlanned: den(30),
     nextDeadline: den(-2),
+    folderUrl: '#/ukazkovy-rezim/slozka/2026/26-003',
     isOverhead: false,
     budgetStatus: BudgetStatus.Cervena,
     budgetBaselineTotal: 23000000,
@@ -103,6 +106,7 @@ export const MOCK_PROJECTS: Project[] = [
     startDate: den(-20),
     endDatePlanned: den(160),
     nextDeadline: den(21),
+    folderUrl: '#/ukazkovy-rezim/slozka/2026/26-004',
     isOverhead: false,
     budgetStatus: BudgetStatus.Bez,
     budgetBaselineTotal: undefined,
@@ -121,6 +125,7 @@ export const MOCK_PROJECTS: Project[] = [
     contractPriceNet: 8700000,
     currency: 'CZK',
     endDatePlanned: den(240),
+    folderUrl: '#/ukazkovy-rezim/slozka/2026/26-005',
     isOverhead: false,
     budgetStatus: BudgetStatus.Bez
   },
@@ -139,6 +144,7 @@ export const MOCK_PROJECTS: Project[] = [
     startDate: den(-400),
     endDatePlanned: den(-70),
     endDateActual: den(-58),
+    folderUrl: '#/ukazkovy-rezim/slozka/2025/25-018',
     isOverhead: false,
     budgetStatus: BudgetStatus.Zelena,
     budgetBaselineTotal: 5100000,
@@ -158,6 +164,7 @@ export const MOCK_PROJECTS: Project[] = [
     currency: 'CZK',
     startDate: den(-200),
     endDatePlanned: den(120),
+    folderUrl: '#/ukazkovy-rezim/slozka/2025/25-022',
     isOverhead: false,
     budgetStatus: BudgetStatus.Zluta,
     budgetBaselineTotal: 620000,
@@ -176,6 +183,7 @@ export const MOCK_PROJECTS: Project[] = [
     contractPriceNet: undefined,
     currency: 'CZK',
     startDate: den(-254),
+    folderUrl: '#/ukazkovy-rezim/slozka/2026/26-000',
     isOverhead: true,
     budgetStatus: BudgetStatus.Bez
   }
@@ -245,6 +253,73 @@ export const MOCK_TASKS: ProjectTask[] = [
     isContractualDeadline: true,
     percentComplete: 0,
     responsibleName: 'Eva Malá'
+  }
+];
+
+/**
+ * Soubory ve složce projektu pro ukázkový režim. Časy doplní repozitář,
+ * aby ukázka nezestárla; tady je jen názvosloví a rozložení do podsložek.
+ */
+export const MOCK_FILES: Omit<ProjectFile, 'url' | 'modified'>[] = [
+  {
+    name: 'OBJ-26-014 Trafostanice.pdf',
+    relativeFolder: '03_Nákup/Objednávky',
+    sizeBytes: 184320,
+    modifiedByName: 'Igor Zahrádka'
+  },
+  {
+    name: 'Realizační rozpočet v3.xlsx',
+    relativeFolder: '02_Rozpočet',
+    sizeBytes: 96256,
+    modifiedByName: 'Jan Novák'
+  },
+  {
+    name: 'Smlouva o dílo – podepsaná.pdf',
+    relativeFolder: '01_Smlouvy',
+    sizeBytes: 2458624,
+    modifiedByName: 'Igor Zahrádka'
+  },
+  {
+    name: 'Fotodokumentace montáže.zip',
+    relativeFolder: '05_Realizace',
+    sizeBytes: 48234496,
+    modifiedByName: 'Eva Malá'
+  },
+  {
+    name: 'PP-26-014-01 Předávací protokol.pdf',
+    relativeFolder: '06_Předání a revize',
+    sizeBytes: 137216,
+    modifiedByName: 'Jan Novák'
+  },
+  {
+    name: 'Zápis z kontrolního dne 12.docx',
+    relativeFolder: '05_Realizace',
+    sizeBytes: 45056,
+    modifiedByName: 'Igor Zahrádka'
+  },
+  {
+    name: 'Revizní zpráva NN.pdf',
+    relativeFolder: '06_Předání a revize',
+    sizeBytes: 312320,
+    modifiedByName: 'Eva Malá'
+  },
+  {
+    name: 'Podklad pro fakturaci 26-014-02.pdf',
+    relativeFolder: '04_Fakturace',
+    sizeBytes: 118784,
+    modifiedByName: 'Jan Novák'
+  },
+  {
+    name: 'Situační výkres.pdf',
+    relativeFolder: '',
+    sizeBytes: 1548288,
+    modifiedByName: 'Igor Zahrádka'
+  },
+  {
+    name: 'Harmonogram prací.xlsx',
+    relativeFolder: '',
+    sizeBytes: 78848,
+    modifiedByName: 'Igor Zahrádka'
   }
 ];
 

@@ -165,6 +165,33 @@ export interface ITaskRepository {
   remove(id: number): Promise<void>;
 }
 
+/** Soubor ve složce projektu. */
+export interface ProjectFile {
+  name: string;
+  /** Cesta uvnitř složky projektu, např. `03_Nákup/Objednávky`. */
+  relativeFolder: string;
+  /** Odkaz, kterým se soubor otevře v prohlížeči. */
+  url: string;
+  sizeBytes?: number;
+  modified?: Date;
+  modifiedByName?: string;
+}
+
+/**
+ * Dokumenty ve složce projektu (zadání kap. 8.4).
+ *
+ * Čte přímo knihovnu SharePointu — aplikace si obsah složek nikam nekopíruje.
+ * Prohlížeč neumí otevřít Průzkumníka, proto je odkaz na složku i seznam
+ * posledních změn jediný způsob, jak se k souborům dostat z aplikace.
+ */
+export interface IDocumentRepository {
+  /**
+   * Naposledy změněné soubory ve složce projektu, od nejnovějšího.
+   * `limit` je strop — knihovna může mít tisíce souborů.
+   */
+  listRecentFiles(project: Project, limit?: number): Promise<ProjectFile[]>;
+}
+
 /** Filtr pro seznam partnerů. */
 export interface PartnerFilter {
   /** Fulltext přes název, IČO, kontaktní osobu. */
@@ -266,6 +293,7 @@ export interface RepositorySet {
   projects: IProjectRepository;
   partners: IPartnerRepository;
   tasks: ITaskRepository;
+  documents: IDocumentRepository;
   numbering: INumberingRepository;
   install: IInstallRepository;
 }
