@@ -39,6 +39,30 @@ export const DashboardPage: React.FC = () => {
   const [pmOptions, setPmOptions] = React.useState<IDropdownOption[]>([]);
   const [isNewProjectOpen, setIsNewProjectOpen] = React.useState(false);
   const [refreshKey, setRefreshKey] = React.useState(0);
+  const [exporting, setExporting] = React.useState(false);
+  const [exportError, setExportError] = React.useState<string | undefined>(undefined);
+
+  /**
+   * Exportuje se to, co je právě na obrazovce — včetně filtrů. Kdyby se
+   * exportovalo vždycky všechno, člověk by si vyfiltroval svoje projekty,
+   * stáhl tabulku a divil se, co v ní dělá zbytek firmy.
+   */
+  const exportuj = (): void => {
+    if (!projects || projects.length === 0) {
+      return;
+    }
+    setExporting(true);
+    setExportError(undefined);
+    const filtrovano = statuses.length > 0 || pms.length > 0 || search.trim() !== '';
+
+    import(/* webpackChunkName: 'export-excel' */ './exportToExcel')
+      .then((m) => m.exportProjectsToExcel(projects, filtrovano))
+      .then(() => setExporting(false))
+      .catch((e: Error) => {
+        setExporting(false);
+        setExportError(`Export se nepodařil: ${e.message}`);
+      });
+  };
 
   React.useEffect(() => {
     let cancelled = false;
@@ -168,7 +192,25 @@ export const DashboardPage: React.FC = () => {
           styles={{ root: { minWidth: 180 } }}
           placeholder="Všechny stavy"
         />
+        <div style={{ flex: '1 1 auto' }} />
+        <DefaultButton
+          iconProps={{ iconName: 'ExcelDocument' }}
+          text={exporting ? 'Připravuji…' : 'Export do Excelu'}
+          title="Stáhne tabulku tak, jak je právě vyfiltrovaná"
+          disabled={!projects || projects.length === 0 || exporting}
+          onClick={exportuj}
+        />
       </div>
+
+      {exportError && (
+        <MessageBar
+          messageBarType={MessageBarType.error}
+          isMultiline
+          onDismiss={() => setExportError(undefined)}
+        >
+          {exportError}
+        </MessageBar>
+      )}
 
       {error && (
         <MessageBar messageBarType={MessageBarType.error} isMultiline>
