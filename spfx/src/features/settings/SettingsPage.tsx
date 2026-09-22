@@ -24,10 +24,12 @@ import { canOpenAdmin } from '../../core/roles';
 import { ROLE_LABELS, Role } from '../../core/types';
 import {
   AppSettings,
+  ApprovalSettings,
   FolderTemplateNode,
   validateSettings,
   withDefaults
 } from '../../core/settings';
+import { describeApprovalLadder } from '../../core/approval';
 
 export const SettingsPage: React.FC = () => {
   const { settings, repos, user, reloadSettings } = useApp();
@@ -216,11 +218,19 @@ export const SettingsPage: React.FC = () => {
             />
             <NumberField
               label="Limit vedení (Kč)"
-              description="Nad tuto částku schvaluje jednatel."
+              description="Nad limit PM až sem schvaluje navíc vedení."
               value={draft.approvals.vedeniLimit}
               step={100000}
               onChange={(v) => patch('approvals', { vedeniLimit: v })}
             />
+            <NumberField
+              label="Limit jednatele (Kč)"
+              description="Nad limit vedení až sem schvaluje navíc jednatel. Nad tuto částku se objednávka schvaluje mimo aplikaci."
+              value={draft.approvals.jednatelLimit}
+              step={100000}
+              onChange={(v) => patch('approvals', { jednatelLimit: v })}
+            />
+            <ApprovalLadder settings={draft.approvals} />
             <Toggle
               label="Objednávku do svého limitu si projektový manažer schvaluje sám"
               onText="Ano – objednávka je rovnou schválená"
@@ -315,6 +325,38 @@ const Hint: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   >
     {children}
   </p>
+);
+
+/**
+ * Převede zadaná čísla na věty, aby si administrátor ověřil, že limity
+ * znamenají to, co chtěl. Čtyři čísla v polích se kontrolují špatně.
+ */
+const ApprovalLadder: React.FC<{ settings: ApprovalSettings }> = ({ settings }) => (
+  <div
+    style={{
+      background: RES.bluePale,
+      border: `1px solid ${RES.grayBlue}`,
+      borderRadius: 4,
+      padding: '10px 14px'
+    }}
+  >
+    <div
+      style={{
+        fontSize: 11,
+        color: RES.gray,
+        textTransform: 'uppercase',
+        letterSpacing: 0.4,
+        marginBottom: 6
+      }}
+    >
+      Co to znamená
+    </div>
+    <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.6, color: RES.text }}>
+      {describeApprovalLadder(settings).map((row) => (
+        <li key={row}>{row}</li>
+      ))}
+    </ul>
+  </div>
 );
 
 const NumberField: React.FC<{

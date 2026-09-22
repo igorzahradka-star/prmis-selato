@@ -63,12 +63,19 @@ export interface BudgetSettings {
   minimumMarginPercent: number;
 }
 
-/** Nastavení schvalování objednávek (limity bez DPH v Kč). */
+/**
+ * Nastavení schvalování objednávek (limity bez DPH v Kč).
+ *
+ * Tři hranice = čtyři pásma; kdo v kterém schvaluje, popisuje
+ * `describeApprovalLadder` v `core/approval.ts`.
+ */
 export interface ApprovalSettings {
   /** Do této částky schvaluje PM projektu. */
   pmLimit: number;
   /** Nad pmLimit do vedeniLimit schvaluje navíc Vedení. */
   vedeniLimit: number;
+  /** Nad vedeniLimit schvaluje navíc jednatel. Nad tuto částku jde objednávka na valnou hromadu. */
+  jednatelLimit: number;
   /**
    * Objednávka, kterou vystavil sám PM a je do pmLimit, se považuje za schválenou.
    * Vypnuto = i vlastní objednávku PM musí schválit Vedení.
@@ -165,9 +172,10 @@ export const DEFAULT_SETTINGS: AppSettings = {
     minimumMarginPercent: 10
   },
   approvals: {
-    // Limity upřesní zadavatel ve Fázi 2 — toto jsou pracovní hodnoty.
+    // Zadáno zadavatelem 22. 9. 2026. Dají se kdykoli změnit v Nastavení.
     pmLimit: 100000,
-    vedeniLimit: 1000000,
+    vedeniLimit: 500000,
+    jednatelLimit: 1000000,
     pmSelfApprovalEnabled: true,
     overheadRequiresVedeni: true
   },
@@ -229,13 +237,20 @@ export function validateSettings(settings: AppSettings): string[] {
   if (settings.budget.yellowThresholdPercent < 0) {
     problems.push('Práh žlutého semaforu nesmí být záporný.');
   }
-  if (settings.approvals.pmLimit < 0 || settings.approvals.vedeniLimit < 0) {
+  const a = settings.approvals;
+  if (a.pmLimit < 0 || a.vedeniLimit < 0 || a.jednatelLimit < 0) {
     problems.push('Limity schvalování nesmí být záporné.');
   }
-  if (settings.approvals.vedeniLimit < settings.approvals.pmLimit) {
+  if (a.vedeniLimit < a.pmLimit) {
     problems.push(
       'Limit vedení je nižší než limit projektového manažera. ' +
         'Schvalovací pravidla by se překrývala — limit vedení musí být vyšší.'
+    );
+  }
+  if (a.jednatelLimit < a.vedeniLimit) {
+    problems.push(
+      'Limit jednatele je nižší než limit vedení. ' +
+        'Schvalovací pravidla by se překrývala — limit jednatele musí být vyšší.'
     );
   }
 
