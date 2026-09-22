@@ -26,6 +26,8 @@ a Excel report pro finančního ředitele holdingu.
 Historie předchozích konverzací se nepřenáší — **tento soubor a `docs/` jsou
 jediná paměť projektu.** Na začátku každé relace:
 
+0. **Začni souborem [`NAVAZANI.md`](NAVAZANI.md)** — předávka mezi relacemi:
+   kde jsme skončili, co je další na řadě, co blokuje postup, na co si dát pozor.
 1. Přečti tento soubor, `docs/ZADANI.md`, `docs/ROZHODNUTI.md` a `CHANGELOG.md`.
 2. Podívej se na `git log --oneline` — co se dělalo naposledy.
 3. Stav fází je v kapitole 9, otevřené otázky v `docs/ROZHODNUTI.md`.
@@ -201,7 +203,7 @@ Testovací scénáře pro každou fázi: [`docs/testy/`](docs/testy/).
 | Fáze | Obsah | Stav |
 |---|---|---|
 | **0 — Základ** | kostra SPFx, CLAUDE.md, git, theme RES + logo, layout a navigace, detekce uživatele a rolí, mock data, průvodce Instalace a diagnostika, Nastavení (základ), návod na nasazení | ✅ kód hotov (11. 9. 2026), build i testy prochází · **čeká na nasazení a otestování na tenantu** |
-| 1 — Projekty (MVP) | číselné řady a čítače ✅, partneři + ARES ✅, založení projektu (průvodce, číslo, složky) ✅, dashboard ✅ · **zbývá:** detail projektu (záložka Dokumenty), zakázka Režie, smluvní termíny (PRM_Tasks), import stávajících projektů z Excelu, export tabulky | 🔶 rozpracováno (21. 9. 2026), 166 testů prochází |
+| 1 — Projekty (MVP) | číselné řady a čítače ✅, partneři + ARES ✅, založení projektu (průvodce, číslo, složky) ✅, dashboard ✅ · **zbývá:** detail projektu (záložka Dokumenty), projekt Režie, smluvní termíny (PRM_Tasks), import stávajících projektů (čeká na printscreen složky — Excel není), export tabulky | 🔶 rozpracováno (21. 9. 2026), 166 testů prochází |
 | 2 — Objednávky, fakturace, dokumenty | objednávky + schvalování, „Čeká na mě", e-maily, PDF, podklady pro fakturaci, protokoly, audit | ⏳ čeká |
 | 3 — Realizační rozpočet a CF projektu | RR editor, verze a baseline, semafor, fakturační milníky, CF projektu | ⏳ čeká |
 | 4 — Harmonogram | Gantt, závislosti, CPM a kritická cesta, baseline, vazba na RR a CF | ⏳ čeká |
