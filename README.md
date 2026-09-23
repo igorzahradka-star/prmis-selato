@@ -11,7 +11,7 @@ a bez předplatného Azure.
 
 ---
 
-> **Nasazujete poprvé?** Použijte [](docs/NASAZENI.md) —
+> **Nasazujete poprvé?** Použijte [`docs/NASAZENI.md`](docs/NASAZENI.md) —
 > je to odškrtávací seznam krok za krokem pro konkrétní prostředí RES.
 > Tenhle soubor je obecnější a vysvětluje i proč.
 

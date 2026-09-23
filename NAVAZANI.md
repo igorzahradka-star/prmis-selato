@@ -114,7 +114,7 @@ a názvy), aby šlo navázat číslování a naimportovat je.
 
 ## 4. Co je další na řadě
 
-**Nasazení na tenant běží.** Postup krok za krokem: [](docs/NASAZENI.md).
+**Nasazení na tenant běží.** Postup krok za krokem: [`docs/NASAZENI.md`](docs/NASAZENI.md).
 Balíček  verze 0.2.0.0 je připravený.
 
 
