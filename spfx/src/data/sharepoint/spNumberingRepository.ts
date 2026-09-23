@@ -135,6 +135,60 @@ export class SpNumberingRepository implements INumberingRepository {
     }
   }
 
+  /**
+   * Posune čítač na danou hodnotu — po importu stávajících projektů.
+   *
+   * **Jen nahoru.** Snížení by znamenalo, že aplikace podruhé přidělí číslo,
+   * které už je na složce, objednávce nebo faktuře. Když je čítač už výš,
+   * neudělá se nic.
+   */
+  public async setCounterAtLeast(docTypeCode: string, year: number, lastValue: number): Promise<void> {
+    const sp = getSp(this.context);
+    const list = sp.web.lists.getByTitle(COUNTERS_LIST);
+    const scopeKey = '';
+    const filter =
+      `DocTypeCode eq '${escapeODataString(docTypeCode)}' and ` +
+      `Year eq ${year} and ScopeKey eq '${escapeODataString(scopeKey)}'`;
+
+    try {
+      const rows: CounterItem[] = await list.items.select('Id', 'LastValue').filter(filter).top(1)();
+      const existing = rows[0];
+
+      if (!existing) {
+        await list.items.add({
+          Title: `${docTypeCode} ${year}`.trim(),
+          DocTypeCode: docTypeCode,
+          Year: year,
+          ScopeKey: scopeKey,
+          LastValue: lastValue
+        });
+        return;
+      }
+
+      if (existing.LastValue >= lastValue) {
+        return;
+      }
+      await list.items
+        .getById(existing.Id)
+        .update({ LastValue: lastValue }, existing['odata.etag'] ?? '*');
+    } catch (error) {
+      if (extractStatus(error) === 412) {
+        // Čítač mezitím posunul někdo jiný. Zkus to jednou znovu s čerstvým
+        // čtením — podruhé už bude nejspíš dost vysoko a neudělá se nic.
+        const rows: CounterItem[] = await list.items.select('Id', 'LastValue').filter(filter).top(1)();
+        if (rows[0] && rows[0].LastValue < lastValue) {
+          await list.items
+            .getById(rows[0].Id)
+            .update({ LastValue: lastValue }, rows[0]['odata.etag'] ?? '*');
+        }
+        return;
+      }
+      throw new Error(
+        describeSpError(error, `Nepodařilo se nastavit čítač řady ${docTypeCode} pro rok ${year}`)
+      );
+    }
+  }
+
   /** Jeden pokus o přidělení čísla. Při souběhu vyhodí `NumberingConflictError`. */
   private async tryAllocate(
     docType: DocTypeConfig,

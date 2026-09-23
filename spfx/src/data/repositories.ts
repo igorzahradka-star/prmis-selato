@@ -168,6 +168,24 @@ export interface IProjectRepository {
    * Je idempotentní: opakované volání vrátí letošní Režii, nezaloží druhou.
    */
   ensureOverheadProject(projectManagerName: string): Promise<Project>;
+  /**
+   * Naimportuje projekty, které už existují jako složky v knihovně.
+   *
+   * Na rozdíl od `create()` **nepřiděluje čísla** — ta už projekty mají
+   * z názvů složek. A **nezakládá složky** — ty jsou to jediné, co o těch
+   * projektech zatím existuje, a přepsat je by znamenalo ztratit dokumenty.
+   *
+   * Po importu nastaví čítač tak, aby další nový projekt navázal za
+   * nejvyšším importovaným číslem.
+   *
+   * Je bezpečné ho pustit opakovaně: projekt, který už v aplikaci je,
+   * se přeskočí (volající ho vyfiltruje přes `buildImportPlan`).
+   */
+  importProjects(
+    inputs: ImportProjectInput[],
+    counterByYear: { year: number; lastValue: number }[],
+    projectManagerName: string
+  ): Promise<ImportResult>;
   /** Znovu založí složky u už uloženého projektu — pro tlačítko „Zkusit znovu založit složky". */
   retryCreateFolders(projectNumber: string): Promise<void>;
 }
@@ -223,6 +241,27 @@ export interface IDocumentRepository {
    * `limit` je strop — knihovna může mít tisíce souborů.
    */
   listRecentFiles(project: Project, limit?: number): Promise<ProjectFile[]>;
+  /**
+   * Názvy podsložek v kořenové složce projektů (podle Nastavení).
+   * Podklad pro import stávajících projektů — čtou se jen názvy, nic se nemění.
+   */
+  listProjectFolderNames(): Promise<string[]>;
+}
+
+/** Jeden projekt k naimportování ze složky, která už v knihovně je. */
+export interface ImportProjectInput {
+  projectNumber: string;
+  title: string;
+  isOverhead: boolean;
+  /** Existující složka projektu — projekt se na ni jen naváže, nezakládá se nová. */
+  folderUrl?: string;
+}
+
+/** Výsledek importu: co se povedlo a co ne. */
+export interface ImportResult {
+  imported: string[];
+  /** Čísla, u kterých import selhal, se srozumitelným důvodem. */
+  failed: { projectNumber: string; message: string }[];
 }
 
 /** Filtr pro seznam partnerů. */
@@ -273,6 +312,14 @@ export interface INumberingRepository {
    * `projectNumber` je potřeba u řad se Scope = Projekt (např. protokoly PP-{PRJ}-{N}).
    */
   allocateNumber(docTypeCode: string, opts?: { projectNumber?: string; date?: Date }): Promise<string>;
+  /**
+   * Nastaví čítač na danou hodnotu — po importu stávajících projektů, aby
+   * další nový navázal za nimi.
+   *
+   * Čítač jde jen **zvýšit**, nikdy snížit. Snížení by znamenalo, že aplikace
+   * podruhé přidělí číslo, které už někde je na složce, objednávce nebo faktuře.
+   */
+  setCounterAtLeast(docTypeCode: string, year: number, lastValue: number): Promise<void>;
 }
 
 /** Výsledek jedné kontroly instalačního průvodce. */

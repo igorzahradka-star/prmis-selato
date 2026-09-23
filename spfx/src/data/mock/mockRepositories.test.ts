@@ -14,7 +14,7 @@ describe('MockNumberingRepository', () => {
   it('přidělí číslo podle vzoru dané řady', async () => {
     const repo = new MockNumberingRepository();
     const cislo = await repo.allocateNumber('PRJ', { date: new Date(2026, 8, 21) });
-    expect(cislo).toBe('26-001');
+    expect(cislo).toBe('26001');
   });
 
   it('další volání ve stejném roce pokračuje v řadě', async () => {
@@ -22,17 +22,17 @@ describe('MockNumberingRepository', () => {
     const datum = new Date(2026, 8, 21);
     await repo.allocateNumber('PRJ', { date: datum });
     const druhe = await repo.allocateNumber('PRJ', { date: datum });
-    expect(druhe).toBe('26-002');
+    expect(druhe).toBe('26002');
   });
 
   it('řada v rámci projektu (PP) počítá zvlášť pro každý projekt', async () => {
     const repo = new MockNumberingRepository();
-    const a1 = await repo.allocateNumber('PP', { projectNumber: '26-001' });
-    const b1 = await repo.allocateNumber('PP', { projectNumber: '26-002' });
-    const a2 = await repo.allocateNumber('PP', { projectNumber: '26-001' });
-    expect(a1).toBe('PP-26-001-01');
-    expect(b1).toBe('PP-26-002-01');
-    expect(a2).toBe('PP-26-001-02');
+    const a1 = await repo.allocateNumber('PP', { projectNumber: '26001' });
+    const b1 = await repo.allocateNumber('PP', { projectNumber: '26002' });
+    const a2 = await repo.allocateNumber('PP', { projectNumber: '26001' });
+    expect(a1).toBe('PP-26001-01');
+    expect(b1).toBe('PP-26002-01');
+    expect(a2).toBe('PP-26001-02');
   });
 
   it('neznámou nebo neaktivní řadu odmítne se srozumitelnou chybou', async () => {
@@ -53,7 +53,7 @@ describe('MockNumberingRepository', () => {
     expect(unikatni.size).toBe(POCET);
     const ocekavana = Array.from({ length: POCET }, (_, i) => {
       const cislo = String(i + 1);
-      return `26-${'0'.repeat(Math.max(0, 3 - cislo.length))}${cislo}`;
+      return `26${'0'.repeat(Math.max(0, 3 - cislo.length))}${cislo}`;
     });
     expect(vysledky.slice().sort()).toEqual(ocekavana.sort());
   });
@@ -132,7 +132,7 @@ describe('MockProjectRepository.update', () => {
 
   it('neznámé číslo projektu odmítne', async () => {
     const r = repo();
-    await expect(r.update('99-999', edit())).rejects.toThrow(/nebyl nalezen/);
+    await expect(r.update('99999', edit())).rejects.toThrow(/nebyl nalezen/);
   });
 
   it('se správnou verzí uloží', async () => {
@@ -201,7 +201,7 @@ describe('MockProjectRepository.remove', () => {
 
   it('neznámé číslo projektu odmítne', async () => {
     const r = repo();
-    await expect(r.remove('99-999', admin)).rejects.toThrow(/nebyl nalezen/);
+    await expect(r.remove('99999', admin)).rejects.toThrow(/nebyl nalezen/);
   });
 
   it('smazání se nedotkne ostatních projektů', async () => {
@@ -285,8 +285,8 @@ describe('Režie a číselná řada projektů', () => {
   it('po Režii pokračuje řada normálně', async () => {
     const repos = createMockRepositories();
     const dalsi = await repos.numbering.previewNextNumber('PRJ');
-    expect(/^\d{2}-0\d{2}$/.test(dalsi)).toBe(true);
-    expect(dalsi).not.toContain('-999');
+    expect(/^\d{2}0\d{2}$/.test(dalsi)).toBe(true);
+    expect(dalsi.slice(-3)).not.toBe('999');
   });
 
   it('založení Režie nezvýší čítač projektů', async () => {
@@ -297,7 +297,7 @@ describe('Režie a číselná řada projektů', () => {
   });
 
   it('číslo vyhrazené Režii se nesmí přidělit zakázce', () => {
-    expect(() => assertNotOverheadNumber('26-999')).toThrow(/vyhrazené projektu Režie/);
-    expect(() => assertNotOverheadNumber('26-007')).not.toThrow();
+    expect(() => assertNotOverheadNumber('26999')).toThrow(/vyhrazené projektu Režie/);
+    expect(() => assertNotOverheadNumber('26007')).not.toThrow();
   });
 });

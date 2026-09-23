@@ -4,8 +4,8 @@
  *
  * Součást vrstvy `core` — čistá logika bez SharePointu a Reactu.
  *
- * Číslo má tvar `{RR}-999` a je **součástí běžné řady projektů**: `26-999`,
- * `27-999`… Každý rok má svou Režii, stejně jako svou řadu zakázek —
+ * Číslo má tvar `{RR}999` a je **součástí běžné řady projektů**: `26999`,
+ * `27999`… Každý rok má svou Režii, stejně jako svou řadu zakázek —
  * náklady se tak nesčítají přes roky. Devítky na konci ji v seznamu řadí
  * až za poslední zakázku roku.
  *
@@ -14,7 +14,7 @@
  */
 
 /** Přípona čísla, podle které se Režie pozná i bez příznaku v databázi. */
-export const OVERHEAD_NUMBER_SUFFIX = '-999';
+export const OVERHEAD_NUMBER_SUFFIX = '999';
 
 /** Název projektu Režie. Nesestavuje se ze vzoru — Režie nemá zákazníka ani lokalitu. */
 export const OVERHEAD_TITLE = 'Režie RES';
@@ -32,7 +32,7 @@ export const OVERHEAD_PROJECT_TYPE = 'Režie';
 export const MAX_REGULAR_SEQUENCE = 998;
 
 /**
- * Číslo projektu Režie pro daný rok: `26-999`.
+ * Číslo projektu Režie pro daný rok: `26999`.
  * Každý rok má svou Režii — náklady se nesčítají přes roky.
  */
 export function overheadProjectNumber(year: number): string {

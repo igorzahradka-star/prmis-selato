@@ -142,9 +142,10 @@ export const DEFAULT_SETTINGS: AppSettings = {
     // aby lidem dál fungovala synchronizace přes OneDrive a nemuseli nic hledat jinde.
     siteUrl: 'https://revoltum.sharepoint.com/sites/RevoltumEngineeringServices',
     libraryTitle: 'Dokumenty',
-    // Konkrétní složku, kde projekty leží, zadavatel teprve ukáže (ot. 10).
-    rootFolder: 'Projekty',
-    subfolderByYear: true,
+    rootFolder: 'General/01_PROJEKTY',
+    // Projekty leží v 01_PROJEKTY přímo, bez mezipatra podle roku.
+    // Ověřeno na skutečné složce 23. 9. 2026.
+    subfolderByYear: false,
     template: DEFAULT_FOLDER_TEMPLATE
   },
   numbering: {},

@@ -64,6 +64,43 @@ export class SpDocumentRepository implements IDocumentRepository {
     }
   }
 
+  /**
+   * Názvy podsložek v kořenové složce projektů. Čtou se **jen názvy** —
+   * import se z nich rozhoduje, ale nic se nemění.
+   */
+  public async listProjectFolderNames(): Promise<string[]> {
+    const folders = (await this.settings.get()).folders;
+    if (!folders.libraryTitle.trim()) {
+      return [];
+    }
+
+    const sp = folders.siteUrl ? getSpForSite(this.context, folders.siteUrl) : getSp(this.context);
+    try {
+      const list = await sp.web.lists
+        .getByTitle(folders.libraryTitle)
+        .select('RootFolder/ServerRelativeUrl')
+        .expand('RootFolder')();
+      const libraryRoot = (list as { RootFolder: { ServerRelativeUrl: string } }).RootFolder.ServerRelativeUrl;
+      const root = folders.rootFolder.trim()
+        ? `${libraryRoot}/${folders.rootFolder.replace(/^\/+|\/+$/g, '')}`
+        : libraryRoot;
+
+      const items: { Name: string }[] = await sp.web
+        .getFolderByServerRelativePath(root)
+        .folders.select('Name')
+        .orderBy('Name')();
+      // „Forms" je systémová složka každé knihovny, projekt to není nikdy.
+      return items.map((f) => f.Name).filter((name) => name !== 'Forms');
+    } catch (error) {
+      throw new Error(
+        describeSpError(
+          error,
+          `Nepodařilo se načíst složky projektů z knihovny „${folders.libraryTitle}"`
+        )
+      );
+    }
+  }
+
   private origin(siteUrl: string | undefined): string {
     const base = siteUrl || this.context.pageContext.web.absoluteUrl;
     return new URL(base).origin;

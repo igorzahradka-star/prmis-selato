@@ -45,6 +45,8 @@ import {
   NewProjectInput,
   CreateProjectResult,
   ProjectEditInput,
+  ImportProjectInput,
+  ImportResult,
   DocTypeConfig,
   DiagnosticReport,
   InstallProgress,
@@ -57,6 +59,7 @@ import {
   MOCK_FILES,
   MOCK_PARTNERS,
   MOCK_PROJECTS,
+  MOCK_PROJECT_FOLDERS,
   MOCK_ROLE_MEMBERS,
   MOCK_TASKS,
   MOCK_USER
@@ -329,6 +332,49 @@ export class MockProjectRepository implements IProjectRepository {
     return this.projects.filter((p) => p.id === project.id)[0];
   }
 
+  public async importProjects(
+    inputs: ImportProjectInput[],
+    counterByYear: { year: number; lastValue: number }[],
+    projectManagerName: string
+  ): Promise<ImportResult> {
+    const imported: string[] = [];
+    const failed: { projectNumber: string; message: string }[] = [];
+
+    for (const input of inputs) {
+      if (this.projects.some((p) => p.projectNumber === input.projectNumber)) {
+        failed.push({
+          projectNumber: input.projectNumber,
+          message: 'Projekt s tímhle číslem už v aplikaci je — nepřepisuje se.'
+        });
+        continue;
+      }
+      this.projects = [
+        ...this.projects,
+        {
+          id: this.nextId++,
+          projectNumber: input.projectNumber,
+          title: `${input.projectNumber} ${input.title}`,
+          shortName: input.title,
+          projectManagerName,
+          // Importované projekty běží — kdo je hotový, upraví se ručně.
+          status: ProjectStatus.Realizace,
+          projectType: input.isOverhead ? OVERHEAD_PROJECT_TYPE : undefined,
+          currency: 'CZK',
+          folderUrl: input.folderUrl,
+          isOverhead: input.isOverhead,
+          budgetStatus: BudgetStatus.Bez
+        }
+      ];
+      imported.push(input.projectNumber);
+    }
+
+    for (const c of counterByYear) {
+      await this.numbering.setCounterAtLeast('PRJ', c.year, c.lastValue);
+    }
+
+    return delay({ imported, failed });
+  }
+
   public async retryCreateFolders(projectNumber: string): Promise<void> {
     const project = this.projects.filter((p) => p.projectNumber === projectNumber)[0];
     if (!project) {
@@ -420,6 +466,10 @@ class MockDocumentRepository implements IDocumentRepository {
     }));
     return delay(files.slice(0, limit));
   }
+
+  public listProjectFolderNames(): Promise<string[]> {
+    return delay(MOCK_PROJECT_FOLDERS.slice());
+  }
 }
 
 /** Datum posunuté o dny vůči dnešku — ať ukázka nezestárne. */
@@ -458,6 +508,17 @@ export class MockNumberingRepository implements INumberingRepository {
    */
   public seedCounter(docTypeCode: string, state: CounterState, scopeKey: string = ''): void {
     this.counters.set(`${docTypeCode}:${scopeKey}`, { ...state, version: 0 });
+  }
+
+  public setCounterAtLeast(docTypeCode: string, year: number, lastValue: number): Promise<void> {
+    const key = `${docTypeCode}:`;
+    const current = this.counters.get(key);
+    // Jen nahoru. Snížení by znamenalo podruhé přidělit číslo, které už někde je.
+    if (current && current.year === year && current.lastValue >= lastValue) {
+      return delay(undefined);
+    }
+    this.counters.set(key, { year, lastValue, version: (current?.version ?? 0) + 1 });
+    return delay(undefined);
   }
 
   public listDocTypes(): Promise<DocTypeConfig[]> {
@@ -677,7 +738,8 @@ export function seedProjectCounter(): CounterState {
     if (isOverheadNumber(p.projectNumber)) {
       return max;
     }
-    const match = /^(\d{2})-(\d+)$/.exec(p.projectNumber);
+    // Formát {RR}{NNN} — `26001`. Dvě číslice roku, zbytek pořadové číslo.
+    const match = /^(\d{2})(\d{3,})$/.exec(p.projectNumber);
     if (!match || match[1] !== yy) {
       return max;
     }

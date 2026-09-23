@@ -20,9 +20,10 @@ import { buildHash, RouteName } from '../../ui/router';
 import { BudgetBadge, StatusBadge } from '../../ui/components/StatusBadge';
 import { KpiTiles } from './KpiTiles';
 import { NewProjectPanel } from './NewProjectPanel';
+import { ImportProjectsPanel } from '../admin/ImportProjectsPanel';
 import { BudgetStatus, Project, ProjectStatus, ACTIVE_PROJECT_STATUSES } from '../../core/types';
 import { formatDate, formatMoney, dueLabel } from '../../core/format';
-import { canCreateProject } from '../../core/roles';
+import { canCreateProject, canOpenAdmin } from '../../core/roles';
 import streakUrl from '../../webparts/prm/assets/res-kpi-streak.png';
 
 /** Stejný diagonální přechod (tmavá → navy → modrá) jako v grafickém manuálu RES. */
@@ -38,6 +39,7 @@ export const DashboardPage: React.FC = () => {
   const [pms, setPms] = React.useState<string[]>([]);
   const [pmOptions, setPmOptions] = React.useState<IDropdownOption[]>([]);
   const [isNewProjectOpen, setIsNewProjectOpen] = React.useState(false);
+  const [isImportOpen, setIsImportOpen] = React.useState(false);
   const [refreshKey, setRefreshKey] = React.useState(0);
   const [exporting, setExporting] = React.useState(false);
   const [exportError, setExportError] = React.useState<string | undefined>(undefined);
@@ -138,6 +140,14 @@ export const DashboardPage: React.FC = () => {
             </p>
           </div>
           <div style={{ flex: '0 0 auto', display: 'flex', gap: 8 }}>
+            {canOpenAdmin(user.roles) && (
+              <DefaultButton
+                iconProps={{ iconName: 'CloudImportExport' }}
+                text="Import ze složek"
+                title="Založí záznamy k projektům, které už existují jako složky v knihovně"
+                onClick={() => setIsImportOpen(true)}
+              />
+            )}
             <OverheadButton />
             {canCreateProject(user.roles) && (
               <PrimaryButton
@@ -156,6 +166,12 @@ export const DashboardPage: React.FC = () => {
         isOpen={isNewProjectOpen}
         onDismiss={() => setIsNewProjectOpen(false)}
         onCreated={() => setRefreshKey((k) => k + 1)}
+      />
+
+      <ImportProjectsPanel
+        isOpen={isImportOpen}
+        onDismiss={() => setIsImportOpen(false)}
+        onImported={() => setRefreshKey((k) => k + 1)}
       />
 
       <div

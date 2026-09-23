@@ -26,7 +26,9 @@ import {
   ProjectFilter,
   NewProjectInput,
   CreateProjectResult,
-  ProjectEditInput
+  ProjectEditInput,
+  ImportProjectInput,
+  ImportResult
 } from '../repositories';
 import { getSp, getSpForSite, describeSpError, extractStatus } from './spContext';
 import { escapeODataString } from './spSettingsRepository';
@@ -426,6 +428,77 @@ export class SpProjectRepository implements IProjectRepository {
     return project;
   }
 
+  /**
+   * Naimportuje projekty, které už existují jako složky v knihovně.
+   *
+   * **Nezakládá složky ani nepřiděluje čísla** — obojí už ty projekty mají.
+   * Když import některého selže, ostatní se doimportují a selhání se vrátí
+   * se jménem a důvodem; přerušit celý import kvůli jednomu by znamenalo
+   * pouštět ho znovu a znovu.
+   */
+  public async importProjects(
+    inputs: ImportProjectInput[],
+    counterByYear: { year: number; lastValue: number }[],
+    projectManagerName: string
+  ): Promise<ImportResult> {
+    const sp = getSp(this.context);
+    const imported: string[] = [];
+    const failed: { projectNumber: string; message: string }[] = [];
+
+    const projectManagerId = await this.resolveUserId(sp, projectManagerName);
+
+    for (const input of inputs) {
+      try {
+        const existing = await this.getByNumber(input.projectNumber);
+        if (existing) {
+          failed.push({
+            projectNumber: input.projectNumber,
+            message: 'Projekt s tímhle číslem už v aplikaci je — nepřepisuje se.'
+          });
+          continue;
+        }
+
+        await sp.web.lists.getByTitle(PROJECTS_LIST).items.add({
+          Title: `${input.projectNumber} ${input.title}`,
+          ProjectNumber: input.projectNumber,
+          ShortName: input.title,
+          ProjectManagerId: projectManagerId,
+          // Importované projekty berem jako běžící; co je hotové, se upraví ručně.
+          ProjectStatus: ProjectStatus.Realizace,
+          ProjectType: input.isOverhead ? OVERHEAD_PROJECT_TYPE : null,
+          ProjectYear: yearFromProjectNumber(input.projectNumber),
+          Currency: 'CZK',
+          FolderUrl: input.folderUrl
+            ? { Url: input.folderUrl, Description: `${input.projectNumber} ${input.title}` }
+            : null,
+          IsOverhead: input.isOverhead,
+          BudgetStatus: BudgetStatus.Bez
+        });
+        imported.push(input.projectNumber);
+      } catch (error) {
+        failed.push({
+          projectNumber: input.projectNumber,
+          message: describeSpError(error, 'Nepodařilo se uložit')
+        });
+      }
+    }
+
+    // Čítač až nakonec — kdyby import spadl, radši ať zůstane nižší
+    // a doimportuje se, než aby přeskočil čísla, která nikdo nepoužil.
+    for (const c of counterByYear) {
+      try {
+        await this.numbering.setCounterAtLeast('PRJ', c.year, c.lastValue);
+      } catch (error) {
+        failed.push({
+          projectNumber: `čítač ${c.year}`,
+          message: describeSpError(error, 'Nepodařilo se nastavit čítač — další projekt může dostat obsazené číslo')
+        });
+      }
+    }
+
+    return { imported, failed };
+  }
+
   public async retryCreateFolders(projectNumber: string): Promise<void> {
     const project = await this.getByNumber(projectNumber);
     if (!project) {
@@ -581,6 +654,12 @@ export function mapProject(item: ProjectItem): Project {
     budgetBaselineTotal: item.BudgetBaselineTotal,
     costForecastTotal: item.CostForecastTotal
   };
+}
+
+/** Rok ze zaimportovaného čísla `26001` → 2026. Když se nedá přečíst, dnešek. */
+function yearFromProjectNumber(projectNumber: string): number {
+  const match = /^(\d{2})\d{3,}$/.exec(projectNumber.trim());
+  return match ? 2000 + parseInt(match[1], 10) : new Date().getFullYear();
 }
 
 function extractAddedId(added: unknown): number | undefined {

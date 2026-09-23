@@ -31,8 +31,8 @@ export const MOCK_USER = {
 export const MOCK_PROJECTS: Project[] = [
   {
     id: 1,
-    projectNumber: '26-001',
-    title: '26-001 ČEZ Distribuce – Havlíčkův Brod – Připojení DS',
+    projectNumber: '25001',
+    title: '25001 ČEZ Distribuce – Havlíčkův Brod – Připojení DS',
     shortName: 'Připojení HB',
     customerName: 'ČEZ Distribuce, a.s.',
     projectManagerName: 'Igor Zahrádka',
@@ -44,7 +44,7 @@ export const MOCK_PROJECTS: Project[] = [
     startDate: den(-120),
     endDatePlanned: den(45),
     nextDeadline: den(9),
-    folderUrl: '#/ukazkovy-rezim/slozka/2026/26-001',
+    folderUrl: '#/ukazkovy-rezim/slozka/2025/25001',
     isOverhead: false,
     budgetStatus: BudgetStatus.Zelena,
     budgetBaselineTotal: 3900000,
@@ -52,8 +52,8 @@ export const MOCK_PROJECTS: Project[] = [
   },
   {
     id: 2,
-    projectNumber: '26-002',
-    title: '26-002 AgroFarma Lipnice – Lipnice nad Sázavou – FVE',
+    projectNumber: '25002',
+    title: '25002 AgroFarma Lipnice – Lipnice nad Sázavou – FVE',
     shortName: 'FVE Lipnice',
     customerName: 'AgroFarma Lipnice s.r.o.',
     projectManagerName: 'Jan Novák',
@@ -65,7 +65,7 @@ export const MOCK_PROJECTS: Project[] = [
     startDate: den(-90),
     endDatePlanned: den(75),
     nextDeadline: den(3),
-    folderUrl: '#/ukazkovy-rezim/slozka/2026/26-002',
+    folderUrl: '#/ukazkovy-rezim/slozka/2025/25002',
     isOverhead: false,
     budgetStatus: BudgetStatus.Zluta,
     budgetBaselineTotal: 9800000,
@@ -73,8 +73,8 @@ export const MOCK_PROJECTS: Project[] = [
   },
   {
     id: 3,
-    projectNumber: '26-003',
-    title: '26-003 Teplárna Chotěboř – Chotěboř – BESS',
+    projectNumber: '25003',
+    title: '25003 Teplárna Chotěboř – Chotěboř – BESS',
     shortName: 'BESS Chotěboř',
     customerName: 'Teplárna Chotěboř a.s.',
     projectManagerName: 'Jan Novák',
@@ -86,7 +86,7 @@ export const MOCK_PROJECTS: Project[] = [
     startDate: den(-150),
     endDatePlanned: den(30),
     nextDeadline: den(-2),
-    folderUrl: '#/ukazkovy-rezim/slozka/2026/26-003',
+    folderUrl: '#/ukazkovy-rezim/slozka/2025/25003',
     isOverhead: false,
     budgetStatus: BudgetStatus.Cervena,
     budgetBaselineTotal: 23000000,
@@ -94,8 +94,8 @@ export const MOCK_PROJECTS: Project[] = [
   },
   {
     id: 4,
-    projectNumber: '26-004',
-    title: '26-004 Město Přibyslav – Přibyslav – FVE',
+    projectNumber: '25004',
+    title: '25004 Město Přibyslav – Přibyslav – FVE',
     shortName: 'FVE Přibyslav',
     customerName: 'Město Přibyslav',
     projectManagerName: 'Eva Malá',
@@ -107,7 +107,7 @@ export const MOCK_PROJECTS: Project[] = [
     startDate: den(-20),
     endDatePlanned: den(160),
     nextDeadline: den(21),
-    folderUrl: '#/ukazkovy-rezim/slozka/2026/26-004',
+    folderUrl: '#/ukazkovy-rezim/slozka/2025/25004',
     isOverhead: false,
     budgetStatus: BudgetStatus.Bez,
     budgetBaselineTotal: undefined,
@@ -115,8 +115,8 @@ export const MOCK_PROJECTS: Project[] = [
   },
   {
     id: 5,
-    projectNumber: '26-005',
-    title: '26-005 Pila Světlá – Světlá nad Sázavou – Kogenerace',
+    projectNumber: '25005',
+    title: '25005 Pila Světlá – Světlá nad Sázavou – Kogenerace',
     shortName: 'KGJ Světlá',
     customerName: 'Pila Světlá s.r.o.',
     projectManagerName: 'Eva Malá',
@@ -126,14 +126,14 @@ export const MOCK_PROJECTS: Project[] = [
     contractPriceNet: 8700000,
     currency: 'CZK',
     endDatePlanned: den(240),
-    folderUrl: '#/ukazkovy-rezim/slozka/2026/26-005',
+    folderUrl: '#/ukazkovy-rezim/slozka/2025/25005',
     isOverhead: false,
     budgetStatus: BudgetStatus.Bez
   },
   {
     id: 6,
-    projectNumber: '25-018',
-    title: '25-018 ZD Habry – Habry – FVE',
+    projectNumber: '25018',
+    title: '25018 ZD Habry – Habry – FVE',
     shortName: 'FVE Habry',
     customerName: 'ZD Habry',
     projectManagerName: 'Igor Zahrádka',
@@ -145,7 +145,7 @@ export const MOCK_PROJECTS: Project[] = [
     startDate: den(-400),
     endDatePlanned: den(-70),
     endDateActual: den(-58),
-    folderUrl: '#/ukazkovy-rezim/slozka/2025/25-018',
+    folderUrl: '#/ukazkovy-rezim/slozka/2025/25018',
     isOverhead: false,
     budgetStatus: BudgetStatus.Zelena,
     budgetBaselineTotal: 5100000,
@@ -153,8 +153,8 @@ export const MOCK_PROJECTS: Project[] = [
   },
   {
     id: 7,
-    projectNumber: '25-022',
-    title: '25-022 Solar Vysočina – Golčův Jeníkov – Servis',
+    projectNumber: '25022',
+    title: '25022 Solar Vysočina – Golčův Jeníkov – Servis',
     shortName: 'Servis Golčův Jeníkov',
     customerName: 'Solar Vysočina s.r.o.',
     projectManagerName: 'Jan Novák',
@@ -165,7 +165,7 @@ export const MOCK_PROJECTS: Project[] = [
     currency: 'CZK',
     startDate: den(-200),
     endDatePlanned: den(120),
-    folderUrl: '#/ukazkovy-rezim/slozka/2025/25-022',
+    folderUrl: '#/ukazkovy-rezim/slozka/2025/25022',
     isOverhead: false,
     budgetStatus: BudgetStatus.Zluta,
     budgetBaselineTotal: 620000,
@@ -173,8 +173,8 @@ export const MOCK_PROJECTS: Project[] = [
   },
   {
     id: 99,
-    projectNumber: '26-999',
-    title: '26-999 Režie RES 2026',
+    projectNumber: '26999',
+    title: '26999 Režie RES 2026',
     shortName: 'Režie 2026',
     customerName: undefined,
     projectManagerName: 'Igor Zahrádka',
@@ -184,7 +184,7 @@ export const MOCK_PROJECTS: Project[] = [
     contractPriceNet: undefined,
     currency: 'CZK',
     startDate: den(-254),
-    folderUrl: '#/ukazkovy-rezim/slozka/2026/26-999',
+    folderUrl: '#/ukazkovy-rezim/slozka/2026/26999',
     isOverhead: true,
     budgetStatus: BudgetStatus.Bez
   }
@@ -198,7 +198,7 @@ export const MOCK_PROJECTS: Project[] = [
 export const MOCK_TASKS: ProjectTask[] = [
   {
     id: 1,
-    projectNumber: '26-001',
+    projectNumber: '25001',
     title: 'Předání přípojky do zkušebního provozu',
     taskType: TaskType.Milnik,
     finishDate: den(9),
@@ -208,7 +208,7 @@ export const MOCK_TASKS: ProjectTask[] = [
   },
   {
     id: 2,
-    projectNumber: '26-001',
+    projectNumber: '25001',
     title: 'Dokončení revizí',
     taskType: TaskType.Milnik,
     finishDate: den(34),
@@ -217,7 +217,7 @@ export const MOCK_TASKS: ProjectTask[] = [
   },
   {
     id: 3,
-    projectNumber: '26-001',
+    projectNumber: '25001',
     title: 'Předání projektové dokumentace',
     taskType: TaskType.Milnik,
     finishDate: den(-40),
@@ -227,7 +227,7 @@ export const MOCK_TASKS: ProjectTask[] = [
   },
   {
     id: 4,
-    projectNumber: '26-002',
+    projectNumber: '25002',
     title: 'Dodávka panelů na stavbu',
     taskType: TaskType.DodavkaMaterialu,
     finishDate: den(3),
@@ -237,7 +237,7 @@ export const MOCK_TASKS: ProjectTask[] = [
   },
   {
     id: 5,
-    projectNumber: '26-003',
+    projectNumber: '25003',
     title: 'Uvedení bateriového úložiště do provozu',
     taskType: TaskType.Milnik,
     finishDate: den(-2),
@@ -247,7 +247,7 @@ export const MOCK_TASKS: ProjectTask[] = [
   },
   {
     id: 6,
-    projectNumber: '26-004',
+    projectNumber: '25004',
     title: 'Podpis smlouvy o připojení',
     taskType: TaskType.Milnik,
     finishDate: den(21),
@@ -263,7 +263,7 @@ export const MOCK_TASKS: ProjectTask[] = [
  */
 export const MOCK_FILES: Omit<ProjectFile, 'url' | 'modified'>[] = [
   {
-    name: 'OBJ-26-014 Trafostanice.pdf',
+    name: 'OBJ-26014 Trafostanice.pdf',
     relativeFolder: '03_Nákup/Objednávky',
     sizeBytes: 184320,
     modifiedByName: 'Igor Zahrádka'
@@ -287,7 +287,7 @@ export const MOCK_FILES: Omit<ProjectFile, 'url' | 'modified'>[] = [
     modifiedByName: 'Eva Malá'
   },
   {
-    name: 'PP-26-014-01 Předávací protokol.pdf',
+    name: 'PP-26014-01 Předávací protokol.pdf',
     relativeFolder: '06_Předání a revize',
     sizeBytes: 137216,
     modifiedByName: 'Jan Novák'
@@ -305,7 +305,7 @@ export const MOCK_FILES: Omit<ProjectFile, 'url' | 'modified'>[] = [
     modifiedByName: 'Eva Malá'
   },
   {
-    name: 'Podklad pro fakturaci 26-014-02.pdf',
+    name: 'Podklad pro fakturaci 26014-02.pdf',
     relativeFolder: '04_Fakturace',
     sizeBytes: 118784,
     modifiedByName: 'Jan Novák'
@@ -346,6 +346,22 @@ export const MOCK_ROLE_MEMBERS: { role: Role; members: Person[] }[] = [
   { role: Role.ProjektovyManazer, members: [MOCK_DIRECTORY[0], MOCK_DIRECTORY[1], MOCK_DIRECTORY[2]] },
   { role: Role.AsistentPM, members: [MOCK_DIRECTORY[5]] },
   { role: Role.Ctenar, members: [MOCK_DIRECTORY[6]] }
+];
+
+/**
+ * Složky v kořenové složce projektů — podklad pro import.
+ *
+ * Schválně **skutečné názvy z knihovny RES** (`Dokumenty\General\01_PROJEKTY`,
+ * stav k 23. 9. 2026), aby šlo import vyzkoušet na tom, co se bude importovat
+ * doopravdy — včetně pomocné složky `00_Project tools`, která projekt není.
+ */
+export const MOCK_PROJECT_FOLDERS: string[] = [
+  '00_Project tools',
+  '26001-MASTIROVICE 1 GENERALNI OPRAVA',
+  '26002-MASTIROVICE 2 - BESS',
+  '26003-BORSOV MORAVSKA TREBOVA',
+  '26004-DOHLEDOVY SYSTEM',
+  '26005-DOPLNENI STRIDACU MASTIROVICE 1'
 ];
 
 export const MOCK_PARTNERS: Partner[] = [
@@ -431,9 +447,11 @@ export const MOCK_PARTNERS: Partner[] = [
  */
 export const DEFAULT_DOC_TYPES: DocTypeConfig[] = [
   {
+    // Formát bez pomlčky — navazuje na čísla, která RES používá od roku 2026
+    // ve složkách projektů (25001, 25002…). Viz docs/ROZHODNUTI.md, 23. 9. 2026.
     code: 'PRJ',
     name: 'Číslo projektu',
-    pattern: '{YY}-{N}',
+    pattern: '{YY}{N}',
     padding: 3,
     resetPeriod: 'Ročně',
     scope: 'Globální',
