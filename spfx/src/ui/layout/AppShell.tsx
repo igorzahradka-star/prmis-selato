@@ -100,6 +100,7 @@ function useNavItems(): NavItem[] {
     items.push({ route: RouteName.Finance, label: 'Firemní cashflow', icon: 'Money', comingSoon: true });
   }
   if (canOpenAdmin(user.roles)) {
+    items.push({ route: RouteName.Users, label: 'Uživatelé a role', icon: 'SecurityGroup' });
     items.push({ route: RouteName.Settings, label: 'Nastavení', icon: 'Settings' });
     items.push({ route: RouteName.Install, label: 'Instalace a diagnostika', icon: 'Health' });
   }

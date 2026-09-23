@@ -17,6 +17,7 @@ export enum RouteName {
   Invoicing = 'fakturace',
   Finance = 'firemni-cashflow',
   Benchmark = 'benchmark',
+  Users = 'uzivatele',
   Settings = 'nastaveni',
   Install = 'instalace',
   Help = 'napoveda'

@@ -10,7 +10,14 @@
 
 import { BudgetStatus, CurrentUser, Partner, Project, ProjectStatus, ProjectTask, ACTIVE_PROJECT_STATUSES } from '../../core/types';
 import { AppSettings, DEFAULT_SETTINGS, withDefaults } from '../../core/settings';
-import { canDeleteProject, normalizeLogin } from '../../core/roles';
+import { canDeleteProject, normalizeLogin, RoleGroupMapping } from '../../core/roles';
+import {
+  Person,
+  RoleMembership,
+  ROLE_ORDER,
+  expectedGroupNames,
+  normalizeLoginKey
+} from '../../core/userAdmin';
 import { renderDocumentNumber, nextSequence, counterScopeKey, CounterState } from '../../core/numbering';
 import { buildProjectFolderPlan } from '../../core/folders';
 import {
@@ -32,6 +39,7 @@ import {
   INumberingRepository,
   ISettingsRepository,
   IUserRepository,
+  IUserAdminRepository,
   PartnerFilter,
   ProjectFilter,
   NewProjectInput,
@@ -43,7 +51,16 @@ import {
   RepositorySet
 } from '../repositories';
 import { LISTS, ListDef, SCHEMA_VERSION, creationOrder } from '../schema';
-import { DEFAULT_DOC_TYPES, MOCK_FILES, MOCK_PARTNERS, MOCK_PROJECTS, MOCK_TASKS, MOCK_USER } from './mockData';
+import {
+  DEFAULT_DOC_TYPES,
+  MOCK_DIRECTORY,
+  MOCK_FILES,
+  MOCK_PARTNERS,
+  MOCK_PROJECTS,
+  MOCK_ROLE_MEMBERS,
+  MOCK_TASKS,
+  MOCK_USER
+} from './mockData';
 
 /** Umělé zdržení, aby bylo v UI vidět načítání stejně jako na ostro. */
 function delay<T>(value: T, ms: number = 180): Promise<T> {
@@ -53,6 +70,96 @@ function delay<T>(value: T, ms: number = 180): Promise<T> {
 class MockUserRepository implements IUserRepository {
   public getCurrentUser(): Promise<CurrentUser> {
     return delay({ ...MOCK_USER });
+  }
+}
+
+/**
+ * Správa rolí nad polem v paměti.
+ *
+ * Napodobuje chování SharePointu včetně toho nepříjemného: přidání už
+ * existujícího člena tiše projde a hledání lidí vrací i ty, kteří na webu
+ * ještě nikdy nebyli (v mocku smyšlený adresář firmy).
+ */
+export class MockUserAdminRepository implements IUserAdminRepository {
+  private groups = new Map<string, Person[]>();
+  private nextId = 100;
+
+  public constructor(mapping: RoleGroupMapping = DEFAULT_SETTINGS.roles) {
+    MOCK_ROLE_MEMBERS.forEach((seed) => {
+      this.groups.set(mapping[seed.role], seed.members.map((m) => ({ ...m })));
+    });
+  }
+
+  public listRoleMembers(mapping: RoleGroupMapping): Promise<RoleMembership[]> {
+    return delay(
+      ROLE_ORDER.map((role) => {
+        const groupName = mapping[role] ?? '';
+        const members = this.groups.get(groupName);
+        return {
+          role,
+          groupName,
+          groupExists: members !== undefined,
+          members: (members ?? []).map((m) => ({ ...m }))
+        };
+      })
+    );
+  }
+
+  public searchPeople(query: string): Promise<Person[]> {
+    const q = (query || '').trim().toLocaleLowerCase('cs-CZ');
+    if (q.length < 3) {
+      return delay([]);
+    }
+    return delay(
+      MOCK_DIRECTORY.filter(
+        (p) =>
+          p.displayName.toLocaleLowerCase('cs-CZ').indexOf(q) !== -1 ||
+          (p.email ?? '').toLocaleLowerCase('cs-CZ').indexOf(q) !== -1
+      ).map((p) => ({ ...p, id: 0 }))
+    );
+  }
+
+  public addToRole(groupName: string, loginName: string): Promise<void> {
+    const members = this.groups.get(groupName);
+    if (!members) {
+      throw new Error(`Skupina „${groupName}" na webu neexistuje.`);
+    }
+    if (members.some((m) => normalizeLoginKey(m.loginName) === normalizeLoginKey(loginName))) {
+      return delay(undefined); // stejně jako SharePoint: opakované přidání nevadí
+    }
+    const znamy = MOCK_DIRECTORY.filter((p) => normalizeLoginKey(p.loginName) === normalizeLoginKey(loginName))[0];
+    members.push({
+      id: this.nextId++,
+      loginName,
+      displayName: znamy?.displayName ?? loginName,
+      email: znamy?.email
+    });
+    return delay(undefined);
+  }
+
+  public removeFromRole(groupName: string, userId: number): Promise<void> {
+    const members = this.groups.get(groupName);
+    if (!members) {
+      throw new Error(`Skupina „${groupName}" na webu neexistuje.`);
+    }
+    this.groups.set(groupName, members.filter((m) => m.id !== userId));
+    return delay(undefined);
+  }
+
+  public ensureRoleGroups(mapping: RoleGroupMapping): Promise<string[]> {
+    const vytvorene: string[] = [];
+    expectedGroupNames(mapping).forEach((name) => {
+      if (!this.groups.has(name)) {
+        this.groups.set(name, []);
+        vytvorene.push(name);
+      }
+    });
+    return delay(vytvorene);
+  }
+
+  /** Jen pro testy: smaže skupinu, aby šlo vyzkoušet chování při chybějící skupině. */
+  public dropGroup(groupName: string): void {
+    this.groups.delete(groupName);
   }
 }
 
@@ -587,6 +694,7 @@ export function createMockRepositories(): RepositorySet {
   const projects = new MockProjectRepository(numbering, settings);
   return {
     users: new MockUserRepository(),
+    userAdmin: new MockUserAdminRepository(),
     settings,
     projects,
     partners: new MockPartnerRepository(),

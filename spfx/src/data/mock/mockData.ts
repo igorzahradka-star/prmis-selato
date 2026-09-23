@@ -8,6 +8,7 @@
 
 import { BudgetStatus, Partner, PartnerType, Project, ProjectStatus, ProjectTask, Role, TaskType } from '../../core/types';
 import { DocTypeConfig, ProjectFile } from '../repositories';
+import { Person } from '../../core/userAdmin';
 
 /** Pomocník: datum relativně ke dnešku, aby ukázka nezestárla. */
 function den(offset: number): Date {
@@ -321,6 +322,30 @@ export const MOCK_FILES: Omit<ProjectFile, 'url' | 'modified'>[] = [
     sizeBytes: 78848,
     modifiedByName: 'Igor Zahrádka'
   }
+];
+
+/**
+ * Adresář firmy pro ukázkový režim — koho vyhodí hledání při přidávání
+ * do role. Na ostro se hledá v Entra ID přes výběr osob SharePointu.
+ */
+export const MOCK_DIRECTORY: Person[] = [
+  { id: 11, loginName: 'i:0#.f|membership|igor.zahradka@revoltum.cz', displayName: 'Igor Zahrádka', email: 'igor.zahradka@revoltum.cz' },
+  { id: 12, loginName: 'i:0#.f|membership|jan.novak@revoltum.cz', displayName: 'Jan Novák', email: 'jan.novak@revoltum.cz' },
+  { id: 13, loginName: 'i:0#.f|membership|eva.mala@revoltum.cz', displayName: 'Eva Malá', email: 'eva.mala@revoltum.cz' },
+  { id: 14, loginName: 'i:0#.f|membership|petr.dvorak@revoltum.cz', displayName: 'Petr Dvořák', email: 'petr.dvorak@revoltum.cz' },
+  { id: 15, loginName: 'i:0#.f|membership|lucie.horakova@revoltum.cz', displayName: 'Lucie Horáková', email: 'lucie.horakova@revoltum.cz' },
+  { id: 16, loginName: 'i:0#.f|membership|martin.svoboda@revoltum.cz', displayName: 'Martin Svoboda', email: 'martin.svoboda@revoltum.cz' },
+  { id: 17, loginName: 'i:0#.f|membership|tereza.benesova@revoltum.cz', displayName: 'Tereza Benešová', email: 'tereza.benesova@revoltum.cz' }
+];
+
+/** Kdo je v ukázkovém režimu v které roli. */
+export const MOCK_ROLE_MEMBERS: { role: Role; members: Person[] }[] = [
+  { role: Role.Administrator, members: [MOCK_DIRECTORY[0]] },
+  { role: Role.Vedeni, members: [MOCK_DIRECTORY[0], MOCK_DIRECTORY[3]] },
+  { role: Role.Finance, members: [MOCK_DIRECTORY[0], MOCK_DIRECTORY[4]] },
+  { role: Role.ProjektovyManazer, members: [MOCK_DIRECTORY[0], MOCK_DIRECTORY[1], MOCK_DIRECTORY[2]] },
+  { role: Role.AsistentPM, members: [MOCK_DIRECTORY[5]] },
+  { role: Role.Ctenar, members: [MOCK_DIRECTORY[6]] }
 ];
 
 export const MOCK_PARTNERS: Partner[] = [

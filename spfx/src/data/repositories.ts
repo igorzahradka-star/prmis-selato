@@ -8,12 +8,45 @@
 
 import { CurrentUser, Currency, Partner, Project, ProjectStatus, ProjectTask, TaskType } from '../core/types';
 import { AppSettings } from '../core/settings';
+import { RoleGroupMapping } from '../core/roles';
+import { Person, RoleMembership } from '../core/userAdmin';
 import { ListDef } from './schema';
 
 /** Kdo je přihlášen a co smí. */
 export interface IUserRepository {
   /** Zjistí přihlášeného uživatele, jeho skupiny a přístup na web PRM-Finance. */
   getCurrentUser(settings: AppSettings): Promise<CurrentUser>;
+}
+
+/**
+ * Správa uživatelů a rolí (jen administrátor).
+ *
+ * **Role = členství ve skupině SharePointu.** Aplikace si vlastní seznam
+ * uživatelů nevede — kdyby si ho vedla, rozešel by se s tím, co SharePoint
+ * skutečně povolí. Tenhle repozitář tedy jen čte a mění členství ve skupinách,
+ * jejichž názvy jsou v Nastavení.
+ *
+ * Každá operace může selhat na oprávnění: skupiny smí měnit jen vlastník webu.
+ * To není chyba aplikace a chybová hláška to má říct.
+ */
+export interface IUserAdminRepository {
+  /** Pro každou roli vrátí její skupinu a členy. Chybějící skupinu označí. */
+  listRoleMembers(mapping: RoleGroupMapping): Promise<RoleMembership[]>;
+  /**
+   * Najde lidi v adresáři firmy podle jména nebo e-mailu — pro výběr,
+   * koho přidat. Hledá i mezi lidmi, kteří na webu ještě nikdy nebyli.
+   */
+  searchPeople(query: string): Promise<Person[]>;
+  /** Přidá člověka do skupiny role. Opakované přidání nevadí. */
+  addToRole(groupName: string, loginName: string): Promise<void>;
+  /** Odebere člověka ze skupiny role. */
+  removeFromRole(groupName: string, userId: number): Promise<void>;
+  /**
+   * Založí skupiny, které podle Nastavení mají existovat a chybí.
+   * Je idempotentní — existující skupiny nechá být, nic nemaže.
+   * Vrátí názvy skupin, které skutečně vznikly.
+   */
+  ensureRoleGroups(mapping: RoleGroupMapping): Promise<string[]>;
 }
 
 /** Nastavení aplikace. */
@@ -124,15 +157,15 @@ export interface IProjectRepository {
   /**
    * Vrátí projekt Režie, a když ještě neexistuje, založí ho.
    *
-   * Režie je **jeden** vnitřní projekt (`isOverhead`), na který se věší
-   * režijní objednávky a náklady, co nepatří konkrétní zakázce — nájem,
-   * telefony, software. Nemá zákazníka ani smluvní cenu.
+   * Režie je vnitřní projekt (`isOverhead`), na který se věší režijní
+   * objednávky a náklady, co nepatří konkrétní zakázce — nájem, telefony,
+   * software. Nemá zákazníka ani smluvní cenu.
    *
-   * Číslo dostane ve tvaru `{RR}-000`, tedy mimo běžnou řadu projektů —
-   * čítač se nezvyšuje a Režie nikomu „neukradne" číslo. Nula na konci ho
-   * zároveň v seznamech řadí před ostatní projekty.
+   * Číslo má tvar `{RR}-999` a je součástí běžné řady: `26-999`, `27-999`…
+   * **Jedna Režie na rok**, aby se náklady nesčítaly přes roky. Číslo se
+   * nebere z čítače, takže Režie nikomu neukradne pořadové číslo.
    *
-   * Je idempotentní: opakované volání vrátí ten samý projekt, nezaloží druhý.
+   * Je idempotentní: opakované volání vrátí letošní Režii, nezaloží druhou.
    */
   ensureOverheadProject(projectManagerName: string): Promise<Project>;
   /** Znovu založí složky u už uloženého projektu — pro tlačítko „Zkusit znovu založit složky". */
@@ -289,6 +322,7 @@ export interface IInstallRepository {
 /** Vše dohromady — předává se komponentám přes React context. */
 export interface RepositorySet {
   users: IUserRepository;
+  userAdmin: IUserAdminRepository;
   settings: ISettingsRepository;
   projects: IProjectRepository;
   partners: IPartnerRepository;

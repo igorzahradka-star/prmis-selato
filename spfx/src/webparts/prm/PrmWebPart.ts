@@ -23,6 +23,7 @@ import { PrmApp, IPrmAppProps } from './components/Prm';
 import { RepositorySet } from '../../data/repositories';
 import { createMockRepositories } from '../../data/mock/mockRepositories';
 import { SpUserRepository } from '../../data/sharepoint/spUserRepository';
+import { SpUserAdminRepository } from '../../data/sharepoint/spUserAdminRepository';
 import { SpSettingsRepository } from '../../data/sharepoint/spSettingsRepository';
 import { SpProjectRepository } from '../../data/sharepoint/spProjectRepository';
 import { SpPartnerRepository } from '../../data/sharepoint/spPartnerRepository';
@@ -75,6 +76,7 @@ export default class PrmWebPart extends BaseClientSideWebPart<IPrmWebPartProps> 
 
     return {
       users: new SpUserRepository(this.context, financeSiteUrl),
+      userAdmin: new SpUserAdminRepository(this.context),
       settings,
       // ID uživatele je už v kontextu stránky — kvůli filtru „moje projekty"
       // tak nemusíme čekat na další dotaz do SharePointu.

@@ -22,6 +22,7 @@ import { ProjectDetailPage } from '../../../features/projects/ProjectDetailPage'
 import { PartnersPage } from '../../../features/partners/PartnersPage';
 import { InstallPage } from '../../../features/admin/InstallPage';
 import { SettingsPage } from '../../../features/settings/SettingsPage';
+import { UsersPage } from '../../../features/admin/UsersPage';
 import { HelpPage } from '../../../features/help/HelpPage';
 import { ComingSoonPage } from '../../../ui/components/ComingSoonPage';
 
@@ -118,6 +119,8 @@ function renderRoute(route: Route): React.ReactNode {
       return <PartnersPage />;
     case RouteName.Install:
       return <InstallPage />;
+    case RouteName.Users:
+      return <UsersPage />;
     case RouteName.Settings:
       return <SettingsPage />;
     case RouteName.Help:
