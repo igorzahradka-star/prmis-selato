@@ -55,8 +55,7 @@ Node.js 22 musí být v PATH (`node --version` → `v22.x`). Když není, viz CL
 
 **Fáze 0 — Základ:** ✅ kód hotov, čeká na nasazení na tenant (blokuje otázka 8 a 9).
 
-**Fáze 1 — Projekty (MVP):** 🔶 **hotová až na import stávajících projektů**
-(ten čeká na printscreen od Igora). **328 testů prochází**, pracovní strom čistý.
+**Fáze 1 — Projekty (MVP):** ✅ **kód hotov**, čeká na nasazení na tenant. **351 testů prochází**, pracovní strom čistý.
 
 Hotovo ve Fázi 1:
 
@@ -86,7 +85,7 @@ Hotovo ve Fázi 1:
   (modrý gradient + blesky ze šablony prezentace), roztažená od menu ke scrollbaru.
 - **Projekt Režie** — vnitřní projekt pro režijní objednávky a náklady mimo
   zakázky. Na dashboardu tlačítko „Režie"; když neexistuje, nabídne založení.
-  Číslo `{RR}-999`, **jedna Režie na rok** (26-999, 27-999…). Je součástí běžné
+  Číslo `{RR}999`, **jedna Režie na rok** (26999, 27999…). Je součástí běžné
   řady, ale číslo se nebere z čítače, takže nikomu neukradne pořadí.
 - **Uživatelé a role** — stránka v levém menu (jen administrátor). Role = členství
   ve skupině SharePointu; aplikace **nezakládá účty**, ty dělá správce tenanta.

@@ -5,11 +5,10 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
-## 0.2.0 — 22. 9. 2026 — Fáze 1: Projekty (MVP)
+## 0.2.0 — 23. 9. 2026 — Fáze 1: Projekty (MVP)
 
 Aplikace umí vést projekt od založení po předání: dá mu číslo, složky,
-termíny a dokumenty. Zbývá import stávajících projektů — čeká na podklad
-od zadavatele.
+termíny a dokumenty. Stávající projekty RES se naimportují ze složek.
 
 **Přidáno**
 
@@ -30,7 +29,12 @@ od zadavatele.
   Maže se do koše SharePointu (93 dní na obnovu), složka s dokumenty zůstává
   a do auditního logu se zapíše kdo, kdy a proč.
 - **Projekt Režie** pro režijní objednávky a náklady mimo zakázky. Číslo má
-  tvar `{RR}-000`, mimo běžnou řadu — čítač projektů nezvyšuje.
+  tvar `{RR}999` — jedna Režie na rok, čítač projektů nezvyšuje.
+- **Uživatelé a role** — přiřazování rolí lidem, kteří mají účet v Microsoftu 365.
+  Role odpovídají skupinám SharePointu; aplikace účty nezakládá.
+- **Import stávajících projektů ze složek** — přečte složky v knihovně, ukáže
+  plán a založí k nim záznamy. Složky nepřejmenovává ani nepřesouvá. Po importu
+  čítač navazuje za nejvyšším existujícím číslem.
 - **Smluvní termíny plnění** jako milníky, se sledováním nejbližšího termínu
   na dashboardu. Zmeškaný termín má přednost před budoucím.
 - **Záložka Dokumenty** — posledních 10 změněných souborů ve složce projektu
@@ -42,11 +46,13 @@ od zadavatele.
 - Dashboard: kompaktní pruh KPI na podkladové grafice RES, filtr podle
   projektového manažera.
 - Do formulářů jde datum **napsat** česky (`20. 9. 2026`), nejen vyklikat.
-- 288 unit testů.
+- 351 unit testů.
 
 **Změněno**
 
 - Terminologie: v celé aplikaci i dokumentaci je „projekt", nikde „zakázka".
+- Formát čísla projektu je **`26001`** (bez pomlčky) — navazuje na čísla, která
+  RES používá na složkách. Dřívější návrh `26-001` byl chybný zápis.
 
 ---
 
