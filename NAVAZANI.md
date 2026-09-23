@@ -26,7 +26,7 @@ To stačí. Claude si zbytek dohledá sám.
 |---|---|
 | Kód | `C:\Projekty\prm-revoltum` (**mimo OneDrive** — `node_modules` se nesmí synchronizovat) |
 | Náhled v prohlížeči | `http://localhost:4322` |
-| Ostrý SharePoint | tenant **https://revoltum.sharepoint.com**. Aplikace poběží na **`/sites/PRM`** (ještě nezaložen), důvěrná část na `/sites/PRM-Finance`. Složky projektů zůstanou v knihovně **Dokumenty** na `/sites/RevoltumEngineeringServices`. |
+| Ostrý SharePoint | tenant **https://revoltum.sharepoint.com**. Aplikace i seznamy poběží na **`/sites/RevoltumEngineeringServices`** — Igor má práva jen k tomuhle webu. ⛔ **Blokuje katalog aplikací**, na ten je potřeba správce tenanta (viz `docs/POZADAVEK-NA-SPRAVCE.md`). |
 
 **Spuštění náhledu — nejjednodušeji:** na ploše je zástupce
 **„PRM Revoltum – náhled"**. Dvojklik sestaví náhled, spustí server a otevře
@@ -53,7 +53,7 @@ Node.js 22 musí být v PATH (`node --version` → `v22.x`). Když není, viz CL
 
 ## 3. Stav k 23. 9. 2026
 
-**Fáze 0 — Základ:** ✅ kód hotov, čeká na nasazení na tenant (blokuje otázka 8 a 9).
+**Fáze 0 — Základ:** ✅ kód hotov, čeká na nasazení na tenant (blokuje otázka 8).
 
 **Fáze 1 — Projekty (MVP):** ✅ **kód hotov**, čeká na nasazení na tenant. **351 testů prochází**, pracovní strom čistý.
 
@@ -84,9 +84,13 @@ Hotovo ve Fázi 1:
   hlavní plocha = seznam projektů. Pod celou hlavičkou podkladová grafika RES
   (modrý gradient + blesky ze šablony prezentace), roztažená od menu ke scrollbaru.
 - **Projekt Režie** — vnitřní projekt pro režijní objednávky a náklady mimo
-  zakázky. Na dashboardu tlačítko „Režie"; když neexistuje, nabídne založení.
-  Číslo `{RR}999`, **jedna Režie na rok** (26999, 27999…). Je součástí běžné
-  řady, ale číslo se nebere z čítače, takže nikomu neukradne pořadí.
+  zakázky. Číslo `{RR}999`, **jedna Režie na rok** (26999, 27999…). Je součástí
+  běžné řady i seznamu projektů, ale číslo se nebere z čítače, takže nikomu
+  neukradne pořadí. Zakládá se v *Nastavení → Jednorázové akce*.
+- **Import stávajících projektů ze složek** — *Nastavení → Jednorázové akce*.
+  Přečte názvy složek, rozebere je na číslo a název, pozná pomocné složky
+  (`00_Project tools`) i to, co už je naimportované. Po importu posune čítač.
+  Rozbor je v `core/projectImport.ts`, ověřený na skutečných složkách RES.
 - **Uživatelé a role** — stránka v levém menu (jen administrátor). Role = členství
   ve skupině SharePointu; aplikace **nezakládá účty**, ty dělá správce tenanta.
 - **Smluvní termíny plnění** — záložka *Termíny* v detailu projektu. Výběr
@@ -104,26 +108,32 @@ Hotovo ve Fázi 1:
 
 ### Čím jsme skončili
 
-Fáze 1 je hotová až na **import stávajících projektů**, který čeká na podklad
-od Igora. Vše ostatní je ověřené v náhledu od začátku do konce.
-
-**Potřebuju od Igora:** printscreen složky se stávajícími projekty (čísla
-a názvy), aby šlo navázat číslování a naimportovat je.
+**Kód Fáze 1 je hotový a ověřený v náhledu.** Všechno další visí na nasazení
+na tenant — dokud aplikace neběží na SharePointu, jsou všechna data
+v náhledu jen v paměti prohlížeče a po načtení stránky zmizí.
 
 ---
 
 ## 4. Co je další na řadě
 
-**Nasazení na tenant běží.** Postup krok za krokem: [`docs/NASAZENI.md`](docs/NASAZENI.md).
-Balíček  verze 0.2.0.0 je připravený.
+**Nasazení na tenant.** Postup: [`docs/NASAZENI.md`](docs/NASAZENI.md).
+Balíček `spfx/sharepoint/solution/prm-revoltum.sppkg` verze 0.2.0.0 je hotový.
 
+⛔ **Blokuje to katalog aplikací.** Igor má správcovská práva jen k webu
+*Revoltum Engineering & Services*, ne k celému SharePointu. Nahrát balíček
+tedy sám nemůže — potřebuje správce tenanta. Připravený text požadavku:
+[`docs/POZADAVEK-NA-SPRAVCE.md`](docs/POZADAVEK-NA-SPRAVCE.md).
+
+Po nasazení:
 
 | Co | Poznámka |
 |---|---|
-| **Import stávajících projektů** | poslední kus Fáze 1. ⛔ **čeká na Igora** — Excel není, dodá printscreen složky s čísly a názvy projektů (rozhodnutí z 21. 9. 2026) |
+| **Ověřit ostrý provoz** | první spuštění na SharePointu odhalí věci, které lokálně ověřit nejdou: souběh, koš, auditní log, čtení knihovny, zakládání složek |
 | **Fáze 2 — objednávky a schvalování** | limity už jsou v Nastavení (100 tis. / 500 tis. / 1 mil.). Chybí jména schvalovatelů (ot. 3) a fakturační údaje RES + vzory PDF (ot. 4) |
 
 Igor 22. 9. 2026 rozhodl: dodělat Fázi 1, pak teprve Fáze 2.
+Fáze 1 je hotová — ale Fázi 2 stavět až na ověřeném základu, ne na kódu,
+který nikdy neběžel.
 
 ---
 
@@ -131,12 +141,12 @@ Igor 22. 9. 2026 rozhodl: dodělat Fázi 1, pak teprve Fáze 2.
 
 | # | Otázka | Blokuje |
 |---|---|---|
-| 8 | Kdo je správce Microsoftu 365 a může nahrát aplikaci do katalogu | dokončení Fáze 0 — bez toho se aplikace nedostane na SharePoint |
-| 9 | ✅ zodpovězeno — tenant revoltum.sharepoint.com, weby /sites/PRM a /sites/PRM-Finance. **Zbývá je založit.** | nasazení |
-| 10 | Kterou složku v knihovně Dokumenty použít pro projekty (web a knihovna už určené) | zakládání složek a záložku Dokumenty naostro |
-| — | Printscreen složky se stávajícími projekty | import a navázání číslování — **poslední kus Fáze 1** |
+| 8 | **Kdo je správce Microsoftu 365** a zapne katalog aplikací. ⛔ **Jediná blokující věc.** | nasazení čehokoli |
+| 9 | ✅ zodpovězeno — tenant `revoltum.sharepoint.com`, aplikace poběží na `/sites/RevoltumEngineeringServices` |  |
+| 10 | ✅ zodpovězeno — knihovna `Dokumenty`, kořenová složka `General/01_PROJEKTY`, bez podsložek podle roku |  |
 | 3 | Jména schvalovatelů objednávek (limity už zadané) | Fázi 2 |
 | 4 | Vzory PDF a fakturační údaje RES (IČO, DIČ, e-mail účtárny) | Fázi 2 |
+| — | Samostatný web pro důvěrná finanční data | Fázi 5 — bude zase potřeba správce |
 
 Celý seznam včetně zodpovězených rozhodnutí: [`docs/ROZHODNUTI.md`](docs/ROZHODNUTI.md).
 
@@ -152,7 +162,10 @@ opakovaně a v dokumentaci je nenajdeš:
   je starší). Používat vlastní pomocnou funkci — vzory jsou v `core/format.ts`
   (`pad2`) a `core/numbering.ts` (`padWithZeros`).
 - **Číslo projektu se odvozuje od data registrace, ne od data zahájení.**
-  Ukázkový projekt `26-005` (stav Nabídka) má číslo, ale žádné datum zahájení.
+  Ukázkový projekt `25005` (stav Nabídka) má číslo, ale žádné datum zahájení.
+- **Formát čísla projektu je `26001`, bez pomlčky.** Navazuje na čísla, která RES
+  reálně používá na složkách. Režie je `26999`. Kdyby se někde objevilo `26-001`,
+  je to pozůstatek a patří opravit.
 - **Mock čítač se musí naplnit ze seedu** (`seedProjectCounter()`), jinak nový
   projekt dostane číslo, které už ukázková data mají. Je na to test.
 - **Při jakékoli změně schématu zvýšit `SCHEMA_VERSION`** a doplnit migrační krok.

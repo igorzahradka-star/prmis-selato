@@ -1,192 +1,182 @@
 # Nasazení PRM Revoltum — krok za krokem
 
 > Pro Igora. Otevři si tenhle soubor vedle prohlížeče a odškrtávej.
-> Celé to zabere zhruba **hodinu**, z toho půlka je čekání na Microsoft.
 >
-> **Nic z toho není nevratné** kromě kroku 12 (import) — a ten se dá pustit znovu.
+> **Stav k 23. 9. 2026:** Igor má správcovská práva **jen k webu
+> *Revoltum Engineering & Services***, ne k celému SharePointu. Aplikace proto
+> poběží na tomhle existujícím webu — nové weby se zakládat nebudou.
 >
-> Stav k 23. 9. 2026, balíček verze **0.2.0.0**.
+> Balíček verze **0.2.0.0**, leží v
+> `C:\Projekty\prm-revoltum\spfx\sharepoint\solution\prm-revoltum.sppkg`.
 
 ---
 
-## Než začneš
+## Krok 0 — bez správce to nejde dál ⛔
 
-- [ ] Přihlaš se do prohlížeče účtem **zahradka@revoltum.cz** (ten má správcovská práva)
-- [ ] Najdi si soubor **`C:\Projekty\prm-revoltum\spfx\sharepoint\solution\prm-revoltum.sppkg`**
-      — budeš ho nahrávat v kroku 6. Nech si otevřený Průzkumník na téhle složce.
+Jediná věc, kterou vlastními právy neuděláš, je dostat aplikaci do **katalogu
+aplikací**. Bez toho ji nejde na stránku přidat.
+
+- [ ] Otevři [`POZADAVEK-NA-SPRAVCE.md`](POZADAVEK-NA-SPRAVCE.md)
+- [ ] Zjisti, kdo je správce Microsoftu 365 (návod je na konci toho souboru)
+- [ ] Pošli mu připravený text
+- [ ] Počkej, než to udělá
+
+**Zbytek návodu má smysl až potom.** Kroky 1–3 si ale můžeš připravit hned,
+ty práva nepotřebují.
 
 ---
 
-## A. Založení webů (kroky 1–4)
+## A. Co můžeš udělat hned (kroky 1–3)
 
-### 1. Otevři správu SharePointu
+### 1. Zkontroluj, že jsi vlastník webu
 
-- [ ] Do adresního řádku napiš: **`https://revoltum-admin.sharepoint.com`**
-- [ ] Vlevo v menu klikni na **Weby** → **Aktivní weby**
-
-### 2. Založ web PRM
-
-- [ ] Nahoře klikni **+ Vytvořit**
-- [ ] Vyber dlaždici **Komunikační web**
-- [ ] Šablona: **Standardní** (nebo „Prázdný", je to jedno)
-- [ ] **Název webu:** `PRM Revoltum`
-- [ ] **Adresa webu:** přepiš na `PRM` — celá adresa musí vyjít
-      `https://revoltum.sharepoint.com/sites/PRM`
-- [ ] **Popis:** `Řízení projektů RES`
-- [ ] **Jazyk:** Čeština
-- [ ] Klikni **Další** → **Dokončit**
-
-> Když ti to řekne, že adresa je obsazená, zkus `PRM-Revoltum` a **dej mi vědět** —
-> musím ji doplnit do nastavení.
-
-### 3. Založ web PRM-Finance
-
-- [ ] Znovu **+ Vytvořit** → **Komunikační web**
-- [ ] **Název webu:** `PRM Finance`
-- [ ] **Adresa webu:** `PRM-Finance` → `https://revoltum.sharepoint.com/sites/PRM-Finance`
-- [ ] **Popis:** `Důvěrná finanční data PRM`
-- [ ] **Jazyk:** Čeština
-- [ ] **Další** → **Dokončit**
-
-### 4. Zamkni web PRM-Finance ⚠️
-
-> **Tenhle krok nepřeskakuj.** Na tomhle webu budou firemní příjmy, výdaje
-> a zůstatky. Ve výchozím stavu je vidí každý, kdo najde adresu.
-
-- [ ] Otevři `https://revoltum.sharepoint.com/sites/PRM-Finance`
+- [ ] Otevři `https://revoltum.sharepoint.com/sites/RevoltumEngineeringServices`
 - [ ] Vpravo nahoře **ozubené kolo** → **Oprávnění webu**
-- [ ] Dole klikni **Rozšířená nastavení oprávnění**
-- [ ] Na pásu karet klikni **Zastavit dědění oprávnění** → potvrď **OK**
-- [ ] Ze seznamu skupin odeber všechny kromě **PRM Finance Vlastníci**
-      (zaškrtni řádek → **Odebrat oprávnění uživatele**)
-- [ ] Zkontroluj, že ty sám jsi ve skupině Vlastníci
+- [ ] Ve skupině **Vlastníci** musíš být ty
+
+Když tam nejsi, dál to nepůjde — doplň to do požadavku na správce.
+
+### 2. Ověř cestu ke složkám projektů
+
+- [ ] Otevři knihovnu **Dokumenty** → složka **General** → **01_PROJEKTY**
+- [ ] Musí tam být složky `26001-…` až `26005-…` a `00_Project tools`
+- [ ] Zkopíruj si adresu z prohlížeče, kdyby se nesešla s tím, co mám v nastavení
+
+### 3. Rozmysli si, kdo bude v jaké roli
+
+Budeš je zadávat v kroku 11. Připrav si jména:
+
+- [ ] **Administrátor PRM** — ty + aspoň jeden další (kdyby tě nebylo)
+- [ ] **Projektový manažer** — kdo zakládá a vede projekty
+- [ ] **Asistent PM** — kdo pracuje na projektech, ale neschvaluje
+- [ ] **Vedení** — kdo schvaluje objednávky nad limit PM
+- [ ] **Čtenář** — kdo se má jen dívat
 
 ---
 
-## B. Nahrání aplikace (kroky 5–7)
+## B. Nahrání aplikace (kroky 4–6)
 
-### 5. Otevři katalog aplikací
+> Až správce udělá krok 0.
 
-- [ ] Zpátky na **`https://revoltum-admin.sharepoint.com`**
-- [ ] Vlevo dole **Další funkce**
-- [ ] V dlaždici **Aplikace** klikni **Otevřít**
-- [ ] Klikni **Katalog aplikací**
+### 4. Otevři katalog aplikací webu
 
-> **Když katalog ještě neexistuje**, SharePoint nabídne jeho vytvoření.
-> Vyber *Vytvořit nový katalog aplikací* a nech adresu, kterou navrhne.
-> Vytvoření trvá **5–15 minut** — dej si mezitím kafe a pak stránku načti znovu.
+- [ ] Na webu RES: **ozubené kolo** → **Obsah webu**
+- [ ] Najdi položku **Aplikace pro SharePoint** a otevři ji
 
-### 6. Nahraj balíček
+> Přímá adresa:
+> `https://revoltum.sharepoint.com/sites/RevoltumEngineeringServices/AppCatalog`
+>
+> Když tam nic takového není, správce krok 0 ještě neudělal — nebo zvolil
+> variantu B (firemní katalog). Pak tenhle krok i krok 5 přeskoč a jdi na krok 7.
 
-- [ ] V katalogu klikni vlevo **Aplikace pro SharePoint**
+### 5. Nahraj balíček
+
 - [ ] Klikni **Nahrát** (nebo přetáhni soubor do okna)
 - [ ] Vyber `C:\Projekty\prm-revoltum\spfx\sharepoint\solution\prm-revoltum.sppkg`
 - [ ] Objeví se okno „Chcete tomuto řešení důvěřovat?"
-- [ ] **Zaškrtni ✅ „Zpřístupnit toto řešení všem webům v organizaci"**
 - [ ] Klikni **Nasadit**
 
-### 7. Ověř, že je nasazená
+### 6. Přidej aplikaci na web
 
-- [ ] V seznamu aplikací musí být řádek **PRM Revoltum**, verze **0.2.0.0**
-- [ ] Ve sloupci *Nasazeno* musí být **Ano**
+- [ ] **Ozubené kolo** → **Přidat aplikaci**
+- [ ] Vlevo vyber **Z vaší organizace**
+- [ ] Najdi **PRM Revoltum** a klikni **Přidat**
+- [ ] Počkej, než zmizí nápis „Přidávání…"
 
 ---
 
-## C. Stránka s aplikací (kroky 8–9)
+## C. Stránka s aplikací (kroky 7–9)
 
-### 8. Založ stránku na webu PRM
+### 7. Založ stránku
 
-- [ ] Otevři `https://revoltum.sharepoint.com/sites/PRM`
-- [ ] **Ozubené kolo** → **Obsah webu** → **Stránky webu**
+- [ ] Na webu RES: **ozubené kolo** → **Obsah webu** → **Stránky webu**
 - [ ] Klikni **+ Nový** → **Stránka**
 - [ ] V galerii šablon vyber **Aplikace s jednou částí**
 - [ ] Pojmenuj stránku **`PRM`**
 
-> **Když šablonu „Aplikace s jednou částí" nevidíš:** vyber **Prázdná**,
-> a v kroku 9 si nejdřív klikni na *přidat sekci* → **Na celou šířku**.
+> **Když šablonu „Aplikace s jednou částí" nevidíš:** vyber **Prázdná**.
+> Pak klikni na ikonu sekce vlevo a zvol rozložení **Na celou šířku**.
 
-- [ ] V prostoru pro web part klikni na **+**
-- [ ] Ve vyhledávání napiš `PRM` a vyber **PRM Revoltum**
+- [ ] V prostoru pro webovou část klikni na **+**
+- [ ] Do hledání napiš `PRM` a vyber **PRM Revoltum**
 - [ ] Vpravo nahoře **Publikovat**
 
-### 9. Nastav web part
+### 8. Nastav webovou část
 
 - [ ] Na publikované stránce klikni vpravo nahoře **Upravit**
-- [ ] Najeď myší na web part a klikni na **tužku** (upravit web part)
-- [ ] Vpravo se otevře panel:
-  - **Odkud brát data:** vyber **Ostrá data ze SharePointu**
-  - **Adresa webu PRM-Finance:** vlož `https://revoltum.sharepoint.com/sites/PRM-Finance`
-- [ ] Zavři panel a klikni **Publikovat znovu**
+- [ ] Najeď myší na webovou část a klikni na **tužku**
+- [ ] Vpravo v panelu:
+  - **Odkud brát data:** **Ostrá data ze SharePointu**
+  - **Adresa webu PRM-Finance:** **nech prázdné**
+- [ ] Zavři panel → **Publikovat znovu**
 
-### 10. Přidej stránku do menu
+> Prázdná adresa PRM-Finance je záměr. Důvěrné finanční moduly se pak nikomu
+> nezobrazí. Řeší se až ve Fázi 5 a bude na to potřeba samostatný web.
+
+### 9. Přidej stránku do menu
 
 - [ ] Vlevo v navigaci webu klikni **Upravit**
 - [ ] **+** → **Odkaz** → vyber stránku **PRM** → **OK** → **Uložit**
 
 ---
 
-## D. Rozjezd aplikace (kroky 11–14)
+## D. Rozjezd aplikace (kroky 10–13)
 
-> **Od téhle chvíle už klikáš jen v aplikaci.** Pořadí je důležité —
+> Od téhle chvíle klikáš už jen v aplikaci. **Pořadí je důležité** —
 > každý krok staví na předchozím.
 
-### 11. Instalace datové struktury
+### 10. Instalace datové struktury
 
 - [ ] V aplikaci klikni vlevo **Instalace a diagnostika**
-- [ ] Průvodce vypíše, co chybí — bude toho hodně, to je v pořádku
+- [ ] Průvodce vypíše, co chybí — bude toho hodně, to je správně
 - [ ] Klikni **Doplnit chybějící části**
 - [ ] Počkej **1–3 minuty**, nezavírej stránku
-- [ ] Na konci musí být všechno **zelené**
+- [ ] Na konci má být všechno **zelené**
 
-> Co zůstane **modré**, vyžaduje ruční zásah a průvodce u toho napíše, co udělat.
-> Co zůstane **červené**, mi pošli jako printscreen.
+> **Vznikne 21 seznamů** v *Obsahu webu* tohohle webu. Vypadá to jako nepořádek,
+> ale pracuje se s nimi jen přes aplikaci — otevírat je ručně není potřeba.
+>
+> Co zůstane **modré**, vyžaduje ruční zásah a průvodce u toho napíše co.
+> Co zůstane **červené**, mi pošli jako printscreen a **nepokračuj**.
 
-### 12. Založ skupiny rolí
+### 11. Skupiny rolí a lidi
 
 - [ ] Vlevo **Uživatelé a role**
-- [ ] Vpravo nahoře klikni **Založit chybějící skupiny**
-- [ ] Založí se šest skupin. Zatím jsi v nich jen ty.
-
-### 13. Přiřaď lidi do rolí
-
-- [ ] U každé role klikni **Přidat**
-- [ ] Napiš jméno nebo e-mail (aspoň tři písmena) a vyber ze seznamu
+- [ ] Vpravo nahoře **Založit chybějící skupiny** (vznikne šest skupin)
+- [ ] U každé role klikni **Přidat** a zadej jméno nebo e-mail (aspoň tři písmena)
 - [ ] **Administrátor PRM:** přidej aspoň ještě jednoho člověka kromě sebe
-- [ ] **Projektový manažer:** kdo zakládá a vede projekty
-- [ ] **Finance – důvěrné:** jen ty a kdo opravdu má vidět firemní čísla
 
-> Kdo tady přibude do role *Finance*, ještě **nemá přístup na web PRM-Finance**.
-> Toho musíš přidat zvlášť: na webu PRM-Finance → ozubené kolo → *Oprávnění webu*.
+### 12. Import stávajících projektů ⚠️
 
-### 14. Import stávajících projektů ⚠️
-
-> **Tohle udělej dřív, než kdokoli založí první projekt.** Dokud import
-> neproběhne, aplikace neví, kde skončila dosavadní řada, a nový projekt
-> by dostal číslo 26001 — které už má složka.
+> **Udělej to dřív, než kdokoli založí první projekt.** Dokud import neproběhne,
+> aplikace neví, kde skončila dosavadní řada, a nový projekt by dostal číslo
+> **26001** — které už má složka.
 
 - [ ] Vlevo **Nastavení** → záložka **Jednorázové akce**
 - [ ] Klikni **Otevřít import**
-- [ ] Zkontroluj tabulku — má ukázat pět projektů „naimportuje se"
-      a `00_Project tools` jako „není projekt"
+- [ ] Zkontroluj tabulku: pět projektů „naimportuje se",
+      `00_Project tools` jako „není projekt"
 - [ ] Vyber projektového manažera
 - [ ] Klikni **Naimportovat 5 projektů**
 
-### 15. Založ projekt Režie
+> Kdyby tabulka ukázala něco jiného, **na Naimportovat neklikej** a pošli mi
+> printscreen.
+
+### 13. Založ projekt Režie
 
 - [ ] Pořád v **Nastavení** → **Jednorázové akce**
-- [ ] U karty *Projekt Režie 2026* klikni **Založit Režii**
-- [ ] Dostane číslo `26999`
+- [ ] U karty *Projekt Režie 2026* klikni **Založit Režii** (dostane číslo `26999`)
 
 ---
 
-## E. Kontrola (krok 16)
+## E. Kontrola (krok 14)
 
-- [ ] Otevři **Projekty** — musí tam být pět tvých projektů 26001–26005 a Režie 26999
-- [ ] Klikni na **26001** — musí se otevřít detail
-- [ ] V detailu klikni záložku **Dokumenty** — musí ukázat soubory ze složky
-- [ ] Klikni **Otevřít složku projektu** — musí tě to hodit do knihovny
-- [ ] Zkus **Nový projekt** — náhled čísla musí ukázat **26006**
-      (projekt zatím **neukládej**, jen zkontroluj číslo a zavři)
+- [ ] **Projekty** — je tam pět projektů 26001–26005 a Režie 26999
+- [ ] Klikni na **26001** — otevře se detail
+- [ ] Záložka **Dokumenty** — ukazuje soubory ze složky projektu
+- [ ] Tlačítko **Otevřít složku projektu** — hodí tě do knihovny
+- [ ] **Nový projekt** — náhled čísla ukazuje **26006**
+      (projekt **neukládej**, jen zkontroluj číslo a zavři)
 
 Když všech pět sedí, je nasazeno. **Dej mi vědět a pošli printscreen seznamu projektů.**
 
@@ -196,19 +186,21 @@ Když všech pět sedí, je nasazeno. **Dej mi vědět a pošli printscreen sezn
 
 | Co se stane | Co s tím |
 |---|---|
-| Aplikace hlásí „Nemáte oprávnění" | Jsi ve skupině *Vlastníci* webu PRM? Ozubené kolo → Oprávnění webu. |
-| Instalace končí červeně | Pošli mi printscreen té červené části. Nepokračuj dál. |
-| Záložka Dokumenty je prázdná | Nastavení → Složky projektů — sedí adresa webu, knihovna a kořenová složka? |
-| Import ukazuje 0 projektů | Nastavení → Složky projektů → *Kořenová složka* musí být `General/01_PROJEKTY`. |
-| Import ukazuje špatné složky | Nic neklikej na *Naimportovat*, pošli mi printscreen té tabulky. |
-| Nový projekt nabízí 26001 | Import neproběhl. Vrať se na krok 14. |
+| V *Obsahu webu* není *Aplikace pro SharePoint* | Správce krok 0 neudělal, nebo zvolil variantu B. Zkus rovnou krok 7. |
+| *Přidat aplikaci* nenabízí PRM Revoltum | Nahrání v kroku 5 neproběhlo. Vrať se do katalogu a zkontroluj, že je u řádku *Nasazeno: Ano*. |
+| Aplikace hlásí „Nemáte oprávnění" | Jsi ve skupině *Vlastníci* webu? Ozubené kolo → Oprávnění webu. |
+| Instalace končí červeně | Pošli mi printscreen té červené části. **Nepokračuj.** |
+| Záložka Dokumenty je prázdná | Nastavení → *Složky projektů*: sedí knihovna `Dokumenty` a kořenová složka `General/01_PROJEKTY`? |
+| Import ukazuje 0 projektů | Totéž — kořenová složka musí být `General/01_PROJEKTY`. |
+| Nový projekt nabízí 26001 | Import neproběhl. Zpátky na krok 12. |
 
 ---
 
-## Nastavení, které se doplní až po nasazení
-
-Tyhle hodnoty mám jen odhadnuté — po nasazení je spolu projdeme:
+## Co se doplní až po nasazení
 
 - **Údaje firmy** (IČO, DIČ, e-mail účtárny) — do hlaviček PDF ve Fázi 2
 - **Jména schvalovatelů** objednávek — limity už zadané jsou (100 tis. / 500 tis. / 1 mil.)
-- **Šablona složek projektu** — teď je tam návrh, porovnáme ho s tím, co máte ve složkách
+- **Šablona složek projektu** — teď je tam návrh, porovnáme ho s tím, co máte
+  ve složkách skutečných projektů
+- **Web PRM-Finance** — až Fáze 5. Bude potřeba samostatný web s vlastními
+  oprávněními, tedy znovu správce.
