@@ -114,6 +114,10 @@ a názvy), aby šlo navázat číslování a naimportovat je.
 
 ## 4. Co je další na řadě
 
+**Nasazení na tenant běží.** Postup krok za krokem: [](docs/NASAZENI.md).
+Balíček  verze 0.2.0.0 je připravený.
+
+
 | Co | Poznámka |
 |---|---|
 | **Import stávajících projektů** | poslední kus Fáze 1. ⛔ **čeká na Igora** — Excel není, dodá printscreen složky s čísly a názvy projektů (rozhodnutí z 21. 9. 2026) |

@@ -11,6 +11,10 @@ a bez předplatného Azure.
 
 ---
 
+> **Nasazujete poprvé?** Použijte [](docs/NASAZENI.md) —
+> je to odškrtávací seznam krok za krokem pro konkrétní prostředí RES.
+> Tenhle soubor je obecnější a vysvětluje i proč.
+
 ## Část A — Co potřebuješ na počítači (jen jednou)
 
 Tohle už je hotové, je to tu pro případ přeinstalace počítače nebo pro kolegu.
