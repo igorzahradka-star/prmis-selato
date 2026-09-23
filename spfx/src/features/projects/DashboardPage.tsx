@@ -20,10 +20,9 @@ import { buildHash, RouteName } from '../../ui/router';
 import { BudgetBadge, StatusBadge } from '../../ui/components/StatusBadge';
 import { KpiTiles } from './KpiTiles';
 import { NewProjectPanel } from './NewProjectPanel';
-import { ImportProjectsPanel } from '../admin/ImportProjectsPanel';
 import { BudgetStatus, Project, ProjectStatus, ACTIVE_PROJECT_STATUSES } from '../../core/types';
 import { formatDate, formatMoney, dueLabel } from '../../core/format';
-import { canCreateProject, canOpenAdmin } from '../../core/roles';
+import { canCreateProject } from '../../core/roles';
 import streakUrl from '../../webparts/prm/assets/res-kpi-streak.png';
 
 /** Stejný diagonální přechod (tmavá → navy → modrá) jako v grafickém manuálu RES. */
@@ -39,7 +38,6 @@ export const DashboardPage: React.FC = () => {
   const [pms, setPms] = React.useState<string[]>([]);
   const [pmOptions, setPmOptions] = React.useState<IDropdownOption[]>([]);
   const [isNewProjectOpen, setIsNewProjectOpen] = React.useState(false);
-  const [isImportOpen, setIsImportOpen] = React.useState(false);
   const [refreshKey, setRefreshKey] = React.useState(0);
   const [exporting, setExporting] = React.useState(false);
   const [exportError, setExportError] = React.useState<string | undefined>(undefined);
@@ -72,7 +70,7 @@ export const DashboardPage: React.FC = () => {
     setError(undefined);
 
     repos.projects
-      .list({ statuses, projectManagerNames: pms, search })
+      .list({ statuses, projectManagerNames: pms, search, includeOverhead: true })
       .then((data) => {
         if (!cancelled) {
           setProjects(data);
@@ -139,24 +137,15 @@ export const DashboardPage: React.FC = () => {
               Přehled projektů Revoltum Engineering & Services
             </p>
           </div>
-          <div style={{ flex: '0 0 auto', display: 'flex', gap: 8 }}>
-            {canOpenAdmin(user.roles) && (
-              <DefaultButton
-                iconProps={{ iconName: 'CloudImportExport' }}
-                text="Import ze složek"
-                title="Založí záznamy k projektům, které už existují jako složky v knihovně"
-                onClick={() => setIsImportOpen(true)}
-              />
-            )}
-            <OverheadButton />
-            {canCreateProject(user.roles) && (
+          {canCreateProject(user.roles) && (
+            <div style={{ flex: '0 0 auto' }}>
               <PrimaryButton
                 iconProps={{ iconName: 'Add' }}
                 text="Nový projekt"
                 onClick={() => setIsNewProjectOpen(true)}
               />
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         <KpiTiles projects={projects} />
@@ -166,12 +155,6 @@ export const DashboardPage: React.FC = () => {
         isOpen={isNewProjectOpen}
         onDismiss={() => setIsNewProjectOpen(false)}
         onCreated={() => setRefreshKey((k) => k + 1)}
-      />
-
-      <ImportProjectsPanel
-        isOpen={isImportOpen}
-        onDismiss={() => setIsImportOpen(false)}
-        onImported={() => setRefreshKey((k) => k + 1)}
       />
 
       <div
@@ -371,83 +354,6 @@ function buildColumns(): IColumn[] {
     }
   ];
 }
-
-/**
- * Tlačítko na projekt Režie.
- *
- * Režie je v seznamu projektů schválně skrytá (není to zakázka), ale musí
- * být po ruce — věší se na ni režijní objednávky. Když ještě neexistuje,
- * nabídne se její založení tomu, kdo smí zakládat projekty.
- */
-const OverheadButton: React.FC = () => {
-  const { repos, user } = useApp();
-  const [overhead, setOverhead] = React.useState<Project | null | undefined>(undefined);
-  const [creating, setCreating] = React.useState(false);
-  const [error, setError] = React.useState<string | undefined>(undefined);
-
-  React.useEffect(() => {
-    let cancelled = false;
-    repos.projects
-      .list({ includeOverhead: true })
-      .then((all) => {
-        if (!cancelled) {
-          setOverhead(all.filter((p) => p.isOverhead)[0] ?? null);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setOverhead(null);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [repos]);
-
-  if (overhead === undefined) {
-    return null;
-  }
-
-  if (overhead) {
-    return (
-      <DefaultButton
-        iconProps={{ iconName: 'Money' }}
-        text="Režie"
-        title={`${overhead.projectNumber} — režijní objednávky a náklady`}
-        href={buildHash(RouteName.ProjectDetail, overhead.projectNumber)}
-      />
-    );
-  }
-
-  if (!canCreateProject(user.roles)) {
-    return null;
-  }
-
-  const create = (): void => {
-    setCreating(true);
-    setError(undefined);
-    repos.projects
-      .ensureOverheadProject(user.displayName)
-      .then((p) => {
-        setCreating(false);
-        setOverhead(p);
-      })
-      .catch((e: Error) => {
-        setCreating(false);
-        setError(e.message);
-      });
-  };
-
-  return (
-    <DefaultButton
-      iconProps={{ iconName: 'Money' }}
-      text={creating ? 'Zakládám…' : 'Založit Režii'}
-      title={error ?? 'Vnitřní projekt pro režijní objednávky a náklady mimo zakázky'}
-      disabled={creating}
-      onClick={create}
-    />
-  );
-};
 
 /**
  * Název projektu pro tabulku — bez čísla na začátku, to je už ve svém sloupci.

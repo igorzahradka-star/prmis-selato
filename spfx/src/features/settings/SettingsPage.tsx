@@ -21,7 +21,7 @@ import { useApp } from '../../ui/AppContext';
 import { RES } from '../../ui/theme';
 import { PageHeading } from '../../ui/components/PageHeading';
 import { canOpenAdmin } from '../../core/roles';
-import { ROLE_LABELS, Role } from '../../core/types';
+import { ROLE_LABELS, Role, Project } from '../../core/types';
 import {
   AppSettings,
   ApprovalSettings,
@@ -30,6 +30,9 @@ import {
   withDefaults
 } from '../../core/settings';
 import { describeApprovalLadder } from '../../core/approval';
+import { overheadProjectNumber } from '../../core/overhead';
+import { buildHash, RouteName } from '../../ui/router';
+import { ImportProjectsPanel } from '../admin/ImportProjectsPanel';
 
 export const SettingsPage: React.FC = () => {
   const { settings, repos, user, reloadSettings } = useApp();
@@ -131,7 +134,7 @@ export const SettingsPage: React.FC = () => {
             <TextField
               label="Adresa webu s knihovnou"
               description="Nechte prázdné, pokud je knihovna na stejném webu jako aplikace."
-              placeholder="https://firma.sharepoint.com/sites/RES-Projekty"
+              placeholder="https://revoltum.sharepoint.com/sites/RevoltumEngineeringServices"
               value={draft.folders.siteUrl}
               onChange={(_, v) => patch('folders', { siteUrl: v || '' })}
             />
@@ -143,14 +146,14 @@ export const SettingsPage: React.FC = () => {
             />
             <TextField
               label="Kořenová složka v knihovně"
-              description="Například „Projekty“. Prázdné = složky vznikají přímo v kořeni knihovny."
+              description="Například „General/01_PROJEKTY“. Prázdné = složky vznikají přímo v kořeni knihovny."
               value={draft.folders.rootFolder}
               onChange={(_, v) => patch('folders', { rootFolder: v || '' })}
             />
             <Toggle
               label="Zakládat podsložku podle roku"
-              onText="Ano – Projekty / 2026 / 26-014"
-              offText="Ne – Projekty / 26-014"
+              onText="Ano – 01_PROJEKTY / 2026 / 26006"
+              offText="Ne – 01_PROJEKTY / 26006"
               checked={draft.folders.subfolderByYear}
               onChange={(_, c) => patch('folders', { subfolderByYear: !!c })}
             />
@@ -286,10 +289,168 @@ export const SettingsPage: React.FC = () => {
             />
           </Panel>
         </PivotItem>
+
+        <PivotItem headerText="Jednorázové akce" itemIcon="Repair">
+          <OneOffActions />
+        </PivotItem>
       </Pivot>
     </>
   );
 };
+
+/**
+ * Akce, které se dělají jednou a pak už ne — proto nejsou na dashboardu,
+ * kde by lidem denně překážely.
+ *
+ * Nic z toho se neděje samo: obojí vyžaduje kliknutí a obojí se dá pustit
+ * opakovaně, aniž by to něco zdvojilo.
+ */
+const OneOffActions: React.FC = () => {
+  const { repos, settings, user } = useApp();
+
+  const [overhead, setOverhead] = React.useState<Project | null | undefined>(undefined);
+  const [creating, setCreating] = React.useState(false);
+  const [error, setError] = React.useState<string | undefined>(undefined);
+  const [importOpen, setImportOpen] = React.useState(false);
+  const [reloadKey, setReloadKey] = React.useState(0);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    setOverhead(undefined);
+    repos.projects
+      .list({ includeOverhead: true })
+      .then((all) => {
+        if (!cancelled) {
+          // Režie letošního roku — loňská tu být může a je v pořádku.
+          const cislo = overheadProjectNumber(new Date().getFullYear());
+          setOverhead(all.filter((p) => p.projectNumber === cislo)[0] ?? null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setOverhead(null);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [repos, reloadKey]);
+
+  const zalozitRezii = (): void => {
+    setCreating(true);
+    setError(undefined);
+    repos.projects
+      .ensureOverheadProject(user.displayName)
+      .then((p) => {
+        setCreating(false);
+        setOverhead(p);
+      })
+      .catch((e: Error) => {
+        setCreating(false);
+        setError(e.message);
+      });
+  };
+
+  const rok = new Date().getFullYear();
+
+  return (
+    <Panel>
+      <Hint>
+        Věci, které se dělají jednou — při zavádění aplikace nebo jednou za rok.
+        Proto nejsou na dashboardu, kde by denně překážely.
+      </Hint>
+
+      {error && (
+        <MessageBar messageBarType={MessageBarType.error} isMultiline onDismiss={() => setError(undefined)}>
+          {error}
+        </MessageBar>
+      )}
+
+      <ActionCard
+        title={`Projekt Režie ${rok}`}
+        description={`Vnitřní projekt pro režijní objednávky a náklady, co nepatří konkrétní zakázce — nájem, telefony, software. Dostane číslo ${overheadProjectNumber(rok)} a v seznamu projektů se objeví jako poslední. Zakládá se jednou za rok.`}
+        state={
+          overhead === undefined
+            ? 'načítám…'
+            : overhead
+              ? `hotovo — ${overhead.projectNumber}`
+              : 'ještě neexistuje'
+        }
+        done={!!overhead}
+        action={
+          overhead ? (
+            <DefaultButton
+              text="Otevřít"
+              href={buildHash(RouteName.ProjectDetail, overhead.projectNumber)}
+            />
+          ) : (
+            <PrimaryButton
+              text={creating ? 'Zakládám…' : 'Založit Režii'}
+              disabled={creating || overhead === undefined}
+              onClick={zalozitRezii}
+            />
+          )
+        }
+      />
+
+      <ActionCard
+        title="Import stávajících projektů"
+        description={`Přečte složky v ${settings.folders.rootFolder || 'kořeni knihovny'} a k projektům, které tam už jsou, založí záznamy v aplikaci. Složky nepřejmenovává ani nepřesouvá. Po importu bude číslování navazovat za nejvyšším existujícím číslem.`}
+        state="spustí se ručně, dá se opakovat"
+        done={false}
+        action={<PrimaryButton text="Otevřít import" onClick={() => setImportOpen(true)} />}
+      />
+
+      <MessageBar messageBarType={MessageBarType.warning} isMultiline>
+        <strong>Import spusťte dřív, než někdo založí první projekt.</strong> Dokud neproběhne,
+        aplikace neví, na jakém čísle skončila dosavadní řada, a nový projekt by dostal číslo,
+        které už některá složka má.
+      </MessageBar>
+
+      <ImportProjectsPanel
+        isOpen={importOpen}
+        onDismiss={() => setImportOpen(false)}
+        onImported={() => setReloadKey((k) => k + 1)}
+      />
+    </Panel>
+  );
+};
+
+/** Jedna jednorázová akce: co dělá, v jakém je stavu a tlačítko. */
+const ActionCard: React.FC<{
+  title: string;
+  description: string;
+  state: string;
+  done: boolean;
+  action: React.ReactNode;
+}> = ({ title, description, state, done, action }) => (
+  <div
+    style={{
+      display: 'flex',
+      alignItems: 'flex-start',
+      gap: 16,
+      border: `1px solid ${RES.grayBlue}`,
+      borderRadius: 4,
+      padding: '14px 18px'
+    }}
+  >
+    <div style={{ flex: '1 1 auto', minWidth: 0 }}>
+      <h3 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: RES.navy }}>{title}</h3>
+      <p style={{ margin: '4px 0 0', fontSize: 12, color: RES.gray, lineHeight: 1.55 }}>{description}</p>
+      <div
+        style={{
+          marginTop: 6,
+          fontSize: 12,
+          fontWeight: 600,
+          color: done ? RES.greenDark : RES.gray
+        }}
+      >
+        {state}
+      </div>
+    </div>
+    <div style={{ flex: '0 0 auto' }}>{action}</div>
+  </div>
+);
 
 // --- pomocné komponenty --------------------------------------------------
 
