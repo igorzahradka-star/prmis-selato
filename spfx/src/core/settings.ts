@@ -137,8 +137,12 @@ export const DEFAULT_FOLDER_TEMPLATE: FolderTemplateNode[] = [
  */
 export const DEFAULT_SETTINGS: AppSettings = {
   folders: {
-    siteUrl: '',
+    // Rozhodnuto 23. 9. 2026: aplikace poběží na vlastním webu /sites/PRM,
+    // ale složky projektů zůstanou tam, kde jsou dnes — na firemním webu,
+    // aby lidem dál fungovala synchronizace přes OneDrive a nemuseli nic hledat jinde.
+    siteUrl: 'https://revoltum.sharepoint.com/sites/RevoltumEngineeringServices',
     libraryTitle: 'Dokumenty',
+    // Konkrétní složku, kde projekty leží, zadavatel teprve ukáže (ot. 10).
     rootFolder: 'Projekty',
     subfolderByYear: true,
     template: DEFAULT_FOLDER_TEMPLATE

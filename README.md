@@ -167,7 +167,7 @@ Na stránce klikni *Upravit* → ozubené kolo u web partu:
 | Volba | Hodnota |
 |---|---|
 | **Odkud brát data** | Ostrá data ze SharePointu |
-| **Adresa webu PRM-Finance** | `https://<firma>.sharepoint.com/sites/RES-PRM-Finance` |
+| **Adresa webu PRM-Finance** | `https://revoltum.sharepoint.com/sites/PRM-Finance` |
 
 Nech adresu prázdnou, dokud web PRM-Finance neexistuje — finanční moduly se
 pak nikomu nezobrazí.
@@ -227,7 +227,7 @@ npm run clean     # smaže výstupy buildu
    ```
 2. Nastav proměnnou prostředí s adresou tenanta (aby `npm run start` věděl, kam se připojit):
    ```bash
-   setx SPFX_SERVE_TENANT_DOMAIN firma.sharepoint.com
+   setx SPFX_SERVE_TENANT_DOMAIN revoltum.sharepoint.com
    ```
    Pak zavři a otevři terminál znovu.
 3. `npm run start` a v prohlížeči otevři adresu, kterou vypíše.

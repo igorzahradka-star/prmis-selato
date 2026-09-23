@@ -26,7 +26,7 @@ To stačí. Claude si zbytek dohledá sám.
 |---|---|
 | Kód | `C:\Projekty\prm-revoltum` (**mimo OneDrive** — `node_modules` se nesmí synchronizovat) |
 | Náhled v prohlížeči | `http://localhost:4322` |
-| Ostrý SharePoint | tenant **https://revoltum.sharepoint.com**, firemní web `/sites/RevoltumEngineeringServices`. Ještě není rozhodnuto, jestli PRM poběží tam, nebo na vlastním webu. |
+| Ostrý SharePoint | tenant **https://revoltum.sharepoint.com**. Aplikace poběží na **`/sites/PRM`** (ještě nezaložen), důvěrná část na `/sites/PRM-Finance`. Složky projektů zůstanou v knihovně **Dokumenty** na `/sites/RevoltumEngineeringServices`. |
 
 **Spuštění náhledu — nejjednodušeji:** na ploše je zástupce
 **„PRM Revoltum – náhled"**. Dvojklik sestaví náhled, spustí server a otevře
@@ -129,8 +129,8 @@ Igor 22. 9. 2026 rozhodl: dodělat Fázi 1, pak teprve Fáze 2.
 | # | Otázka | Blokuje |
 |---|---|---|
 | 8 | Kdo je správce Microsoftu 365 a může nahrát aplikaci do katalogu | dokončení Fáze 0 — bez toho se aplikace nedostane na SharePoint |
-| 9 | Adresy webů PRM a PRM-Finance — tenant už známe (revoltum.sharepoint.com) | totéž |
-| 10 | Kde přesně leží knihovna projektů (web, knihovna, kořenová složka) | zakládání složek a záložku Dokumenty naostro |
+| 9 | ✅ zodpovězeno — tenant revoltum.sharepoint.com, weby /sites/PRM a /sites/PRM-Finance. **Zbývá je založit.** | nasazení |
+| 10 | Kterou složku v knihovně Dokumenty použít pro projekty (web a knihovna už určené) | zakládání složek a záložku Dokumenty naostro |
 | — | Printscreen složky se stávajícími projekty | import a navázání číslování — **poslední kus Fáze 1** |
 | 3 | Jména schvalovatelů objednávek (limity už zadané) | Fázi 2 |
 | 4 | Vzory PDF a fakturační údaje RES (IČO, DIČ, e-mail účtárny) | Fázi 2 |
