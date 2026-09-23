@@ -13,7 +13,13 @@ import { AppSettings, DEFAULT_SETTINGS, withDefaults } from '../../core/settings
 import { canDeleteProject, normalizeLogin } from '../../core/roles';
 import { renderDocumentNumber, nextSequence, counterScopeKey, CounterState } from '../../core/numbering';
 import { buildProjectFolderPlan } from '../../core/folders';
-import { overheadProjectNumber, overheadProjectTitle, OVERHEAD_PROJECT_TYPE } from '../../core/overhead';
+import {
+  overheadProjectNumber,
+  overheadProjectTitle,
+  isOverheadNumber,
+  OVERHEAD_PROJECT_TYPE,
+  MAX_REGULAR_SEQUENCE
+} from '../../core/overhead';
 import { nextContractualDeadline, sortDeadlines } from '../../core/deadlines';
 import {
   IInstallRepository,
@@ -96,6 +102,7 @@ export class MockProjectRepository implements IProjectRepository {
     // Číslo se řídí datem založení (dneškem), ne plánovaným zahájením — projekt
     // ve stavu Nabídka může vzniknout, ještě než je známé, kdy se začne realizovat.
     const projectNumber = await this.numbering.allocateNumber('PRJ');
+    assertNotOverheadNumber(projectNumber);
 
     const project: Project = {
       id: this.nextId++,
@@ -189,17 +196,19 @@ export class MockProjectRepository implements IProjectRepository {
   }
 
   public async ensureOverheadProject(projectManagerName: string): Promise<Project> {
-    const existing = this.projects.filter((p) => p.isOverhead)[0];
+    // Režie je jedna na rok — hledá se ta letošní, ne jakákoli.
+    const rok = new Date().getFullYear();
+    const cislo = overheadProjectNumber(rok);
+    const existing = this.projects.filter((p) => p.projectNumber === cislo)[0];
     if (existing) {
       return delay(existing);
     }
 
-    const rok = new Date().getFullYear();
     const project: Project = {
       id: this.nextId++,
-      projectNumber: overheadProjectNumber(rok),
+      projectNumber: cislo,
       title: overheadProjectTitle(rok),
-      shortName: 'Režie',
+      shortName: `Režie ${rok}`,
       projectManagerName,
       status: ProjectStatus.Realizace,
       projectType: OVERHEAD_PROJECT_TYPE,
@@ -527,6 +536,19 @@ export function applyPartnerFilter(partners: Partner[], filter: PartnerFilter | 
   return result;
 }
 
+/**
+ * Zastaví zakládání, kdyby řada v daném roce došla až na číslo vyhrazené
+ * Režii. Nastane po 998 zakázkách za rok — nepravděpodobné, ale tiché
+ * přepsání Režie by bylo horší než srozumitelná chyba.
+ */
+export function assertNotOverheadNumber(projectNumber: string): void {
+  if (isOverheadNumber(projectNumber)) {
+    throw new Error(
+      `Číslo ${projectNumber} je vyhrazené projektu Režie. Řada projektů pro tenhle rok je vyčerpaná (${MAX_REGULAR_SEQUENCE} zakázek) — ozvěte se správci.`
+    );
+  }
+}
+
 /** Projekty, které se na dashboardu počítají jako aktivní. */
 export function activeProjects(projects: Project[]): Project[] {
   return projects.filter((p) => !p.isOverhead && ACTIVE_PROJECT_STATUSES.indexOf(p.status) !== -1);
@@ -536,11 +558,18 @@ export function activeProjects(projects: Project[]): Project[] {
  * Odvodí, u jakého pořadového čísla už ukázková data v aktuálním roce skončila —
  * aby nově založený projekt nedostal číslo, které už jedna z ukázkových
  * zakázek má (formát {YY}-{N} podle výchozí řady PRJ).
+ *
+ * **Režie (`{RR}-999`) se do maxima nepočítá.** Jinak by čítač po prvním
+ * roce s Režií skočil na 999 a další projekt by dostal číslo 1000 —
+ * mimo formát a mimo řadu.
  */
 export function seedProjectCounter(): CounterState {
   const year = new Date().getFullYear();
   const yy = String(year).slice(-2);
   const maxSequence = MOCK_PROJECTS.reduce((max, p) => {
+    if (isOverheadNumber(p.projectNumber)) {
+      return max;
+    }
     const match = /^(\d{2})-(\d+)$/.exec(p.projectNumber);
     if (!match || match[1] !== yy) {
       return max;

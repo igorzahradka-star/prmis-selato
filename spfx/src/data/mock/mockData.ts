@@ -172,9 +172,9 @@ export const MOCK_PROJECTS: Project[] = [
   },
   {
     id: 99,
-    projectNumber: '26-000',
-    title: '26-000 Režie RES',
-    shortName: 'Režie',
+    projectNumber: '26-999',
+    title: '26-999 Režie RES 2026',
+    shortName: 'Režie 2026',
     customerName: undefined,
     projectManagerName: 'Igor Zahrádka',
     status: ProjectStatus.Realizace,
@@ -183,7 +183,7 @@ export const MOCK_PROJECTS: Project[] = [
     contractPriceNet: undefined,
     currency: 'CZK',
     startDate: den(-254),
-    folderUrl: '#/ukazkovy-rezim/slozka/2026/26-000',
+    folderUrl: '#/ukazkovy-rezim/slozka/2026/26-999',
     isOverhead: true,
     budgetStatus: BudgetStatus.Bez
   }

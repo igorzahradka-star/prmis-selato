@@ -12,7 +12,13 @@ import { BudgetStatus, CurrentUser, Project, ProjectStatus } from '../../core/ty
 import { toDate } from '../../core/format';
 import { canDeleteProject } from '../../core/roles';
 import { buildProjectFolderPlan } from '../../core/folders';
-import { overheadProjectNumber, overheadProjectTitle, OVERHEAD_PROJECT_TYPE } from '../../core/overhead';
+import {
+  overheadProjectNumber,
+  overheadProjectTitle,
+  isOverheadNumber,
+  OVERHEAD_PROJECT_TYPE,
+  MAX_REGULAR_SEQUENCE
+} from '../../core/overhead';
 import {
   IProjectRepository,
   INumberingRepository,
@@ -140,6 +146,13 @@ export class SpProjectRepository implements IProjectRepository {
     // Číslo se řídí datem založení (dneškem), ne plánovaným zahájením — projekt
     // ve stavu Nabídka může vzniknout, ještě než je známé, kdy se začne realizovat.
     const projectNumber = await this.numbering.allocateNumber('PRJ');
+    // Číslo {RR}-999 patří Režii. Nastane po 998 zakázkách za rok —
+    // nepravděpodobné, ale tiché přepsání Režie by bylo horší než chyba.
+    if (isOverheadNumber(projectNumber)) {
+      throw new Error(
+        `Číslo ${projectNumber} je vyhrazené projektu Režie. Řada projektů pro tenhle rok je vyčerpaná (${MAX_REGULAR_SEQUENCE} zakázek) — ozvěte se správci.`
+      );
+    }
     const sp = getSp(this.context);
 
     const customerId = input.customerId;
@@ -344,20 +357,20 @@ export class SpProjectRepository implements IProjectRepository {
   }
 
   /**
-   * Režie se zakládá jednou. Hledá se podle příznaku `IsOverhead`, ne podle
-   * čísla — kdyby ji někdo v minulosti založil ručně s jiným číslem, chceme
-   * najít tu jeho, ne vyrobit druhou.
+   * Režie je **jedna na rok** — `26-999`, `27-999`… Hledá se podle čísla
+   * letošního roku, ne podle příznaku `IsOverhead`: ten mají i Režie
+   * z minulých let a ty chceme nechat být.
    */
   public async ensureOverheadProject(projectManagerName: string): Promise<Project> {
-    const existing = await this.list({ includeOverhead: true });
-    const overhead = existing.filter((p) => p.isOverhead)[0];
-    if (overhead) {
-      return overhead;
+    const rok = new Date().getFullYear();
+    const projectNumber = overheadProjectNumber(rok);
+
+    const existing = await this.getByNumber(projectNumber);
+    if (existing) {
+      return existing;
     }
 
     const sp = getSp(this.context);
-    const rok = new Date().getFullYear();
-    const projectNumber = overheadProjectNumber(rok);
     const title = overheadProjectTitle(rok);
     const projectManagerId = await this.resolveUserId(sp, projectManagerName);
 
@@ -366,7 +379,7 @@ export class SpProjectRepository implements IProjectRepository {
       const added = await sp.web.lists.getByTitle(PROJECTS_LIST).items.add({
         Title: title,
         ProjectNumber: projectNumber,
-        ShortName: 'Režie',
+        ShortName: `Režie ${rok}`,
         ProjectManagerId: projectManagerId,
         ProjectStatus: ProjectStatus.Realizace,
         ProjectType: OVERHEAD_PROJECT_TYPE,
@@ -385,7 +398,7 @@ export class SpProjectRepository implements IProjectRepository {
       id: newId ?? 0,
       projectNumber,
       title,
-      shortName: 'Režie',
+      shortName: `Režie ${rok}`,
       projectManagerName,
       status: ProjectStatus.Realizace,
       projectType: OVERHEAD_PROJECT_TYPE,

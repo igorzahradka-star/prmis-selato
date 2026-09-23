@@ -2,6 +2,7 @@ import {
   MockNumberingRepository,
   MockProjectRepository,
   applyPartnerFilter,
+  assertNotOverheadNumber,
   createMockRepositories,
   seedProjectCounter
 } from './mockRepositories';
@@ -271,5 +272,32 @@ describe('MockProjectRepository.ensureOverheadProject', () => {
     await repos.projects.ensureOverheadProject('Igor Zahrádka');
     const po = await repos.numbering.previewNextNumber('PRJ');
     expect(po).toBe(pred);
+  });
+});
+
+describe('Režie a číselná řada projektů', () => {
+  it('Režie v ukázkových datech nevytlačí čítač na 999', () => {
+    // Bez vyloučení Režie by seed skočil na 999 a další projekt by dostal 1000.
+    const stav = seedProjectCounter();
+    expect(stav.lastValue).toBeLessThan(900);
+  });
+
+  it('po Režii pokračuje řada normálně', async () => {
+    const repos = createMockRepositories();
+    const dalsi = await repos.numbering.previewNextNumber('PRJ');
+    expect(/^\d{2}-0\d{2}$/.test(dalsi)).toBe(true);
+    expect(dalsi).not.toContain('-999');
+  });
+
+  it('založení Režie nezvýší čítač projektů', async () => {
+    const repos = createMockRepositories();
+    const pred = await repos.numbering.previewNextNumber('PRJ');
+    await repos.projects.ensureOverheadProject('Igor Zahrádka');
+    expect(await repos.numbering.previewNextNumber('PRJ')).toBe(pred);
+  });
+
+  it('číslo vyhrazené Režii se nesmí přidělit zakázce', () => {
+    expect(() => assertNotOverheadNumber('26-999')).toThrow(/vyhrazené projektu Režie/);
+    expect(() => assertNotOverheadNumber('26-007')).not.toThrow();
   });
 });

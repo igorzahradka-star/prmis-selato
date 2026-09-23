@@ -4,13 +4,17 @@
  *
  * Součást vrstvy `core` — čistá logika bez SharePointu a Reactu.
  *
- * Číslo má tvar `{RR}-000`, tedy **mimo** běžnou řadu projektů: čítač se
- * nezvyšuje, Režie nikomu neukradne číslo a nula na konci ji v seznamech
- * řadí před ostatní projekty.
+ * Číslo má tvar `{RR}-999` a je **součástí běžné řady projektů**: `26-999`,
+ * `27-999`… Každý rok má svou Režii, stejně jako svou řadu zakázek —
+ * náklady se tak nesčítají přes roky. Devítky na konci ji v seznamu řadí
+ * až za poslední zakázku roku.
+ *
+ * Číslo se **nepřiděluje z čítače**, je dané tvarem. Čítač pro daný rok se
+ * tím nezvyšuje, takže Režie nikomu neukradne pořadové číslo.
  */
 
 /** Přípona čísla, podle které se Režie pozná i bez příznaku v databázi. */
-export const OVERHEAD_NUMBER_SUFFIX = '-000';
+export const OVERHEAD_NUMBER_SUFFIX = '-999';
 
 /** Název projektu Režie. Nesestavuje se ze vzoru — Režie nemá zákazníka ani lokalitu. */
 export const OVERHEAD_TITLE = 'Režie RES';
@@ -19,8 +23,17 @@ export const OVERHEAD_TITLE = 'Režie RES';
 export const OVERHEAD_PROJECT_TYPE = 'Režie';
 
 /**
- * Číslo projektu Režie pro daný rok: `26-000`.
- * Režie se zakládá jednou; rok v čísle říká, kdy vznikla.
+ * Nejvyšší pořadové číslo, které smí dostat běžná zakázka.
+ *
+ * Číslo `999` je vyhrazené Režii. Kdyby firma v jednom roce udělala 998
+ * zakázek, další by na Režii narazila — proto se to hlídá při zakládání
+ * (`create`), ne až při kolizi v databázi.
+ */
+export const MAX_REGULAR_SEQUENCE = 998;
+
+/**
+ * Číslo projektu Režie pro daný rok: `26-999`.
+ * Každý rok má svou Režii — náklady se nesčítají přes roky.
  */
 export function overheadProjectNumber(year: number): string {
   const twoDigits = year % 100;
@@ -29,7 +42,7 @@ export function overheadProjectNumber(year: number): string {
 
 /**
  * Poznává Režii podle čísla — pro případy, kdy je po ruce jen číslo
- * a ne celý projekt (odkazy, číslování dokladů, importy).
+ * a ne celý projekt (odkazy, číslování dokladů, importy, seed čítače).
  */
 export function isOverheadNumber(projectNumber: string | undefined): boolean {
   if (!projectNumber) {
@@ -41,7 +54,7 @@ export function isOverheadNumber(projectNumber: string | undefined): boolean {
 
 /** Celý název i s číslem, jak se ukládá do sloupce Title. */
 export function overheadProjectTitle(year: number): string {
-  return `${overheadProjectNumber(year)} ${OVERHEAD_TITLE}`;
+  return `${overheadProjectNumber(year)} ${OVERHEAD_TITLE} ${year}`;
 }
 
 /** (`String.endsWith` není v cílové knihovně SPFx.) */
