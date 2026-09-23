@@ -4,7 +4,7 @@
 > Tenhle soubor je předávka: co je hotové, kde jsme skončili, co je další na řadě
 > a co se od Claudea čeká. **Aktualizuj se po každé větší dávce práce.**
 >
-> Poslední aktualizace: **22. 9. 2026**
+> Poslední aktualizace: **23. 9. 2026**
 
 ---
 
@@ -51,12 +51,12 @@ Node.js 22 musí být v PATH (`node --version` → `v22.x`). Když není, viz CL
 
 ---
 
-## 3. Stav k 22. 9. 2026
+## 3. Stav k 23. 9. 2026
 
 **Fáze 0 — Základ:** ✅ kód hotov, čeká na nasazení na tenant (blokuje otázka 8 a 9).
 
 **Fáze 1 — Projekty (MVP):** 🔶 **hotová až na import stávajících projektů**
-(ten čeká na printscreen od Igora). **288 testů prochází**, pracovní strom čistý.
+(ten čeká na printscreen od Igora). **328 testů prochází**, pracovní strom čistý.
 
 Hotovo ve Fázi 1:
 
@@ -86,7 +86,10 @@ Hotovo ve Fázi 1:
   (modrý gradient + blesky ze šablony prezentace), roztažená od menu ke scrollbaru.
 - **Projekt Režie** — vnitřní projekt pro režijní objednávky a náklady mimo
   zakázky. Na dashboardu tlačítko „Režie"; když neexistuje, nabídne založení.
-  Číslo `{RR}-000` je mimo běžnou řadu, takže čítač projektů nezvyšuje.
+  Číslo `{RR}-999`, **jedna Režie na rok** (26-999, 27-999…). Je součástí běžné
+  řady, ale číslo se nebere z čítače, takže nikomu neukradne pořadí.
+- **Uživatelé a role** — stránka v levém menu (jen administrátor). Role = členství
+  ve skupině SharePointu; aplikace **nezakládá účty**, ty dělá správce tenanta.
 - **Smluvní termíny plnění** — záložka *Termíny* v detailu projektu. Výběr
   nejbližšího je v `core/deadlines.ts`: hotové se přeskakují a **zmeškaný termín
   má přednost před budoucím**. Po každé změně se přepočítá cache `NextDeadline`,

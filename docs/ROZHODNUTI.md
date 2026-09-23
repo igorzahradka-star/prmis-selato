@@ -23,8 +23,9 @@ když se něco změní, uprav řádek a doplň datum.
 | 21. 9. 2026 | Import stávajících projektů (ot. 11) | Žádný Excel k dispozici — Igor dodá printscreen složky se seznamem projektů (čísla a názvy). Import/navázání číslování se podle toho navrhne ručně, ne přes hromadný import z Excelu. |
 | 21. 9. 2026 | Terminologie: „zakázka" vs. „projekt" | Aplikace nikde nepoužívá slovo „zakázka" — správný a jediný pojem je **projekt** (viz kap. 2, „Cíl aplikace"). Přejmenováno v celém kódu, UI i dokumentaci (route `#/zakazky` → `#/projekty` apod.). |
 | 22. 9. 2026 | Kdo smí mazat projekt | **Jen administrátor PRM.** Projektový manažer smí projekt založit a upravit, ale ne smazat — má na to stav *Storno*. Maže se do koše SharePointu (93 dní na obnovu), složka projektu s dokumenty zůstává a do `PRM_AuditLog` se zapíše kdo, kdy a proč. |
-| 22. 9. 2026 | Číslo projektu Režie | Tvar `{RR}-000` — mimo běžnou řadu projektů. Důvod: čítač se nezvyšuje, Režie nikomu neukradne číslo a nula ji v seznamech řadí první. |
+| 23. 9. 2026 | Číslo projektu Režie | Tvar `{RR}-999` — **26-999, 27-999, jedna Režie na rok**, součást běžné řady projektů (upřesněno zadavatelem; původní návrh `{RR}-000` byl špatně). Číslo se nebere z čítače, takže Režie nikomu neukradne pořadí. |
 | 22. 9. 2026 | Schvalovací limity objednávek (ot. 3, částečně) | Zadány částky **100 000 / 500 000 / 1 000 000 Kč** bez DPH (PM / vedení / jednatel). Uloženy jako výchozí hodnoty v *Nastavení → Schvalování*, kde se dají kdykoli změnit. **Jména schvalovatelů a celé workflow zadavatel upřesní ve Fázi 2.** |
+| 23. 9. 2026 | Správa uživatelů | Aplikace **nezakládá uživatelské účty** — ty vznikají v Microsoftu 365 a spravuje je správce tenanta. Stránka *Uživatelé a role* jen přiděluje role, tedy členství ve skupinách SharePointu. Důvod: vlastní seznam uživatelů by se rozešel s tím, co SharePoint skutečně povolí. |
 | 22. 9. 2026 | Pořadí prací | Nejdřív dodělat Fázi 1, teprve pak začít Fázi 2 (objednávky). Důvod: Fáze 2 staví na projektu Režie a na složkách, kam se ukládají PDF objednávek. |
 
 ## Zatím nezodpovězené
