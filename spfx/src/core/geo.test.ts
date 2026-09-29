@@ -6,12 +6,13 @@ import {
   escapeHtml,
   isValidCoordinates,
   projectCoordinates,
-  projectTypeColor,
   projectTypeLabel,
   splitByLocation,
   pinTooltipHtml,
   SIGNAL_COLORS,
-  PROJECT_TYPE_COLORS
+  STATUS_ORDER,
+  STATUS_STYLE,
+  statusStyle
 } from './geo';
 import { BudgetStatus, Project, ProjectStatus } from './types';
 
@@ -76,15 +77,44 @@ describe('projectCoordinates / splitByLocation', () => {
   });
 });
 
-describe('barvy typů', () => {
-  it('každý typ z výchozího nastavení má vlastní barvu', () => {
-    const barvy = Object.keys(PROJECT_TYPE_COLORS).map((t) => PROJECT_TYPE_COLORS[t]);
-    expect(new Set(barvy).size).toBe(barvy.length);
+describe('barvy stavů', () => {
+  it('každý stav má vlastní výplň', () => {
+    const vyplne = STATUS_ORDER.map((st) => STATUS_STYLE[st].fill);
+    expect(new Set(vyplne).size).toBe(vyplne.length);
   });
 
-  it('neznámý typ a projekt bez typu dostanou šedou, ne prázdnou barvu', () => {
-    expect(projectTypeColor('Něco nového')).toMatch(/^#/);
-    expect(projectTypeColor(undefined)).toBe(projectTypeColor('Něco nového'));
+  it('Nabídka je bílá, Realizace zelená, Pozastaveno žlutá, Dokončeno tmavě zelená', () => {
+    expect(STATUS_STYLE[ProjectStatus.Nabidka].fill).toBe('#FFFFFF');
+    // Zelené odstíny: složka G je největší; tmavě zelená je tmavší než sytě zelená.
+    const svetlost = (hex: string): number =>
+      parseInt(hex.slice(1, 3), 16) + parseInt(hex.slice(3, 5), 16) + parseInt(hex.slice(5, 7), 16);
+    const zelena = STATUS_STYLE[ProjectStatus.Realizace].fill;
+    const tmava = STATUS_STYLE[ProjectStatus.Dokonceno].fill;
+    const nazelenala = STATUS_STYLE[ProjectStatus.Priprava].fill;
+    expect(svetlost(tmava)).toBeLessThan(svetlost(zelena));
+    expect(svetlost(nazelenala)).toBeGreaterThan(svetlost(zelena));
+    expect(STATUS_STYLE[ProjectStatus.Pozastaveno].fill).toMatch(/^#F/i);
+  });
+
+  it('Storno i Reklamace jsou červené (nejvyšší je složka R)', () => {
+    [ProjectStatus.Storno, ProjectStatus.Reklamace].forEach((st) => {
+      const hex = STATUS_STYLE[st].fill;
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const bl = parseInt(hex.slice(5, 7), 16);
+      expect(r).toBeGreaterThan(g * 2);
+      expect(r).toBeGreaterThan(bl * 2);
+    });
+  });
+
+  it('žádný stav nemá zrušené Uzavřeno; všechny stavy z výčtu jsou v pořadí legendy', () => {
+    expect(STATUS_ORDER.length).toBe(Object.keys(ProjectStatus).length);
+    expect(STATUS_ORDER.map((st) => String(st))).not.toContain('Uzavřeno');
+  });
+
+  it('neznámý stav dostane šedou, ne prázdnou barvu', () => {
+    expect(statusStyle('Něco nového').fill).toMatch(/^#/);
+    expect(statusStyle(undefined).fill).toBe(statusStyle('Něco nového').fill);
   });
 
   it('projekt bez typu se v popisku jmenuje „Bez typu"', () => {
@@ -95,23 +125,26 @@ describe('barvy typů', () => {
 });
 
 describe('buildLegend', () => {
-  it('spočítá projekty podle typu, nejčetnější první', () => {
+  it('ukáže všechny stavy v pořadí cyklu a spočítá projekty v každém', () => {
     const l = buildLegend([
-      projekt('1', { projectType: 'BESS' }),
-      projekt('2', { projectType: 'FVE' }),
-      projekt('3', { projectType: 'FVE' }),
-      projekt('4')
+      projekt('1', { status: ProjectStatus.Realizace }),
+      projekt('2', { status: ProjectStatus.Realizace }),
+      projekt('3', { status: ProjectStatus.Storno }),
+      projekt('4', { status: ProjectStatus.Nabidka })
     ]);
-    expect(l.map((e) => [e.label, e.count])).toEqual([
-      ['FVE', 2],
-      ['BESS', 1],
-      ['Bez typu', 1]
-    ]);
-    expect(l[0].color).toBe(PROJECT_TYPE_COLORS.FVE);
+    expect(l.map((e) => e.status)).toEqual(STATUS_ORDER);
+    const pocty: Record<string, number> = {};
+    l.forEach((e) => (pocty[e.status] = e.count));
+    expect(pocty.Realizace).toBe(2);
+    expect(pocty.Storno).toBe(1);
+    expect(pocty['Nabídka']).toBe(1);
+    expect(pocty['Příprava']).toBe(0);
   });
 
-  it('prázdný seznam dá prázdnou legendu', () => {
-    expect(buildLegend([])).toEqual([]);
+  it('prázdný seznam dá legendu s nulami, ne prázdnou legendu', () => {
+    const l = buildLegend([]);
+    expect(l.length).toBe(STATUS_ORDER.length);
+    expect(l.every((e) => e.count === 0)).toBe(true);
   });
 });
 
@@ -164,7 +197,8 @@ describe('buildPinInfo', () => {
       projectNumber: '26003',
       name: 'BORSOV MORAVSKA TREBOVA',
       typeLabel: 'FVE',
-      typeColor: PROJECT_TYPE_COLORS.FVE,
+      status: 'Realizace',
+      statusStyle: STATUS_STYLE[ProjectStatus.Realizace],
       budgetLabel: 'Žlutá',
       budgetSignal: 'yellow',
       deadlineLabel: 'za 3 dny',
@@ -213,6 +247,7 @@ describe('pinTooltipHtml', () => {
   it('obsahuje název, typ, rozpočet, termíny i projektového manažera', () => {
     expect(html).toContain('26003 · BORSOV');
     expect(html).toContain('FVE');
+    expect(html).toContain('Realizace');
     expect(html).toContain('Červená');
     expect(html).toContain('po termínu o 9 dní');
     expect(html).toContain('Igor Zahrádka');

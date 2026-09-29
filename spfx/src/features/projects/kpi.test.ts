@@ -40,7 +40,7 @@ describe('computeKpi', () => {
       projekt({ id: 3, status: ProjectStatus.Nabidka }),
       projekt({ id: 4, status: ProjectStatus.Pozastaveno }),
       projekt({ id: 5, status: ProjectStatus.Dokonceno }),
-      projekt({ id: 6, status: ProjectStatus.Uzavreno }),
+      projekt({ id: 6, status: ProjectStatus.Reklamace }),
       projekt({ id: 7, status: ProjectStatus.Storno })
     ];
     expect(computeKpi(data, DNES).activeCount).toBe(4);
@@ -68,7 +68,7 @@ describe('computeKpi', () => {
   it('spočítá projekty v červené — jen mezi aktivními', () => {
     const data = [
       projekt({ budgetStatus: BudgetStatus.Cervena }),
-      projekt({ id: 2, budgetStatus: BudgetStatus.Cervena, status: ProjectStatus.Uzavreno }),
+      projekt({ id: 2, budgetStatus: BudgetStatus.Cervena, status: ProjectStatus.Dokonceno }),
       projekt({ id: 3, budgetStatus: BudgetStatus.Zluta })
     ];
     expect(computeKpi(data, DNES).redCount).toBe(1);
@@ -96,7 +96,7 @@ describe('computeKpi', () => {
   });
 
   it('termíny u neaktivních projektů nehlídá', () => {
-    const data = [projekt({ status: ProjectStatus.Uzavreno, nextDeadline: zaDni(-5) })];
+    const data = [projekt({ status: ProjectStatus.Dokonceno, nextDeadline: zaDni(-5) })];
     expect(computeKpi(data, DNES).overdueDeadlines).toBe(0);
   });
 });

@@ -72,9 +72,9 @@ describe('validateProjectEdit', () => {
     expect(issues.map((i) => i.field)).toEqual(['endDateActual']);
   });
 
-  it('u uzavřeného projektu se skutečným ukončením je vše v pořádku', () => {
+  it('u dokončeného projektu se skutečným ukončením je vše v pořádku', () => {
     const issues = validateProjectEdit(
-      values({ status: ProjectStatus.Uzavreno, endDateActual: new Date(2026, 8, 20) })
+      values({ status: ProjectStatus.Dokonceno, endDateActual: new Date(2026, 8, 20) })
     );
     expect(issues).toEqual([]);
   });

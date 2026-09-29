@@ -10,21 +10,20 @@
 import * as React from 'react';
 import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
 import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
-import { Toggle } from '@fluentui/react/lib/Toggle';
 import { Link } from '@fluentui/react/lib/Link';
 
 import { useApp } from '../../ui/AppContext';
 import { RES } from '../../ui/theme';
 import { PageHeading } from '../../ui/components/PageHeading';
 import { buildHash, navigate, RouteName } from '../../ui/router';
-import { ACTIVE_PROJECT_STATUSES, Project } from '../../core/types';
+import { Project } from '../../core/types';
 import {
   buildLegend,
   buildPinInfo,
   pinTooltipHtml,
   projectCoordinates,
-  projectTypeColor,
-  splitByLocation
+  splitByLocation,
+  statusStyle
 } from '../../core/geo';
 import { DEFAULT_CENTER, DEFAULT_ZOOM, LeafletLib, MAP_ATTRIBUTION, TILE_URL, loadLeaflet, pinIcon } from './leaflet';
 import type * as LeafletTypes from 'leaflet';
@@ -35,8 +34,7 @@ export const ProjectsMapPage: React.FC = () => {
   const [projects, setProjects] = React.useState<Project[] | undefined>(undefined);
   const [error, setError] = React.useState<string | undefined>(undefined);
   const [mapError, setMapError] = React.useState<string | undefined>(undefined);
-  const [includeFinished, setIncludeFinished] = React.useState(false);
-  const [hiddenTypes, setHiddenTypes] = React.useState<string[]>([]);
+  const [hiddenStatuses, setHiddenStatuses] = React.useState<string[]>([]);
 
   const containerRef = React.useRef<HTMLDivElement>(null);
   const mapRef = React.useRef<LeafletTypes.Map | undefined>(undefined);
@@ -64,18 +62,12 @@ export const ProjectsMapPage: React.FC = () => {
     };
   }, [repos]);
 
-  const visible = React.useMemo(
-    () =>
-      (projects ?? []).filter(
-        (p) => !p.isOverhead && (includeFinished || ACTIVE_PROJECT_STATUSES.indexOf(p.status) !== -1)
-      ),
-    [projects, includeFinished]
-  );
+  const visible = React.useMemo(() => (projects ?? []).filter((p) => !p.isOverhead), [projects]);
   const { located, missing } = React.useMemo(() => splitByLocation(visible), [visible]);
   const legend = React.useMemo(() => buildLegend(located), [located]);
   const shown = React.useMemo(
-    () => located.filter((p) => hiddenTypes.indexOf(p.projectType || '') === -1),
-    [located, hiddenTypes]
+    () => located.filter((p) => hiddenStatuses.indexOf(p.status) === -1),
+    [located, hiddenStatuses]
   );
 
   // Založení mapy — jednou, až je co zobrazovat a je kam.
@@ -134,7 +126,7 @@ export const ProjectsMapPage: React.FC = () => {
         return;
       }
       const marker = L.marker([c.latitude, c.longitude], {
-        icon: pinIcon(L, projectTypeColor(p.projectType)),
+        icon: pinIcon(L, statusStyle(p.status).fill, statusStyle(p.status).stroke, statusStyle(p.status).text),
         title: p.projectNumber,
         keyboard: true
       });
@@ -154,14 +146,14 @@ export const ProjectsMapPage: React.FC = () => {
     }
   }, [mapReady, shown]);
 
-  const toggleType = (type: string): void =>
-    setHiddenTypes((cur) => (cur.indexOf(type) === -1 ? [...cur, type] : cur.filter((t) => t !== type)));
+  const toggleStatus = (status: string): void =>
+    setHiddenStatuses((cur) => (cur.indexOf(status) === -1 ? [...cur, status] : cur.filter((t) => t !== status)));
 
   return (
     <>
       <PageHeading
         title="Mapa projektů"
-        subtitle="Špendlík má barvu podle typu projektu. Po najetí se ukáže shrnutí, po kliknutí se otevře projekt."
+        subtitle="Barva špendlíku ukazuje stav projektu (legenda v rohu mapy). Po najetí se ukáže shrnutí, po kliknutí se otevře projekt."
       />
 
       {error && (
@@ -178,65 +170,78 @@ export const ProjectsMapPage: React.FC = () => {
 
       {projects && (
         <>
-          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 16, margin: '8px 0 12px' }}>
-            <Toggle
-              label="Zobrazit i dokončené a uzavřené"
-              inlineLabel
-              checked={includeFinished}
-              onChange={(_, c) => setIncludeFinished(!!c)}
-              styles={{ root: { margin: 0 } }}
+          <div style={{ position: 'relative', marginTop: 8 }}>
+            <div
+              ref={containerRef}
+              style={{
+                height: '62vh',
+                minHeight: 360,
+                border: `1px solid ${RES.grayBlue}`,
+                borderRadius: 4,
+                background: RES.background
+              }}
+              aria-label="Mapa projektů"
             />
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            <div
+              style={{
+                position: 'absolute',
+                left: 10,
+                bottom: 28,
+                zIndex: 1000,
+                background: 'rgba(255,255,255,0.94)',
+                border: `1px solid ${RES.grayBlue}`,
+                borderRadius: 4,
+                padding: '6px 10px',
+                fontSize: 12,
+                boxShadow: '0 1px 6px rgba(0,0,0,.2)'
+              }}
+              role="group"
+              aria-label="Legenda: stav projektu"
+            >
+              <div style={{ fontWeight: 600, marginBottom: 4, color: RES.navy }}>Stav projektu</div>
               {legend.map((entry) => {
-                const off = hiddenTypes.indexOf(entry.type) !== -1;
+                const off = hiddenStatuses.indexOf(entry.status) !== -1;
                 return (
                   <button
-                    key={entry.type || 'bez-typu'}
+                    key={entry.status}
                     type="button"
-                    onClick={() => toggleType(entry.type)}
-                    title={off ? 'Klikem znovu zobrazíte' : 'Klikem skryjete tento typ'}
+                    onClick={() => toggleStatus(entry.status)}
+                    title={off ? 'Klikem znovu zobrazíte' : 'Klikem skryjete tyto projekty'}
                     aria-pressed={!off}
                     style={{
-                      display: 'inline-flex',
+                      display: 'flex',
                       alignItems: 'center',
-                      gap: 6,
-                      padding: '3px 10px',
-                      border: `1px solid ${RES.grayBlue}`,
-                      borderRadius: 14,
-                      background: RES.white,
+                      gap: 8,
+                      width: '100%',
+                      padding: '2px 0',
+                      border: 'none',
+                      background: 'none',
                       cursor: 'pointer',
-                      fontSize: 12,
-                      opacity: off ? 0.45 : 1,
+                      font: 'inherit',
+                      textAlign: 'left',
+                      opacity: off ? 0.4 : 1,
                       textDecoration: off ? 'line-through' : 'none'
                     }}
                   >
                     <span
                       style={{
-                        width: 10,
-                        height: 10,
+                        width: 12,
+                        height: 12,
                         borderRadius: '50%',
-                        background: entry.color,
-                        display: 'inline-block'
+                        background: entry.style.fill,
+                        border: `1.5px solid ${entry.style.stroke}`,
+                        display: 'inline-block',
+                        flex: '0 0 auto'
                       }}
                     />
-                    {entry.label} ({entry.count})
+                    <span style={{ flex: '1 1 auto' }}>{entry.status}</span>
+                    <span style={{ color: RES.gray }}>{entry.count}</span>
                   </button>
                 );
               })}
+              <div style={{ color: RES.gray, marginTop: 4 }}>Klik = skrýt / zobrazit</div>
             </div>
           </div>
-
-          <div
-            ref={containerRef}
-            style={{
-              height: '62vh',
-              minHeight: 360,
-              border: `1px solid ${RES.grayBlue}`,
-              borderRadius: 4,
-              background: RES.background
-            }}
-            aria-label="Mapa projektů"
-          />
 
           {located.length === 0 && (
             <MessageBar messageBarType={MessageBarType.info} isMultiline styles={{ root: { marginTop: 12 } }}>

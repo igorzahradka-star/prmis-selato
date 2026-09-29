@@ -20,6 +20,7 @@ import {
 } from '../repositories';
 import { LISTS, ListDef, SCHEMA_VERSION, creationOrder, listsForSite } from '../schema';
 import { buildFieldXml, ADD_FIELD_INTERNAL_NAME_HINT } from './fieldXml';
+import { mergedChoices, missingChoices } from './choiceSync';
 import { getSp, getSpForSite, describeSpError } from './spContext';
 import { SpSettingsRepository } from './spSettingsRepository';
 
@@ -172,7 +173,17 @@ export class SpInstallRepository implements IInstallRepository {
         continue;
       }
 
-      const missingFields = await this.findMissingFields(def, siteUrl);
+      const missing = await this.findMissing(def, siteUrl);
+      const missingFields = missing.fields;
+      if (missingFields.length === 0 && missing.choices.length > 0) {
+        items.push({
+          key: def.name,
+          label: `${kindLabel} ${def.title}`,
+          state: 'missing',
+          detail: `Existuje, ale ve sloupcích chybí nové volby: ${missing.choices.join('; ')}. Průvodce je doplní (nic neubere).`
+        });
+        continue;
+      }
       if (missingFields.length === 0) {
         items.push({
           key: def.name,
@@ -208,17 +219,34 @@ export class SpInstallRepository implements IInstallRepository {
     return map;
   }
 
-  private async findMissingFields(def: ListDef, siteUrl?: string): Promise<string[]> {
+  /** Co seznamu chybí: sloupce a nové volby ve stávajících sloupcích typu Volba. */
+  private async findMissing(
+    def: ListDef,
+    siteUrl?: string
+  ): Promise<{ fields: string[]; choices: string[] }> {
     try {
       const sp = siteUrl ? getSpForSite(this.context, siteUrl) : getSp(this.context);
-      const fields = await sp.web.lists
+      const rows = (await sp.web.lists
         .getById(await this.getListId(def, siteUrl))
-        .fields.select('InternalName')
-        .top(500)();
-      const present = new Set((fields as { InternalName: string }[]).map((f) => f.InternalName));
-      return def.fields.filter((f) => !present.has(f.name)).map((f) => f.title);
+        .fields.select('InternalName', 'Choices')
+        .top(500)()) as { InternalName: string; Choices?: string[] }[];
+      const byName = new Map<string, { InternalName: string; Choices?: string[] }>();
+      rows.forEach((r) => byName.set(r.InternalName, r));
+
+      const fields = def.fields.filter((f) => !byName.has(f.name)).map((f) => f.title);
+      const choices: string[] = [];
+      def.fields.forEach((f) => {
+        const row = byName.get(f.name);
+        if (row && (f.type === 'Choice' || f.type === 'MultiChoice') && f.choices) {
+          const missing = missingChoices(row.Choices, f.choices);
+          if (missing.length > 0) {
+            choices.push(`${f.title}: ${missing.join(', ')}`);
+          }
+        }
+      });
+      return { fields, choices };
     } catch {
-      return def.fields.map((f) => f.title);
+      return { fields: def.fields.map((f) => f.title), choices: [] };
     }
   }
 
@@ -274,6 +302,7 @@ export class SpInstallRepository implements IInstallRepository {
 
     const fields = await list.fields.select('InternalName').top(500)();
     const present = new Set((fields as { InternalName: string }[]).map((f) => f.InternalName));
+    const existingBefore = new Set(Array.from(present));
 
     for (const field of def.fields) {
       if (present.has(field.name)) {
@@ -299,6 +328,27 @@ export class SpInstallRepository implements IInstallRepository {
         } catch (error) {
           console.warn(describeSpError(error, `Index na sloupci ${def.name}.${field.name}`));
         }
+      }
+    }
+
+    // Nové volby ve sloupcích, které na webu už byly (nově založené sloupce je mají celé).
+    for (const field of def.fields) {
+      if (!existingBefore.has(field.name) || !field.choices) {
+        continue;
+      }
+      if (field.type !== 'Choice' && field.type !== 'MultiChoice') {
+        continue;
+      }
+      try {
+        const column = list.fields.getByInternalNameOrTitle(field.name);
+        const current = (await column.select('Choices')()) as { Choices?: string[] };
+        const missing = missingChoices(current.Choices, field.choices);
+        if (missing.length > 0) {
+          await column.update({ Choices: { results: mergedChoices(current.Choices, field.choices) } });
+        }
+      } catch (error) {
+        // Nefatální: seznam funguje dál, jen nová hodnota půjde uložit až po ručním doplnění.
+        console.error(describeSpError(error, `Doplnění voleb sloupce ${def.name}.${field.name}`));
       }
     }
   }

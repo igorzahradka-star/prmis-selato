@@ -8,7 +8,7 @@
  */
 
 import { WebPartContext } from '@microsoft/sp-webpart-base';
-import { BudgetStatus, CurrentUser, Project, ProjectStatus } from '../../core/types';
+import { BudgetStatus, CurrentUser, LEGACY_STATUS_UZAVRENO, Project, ProjectStatus } from '../../core/types';
 import { toDate } from '../../core/format';
 import { canDeleteProject } from '../../core/roles';
 import {
@@ -848,7 +848,7 @@ export function mapProject(item: ProjectItem): Project {
     customerName: item.Customer?.Title,
     projectManagerName: item.ProjectManager?.Title,
     projectManagerLogin: item.ProjectManager?.Name,
-    status: (item.ProjectStatus as ProjectStatus) ?? ProjectStatus.Nabidka,
+    status: mapStatus(item.ProjectStatus),
     projectType: item.ProjectType,
     location: item.Location,
     latitude: item.Latitude ?? undefined,
@@ -865,6 +865,14 @@ export function mapProject(item: ProjectItem): Project {
     budgetBaselineTotal: item.BudgetBaselineTotal,
     costForecastTotal: item.CostForecastTotal
   };
+}
+
+/** Stav z uložené hodnoty. Zrušené „Uzavřeno" se čte jako „Dokončeno"; prázdná hodnota jako Nabídka. */
+export function mapStatus(value: string | undefined): ProjectStatus {
+  if (value === LEGACY_STATUS_UZAVRENO) {
+    return ProjectStatus.Dokonceno;
+  }
+  return (value as ProjectStatus) ?? ProjectStatus.Nabidka;
 }
 
 /** Rok ze zaimportovaného čísla `26001` → 2026. Když se nedá přečíst, dnešek. */

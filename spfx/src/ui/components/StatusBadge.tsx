@@ -10,7 +10,8 @@ import { Icon } from '@fluentui/react/lib/Icon';
 import { TooltipHost } from '@fluentui/react/lib/Tooltip';
 import { BudgetStatus, ProjectStatus } from '../../core/types';
 import { formatMoney, formatPercent } from '../../core/format';
-import { RES, SEMAFOR } from '../theme';
+import { SEMAFOR } from '../theme';
+import { statusStyle } from '../../core/geo';
 
 export interface BudgetBadgeProps {
   status: BudgetStatus;
@@ -67,28 +68,21 @@ export function buildBudgetTooltip(
   );
 }
 
-/** Barvy štítků stavu projektu. Jen odstíny palety RES, nic křiklavého. */
-const STATUS_STYLE: Record<string, { color: string; background: string }> = {
-  [ProjectStatus.Nabidka]: { color: RES.navy, background: '#EAF0F5' },
-  [ProjectStatus.Priprava]: { color: RES.blueMid, background: '#E4F0F8' },
-  [ProjectStatus.Realizace]: { color: RES.blue, background: RES.bluePale },
-  [ProjectStatus.Pozastaveno]: { color: RES.amber, background: '#FDF3DC' },
-  [ProjectStatus.Dokonceno]: { color: RES.greenDark, background: '#E7F6EE' },
-  [ProjectStatus.Uzavreno]: { color: RES.gray, background: '#F1F3F5' },
-  [ProjectStatus.Storno]: { color: RES.red, background: '#FBE8EB' }
-};
+/** Barvy štítků stavu projektu — stejná paleta jako špendlíky na mapě (viz `STATUS_STYLE` v core/geo). */
 
 /** Štítek stavu projektu. */
 export const StatusBadge: React.FC<{ status: ProjectStatus }> = ({ status }) => {
-  const style = STATUS_STYLE[status] ?? { color: RES.gray, background: '#F1F3F5' };
+  const palette = statusStyle(status);
+  const style = { color: palette.text, background: palette.fill, border: palette.stroke };
   return (
     <span
       style={{
         display: 'inline-block',
-        padding: '2px 10px',
+        padding: '1px 10px',
         borderRadius: 12,
         background: style.background,
         color: style.color,
+        border: `1px solid ${style.border}`,
         fontWeight: 600,
         fontSize: 12,
         whiteSpace: 'nowrap'

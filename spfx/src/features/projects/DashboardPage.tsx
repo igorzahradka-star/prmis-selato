@@ -274,7 +274,7 @@ function withSorting(
 
 /** Sloupce tabulky podle zadání, kap. 8.1. */
 function buildColumns(): IColumn[] {
-  return [
+  const columns: IColumn[] = [
     {
       key: 'number',
       name: 'Číslo',
@@ -378,6 +378,9 @@ function buildColumns(): IColumn[] {
       onRender: (p: Project) => <StatusBadge status={p.status} />
     }
   ];
+  // Stav je první sloupec — hned je vidět, co běží, co se připravuje a co je dokončené.
+  const status = columns[columns.length - 1];
+  return [status, ...columns.slice(0, columns.length - 1)];
 }
 
 /**

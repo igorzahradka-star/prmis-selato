@@ -29,7 +29,7 @@ export interface ValidationIssue {
 }
 
 /** Stavy, ve kterých projekt patří mezi ukončené — tam se čeká skutečné ukončení. */
-const FINISHED_STATUSES: ProjectStatus[] = [ProjectStatus.Dokonceno, ProjectStatus.Uzavreno];
+const FINISHED_STATUSES: ProjectStatus[] = [ProjectStatus.Dokonceno];
 
 /**
  * Zkontroluje úpravu projektu. Vrací seznam výtek — prázdný seznam znamená,

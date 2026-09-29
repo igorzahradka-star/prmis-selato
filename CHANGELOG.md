@@ -5,6 +5,25 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.4.0 — 30. 9. 2026 — Stavy projektů a barvy na mapě
+
+**Změněno**
+
+- **Stav „Uzavřeno" je zrušený** (byl nadbytečný vedle „Dokončeno"). Projekty, které ho
+  mají uložené, se berou jako dokončené; ve SharePointu se nic nepřepisuje.
+- **Nový stav „Reklamace"** (červený, mezi Dokončeno a Storno). Projekt v reklamaci se
+  zatím nepočítá mezi aktivní v přehledových dlaždicích.
+- **Špendlíky na mapě mají barvu podle stavu projektu**, ne podle typu: Nabídka bílá,
+  Příprava nazelenalá, Realizace sytě zelená, Pozastaveno žlutá, Dokončeno tmavě zelená,
+  Reklamace a Storno červená. Stejnou paletu mají štítky stavu v seznamu projektů.
+- **Legenda v rohu mapy** ukazuje všechny stavy s počty; kliknutím se stav skryje nebo
+  znovu zobrazí. Typ projektu zůstává v bublině po najetí, přibyl v ní řádek Stav.
+- **Seznam projektů: Stav je první sloupec.**
+- **Schéma dat 5:** instalační průvodce umí do stávajících sloupců typu Volba **doplnit
+  nové volby** (nic neubere, nic nepřepíše) — tak se do sloupce Stav doplní „Reklamace".
+
+---
+
 ## 0.3.1 — 29. 9. 2026 — Srozumitelná hláška, když web nemá doplněné schéma
 
 **Opraveno**

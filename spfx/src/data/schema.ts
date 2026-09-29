@@ -18,7 +18,7 @@
  * Verze schématu. Ukládá se do PRM_Settings pod klíčem `schemaVersion`.
  * Průvodce porovná uloženou verzi s touto a nabídne doplnění rozdílu.
  */
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 /** Typ sloupce v SharePointu. */
 export type FieldType =
@@ -87,7 +87,7 @@ export const PROJECT_STATUS_CHOICES = [
   'Realizace',
   'Pozastaveno',
   'Dokončeno',
-  'Uzavřeno',
+  'Reklamace',
   'Storno'
 ];
 

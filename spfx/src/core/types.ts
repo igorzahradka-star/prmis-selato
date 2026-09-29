@@ -58,9 +58,16 @@ export enum ProjectStatus {
   Realizace = 'Realizace',
   Pozastaveno = 'Pozastaveno',
   Dokonceno = 'Dokončeno',
-  Uzavreno = 'Uzavřeno',
+  /** Reklamace už dokončeného projektu. */
+  Reklamace = 'Reklamace',
   Storno = 'Storno'
 }
+
+/**
+ * Stav „Uzavřeno" se zrušil (byl nadbytečný vedle „Dokončeno"). Projekty, které ho
+ * ještě mají uložené, se berou jako dokončené.
+ */
+export const LEGACY_STATUS_UZAVRENO = 'Uzavřeno';
 
 /** Stavy, které se počítají jako „aktivní projekt" na dashboardu. */
 export const ACTIVE_PROJECT_STATUSES: ProjectStatus[] = [

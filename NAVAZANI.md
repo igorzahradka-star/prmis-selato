@@ -113,7 +113,14 @@ balíček 0.2.4.0). Nasazení odhalilo čtyři chyby, které se lokálně nedaly
 hledání lidí (HTTP 400), skupiny rolí bez oprávnění, knihovna „Dokumenty" se
 nenašla podle zobrazeného názvu, oříznuté záložky. Všechny opravené.
 
-**Balíček 0.3.0.0 je hotový, ale zatím nenahraný** (vytvořen 29. 9. 2026 večer).
+**Aktuální balíček je 0.4.0.0** (30. 9. 2026; na ostrém webu běží 0.3.x). Přidává stavy projektů
+(Uzavřeno zrušeno, nově Reklamace), barvy špendlíků podle stavu, legendu mapy. **Po nahrání znovu
+spustit Instalace a diagnostika** — doplní volbu „Reklamace" do sloupce Stav (schéma 5). Pokud
+by automatické doplnění selhalo, přidat volbu ručně: nastavení seznamu PRM – Projekty → sloupec Stav
+→ Volby. Bez toho nejde uložit projekt ve stavu Reklamace.
+
+Starší poznámka k balíčku 0.3.0.0 (obsah je součástí všech novějších):
+Balíček 0.3.0.0 byl hotový (vytvořen 29. 9. 2026 večer).
 Přináší také: mapu projektů (Leaflet + OpenStreetMap, hledání míst Nominatim), výběr lokality
 z mapy, řazení seznamu, opravu editoru typů projektů a výběru zákazníka; schéma je nyní 4
 (sloupce Země u partnerů, šířka a délka u projektů; aplikace bez doplnění schématu nespadne).

@@ -209,7 +209,7 @@ const PickerMap: React.FC<{
     }
     const point: [number, number] = [latitude as number, longitude as number];
     if (!markerRef.current) {
-      const marker = L.marker(point, { icon: pinIcon(L, RES.blue), draggable: true });
+      const marker = L.marker(point, { icon: pinIcon(L, RES.blue, '#ffffff', '#ffffff'), draggable: true });
       marker.on('dragend', () => {
         const p = marker.getLatLng();
         onPickRef.current(p.lat, p.lng);

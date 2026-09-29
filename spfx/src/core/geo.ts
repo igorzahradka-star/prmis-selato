@@ -5,7 +5,7 @@
  * Mapa samotná (Leaflet) je jen kreslení; co se na ní má ukázat, se rozhoduje tady.
  */
 
-import { BudgetStatus, Project } from './types';
+import { BudgetStatus, Project, ProjectStatus } from './types';
 import { dueLabel, daysBetween } from './format';
 
 /** Souřadnice ve stupních (WGS 84) — tak je vrací mapy i vyhledávání míst. */
@@ -43,59 +43,67 @@ export function splitByLocation(projects: Project[]): { located: Project[]; miss
   return { located, missing };
 }
 
-// --- barvy podle typu projektu --------------------------------------------
+// --- barvy podle stavu projektu --------------------------------------------
 
-/**
- * Barva špendlíku podle typu projektu. Barvy jsou vzájemně dobře rozlišitelné
- * (i pro slabší vnímání barev) a nekřiklavé. Neznámý typ dostane šedou.
- */
-export const PROJECT_TYPE_COLORS: Record<string, string> = {
-  FVE: '#F2A900',
-  BESS: '#1E88E5',
-  MVE: '#00ACC1',
-  'Vítr': '#7CB342',
-  Kogenerace: '#E53935',
-  'Připojení DS': '#8E24AA',
-  Servis: '#6D4C41',
-  'Režie': '#90A4AE',
-  'Jiné': '#607D8B'
-};
-
-const UNKNOWN_TYPE_COLOR = '#78909C';
-
-/** Barva pro typ; projekt bez typu i neznámý typ mají šedou. */
-export function projectTypeColor(projectType: string | undefined): string {
-  return (projectType && PROJECT_TYPE_COLORS[projectType]) || UNKNOWN_TYPE_COLOR;
+/** Vzhled stavu: výplň špendlíku/štítku, jeho obrys a barva textu na výplni. */
+export interface StatusStyle {
+  fill: string;
+  stroke: string;
+  text: string;
 }
 
-/** Popisek typu — projekt bez typu se v legendě nesmí ztratit. */
+/**
+ * Barvy stavů projektu — jedna paleta pro špendlíky na mapě i štítky v seznamu.
+ * Nabídka je bílá (jen s obrysem), Příprava nazelenalá, Realizace sytě zelená,
+ * Pozastaveno žlutá, Dokončeno tmavě zelená, Reklamace a Storno červené.
+ */
+export const STATUS_STYLE: Record<ProjectStatus, StatusStyle> = {
+  [ProjectStatus.Nabidka]: { fill: '#FFFFFF', stroke: '#6B7785', text: '#3F4A57' },
+  [ProjectStatus.Priprava]: { fill: '#CBE9BA', stroke: '#7FB56A', text: '#2E5B1E' },
+  [ProjectStatus.Realizace]: { fill: '#2FBF4A', stroke: '#1F8F36', text: '#0B3D14' },
+  [ProjectStatus.Pozastaveno]: { fill: '#F7C948', stroke: '#C99A14', text: '#5A4300' },
+  [ProjectStatus.Dokonceno]: { fill: '#1B5E3A', stroke: '#0F3F26', text: '#FFFFFF' },
+  [ProjectStatus.Reklamace]: { fill: '#E24B4B', stroke: '#A32D2D', text: '#FFFFFF' },
+  [ProjectStatus.Storno]: { fill: '#B3261E', stroke: '#7A1712', text: '#FFFFFF' }
+};
+
+const UNKNOWN_STATUS_STYLE: StatusStyle = { fill: '#CFD6DD', stroke: '#78909C', text: '#3F4A57' };
+
+/** Vzhled stavu; neznámá hodnota (např. ručně přidaná ve SharePointu) dostane šedou. */
+export function statusStyle(status: string | undefined): StatusStyle {
+  return STATUS_STYLE[status as ProjectStatus] || UNKNOWN_STATUS_STYLE;
+}
+
+/** Stavy v pořadí životního cyklu projektu — tak se ukazují v legendě. */
+export const STATUS_ORDER: ProjectStatus[] = [
+  ProjectStatus.Nabidka,
+  ProjectStatus.Priprava,
+  ProjectStatus.Realizace,
+  ProjectStatus.Pozastaveno,
+  ProjectStatus.Dokonceno,
+  ProjectStatus.Reklamace,
+  ProjectStatus.Storno
+];
+
+/** Popisek typu — projekt bez typu se nesmí ztratit. */
 export function projectTypeLabel(projectType: string | undefined): string {
   return projectType && projectType.trim() ? projectType : 'Bez typu';
 }
 
-/** Jeden řádek legendy: typ, jeho barva a kolik projektů na mapě je. */
+/** Jeden řádek legendy: stav, jeho barvy a kolik projektů na mapě v něm je. */
 export interface LegendEntry {
-  type: string;
-  label: string;
-  color: string;
+  status: ProjectStatus;
+  style: StatusStyle;
   count: number;
 }
 
-/** Legenda jen z typů, které na mapě opravdu jsou; nejčetnější první, při shodě abecedně. */
+/** Legenda se všemi stavy v pořadí cyklu (i s nulou) — je pořád stejná a nemění se pod rukama. */
 export function buildLegend(projects: Project[]): LegendEntry[] {
-  const counts: Record<string, number> = {};
-  projects.forEach((p) => {
-    const key = p.projectType && p.projectType.trim() ? p.projectType : '';
-    counts[key] = (counts[key] || 0) + 1;
-  });
-  return Object.keys(counts)
-    .map((type) => ({
-      type,
-      label: projectTypeLabel(type),
-      color: projectTypeColor(type),
-      count: counts[type]
-    }))
-    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, 'cs-CZ'));
+  return STATUS_ORDER.map((status) => ({
+    status,
+    style: STATUS_STYLE[status],
+    count: projects.filter((p) => p.status === status).length
+  }));
 }
 
 // --- semafor termínů -------------------------------------------------------
@@ -141,7 +149,8 @@ export interface PinInfo {
   projectNumber: string;
   name: string;
   typeLabel: string;
-  typeColor: string;
+  status: string;
+  statusStyle: StatusStyle;
   budgetLabel: string;
   budgetSignal: Signal;
   deadlineLabel: string;
@@ -161,7 +170,8 @@ export function buildPinInfo(p: Project, today: Date = new Date()): PinInfo {
     projectNumber: p.projectNumber,
     name: nameWithoutNumber(p),
     typeLabel: projectTypeLabel(p.projectType),
-    typeColor: projectTypeColor(p.projectType),
+    status: p.status,
+    statusStyle: statusStyle(p.status),
     budgetLabel: p.budgetStatus || BudgetStatus.Bez,
     budgetSignal: budgetSignal(p.budgetStatus),
     deadlineLabel: p.nextDeadline ? dueLabel(p.nextDeadline, today) : 'bez termínu',
@@ -206,10 +216,11 @@ export function pinTooltipHtml(info: PinInfo): string {
     `<div style="min-width:230px;font-size:12px;line-height:1.4;color:#1B1F2A">` +
     `<div style="font-size:13px;font-weight:600">${escapeHtml(info.projectNumber)} · ${escapeHtml(info.name)}</div>` +
     row(
-      'Typ',
-      `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;` +
-        `background:${info.typeColor};margin-right:6px;vertical-align:middle"></span>${escapeHtml(info.typeLabel)}`
+      'Stav',
+      `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${info.statusStyle.fill};` +
+        `border:1px solid ${info.statusStyle.stroke};margin-right:6px;vertical-align:middle"></span>${escapeHtml(info.status)}`
     ) +
+    row('Typ', escapeHtml(info.typeLabel)) +
     row(
       'Rozpočet',
       `${signalDot(info.budgetSignal)}${escapeHtml(info.budgetLabel)}`

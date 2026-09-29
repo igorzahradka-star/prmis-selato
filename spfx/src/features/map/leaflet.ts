@@ -56,13 +56,13 @@ export function loadLeaflet(): Promise<LeafletLib> {
   return loading;
 }
 
-/** Ikona špendlíku v dané barvě. */
-export function pinIcon(L: LeafletLib, color: string): LeafletTypes.DivIcon {
+/** Ikona špendlíku: výplň, obrys a barva tečky uprostřed (světlé špendlíky potřebují tmavý obrys i tečku). */
+export function pinIcon(L: LeafletLib, fill: string, stroke: string, dot: string): LeafletTypes.DivIcon {
   const svg =
     `<svg width="28" height="38" viewBox="0 0 28 38" xmlns="http://www.w3.org/2000/svg">` +
     `<path d="M14 1C6.8 1 1 6.8 1 13.9 1 23.6 14 37 14 37s13-13.4 13-23.1C27 6.8 21.2 1 14 1z" ` +
-    `fill="${color}" stroke="#ffffff" stroke-width="2"/>` +
-    `<circle cx="14" cy="14" r="4.5" fill="#ffffff"/></svg>`;
+    `fill="${fill}" stroke="${stroke}" stroke-width="1.6"/>` +
+    `<circle cx="14" cy="14" r="4.5" fill="${dot}"/></svg>`;
   return L.divIcon({
     className: 'prm-pin',
     html: svg,
