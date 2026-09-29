@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- Ikona PRM Revoltum: navy dlaždice a zelený blesk z loga RES. Barvy podle brand/BARVY.md. -->
+  <defs>
+    <linearGradient id="pozadi" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#153D64"/>
+      <stop offset="1" stop-color="#0E2841"/>
+    </linearGradient>
+    <linearGradient id="blesk" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2BE08A"/>
+      <stop offset="1" stop-color="#00A857"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="52" fill="url(#pozadi)"/>
+  <circle cx="128" cy="128" r="92" fill="#0268A6" opacity="0.28"/>
+  <path d="M150 28 L74 142 L120 142 L102 228 L184 108 L136 108 Z" fill="url(#blesk)" stroke="#E9FFF4" stroke-width="4" stroke-linejoin="round"/>
+</svg>

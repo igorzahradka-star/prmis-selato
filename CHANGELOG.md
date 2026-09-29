@@ -5,6 +5,17 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.5.1 — 30. 9. 2026 — Ikona aplikace
+
+**Nové**
+
+- **Ikona PRM Revoltum** (navy dlaždice se zeleným bleskem z loga RES). Ikonu má balíček
+  aplikace (Obsah webu, katalog aplikací) i web part v nabídce při úpravě stránky.
+  Zdrojové soubory jsou v `brand/ikona/` (SVG a PNG 40, 96, 192 a 512 px), např. pro
+  dlaždici na úvodní stránce webu.
+
+---
+
 ## 0.5.0 — 30. 9. 2026 — Stav v seznamu, hromádky na mapě, pořadí sloupců
 
 **Nové**
