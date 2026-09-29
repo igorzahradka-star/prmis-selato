@@ -86,12 +86,21 @@ export const UsersPage: React.FC = () => {
     setInfo(undefined);
     repos.userAdmin
       .ensureRoleGroups(settings.roles)
-      .then((vytvorene) => {
+      .then((r) => {
         setBusy(false);
+        const casti: string[] = [];
+        if (r.created.length > 0) {
+          casti.push(`Založeno: ${r.created.join(', ')}.`);
+        }
+        if (r.granted.length > 0) {
+          casti.push(
+            `Oprávnění na webu: ${r.granted.map((g) => `${g.groupName} → ${g.level}`).join(', ')}.`
+          );
+        }
         setInfo(
-          vytvorene.length === 0
-            ? 'Všechny skupiny už existovaly, nic se nezakládalo.'
-            : `Založeno: ${vytvorene.join(', ')}. Nové skupiny mají zatím jen právo Číst — oprávnění se upravují v Nastavení webu.`
+          casti.length === 0
+            ? 'Všechny skupiny už existovaly a mají oprávnění, nic se nemění.'
+            : `${casti.join(' ')} Oprávnění půjde kdykoli upravit v Nastavení webu.`
         );
         refresh();
       })

@@ -42,11 +42,23 @@ export interface IUserAdminRepository {
   /** Odebere člověka ze skupiny role. */
   removeFromRole(groupName: string, userId: number): Promise<void>;
   /**
-   * Založí skupiny, které podle Nastavení mají existovat a chybí.
-   * Je idempotentní — existující skupiny nechá být, nic nemaže.
-   * Vrátí názvy skupin, které skutečně vznikly.
+   * Založí skupiny, které podle Nastavení mají existovat a chybí, a skupinám
+   * **bez jakéhokoli oprávnění na webu** přidělí výchozí úroveň (viz
+   * `ROLE_PERMISSION_LEVEL`). Bez oprávnění se skupina na webu vůbec
+   * neobjeví a člen role by aplikaci neotevřel.
+   *
+   * Je idempotentní a **nikdy nic neodebírá ani nepřepisuje**: skupině, která
+   * už nějaké oprávnění má, ho nechá být — mohl ho nastavit správce ručně.
    */
-  ensureRoleGroups(mapping: RoleGroupMapping): Promise<string[]>;
+  ensureRoleGroups(mapping: RoleGroupMapping): Promise<EnsureGroupsResult>;
+}
+
+/** Co `ensureRoleGroups` udělal. */
+export interface EnsureGroupsResult {
+  /** Názvy skupin, které nově vznikly. */
+  created: string[];
+  /** Skupiny, kterým se přidělilo oprávnění na webu (nové i dřív založené bez něj). */
+  granted: { groupName: string; level: string }[];
 }
 
 /** Nastavení aplikace. */

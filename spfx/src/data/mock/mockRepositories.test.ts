@@ -1,5 +1,6 @@
 import {
   MockNumberingRepository,
+  MockUserAdminRepository,
   MockProjectRepository,
   applyPartnerFilter,
   assertNotOverheadNumber,
@@ -299,5 +300,40 @@ describe('Režie a číselná řada projektů', () => {
   it('číslo vyhrazené Režii se nesmí přidělit zakázce', () => {
     expect(() => assertNotOverheadNumber('26999')).toThrow(/vyhrazené projektu Režie/);
     expect(() => assertNotOverheadNumber('26007')).not.toThrow();
+  });
+});
+
+describe('MockUserAdminRepository.ensureRoleGroups', () => {
+  const mapping = {
+    Administrator: 'PRM Administrátoři',
+    Vedeni: 'PRM Vedení',
+    Finance: 'PRM Finance – důvěrné',
+    ProjektovyManazer: 'PRM Projektoví manažeři',
+    AsistentPM: 'PRM Asistenti',
+    Ctenar: 'PRM Čtenáři'
+  };
+
+  it('poprvé přidělí oprávnění všem šesti skupinám', async () => {
+    const r = new MockUserAdminRepository();
+    const vysledek = await r.ensureRoleGroups(mapping as never);
+    expect(vysledek.granted.length).toBe(6);
+  });
+
+  it('podruhé už nic nepřiděluje — je idempotentní', async () => {
+    const r = new MockUserAdminRepository();
+    await r.ensureRoleGroups(mapping as never);
+    const druhy = await r.ensureRoleGroups(mapping as never);
+    expect(druhy.created).toEqual([]);
+    expect(druhy.granted).toEqual([]);
+  });
+
+  it('administrátorům přidělí Úplné řízení a čtenářům Čtení', async () => {
+    const r = new MockUserAdminRepository();
+    const v = await r.ensureRoleGroups(mapping as never);
+    const uroven = (nazev: string): string | undefined =>
+      v.granted.filter((g) => g.groupName === nazev)[0]?.level;
+    expect(uroven('PRM Administrátoři')).toBe('Úplné řízení');
+    expect(uroven('PRM Projektoví manažeři')).toBe('Úpravy');
+    expect(uroven('PRM Čtenáři')).toBe('Čtení');
   });
 });

@@ -7,6 +7,8 @@ import {
   normalizeLoginKey,
   ROLE_ORDER,
   ROLE_PURPOSE,
+  ROLE_PERMISSION_LEVEL,
+  PERMISSION_LEVEL_LABEL,
   Person,
   RoleMembership
 } from './userAdmin';
@@ -208,5 +210,41 @@ describe('ROLE_PURPOSE', () => {
     ROLE_ORDER.forEach((role) => {
       expect(ROLE_PURPOSE[role].length).toBeGreaterThan(20);
     });
+  });
+});
+
+describe('ROLE_PERMISSION_LEVEL', () => {
+  it('každá role má přidělenou úroveň oprávnění', () => {
+    ROLE_ORDER.forEach((role) => {
+      expect(ROLE_PERMISSION_LEVEL[role]).toBeDefined();
+    });
+  });
+
+  it('jen administrátor má úplné řízení', () => {
+    const uplne = ROLE_ORDER.filter((r) => ROLE_PERMISSION_LEVEL[r] === 'Administrator');
+    expect(uplne).toEqual([Role.Administrator]);
+  });
+
+  it('kdo projekty zakládá nebo schvaluje, má právo zápisu', () => {
+    [Role.ProjektovyManazer, Role.AsistentPM, Role.Vedeni].forEach((r) => {
+      expect(ROLE_PERMISSION_LEVEL[r]).toBe('Editor');
+    });
+  });
+
+  it('Finance a Čtenáři jen čtou — důvěrná data jsou na jiném webu', () => {
+    expect(ROLE_PERMISSION_LEVEL[Role.Finance]).toBe('Reader');
+    expect(ROLE_PERMISSION_LEVEL[Role.Ctenar]).toBe('Reader');
+  });
+
+  it('žádná role nedostane víc než úplné řízení ani nic mimo tři známé úrovně', () => {
+    ROLE_ORDER.forEach((r) => {
+      expect(['Administrator', 'Editor', 'Reader']).toContain(ROLE_PERMISSION_LEVEL[r]);
+    });
+  });
+
+  it('každá úroveň má český popisek', () => {
+    expect(PERMISSION_LEVEL_LABEL.Administrator).toBe('Úplné řízení');
+    expect(PERMISSION_LEVEL_LABEL.Editor).toBe('Úpravy');
+    expect(PERMISSION_LEVEL_LABEL.Reader).toBe('Čtení');
   });
 });

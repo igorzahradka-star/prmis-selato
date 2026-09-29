@@ -168,6 +168,35 @@ export function sortMemberships(memberships: RoleMembership[]): RoleMembership[]
   });
 }
 
+/**
+ * Jakou úroveň oprávnění na webu má skupina dané role.
+ *
+ * Jde o **výchozí** hodnoty, se kterými se skupina zakládá. Názvy úrovní jsou
+ * v SharePointu lokalizované (česky "Úpravy", "Čtení"), proto se tu používají
+ * jazykově nezávislé typy: `Administrator` = Úplné řízení, `Editor` = Úpravy,
+ * `Reader` = Čtení.
+ *
+ * Finance a Čtenáři jen čtou: důvěrná data Finance leží na samostatném webu
+ * s vlastními oprávněními a role na tomhle webu jim k nim nedá přístup.
+ */
+export type PermissionLevel = 'Administrator' | 'Editor' | 'Reader';
+
+export const ROLE_PERMISSION_LEVEL: Record<Role, PermissionLevel> = {
+  [Role.Administrator]: 'Administrator',
+  [Role.Vedeni]: 'Editor',
+  [Role.Finance]: 'Reader',
+  [Role.ProjektovyManazer]: 'Editor',
+  [Role.AsistentPM]: 'Editor',
+  [Role.Ctenar]: 'Reader'
+};
+
+/** Česky pro hlášky v UI. */
+export const PERMISSION_LEVEL_LABEL: Record<PermissionLevel, string> = {
+  Administrator: 'Úplné řízení',
+  Editor: 'Úpravy',
+  Reader: 'Čtení'
+};
+
 /** Skupiny, které mají podle Nastavení existovat — vstup pro jejich založení. */
 export function expectedGroupNames(mapping: RoleGroupMapping): string[] {
   return ROLE_ORDER.map((role) => mapping[role]).filter((name) => !!name && name.trim() !== '');

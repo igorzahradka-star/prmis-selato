@@ -15,7 +15,8 @@ import {
   Person,
   RoleMembership,
   ROLE_ORDER,
-  expectedGroupNames,
+  ROLE_PERMISSION_LEVEL,
+  PERMISSION_LEVEL_LABEL,
   normalizeLoginKey
 } from '../../core/userAdmin';
 import { renderDocumentNumber, nextSequence, counterScopeKey, CounterState } from '../../core/numbering';
@@ -40,6 +41,7 @@ import {
   ISettingsRepository,
   IUserRepository,
   IUserAdminRepository,
+  EnsureGroupsResult,
   PartnerFilter,
   ProjectFilter,
   NewProjectInput,
@@ -85,6 +87,8 @@ class MockUserRepository implements IUserRepository {
  */
 export class MockUserAdminRepository implements IUserAdminRepository {
   private groups = new Map<string, Person[]>();
+  /** Skupiny, které už mají na webu nějaké oprávnění. */
+  private permissioned = new Set<string>();
   private nextId = 100;
 
   public constructor(mapping: RoleGroupMapping = DEFAULT_SETTINGS.roles) {
@@ -149,15 +153,24 @@ export class MockUserAdminRepository implements IUserAdminRepository {
     return delay(undefined);
   }
 
-  public ensureRoleGroups(mapping: RoleGroupMapping): Promise<string[]> {
-    const vytvorene: string[] = [];
-    expectedGroupNames(mapping).forEach((name) => {
+  public ensureRoleGroups(mapping: RoleGroupMapping): Promise<EnsureGroupsResult> {
+    const created: string[] = [];
+    const granted: { groupName: string; level: string }[] = [];
+    ROLE_ORDER.forEach((role) => {
+      const name = mapping[role];
+      if (!name || !name.trim()) {
+        return;
+      }
       if (!this.groups.has(name)) {
         this.groups.set(name, []);
-        vytvorene.push(name);
+        created.push(name);
+      }
+      if (!this.permissioned.has(name)) {
+        this.permissioned.add(name);
+        granted.push({ groupName: name, level: PERMISSION_LEVEL_LABEL[ROLE_PERMISSION_LEVEL[role]] });
       }
     });
-    return delay(vytvorene);
+    return delay({ created, granted });
   }
 
   /** Jen pro testy: smaže skupinu, aby šlo vyzkoušet chování při chybějící skupině. */

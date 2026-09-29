@@ -5,13 +5,21 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
-## 0.2.1 — 29. 9. 2026 — Oprava po prvním nasazení
+## 0.2.2 — 29. 9. 2026 — Oprava po prvním nasazení
 
 První verze nasazená na ostrý SharePoint. Instalace datové struktury proběhla
 napoprvé, hledání lidí ne.
 
 **Opraveno**
 
+- **Skupiny rolí vznikly bez jakéhokoli oprávnění na webu.** Na stránce
+  *Oprávnění webu* se proto neobjevily a člen role by aplikaci neotevřel.
+  Hláška v aplikaci přitom tvrdila, že mají právo Číst — nemaly žádné.
+  „Založit chybějící skupiny" teď skupinám bez oprávnění přidělí výchozí úroveň
+  (administrátoři Úplné řízení, PM/asistenti/vedení Úpravy, finance a čtenáři
+  Čtení). **Skupině, která už oprávnění má, nesahá.** Úrovně se hledají podle
+  jazykově nezávislého typu, ne podle českého názvu. Šest už založených
+  skupin se opraví dalším kliknutím.
 - **Hledání lidí při přiřazování rolí končilo HTTP 400.** Tři chyby najednou
   v požadavku na `ClientPeoplePickerSearchUser`:
   - posílalo se `__metadata` ze starého formátu `odata=verbose`, který se tluče

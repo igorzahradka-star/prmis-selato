@@ -13,10 +13,27 @@
 import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { SPHttpClient } from '@microsoft/sp-http';
 import { RoleGroupMapping } from '../../core/roles';
-import { Person, RoleMembership, ROLE_ORDER } from '../../core/userAdmin';
-import { IUserAdminRepository } from '../repositories';
+import {
+  Person,
+  RoleMembership,
+  ROLE_ORDER,
+  ROLE_PERMISSION_LEVEL,
+  PERMISSION_LEVEL_LABEL,
+  PermissionLevel
+} from '../../core/userAdmin';
+import { IUserAdminRepository, EnsureGroupsResult } from '../repositories';
 import { getSp, describeSpError, extractStatus } from './spContext';
 import { peoplePickerQuery, parsePeoplePickerResults } from './peoplePicker';
+
+/**
+ * Typy úrovní oprávnění v SharePointu (`SP.RoleType`). Používají se místo
+ * českých názvů ("Úpravy", "Čtení"), které se liší podle jazyka webu.
+ */
+const ROLE_TYPE_KIND: Record<PermissionLevel, 2 | 5 | 6> = {
+  Reader: 2,
+  Editor: 6,
+  Administrator: 5
+};
 
 interface SiteUserItem {
   Id: number;
@@ -127,47 +144,85 @@ export class SpUserAdminRepository implements IUserAdminRepository {
   }
 
   /**
-   * Založí chybějící skupiny. Nikdy nic nemaže ani nepřejmenovává —
-   * stejné pravidlo jako u instalace seznamů (CLAUDE.md, kap. 4).
+   * Založí chybějící skupiny a skupinám bez oprávnění přidělí výchozí úroveň.
    *
-   * Nové skupiny dostanou oprávnění **Číst**. Víc jim dávat automaticky
-   * by znamenalo rozdat práva, o kterých správce neví; upravit se dají
-   * v SharePointu.
+   * **Nikdy nic nemaže, nepřejmenovává ani nepřepisuje** — stejné pravidlo jako
+   * u instalace seznamů (CLAUDE.md, kap. 4). Skupina, která už na webu má
+   * jakékoli oprávnění, se nechá být: mohl ho nastavit správce ručně.
+   *
+   * Bez oprávnění se skupina na webu vůbec neobjeví a její členové aplikaci
+   * neotevřou. Úrovně jsou ve `ROLE_PERMISSION_LEVEL`; hledají se podle
+   * jazykově nezávislého typu (`RoleTypeKind`), ne podle českého názvu.
    */
-  public async ensureRoleGroups(mapping: RoleGroupMapping): Promise<string[]> {
+  public async ensureRoleGroups(mapping: RoleGroupMapping): Promise<EnsureGroupsResult> {
     const sp = getSp(this.context);
-    const vytvorene: string[] = [];
+    const created: string[] = [];
+    const granted: { groupName: string; level: string }[] = [];
 
     for (const role of ROLE_ORDER) {
       const groupName = mapping[role];
       if (!groupName || !groupName.trim()) {
         continue;
       }
+
+      let groupId: number | undefined;
       try {
-        await sp.web.siteGroups.getByName(groupName).select('Id')();
-        continue; // skupina existuje, nech ji být
+        const g: { Id: number } = await sp.web.siteGroups.getByName(groupName).select('Id')();
+        groupId = g.Id;
       } catch (error) {
         if (extractStatus(error) !== 404) {
           throw new Error(describeSpError(error, `Nepodařilo se ověřit skupinu „${groupName}"`));
         }
       }
 
+      if (groupId === undefined) {
+        try {
+          const added: { Id: number } = await sp.web.siteGroups.add({
+            Title: groupName,
+            Description: `Role PRM Revoltum — ${groupName}. Spravuje se přes stránku Uživatelé a role.`,
+            AllowMembersEditMembership: false,
+            OnlyAllowMembersViewMembership: false
+          });
+          groupId = added.Id;
+          created.push(groupName);
+        } catch (error) {
+          throw new Error(
+            describeSpError(error, `Nepodařilo se založit skupinu „${groupName}". Zakládat skupiny smí jen vlastník webu`)
+          );
+        }
+      }
+
       try {
-        await sp.web.siteGroups.add({
-          Title: groupName,
-          Description: `Role PRM Revoltum — ${groupName}. Spravuje se přes stránku Uživatelé a role.`,
-          AllowMembersEditMembership: false,
-          OnlyAllowMembersViewMembership: false
-        });
-        vytvorene.push(groupName);
+        const existing = await sp.web.roleAssignments.getById(groupId).bindings();
+        if (existing.length === 0) {
+          const level = ROLE_PERMISSION_LEVEL[role];
+          const definition: { Id: number } = await sp.web.roleDefinitions.getByType(ROLE_TYPE_KIND[level])();
+          await sp.web.roleAssignments.add(groupId, definition.Id);
+          granted.push({ groupName, level: PERMISSION_LEVEL_LABEL[level] });
+        }
       } catch (error) {
-        throw new Error(
-          describeSpError(error, `Nepodařilo se založit skupinu „${groupName}". Zakládat skupiny smí jen vlastník webu`)
-        );
+        // getByPrincipalId vrací 404, když skupina zatím nemá žádné přiřazení —
+        // to je přesně ten případ, který chceme opravit, ne chyba.
+        if (extractStatus(error) === 404) {
+          const level = ROLE_PERMISSION_LEVEL[role];
+          try {
+            const definition: { Id: number } = await sp.web.roleDefinitions.getByType(ROLE_TYPE_KIND[level])();
+            await sp.web.roleAssignments.add(groupId, definition.Id);
+            granted.push({ groupName, level: PERMISSION_LEVEL_LABEL[level] });
+          } catch (inner) {
+            throw new Error(
+              describeSpError(inner, `Nepodařilo se přidělit oprávnění skupině „${groupName}". Přidělovat oprávnění smí jen vlastník webu`)
+            );
+          }
+        } else {
+          throw new Error(
+            describeSpError(error, `Nepodařilo se přidělit oprávnění skupině „${groupName}". Přidělovat oprávnění smí jen vlastník webu`)
+          );
+        }
       }
     }
 
-    return vytvorene;
+    return { created, granted };
   }
 }
 

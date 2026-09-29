@@ -107,33 +107,34 @@ Zakládá se jednou a pak už tam jen nahráváš nové verze.
 ### 8. Skupiny rolí a lidi
 
 - [ ] Vlevo **Uživatelé a role**
-- [ ] Vpravo nahoře **Založit chybějící skupiny** (vznikne šest skupin)
-- [ ] U každé role klikni **Přidat** a zadej jméno nebo e-mail (aspoň tři písmena)
-- [ ] **Administrátor PRM:** přidej aspoň ještě jednoho člověka kromě sebe
+- [ ] Vpravo nahoře **Založit chybějící skupiny**
+- [ ] Aplikace vypíše, co udělala. Očekávej tohle:
 
-### 8b. Zkontroluj, že role mají i práva zápisu ⚠️
+| Skupina | Oprávnění na webu |
+|---|---|
+| PRM Administrátoři | Úplné řízení |
+| PRM Projektoví manažeři | Úpravy |
+| PRM Asistenti | Úpravy |
+| PRM Vedení | Úpravy |
+| PRM Finance – důvěrné | Čtení |
+| PRM Čtenáři | Čtení |
 
-Nové skupiny vzniknou jen s právem **Číst**. Kdo je jen v nich a nikde jinde,
-aplikaci uvidí, ale **nic v ní neuloží** — projekt nezaloží, termín nepřidá.
+> **Oprávnění se přidělují samy.** Skupina bez oprávnění na webu vůbec
+> nefunguje — člen role by aplikaci neotevřel. Aplikace proto skupině bez
+> oprávnění přidělí výchozí úroveň z tabulky. **Skupině, která už nějaké
+> oprávnění má, nesahá** — mohl ho nastavit správce ručně.
+>
+> Kdyby ti něco z tabulky nevyhovovalo, upravíš to kdykoli v Nastavení webu
+> → *Oprávnění webu* → *Rozšířená nastavení oprávnění*.
 
-U členů týmového webu to problém není, ti mají *Upravovat* automaticky.
-Kdo je ale přidaný jen do role PRM, potřebuje práva doplnit:
+- [ ] Teď přidej lidi: u každé role klikni **Přidat**, zadej jméno nebo e-mail
+      (aspoň tři písmena) a vyber ze seznamu
+- [ ] **Administrátor PRM:** přidej sebe a aspoň jednoho dalšího člověka
 
-- [ ] Na webu RES: **ozubené kolo** → **Oprávnění webu**
-- [ ] → **Rozšířená nastavení oprávnění**
-- [ ] U skupin níže zaškrtni řádek → **Upravit oprávnění uživatele** → nastav úroveň:
-
-| Skupina | Úroveň oprávnění | Proč |
-|---|---|---|
-| PRM Administrátoři | **Úplné řízení** | spouští instalaci, zakládá seznamy a skupiny |
-| PRM Projektoví manažeři | **Upravovat** | zakládají a vedou projekty |
-| PRM Asistenti | **Upravovat** | vystavují objednávky, doplňují termíny |
-| PRM Vedení | **Upravovat** | schvalují — zápis do PRM_Approvals |
-| PRM Finance – důvěrné | Číst | jejich data jsou na webu PRM-Finance, tady jen čtou |
-| PRM Čtenáři | Číst | výchozí stav stačí |
-
-> **Jak si ověříš, že to sedí:** nech někoho z PM otevřít aplikaci a zkusit
-> **Nový projekt**. Když uložení projde, je to v pořádku.
+> **Když hledání lidí nic nenajde**, můžeš roli přidělit přímo v SharePointu.
+> Skupiny neuvidíš na stránce *Oprávnění webu*, ale tady:
+> `https://revoltum.sharepoint.com/sites/RevoltumEngineeringServices/_layouts/15/groups.aspx`
+> → klikni na skupinu → **Nové** → **Přidat uživatele**.
 
 ---
 
