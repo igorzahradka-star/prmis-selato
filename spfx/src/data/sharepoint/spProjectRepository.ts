@@ -177,6 +177,10 @@ export class SpProjectRepository implements IProjectRepository {
   }
 
   public async create(input: NewProjectInput): Promise<CreateProjectResult> {
+    // Kontrola je před přidělením čísla: kdyby zápis selhal až potom, číslo by zůstalo spotřebované.
+    if (input.latitude !== undefined && input.longitude !== undefined) {
+      await this.assertGeoColumns();
+    }
     // Číslo se řídí datem založení (dneškem), ne plánovaným zahájením — projekt
     // ve stavu Nabídka může vzniknout, ještě než je známé, kdy se začne realizovat.
     const projectNumber = await this.numbering.allocateNumber('PRJ');
@@ -273,6 +277,10 @@ export class SpProjectRepository implements IProjectRepository {
     const existing = await this.getByNumber(projectNumber);
     if (!existing) {
       throw new Error(`Projekt ${projectNumber} nebyl nalezen.`);
+    }
+
+    if (input.latitude !== undefined && input.longitude !== undefined) {
+      await this.assertGeoColumns();
     }
 
     const sp = getSp(this.context);
@@ -679,6 +687,29 @@ export class SpProjectRepository implements IProjectRepository {
   private async foldersSp(): Promise<SPFI> {
     const folders = (await this.settings.get()).folders;
     return folders.siteUrl ? getSpForSite(this.context, folders.siteUrl) : getSp(this.context);
+  }
+
+  /**
+   * Ověří, že seznam projektů má sloupce s polohou (schéma 4). Bez nich by SharePoint
+   * zápis odmítl chybou o neznámé vlastnosti, ze které by nikdo nepoznal, co dělat.
+   */
+  private async assertGeoColumns(): Promise<void> {
+    try {
+      const sp = getSp(this.context);
+      const list = sp.web.lists.getByTitle(PROJECTS_LIST);
+      for (const name of GEO_FIELDS) {
+        await list.fields.getByInternalNameOrTitle(name).select('Id')();
+      }
+    } catch (error) {
+      if (extractStatus(error) === 404) {
+        throw new Error(
+          'Polohu projektu zatím nejde uložit: seznam projektů na webu nemá sloupce pro polohu na mapě. ' +
+            'Otevřete Instalace a diagnostika a doplňte chybějící části (přidá jen sloupce, nic nesmaže). ' +
+            'Nic se neuložilo — po doplnění změnu zopakujte.'
+        );
+      }
+      throw new Error(describeSpError(error, 'Nepodařilo se ověřit sloupce pro polohu'));
+    }
   }
 
   public async retryCreateFolders(projectNumber: string): Promise<void> {

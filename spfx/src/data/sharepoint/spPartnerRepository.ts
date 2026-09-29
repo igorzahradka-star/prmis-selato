@@ -4,6 +4,7 @@
 
 import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { Partner, PartnerType } from '../../core/types';
+import { isDomestic } from '../../core/countries';
 import { IPartnerRepository, PartnerFilter } from '../repositories';
 import { getSp, describeSpError, extractStatus } from './spContext';
 
@@ -103,7 +104,9 @@ export class SpPartnerRepository implements IPartnerRepository {
   public async create(partner: Omit<Partner, 'id'>): Promise<Partner> {
     try {
       const sp = getSp(this.context);
-      const result = await sp.web.lists.getByTitle(PARTNERS_LIST).items.add(toPayload(partner));
+      const result = await writeWithCountryFallback(partner, (payload) =>
+        sp.web.lists.getByTitle(PARTNERS_LIST).items.add(payload)
+      );
       const newId = extractAddedId(result);
       const created = newId !== undefined ? await this.getById(newId) : undefined;
       return created ?? { ...partner, id: newId ?? 0 };
@@ -115,10 +118,40 @@ export class SpPartnerRepository implements IPartnerRepository {
   public async update(id: number, partner: Omit<Partner, 'id'>): Promise<void> {
     try {
       const sp = getSp(this.context);
-      await sp.web.lists.getByTitle(PARTNERS_LIST).items.getById(id).update(toPayload(partner));
+      await writeWithCountryFallback(partner, (payload) =>
+        sp.web.lists.getByTitle(PARTNERS_LIST).items.getById(id).update(payload)
+      );
     } catch (error) {
       throw new Error(describeSpError(error, `Nepodařilo se uložit partnera „${partner.name}"`));
     }
+  }
+}
+
+/**
+ * Zápis partnera. Sloupec Země přibyl ve schématu 3; než se schéma na webu doplní,
+ * SharePoint zápis se sloupcem odmítne. Český partner se pak uloží bez něj (prázdná země
+ * znamená Česko), zahraniční ne — zapsat ho bez země by z něj udělalo českou firmu.
+ */
+async function writeWithCountryFallback<T>(
+  partner: Omit<Partner, 'id'>,
+  run: (payload: Record<string, unknown>) => Promise<T>
+): Promise<T> {
+  const payload = toPayload(partner);
+  try {
+    return await run(payload);
+  } catch (error) {
+    if (extractStatus(error) !== 400) {
+      throw error;
+    }
+    if (!isDomestic(partner.country)) {
+      throw new Error(
+        'Zahraničního partnera zatím nejde uložit: seznam partnerů na webu nemá sloupec Země. ' +
+          'Otevřete Instalace a diagnostika a doplňte chybějící části (přidá jen sloupce, nic nesmaže).'
+      );
+    }
+    const withoutCountry = { ...payload };
+    delete withoutCountry.Country;
+    return run(withoutCountry);
   }
 }
 

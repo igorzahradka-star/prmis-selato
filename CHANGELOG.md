@@ -5,6 +5,18 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.3.1 — 29. 9. 2026 — Srozumitelná hláška, když web nemá doplněné schéma
+
+**Opraveno**
+
+- **Uložení polohy projektu na webu bez schématu 4 skončilo nesrozumitelnou chybou**
+  („property Latitude does not exist"). Po nahrání nového balíčku je nutné jednou
+  spustit Správa → Instalace a diagnostika. Aplikace teď před zápisem ověří, že
+  sloupce existují, a když ne, řekne co udělat; nic se neuloží a při zakládání
+  projektu se nespotřebuje číslo. Totéž platí pro zahraničního partnera a sloupec Země.
+
+---
+
 ## 0.3.0 — 29. 9. 2026 — Režie jen pro vybrané, zahraniční partneři, výběr PM
 
 **Nové**
