@@ -5,6 +5,25 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.5.0 — 30. 9. 2026 — Stav v seznamu, hromádky na mapě, pořadí sloupců
+
+**Nové**
+
+- **Stav projektu jde změnit přímo v seznamu** (rozbalovací štítek ve sloupci Stav),
+  bez otevření detailu. Mění se jen stav, ostatní údaje projektu zůstanou. Kdo projekt
+  upravovat nesmí, vidí obyčejný štítek. Při přepnutí na Dokončeno bez skutečného
+  ukončení se doplní dnešní datum a aplikace to řekne.
+- **Pořadí sloupců si každý nastaví sám** přetažením záhlaví. Pamatuje si ho prohlížeč,
+  zvlášť pro každého uživatele; odkaz „Obnovit výchozí pořadí" vrátí původní.
+  Výchozí pořadí: Číslo, Název, Projektový manažer, **Stav**, Rozpočet, Cena, Termín…
+- **Filtry, hledání a řazení seznamu se zapamatují** po dobu otevřené karty, takže po
+  návratu z detailu projektu je seznam tak, jak jste ho nechali.
+- **Tlačítko „Zpět na seznam projektů"** v detailu projektu.
+- **Projekty na stejném místě se na mapě rozestoupí do hromádky** (špendlíky vedle sebe
+  za sebou); najetím myší se špendlík vysune dopředu a ukáže bublinu.
+
+---
+
 ## 0.4.0 — 30. 9. 2026 — Stavy projektů a barvy na mapě
 
 **Změněno**

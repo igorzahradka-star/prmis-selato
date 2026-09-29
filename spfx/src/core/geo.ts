@@ -106,6 +106,54 @@ export function buildLegend(projects: Project[]): LegendEntry[] {
   }));
 }
 
+// --- více projektů na jednom místě ------------------------------------------
+
+/** Místo špendlíku v hromádce projektů na stejné lokalitě. */
+export interface StackSlot {
+  /** Pořadí v hromádce od 0; podle čísla projektu vzestupně. */
+  index: number;
+  /** Kolik projektů je na tomto místě celkem. */
+  count: number;
+}
+
+/**
+ * Seskupí projekty, které leží na stejném místě (do cca 100 m — jedno město zadané
+ * hledáním dává vždy tytéž souřadnice), aby se špendlíky nepřekrývaly a nezůstal
+ * vidět jen jeden. Klíčem výsledku je číslo projektu.
+ */
+export function stackSlots(projects: Project[], precision: number = 3): Record<string, StackSlot> {
+  const groups: Record<string, Project[]> = {};
+  projects.forEach((p) => {
+    const c = projectCoordinates(p);
+    if (!c) {
+      return;
+    }
+    const key = `${c.latitude.toFixed(precision)},${c.longitude.toFixed(precision)}`;
+    (groups[key] = groups[key] || []).push(p);
+  });
+
+  const slots: Record<string, StackSlot> = {};
+  Object.keys(groups).forEach((key) => {
+    const members = groups[key]
+      .slice()
+      .sort((a, b) => a.projectNumber.localeCompare(b.projectNumber, 'cs-CZ', { numeric: true }));
+    members.forEach((p, index) => {
+      slots[p.projectNumber] = { index, count: members.length };
+    });
+  });
+  return slots;
+}
+
+/** Nejvíc špendlíků, které se v hromádce rozestoupí; další se skládají na poslední, aby hromádka nebyla široká přes půl mapy. */
+export const MAX_STACK_SPREAD = 8;
+
+/** Vodorovný posun špendlíku v obrazovkových pixelech. Hromádka je vystředěná na skutečné místo. */
+export function stackOffsetPx(slot: StackSlot, stepPx: number = 9): number {
+  const visible = Math.min(slot.count, MAX_STACK_SPREAD);
+  const position = Math.min(slot.index, MAX_STACK_SPREAD - 1);
+  return (position - (visible - 1) / 2) * stepPx;
+}
+
 // --- semafor termínů -------------------------------------------------------
 
 export type Signal = 'green' | 'yellow' | 'red' | 'none';

@@ -57,7 +57,13 @@ export function loadLeaflet(): Promise<LeafletLib> {
 }
 
 /** Ikona špendlíku: výplň, obrys a barva tečky uprostřed (světlé špendlíky potřebují tmavý obrys i tečku). */
-export function pinIcon(L: LeafletLib, fill: string, stroke: string, dot: string): LeafletTypes.DivIcon {
+export function pinIcon(
+  L: LeafletLib,
+  fill: string,
+  stroke: string,
+  dot: string,
+  offsetX: number = 0
+): LeafletTypes.DivIcon {
   const svg =
     `<svg width="28" height="38" viewBox="0 0 28 38" xmlns="http://www.w3.org/2000/svg">` +
     `<path d="M14 1C6.8 1 1 6.8 1 13.9 1 23.6 14 37 14 37s13-13.4 13-23.1C27 6.8 21.2 1 14 1z" ` +
@@ -67,7 +73,8 @@ export function pinIcon(L: LeafletLib, fill: string, stroke: string, dot: string
     className: 'prm-pin',
     html: svg,
     iconSize: [28, 38],
-    iconAnchor: [14, 38],
-    tooltipAnchor: [0, -34]
+    // Vodorovný posun (v pixelech, při přiblížení se nemění) rozestupuje špendlíky na stejném místě.
+    iconAnchor: [14 - offsetX, 38],
+    tooltipAnchor: [offsetX, -34]
   });
 }

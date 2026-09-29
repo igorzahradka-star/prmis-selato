@@ -11,6 +11,7 @@ import { AppSettings } from '../core/settings';
 import { RoleGroupMapping } from '../core/roles';
 import { Person, RoleMembership } from '../core/userAdmin';
 import { AccessGroup, ProjectAccessState } from '../core/projectAccess';
+import { StatusChange } from '../core/projectStatus';
 import { ListDef } from './schema';
 
 /** Kdo je přihlášen a co smí. */
@@ -205,6 +206,14 @@ export interface IProjectRepository {
   ): Promise<ImportResult>;
   /** Znovu založí složky u už uloženého projektu — pro tlačítko „Zkusit znovu založit složky". */
   retryCreateFolders(projectNumber: string): Promise<void>;
+  /**
+   * Změní **jen stav** projektu (a případně skutečné ukončení) — pro přepínač stavu
+   * přímo v seznamu. Ostatní údaje projektu se nedotknou, proto je to samostatná operace
+   * a ne `update` (ten zapisuje celý formulář a chybějící zákazník by se smazal).
+   *
+   * Smí ten, kdo smí projekt upravovat (`canEditProject`); ověřuje se znovu tady.
+   */
+  updateStatus(projectNumber: string, change: StatusChange, actor: CurrentUser): Promise<Project>;
   /**
    * Skutečný stav oprávnění projektu: je omezený záznam, je omezená složka
    * a kdo k němu má přístup. Čte se přímo ze SharePointu, ne z paměti aplikace.

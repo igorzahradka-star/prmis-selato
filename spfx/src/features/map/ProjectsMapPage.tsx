@@ -23,6 +23,8 @@ import {
   pinTooltipHtml,
   projectCoordinates,
   splitByLocation,
+  stackOffsetPx,
+  stackSlots,
   statusStyle
 } from '../../core/geo';
 import { DEFAULT_CENTER, DEFAULT_ZOOM, LeafletLib, MAP_ATTRIBUTION, TILE_URL, loadLeaflet, pinIcon } from './leaflet';
@@ -120,13 +122,24 @@ export const ProjectsMapPage: React.FC = () => {
     }
     layer.clearLayers();
     const points: [number, number][] = [];
+    // Projekty na stejném místě se rozestoupí do hromádky — jinak by byl vidět jen jeden.
+    const slots = stackSlots(shown);
     shown.forEach((p) => {
       const c = projectCoordinates(p);
       if (!c) {
         return;
       }
       const marker = L.marker([c.latitude, c.longitude], {
-        icon: pinIcon(L, statusStyle(p.status).fill, statusStyle(p.status).stroke, statusStyle(p.status).text),
+        icon: pinIcon(
+          L,
+          statusStyle(p.status).fill,
+          statusStyle(p.status).stroke,
+          statusStyle(p.status).text,
+          slots[p.projectNumber] ? stackOffsetPx(slots[p.projectNumber]) : 0
+        ),
+        // Ve hromádce je nejvýš první špendlík a další jsou za ním; najetí myší vysune ten pod kurzorem.
+        zIndexOffset: slots[p.projectNumber] ? -slots[p.projectNumber].index * 10 : 0,
+        riseOnHover: true,
         title: p.projectNumber,
         keyboard: true
       });

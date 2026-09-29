@@ -10,7 +10,8 @@
 
 import { BudgetStatus, CurrentUser, Partner, Project, ProjectStatus, ProjectTask, ACTIVE_PROJECT_STATUSES } from '../../core/types';
 import { AppSettings, DEFAULT_SETTINGS, withDefaults } from '../../core/settings';
-import { canDeleteProject, normalizeLogin, RoleGroupMapping } from '../../core/roles';
+import { canDeleteProject, canEditProject, normalizeLogin, RoleGroupMapping } from '../../core/roles';
+import { StatusChange } from '../../core/projectStatus';
 import {
   AccessGroup,
   OVERHEAD_ACCESS_ROLES,
@@ -426,6 +427,29 @@ export class MockProjectRepository implements IProjectRepository {
     }
     this.restricted.set(project.projectNumber, groups.map((g) => g.groupName));
     return delay(undefined);
+  }
+
+  public async updateStatus(projectNumber: string, change: StatusChange, actor: CurrentUser): Promise<Project> {
+    const current = this.projects.filter((p) => p.projectNumber === projectNumber)[0];
+    if (!current) {
+      throw new Error(`Projekt ${projectNumber} nebyl nalezen.`);
+    }
+    // Stejná kontrola jako v ostré implementaci — skrytí přepínače v UI není ochrana.
+    if (
+      !canEditProject(actor.roles, actor.loginName, {
+        projectManagerLogin: current.projectManagerLogin,
+        assistantLogins: current.assistantLogins
+      })
+    ) {
+      throw new Error(`Stav projektu ${projectNumber} smí měnit jen jeho projektový manažer, asistent, vedení nebo administrátor.`);
+    }
+    const updated: Project = {
+      ...current,
+      status: change.status,
+      endDateActual: change.endDateActual ?? current.endDateActual
+    };
+    this.projects = this.projects.map((p) => (p.projectNumber === projectNumber ? updated : p));
+    return delay(updated);
   }
 
   public async retryCreateFolders(projectNumber: string): Promise<void> {

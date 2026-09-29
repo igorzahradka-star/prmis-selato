@@ -8,6 +8,9 @@ import {
   projectCoordinates,
   projectTypeLabel,
   splitByLocation,
+  stackSlots,
+  stackOffsetPx,
+  MAX_STACK_SPREAD,
   pinTooltipHtml,
   SIGNAL_COLORS,
   STATUS_ORDER,
@@ -264,5 +267,77 @@ describe('pinTooltipHtml', () => {
     );
     expect(zly).not.toContain('<script>');
     expect(zly).toContain('&lt;script&gt;');
+  });
+});
+
+describe('stackSlots', () => {
+  it('projekty na stejném místě dostanou pořadí podle čísla', () => {
+    const slots = stackSlots([
+      projekt('26003', { latitude: 49.6, longitude: 15.5 }),
+      projekt('26001', { latitude: 49.6, longitude: 15.5 }),
+      projekt('26002', { latitude: 49.6, longitude: 15.5 })
+    ]);
+    expect(slots['26001']).toEqual({ index: 0, count: 3 });
+    expect(slots['26002']).toEqual({ index: 1, count: 3 });
+    expect(slots['26003']).toEqual({ index: 2, count: 3 });
+  });
+
+  it('projekty s odlišnou polohou jsou každý sám', () => {
+    const slots = stackSlots([
+      projekt('26001', { latitude: 49.6, longitude: 15.5 }),
+      projekt('26002', { latitude: 50.1, longitude: 14.4 })
+    ]);
+    expect(slots['26001']).toEqual({ index: 0, count: 1 });
+    expect(slots['26002']).toEqual({ index: 0, count: 1 });
+  });
+
+  it('projekty vzdálené pár desítek metrů se berou jako jedno místo', () => {
+    const slots = stackSlots([
+      projekt('26001', { latitude: 49.6000, longitude: 15.5000 }),
+      projekt('26002', { latitude: 49.60004, longitude: 15.50004 })
+    ]);
+    expect(slots['26001'].count).toBe(2);
+  });
+
+  it('projekt bez polohy se do hromádek nezahrnuje', () => {
+    const slots = stackSlots([projekt('26001'), projekt('26002', { latitude: 49, longitude: 15 })]);
+    expect(slots['26001']).toBeUndefined();
+    expect(slots['26002'].count).toBe(1);
+  });
+
+  it('čísla řadí podle hodnoty, ne abecedně', () => {
+    const slots = stackSlots([
+      projekt('100000', { latitude: 49, longitude: 15 }),
+      projekt('26010', { latitude: 49, longitude: 15 }),
+      projekt('26009', { latitude: 49, longitude: 15 })
+    ]);
+    expect(slots['26009'].index).toBe(0);
+    expect(slots['26010'].index).toBe(1);
+    expect(slots['100000'].index).toBe(2);
+  });
+});
+
+describe('stackOffsetPx', () => {
+  it('samostatný špendlík se neposouvá', () => {
+    expect(stackOffsetPx({ index: 0, count: 1 })).toBe(0);
+  });
+
+  it('hromádka je vystředěná — součet posunů je nula a krok je konstantní', () => {
+    const offsets = [0, 1, 2].map((i) => stackOffsetPx({ index: i, count: 3 }, 10));
+    expect(offsets).toEqual([-10, 0, 10]);
+  });
+
+  it('sudý počet se vystředí mezi dva prostřední', () => {
+    const offsets = [0, 1].map((i) => stackOffsetPx({ index: i, count: 2 }, 10));
+    expect(offsets).toEqual([-5, 5]);
+  });
+
+  it('nad limit se špendlíky už nerozestupují a hromádka nezáhne přes mapu', () => {
+    const count = MAX_STACK_SPREAD + 5;
+    const posledniViditelny = stackOffsetPx({ index: MAX_STACK_SPREAD - 1, count }, 10);
+    const dalsi = stackOffsetPx({ index: MAX_STACK_SPREAD + 3, count }, 10);
+    expect(dalsi).toBe(posledniViditelny);
+    const sirka = stackOffsetPx({ index: MAX_STACK_SPREAD - 1, count }, 10) - stackOffsetPx({ index: 0, count }, 10);
+    expect(sirka).toBe((MAX_STACK_SPREAD - 1) * 10);
   });
 });

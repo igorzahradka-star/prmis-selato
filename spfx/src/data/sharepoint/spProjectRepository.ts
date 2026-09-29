@@ -10,7 +10,8 @@
 import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { BudgetStatus, CurrentUser, LEGACY_STATUS_UZAVRENO, Project, ProjectStatus } from '../../core/types';
 import { toDate } from '../../core/format';
-import { canDeleteProject } from '../../core/roles';
+import { canDeleteProject, canEditProject } from '../../core/roles';
+import { StatusChange } from '../../core/projectStatus';
 import {
   AccessGroup,
   OVERHEAD_ACCESS_ROLES,
@@ -710,6 +711,35 @@ export class SpProjectRepository implements IProjectRepository {
       }
       throw new Error(describeSpError(error, 'Nepodařilo se ověřit sloupce pro polohu'));
     }
+  }
+
+  public async updateStatus(projectNumber: string, change: StatusChange, actor: CurrentUser): Promise<Project> {
+    const existing = await this.getByNumber(projectNumber);
+    if (!existing) {
+      throw new Error(`Projekt ${projectNumber} nebyl nalezen.`);
+    }
+    // Oprávnění se ověřuje znovu těsně před zápisem (CLAUDE.md, kap. 4) —
+    // skrytý přepínač v UI není ochrana, ochrana jsou oprávnění SharePointu.
+    if (
+      !canEditProject(actor.roles, actor.loginName, {
+        projectManagerLogin: existing.projectManagerLogin,
+        assistantLogins: existing.assistantLogins
+      })
+    ) {
+      throw new Error(`Stav projektu ${projectNumber} smí měnit jen jeho projektový manažer, asistent, vedení nebo administrátor.`);
+    }
+
+    try {
+      const sp = getSp(this.context);
+      const fields: Record<string, unknown> = { ProjectStatus: change.status };
+      if (change.endDateActual) {
+        fields.EndDateActual = change.endDateActual.toISOString();
+      }
+      await sp.web.lists.getByTitle(PROJECTS_LIST).items.getById(existing.id).update(fields, '*');
+    } catch (error) {
+      throw new Error(describeSpError(error, `Nepodařilo se změnit stav projektu ${projectNumber}`));
+    }
+    return (await this.getByNumber(projectNumber)) ?? { ...existing, status: change.status };
   }
 
   public async retryCreateFolders(projectNumber: string): Promise<void> {

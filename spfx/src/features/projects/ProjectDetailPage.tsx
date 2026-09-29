@@ -9,10 +9,11 @@ import * as React from 'react';
 import { Pivot, PivotItem } from '@fluentui/react/lib/Pivot';
 import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
-import { DefaultButton, PrimaryButton } from '@fluentui/react/lib/Button';
+import { ActionButton, DefaultButton, PrimaryButton } from '@fluentui/react/lib/Button';
 import { Link } from '@fluentui/react/lib/Link';
 
 import { useApp } from '../../ui/AppContext';
+import { buildHash, RouteName } from '../../ui/router';
 import { RES } from '../../ui/theme';
 import { PageHeading } from '../../ui/components/PageHeading';
 import { BudgetBadge, StatusBadge } from '../../ui/components/StatusBadge';
@@ -82,6 +83,12 @@ export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projec
 
   return (
     <>
+      <ActionButton
+        iconProps={{ iconName: 'Back' }}
+        text="Zpět na seznam projektů"
+        href={buildHash(RouteName.Dashboard)}
+        styles={{ root: { marginBottom: 4, paddingLeft: 0 } }}
+      />
       <PageHeading
         title={`${project.projectNumber} · ${project.shortName || project.title}`}
         subtitle={project.title}

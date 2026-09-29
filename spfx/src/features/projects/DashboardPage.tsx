@@ -17,32 +17,84 @@ import { Link } from '@fluentui/react/lib/Link';
 import { useApp } from '../../ui/AppContext';
 import { loadProjectManagerNames } from './projectManagers';
 import { DEFAULT_SORT, ProjectSortKey, sortProjects } from '../../core/projectSort';
+import { quickStatusChange } from '../../core/projectStatus';
+import { isCustomOrder, moveColumn, orderColumns } from '../../core/columnOrder';
+import { StatusSelect } from './StatusSelect';
 import { RES, LAYOUT } from '../../ui/theme';
 import { buildHash, RouteName } from '../../ui/router';
-import { BudgetBadge, StatusBadge } from '../../ui/components/StatusBadge';
+import { BudgetBadge } from '../../ui/components/StatusBadge';
 import { KpiTiles } from './KpiTiles';
 import { NewProjectPanel } from './NewProjectPanel';
 import { BudgetStatus, Project, ProjectStatus, ACTIVE_PROJECT_STATUSES } from '../../core/types';
 import { formatDate, formatMoney, dueLabel } from '../../core/format';
-import { canCreateProject } from '../../core/roles';
+import { canCreateProject, canEditProject } from '../../core/roles';
 import streakUrl from '../../webparts/prm/assets/res-kpi-streak.png';
 
 /** Stejný diagonální přechod (tmavá → navy → modrá) jako v grafickém manuálu RES. */
 const HERO_GRADIENT = `linear-gradient(135deg, ${RES.text} 0%, ${RES.navyDark} 55%, ${RES.blue} 100%)`;
 
+const VIEW_KEY = 'prm.dashboard.view';
+
+interface SavedView {
+  search: string;
+  statuses: string[];
+  pms: string[];
+  sort: { key: ProjectSortKey; descending: boolean };
+}
+
+/**
+ * Pohled (hledání, filtry, řazení) se pamatuje po dobu otevřené karty prohlížeče,
+ * aby se člověk po návratu z detailu projektu nevracel do nefiltrovaného seznamu.
+ * Když úložiště není k dispozici, seznam se prostě ukáže výchozí.
+ */
+function loadView(): SavedView | undefined {
+  try {
+    const raw = window.sessionStorage.getItem(VIEW_KEY);
+    if (!raw) {
+      return undefined;
+    }
+    const v = JSON.parse(raw) as Partial<SavedView>;
+    const strings = (x: unknown): x is string[] => Array.isArray(x) && x.every((i) => typeof i === 'string');
+    if (typeof v.search !== 'string' || !strings(v.statuses) || !strings(v.pms) || !v.sort) {
+      return undefined;
+    }
+    if (SORTABLE_KEYS.indexOf(v.sort.key) === -1 || typeof v.sort.descending !== 'boolean') {
+      return undefined;
+    }
+    return v as SavedView;
+  } catch {
+    return undefined;
+  }
+}
+
+function saveView(view: SavedView): void {
+  try {
+    window.sessionStorage.setItem(VIEW_KEY, JSON.stringify(view));
+  } catch {
+    // Bez úložiště se pohled jen nezapamatuje.
+  }
+}
+
 export const DashboardPage: React.FC = () => {
   const { repos, settings, user } = useApp();
+  const savedView = React.useMemo(() => loadView(), []);
 
   const [projects, setProjects] = React.useState<Project[] | undefined>(undefined);
   const [error, setError] = React.useState<string | undefined>(undefined);
-  const [search, setSearch] = React.useState<string>('');
-  const [statuses, setStatuses] = React.useState<string[]>([]);
-  const [pms, setPms] = React.useState<string[]>([]);
+  const [search, setSearch] = React.useState<string>(savedView ? savedView.search : '');
+  const [statuses, setStatuses] = React.useState<string[]>(savedView ? savedView.statuses : []);
+  const [pms, setPms] = React.useState<string[]>(savedView ? savedView.pms : []);
   const [pmOptions, setPmOptions] = React.useState<IDropdownOption[]>([]);
   const [isNewProjectOpen, setIsNewProjectOpen] = React.useState(false);
   const [refreshKey, setRefreshKey] = React.useState(0);
   // Výchozí řazení: podle čísla vzestupně. Klik na záhlaví sloupce řazení přepne.
-  const [sort, setSort] = React.useState<{ key: ProjectSortKey; descending: boolean }>(DEFAULT_SORT);
+  const [sort, setSort] = React.useState<{ key: ProjectSortKey; descending: boolean }>(
+    savedView ? savedView.sort : DEFAULT_SORT
+  );
+  const [columnOrder, setColumnOrder] = React.useState<string[] | undefined>(() => loadColumnOrder(user.loginName));
+  const [busyNumber, setBusyNumber] = React.useState<string | undefined>(undefined);
+  const [statusError, setStatusError] = React.useState<string | undefined>(undefined);
+  const [statusNote, setStatusNote] = React.useState<string | undefined>(undefined);
   const [exporting, setExporting] = React.useState(false);
   const [exportError, setExportError] = React.useState<string | undefined>(undefined);
 
@@ -105,6 +157,50 @@ export const DashboardPage: React.FC = () => {
       cancelled = true;
     };
   }, [repos]);
+
+  React.useEffect(() => saveView({ search, statuses, pms, sort }), [search, statuses.join(','), pms.join(','), sort.key, sort.descending]);
+
+  /** Změna stavu přímo ze seznamu — zapíše jen stav, ostatní údaje projektu zůstanou. */
+  const changeStatus = (p: Project, status: ProjectStatus): void => {
+    if (status === p.status) {
+      return;
+    }
+    setBusyNumber(p.projectNumber);
+    setStatusError(undefined);
+    setStatusNote(undefined);
+    const change = quickStatusChange(p, status);
+    repos.projects
+      .updateStatus(p.projectNumber, change, user)
+      .then((updated) => {
+        setBusyNumber(undefined);
+        setProjects((cur) => (cur ? cur.map((x) => (x.projectNumber === updated.projectNumber ? updated : x)) : cur));
+        setStatusNote(change.note);
+      })
+      .catch((e: Error) => {
+        setBusyNumber(undefined);
+        setStatusError(e.message);
+      });
+  };
+
+  const displayedColumns = orderColumns(
+    withSorting(
+      buildColumns({
+        canEdit: (p) =>
+          canEditProject(user.roles, user.loginName, {
+            projectManagerLogin: p.projectManagerLogin,
+            assistantLogins: p.assistantLogins
+          }),
+        busyNumber,
+        onStatus: changeStatus
+      }),
+      sort,
+      (key) =>
+        setSort((cur) => (cur.key === key ? { key, descending: !cur.descending } : { key, descending: false }))
+    ),
+    columnOrder,
+    DEFAULT_COLUMN_ORDER
+  );
+  const customColumns = isCustomOrder(columnOrder, DEFAULT_COLUMN_ORDER, DEFAULT_COLUMN_ORDER);
 
   const statusOptions: IDropdownOption[] = Object.keys(ProjectStatus).map((k) => ({
     key: ProjectStatus[k as keyof typeof ProjectStatus],
@@ -215,6 +311,17 @@ export const DashboardPage: React.FC = () => {
         </MessageBar>
       )}
 
+      {statusError && (
+        <MessageBar messageBarType={MessageBarType.error} isMultiline onDismiss={() => setStatusError(undefined)}>
+          {statusError}
+        </MessageBar>
+      )}
+      {statusNote && (
+        <MessageBar messageBarType={MessageBarType.info} isMultiline onDismiss={() => setStatusNote(undefined)}>
+          {statusNote}
+        </MessageBar>
+      )}
+
       {!projects && !error && <Spinner size={SpinnerSize.large} label="Načítám projekty…" />}
 
       {projects && projects.length === 0 && !error && (
@@ -223,15 +330,37 @@ export const DashboardPage: React.FC = () => {
         </MessageBar>
       )}
 
+      {projects && projects.length > 0 && customColumns && (
+        <div style={{ margin: '0 0 6px', fontSize: 12 }}>
+          Pořadí sloupců je upravené.{' '}
+          <Link
+            onClick={() => {
+              setColumnOrder(undefined);
+              saveColumnOrder(user.loginName, undefined);
+            }}
+          >
+            Obnovit výchozí pořadí
+          </Link>
+        </div>
+      )}
+
       {projects && projects.length > 0 && (
         <div style={{ background: RES.white, border: `1px solid ${RES.grayBlue}`, borderRadius: 4 }}>
           <DetailsList
             items={sortProjects(projects, sort.key, sort.descending)}
-            columns={withSorting(buildColumns(), sort, (key) =>
-              setSort((cur) =>
-                cur.key === key ? { key, descending: !cur.descending } : { key, descending: false }
-              )
-            )}
+            columns={displayedColumns}
+            columnReorderOptions={{
+              // Přetažením záhlaví si každý uloží pořadí sloupců po svém.
+              onColumnDrop: ({ draggedIndex, targetIndex }) => {
+                const next = moveColumn(
+                  displayedColumns.map((c) => c.key),
+                  draggedIndex,
+                  targetIndex
+                );
+                setColumnOrder(next);
+                saveColumnOrder(user.loginName, next);
+              }
+            }}
             selectionMode={SelectionMode.none}
             layoutMode={DetailsListLayoutMode.justified}
             compact
@@ -273,7 +402,13 @@ function withSorting(
 }
 
 /** Sloupce tabulky podle zadání, kap. 8.1. */
-function buildColumns(): IColumn[] {
+interface ColumnContext {
+  canEdit: (p: Project) => boolean;
+  busyNumber?: string;
+  onStatus: (p: Project, status: ProjectStatus) => void;
+}
+
+function buildColumns(ctx: ColumnContext): IColumn[] {
   const columns: IColumn[] = [
     {
       key: 'number',
@@ -372,15 +507,51 @@ function buildColumns(): IColumn[] {
     {
       key: 'status',
       name: 'Stav',
-      minWidth: 100,
-      maxWidth: 120,
+      minWidth: 120,
+      maxWidth: 140,
       isResizable: true,
-      onRender: (p: Project) => <StatusBadge status={p.status} />
+      onRender: (p: Project) => (
+        <StatusSelect
+          status={p.status}
+          projectNumber={p.projectNumber}
+          canEdit={ctx.canEdit(p)}
+          busy={ctx.busyNumber === p.projectNumber}
+          onChange={(s) => ctx.onStatus(p, s)}
+        />
+      )
     }
   ];
-  // Stav je první sloupec — hned je vidět, co běží, co se připravuje a co je dokončené.
-  const status = columns[columns.length - 1];
-  return [status, ...columns.slice(0, columns.length - 1)];
+  return columns;
+}
+
+/** Výchozí pořadí sloupců: Stav hned za projektovým manažerem. */
+const DEFAULT_COLUMN_ORDER = ['number', 'title', 'pm', 'status', 'budget', 'price', 'deadline', 'start', 'end'];
+
+/** Pořadí sloupců si pamatuje prohlížeč, zvlášť pro každého přihlášeného uživatele. */
+function columnOrderKey(loginName: string): string {
+  return `prm.dashboard.columns.${loginName}`;
+}
+
+function loadColumnOrder(loginName: string): string[] | undefined {
+  try {
+    const raw = window.localStorage.getItem(columnOrderKey(loginName));
+    const parsed: unknown = raw ? JSON.parse(raw) : undefined;
+    return Array.isArray(parsed) && parsed.every((k) => typeof k === 'string') ? (parsed as string[]) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function saveColumnOrder(loginName: string, order: string[] | undefined): void {
+  try {
+    if (order) {
+      window.localStorage.setItem(columnOrderKey(loginName), JSON.stringify(order));
+    } else {
+      window.localStorage.removeItem(columnOrderKey(loginName));
+    }
+  } catch {
+    // Bez úložiště se pořadí jen nezapamatuje.
+  }
 }
 
 /**
