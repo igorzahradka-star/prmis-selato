@@ -98,7 +98,7 @@ Zakládá se jednou a pak už tam jen nahráváš nové verze.
 - [ ] Počkej **1–3 minuty**, nezavírej stránku
 - [ ] Na konci má být všechno **zelené**
 
-> **Vznikne 21 seznamů** v *Obsahu webu*. Vypadá to jako nepořádek, ale
+> **Vznikne 17 seznamů** v *Obsahu webu*. Vypadá to jako nepořádek, ale
 > pracuje se s nimi jen přes aplikaci — otevírat je ručně není potřeba.
 >
 > Co zůstane **modré**, vyžaduje ruční zásah a průvodce u toho napíše co.

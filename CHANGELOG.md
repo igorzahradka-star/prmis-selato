@@ -77,7 +77,7 @@ založit svou datovou strukturu na SharePointu.
 - Detail projektu — záložka Přehled; ostatní záložky připravené s popisem,
   ve které fázi přijdou.
 - **Instalace a diagnostika**: aplikace si sama zkontroluje a založí
-  21 seznamů a knihoven včetně sloupců a indexů. Nikdy nic nemaže,
+  17 seznamů a knihoven na webu PRM (+4 na webu PRM-Finance) včetně sloupců a indexů. Nikdy nic nemaže,
   jde spustit opakovaně.
 - **Nastavení**: složky projektů a jejich šablona, vzor názvu projektu, typy
   projektů, kategorie rozpočtu, prahy semaforu, limity schvalování, názvy
