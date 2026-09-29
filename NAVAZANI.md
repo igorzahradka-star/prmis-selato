@@ -114,6 +114,11 @@ hledání lidí (HTTP 400), skupiny rolí bez oprávnění, knihovna „Dokument
 nenašla podle zobrazeného názvu, oříznuté záložky. Všechny opravené.
 
 **Balíček 0.3.0.0 je hotový, ale zatím nenahraný** (vytvořen 29. 9. 2026 večer).
+Přináší také: mapu projektů (Leaflet + OpenStreetMap, hledání míst Nominatim), výběr lokality
+z mapy, řazení seznamu, opravu editoru typů projektů a výběru zákazníka; schéma je nyní 4
+(sloupce Země u partnerů, šířka a délka u projektů; aplikace bez doplnění schématu nespadne).
+**Nápady na příště:** dopočítat polohy stávajících projektů z textu Lokalita jedním tlačítkem;
+zahraniční registry (viz ROZHODNUTI).
 Přináší: omezený přístup k Režii (jen Administrátoři, Vedení, Finance),
 výběr země u partnerů (EU), opravu nabídky projektových manažerů.
 Po nahrání je třeba **jednou spustit Správa → Instalace a diagnostika** (nový sloupec

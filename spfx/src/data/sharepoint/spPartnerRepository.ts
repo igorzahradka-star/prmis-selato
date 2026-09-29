@@ -5,7 +5,7 @@
 import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { Partner, PartnerType } from '../../core/types';
 import { IPartnerRepository, PartnerFilter } from '../repositories';
-import { getSp, describeSpError } from './spContext';
+import { getSp, describeSpError, extractStatus } from './spContext';
 
 const PARTNERS_LIST = 'PRM_Partners';
 
@@ -13,7 +13,6 @@ const SELECT_FIELDS = [
   'Id',
   'Title',
   'PartnerType',
-  'Country',
   'ICO',
   'DIC',
   'IsVatPayer',
@@ -24,6 +23,24 @@ const SELECT_FIELDS = [
   'PaymentTermDays',
   'IsActive'
 ];
+
+/**
+ * Sloupec Země přibyl ve schématu 3. Do doplnění schématu (Správa → Instalace a diagnostika)
+ * na webu ještě není a dotaz na něj by shodil celý seznam partnerů, proto se čte zvlášť
+ * a když ho web nezná, načte se seznam bez něj.
+ */
+const OPTIONAL_FIELDS = ['Country'];
+
+async function withOptionalFields<T>(run: (fields: string[]) => Promise<T>): Promise<T> {
+  try {
+    return await run([...SELECT_FIELDS, ...OPTIONAL_FIELDS]);
+  } catch (error) {
+    if (extractStatus(error) === 400) {
+      return run(SELECT_FIELDS);
+    }
+    throw error;
+  }
+}
 
 interface PartnerItem {
   Id: number;
@@ -47,17 +64,17 @@ export class SpPartnerRepository implements IPartnerRepository {
   public async list(filter?: PartnerFilter): Promise<Partner[]> {
     try {
       const sp = getSp(this.context);
-      let query = sp.web.lists
-        .getByTitle(PARTNERS_LIST)
-        .items.select(...SELECT_FIELDS)
-        .orderBy('Title')
-        .top(2000);
-
-      if (!filter?.includeInactive) {
-        query = query.filter('IsActive eq 1');
-      }
-
-      const items: PartnerItem[] = await query();
+      const items: PartnerItem[] = await withOptionalFields((fields) => {
+        let query = sp.web.lists
+          .getByTitle(PARTNERS_LIST)
+          .items.select(...fields)
+          .orderBy('Title')
+          .top(2000);
+        if (!filter?.includeInactive) {
+          query = query.filter('IsActive eq 1');
+        }
+        return query();
+      });
       const partners = items.map(mapPartner);
       return applyTextSearch(partners, filter?.search);
     } catch (error) {
@@ -68,10 +85,12 @@ export class SpPartnerRepository implements IPartnerRepository {
   public async getById(id: number): Promise<Partner | undefined> {
     try {
       const sp = getSp(this.context);
-      const item: PartnerItem = await sp.web.lists
-        .getByTitle(PARTNERS_LIST)
-        .items.getById(id)
-        .select(...SELECT_FIELDS)();
+      const item: PartnerItem = await withOptionalFields((fields) =>
+        sp.web.lists
+          .getByTitle(PARTNERS_LIST)
+          .items.getById(id)
+          .select(...fields)()
+      );
       return mapPartner(item);
     } catch (error) {
       if (extractIsNotFound(error)) {

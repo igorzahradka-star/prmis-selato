@@ -11,6 +11,7 @@
 export enum RouteName {
   Dashboard = 'projekty',
   ProjectDetail = 'projekt',
+  Map = 'mapa',
   Partners = 'partneri',
   Orders = 'objednavky',
   WaitingForMe = 'ceka-na-me',

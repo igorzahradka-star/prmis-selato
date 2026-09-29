@@ -97,6 +97,9 @@ export interface Project {
   status: ProjectStatus;
   projectType?: string;
   location?: string;
+  /** Poloha na mapě (WGS 84). Chybí u projektů, kterým ji zatím nikdo nezadal. */
+  latitude?: number;
+  longitude?: number;
   contractPriceNet?: number;
   currency: string;
   startDate?: Date;

@@ -11,7 +11,6 @@
 import * as React from 'react';
 import { Panel, PanelType } from '@fluentui/react/lib/Panel';
 import { TextField } from '@fluentui/react/lib/TextField';
-import { ComboBox, IComboBoxOption } from '@fluentui/react/lib/ComboBox';
 import { Dropdown, IDropdownOption } from '@fluentui/react/lib/Dropdown';
 import { DatePicker } from '@fluentui/react/lib/DatePicker';
 import { PrimaryButton, DefaultButton } from '@fluentui/react/lib/Button';
@@ -20,6 +19,8 @@ import { Dialog, DialogType, DialogFooter } from '@fluentui/react/lib/Dialog';
 
 import { useApp } from '../../ui/AppContext';
 import { loadProjectManagerNames } from './projectManagers';
+import { CustomerComboBox } from './CustomerComboBox';
+import { LocationPicker } from '../map/LocationPicker';
 import { RES } from '../../ui/theme';
 import { CS_CALENDAR_STRINGS } from '../../ui/csCalendarStrings';
 import { navigate, RouteName } from '../../ui/router';
@@ -68,6 +69,8 @@ export const EditProjectPanel: React.FC<EditProjectPanelProps> = ({
   const [status, setStatus] = React.useState<ProjectStatus>(ProjectStatus.Nabidka);
   const [projectType, setProjectType] = React.useState<string | undefined>(undefined);
   const [location, setLocation] = React.useState('');
+  const [latitude, setLatitude] = React.useState<number | undefined>(undefined);
+  const [longitude, setLongitude] = React.useState<number | undefined>(undefined);
   const [shortName, setShortName] = React.useState('');
   const [contractPriceNet, setContractPriceNet] = React.useState('');
   const [currency, setCurrency] = React.useState<Currency>('CZK');
@@ -99,6 +102,8 @@ export const EditProjectPanel: React.FC<EditProjectPanelProps> = ({
     setStatus(project.status);
     setProjectType(project.projectType);
     setLocation(project.location ?? '');
+    setLatitude(project.latitude);
+    setLongitude(project.longitude);
     setShortName(project.shortName ?? '');
     setContractPriceNet(project.contractPriceNet === undefined ? '' : String(project.contractPriceNet));
     setCurrency((project.currency as Currency) || 'CZK');
@@ -147,7 +152,6 @@ export const EditProjectPanel: React.FC<EditProjectPanelProps> = ({
   const issueFor = (field: keyof ProjectEditValues): string | undefined =>
     showIssues ? issues.filter((i: ValidationIssue) => i.field === field).map((i) => i.message)[0] : undefined;
 
-  const partnerOptions: IComboBoxOption[] = partners.map((p) => ({ key: p.id, text: p.name }));
   const typeOptions: IDropdownOption[] = settings.projects.projectTypes.map((t) => ({ key: t, text: t }));
   const pmDropdownOptions: IDropdownOption[] = pmOptions.map((n) => ({ key: n, text: n }));
 
@@ -170,6 +174,8 @@ export const EditProjectPanel: React.FC<EditProjectPanelProps> = ({
           status,
           projectType,
           location: location.trim() || undefined,
+          latitude,
+          longitude,
           contractPriceNet: parsedPrice,
           currency,
           startDate,
@@ -266,22 +272,17 @@ export const EditProjectPanel: React.FC<EditProjectPanelProps> = ({
           onChange={(_, o) => o && setStatus(o.key as ProjectStatus)}
         />
 
-        <ComboBox
-          label="Zákazník"
-          allowFreeform
-          autoComplete="on"
-          text={customerName}
-          options={partnerOptions}
-          onChange={(_, option, __, value) => {
-            if (option) {
-              setCustomerId(option.key as number);
-              setCustomerName(option.text);
-            } else {
-              setCustomerId(undefined);
-              setCustomerName(value ?? '');
-            }
+        <CustomerComboBox
+          partners={partners}
+          name={customerName}
+          onPick={(p) => {
+            setCustomerId(p.id);
+            setCustomerName(p.name);
           }}
-          placeholder="Vyberte, nebo zadejte nového zákazníka"
+          onType={(n) => {
+            setCustomerId(undefined);
+            setCustomerName(n);
+          }}
         />
 
         <Dropdown
@@ -292,7 +293,14 @@ export const EditProjectPanel: React.FC<EditProjectPanelProps> = ({
           placeholder="Vyberte typ"
         />
 
-        <TextField label="Lokalita" value={location} onChange={(_, v) => setLocation(v ?? '')} />
+        <LocationPicker
+          value={{ location, latitude, longitude }}
+          onChange={(v) => {
+            setLocation(v.location);
+            setLatitude(v.latitude);
+            setLongitude(v.longitude);
+          }}
+        />
 
         <Dropdown
           label="Projektový manažer"

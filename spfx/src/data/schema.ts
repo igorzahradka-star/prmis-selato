@@ -18,7 +18,7 @@
  * Verze schématu. Ukládá se do PRM_Settings pod klíčem `schemaVersion`.
  * Průvodce porovná uloženou verzi s touto a nabídne doplnění rozdílu.
  */
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 /** Typ sloupce v SharePointu. */
 export type FieldType =
@@ -206,6 +206,8 @@ const PRM_PROJECTS: ListDef = {
     { name: 'ProjectType', title: 'Typ projektu', type: 'Choice', choices: ['FVE', 'BESS', 'MVE', 'Vítr', 'Kogenerace', 'Připojení DS', 'Servis', 'Režie', 'Jiné'], indexed: true },
     { name: 'ProjectYear', title: 'Rok', type: 'Number', decimals: 0, indexed: true, description: 'Rok projektu – pro filtrování dashboardu.' },
     { name: 'Location', title: 'Lokalita', type: 'Text' },
+    { name: 'Latitude', title: 'Zeměpisná šířka', type: 'Number', decimals: 6, description: 'Poloha projektu na mapě. Nastavuje se v úpravě projektu výběrem místa na mapě.' },
+    { name: 'Longitude', title: 'Zeměpisná délka', type: 'Number', decimals: 6, description: 'Poloha projektu na mapě. Nastavuje se v úpravě projektu výběrem místa na mapě.' },
     { name: 'InstalledPowerKWp', title: 'Výkon (kWp)', type: 'Number', decimals: 2 },
     { name: 'StorageCapacityKWh', title: 'Kapacita úložiště (kWh)', type: 'Number', decimals: 2 },
     { name: 'ContractNumber', title: 'Číslo smlouvy', type: 'Text' },

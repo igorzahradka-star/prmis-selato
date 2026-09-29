@@ -78,6 +78,24 @@ const SELECT_FIELDS = [
 
 const EXPAND_FIELDS = ['Customer', 'ProjectManager'];
 
+/**
+ * Sloupce s polohou přibyly ve schématu 4. Do doplnění schématu (Správa → Instalace
+ * a diagnostika) na webu ještě nejsou a dotaz na ně by shodil celý seznam projektů,
+ * proto se čtou zvlášť a když je web nezná, načte se seznam bez nich.
+ */
+const GEO_FIELDS = ['Latitude', 'Longitude'];
+
+async function withOptionalGeoFields<T>(run: (fields: string[]) => Promise<T>): Promise<T> {
+  try {
+    return await run([...SELECT_FIELDS, ...GEO_FIELDS]);
+  } catch (error) {
+    if (extractStatus(error) === 400) {
+      return run(SELECT_FIELDS);
+    }
+    throw error;
+  }
+}
+
 interface ProjectItem {
   Id: number;
   Title: string;
@@ -89,6 +107,8 @@ interface ProjectItem {
   ProjectType?: string;
   ProjectYear?: number;
   Location?: string;
+  Latitude?: number;
+  Longitude?: number;
   ContractPriceNet?: number;
   Currency?: string;
   StartDate?: string;
@@ -114,19 +134,19 @@ export class SpProjectRepository implements IProjectRepository {
   public async list(filter?: ProjectFilter): Promise<Project[]> {
     try {
       const sp = getSp(this.context);
-      let query = sp.web.lists
-        .getByTitle(PROJECTS_LIST)
-        .items.select(...SELECT_FIELDS)
-        .expand(...EXPAND_FIELDS)
-        .orderBy('ProjectNumber', false)
-        .top(2000);
-
       const odata = buildProjectFilter(filter, this.currentUserId);
-      if (odata) {
-        query = query.filter(odata);
-      }
-
-      const items: ProjectItem[] = await query();
+      const items: ProjectItem[] = await withOptionalGeoFields((fields) => {
+        let query = sp.web.lists
+          .getByTitle(PROJECTS_LIST)
+          .items.select(...fields)
+          .expand(...EXPAND_FIELDS)
+          .orderBy('ProjectNumber', false)
+          .top(2000);
+        if (odata) {
+          query = query.filter(odata);
+        }
+        return query();
+      });
       const projects = items.map(mapProject);
 
       // Fulltext se dělá až v prohlížeči: SharePoint umí `substringof` jen
@@ -142,12 +162,14 @@ export class SpProjectRepository implements IProjectRepository {
   public async getByNumber(projectNumber: string): Promise<Project | undefined> {
     try {
       const sp = getSp(this.context);
-      const items: ProjectItem[] = await sp.web.lists
-        .getByTitle(PROJECTS_LIST)
-        .items.select(...SELECT_FIELDS)
-        .expand(...EXPAND_FIELDS)
-        .filter(`ProjectNumber eq '${escapeODataString(projectNumber)}'`)
-        .top(1)();
+      const items: ProjectItem[] = await withOptionalGeoFields((fields) =>
+        sp.web.lists
+          .getByTitle(PROJECTS_LIST)
+          .items.select(...fields)
+          .expand(...EXPAND_FIELDS)
+          .filter(`ProjectNumber eq '${escapeODataString(projectNumber)}'`)
+          .top(1)()
+      );
       return items.length > 0 ? mapProject(items[0]) : undefined;
     } catch (error) {
       throw new Error(describeSpError(error, `Nepodařilo se načíst projekt ${projectNumber}`));
@@ -182,6 +204,10 @@ export class SpProjectRepository implements IProjectRepository {
         // Rok založení (stejný rok jako v přiděleném čísle), ne plánované zahájení.
         ProjectYear: new Date().getFullYear(),
         Location: input.location,
+        // Poloha se zapisuje jen když je zadaná — před doplněním schématu sloupce neexistují.
+        ...(input.latitude !== undefined && input.longitude !== undefined
+          ? { Latitude: input.latitude, Longitude: input.longitude }
+          : {}),
         ContractPriceNet: input.contractPriceNet,
         Currency: input.currency,
         StartDate: input.startDate ? input.startDate.toISOString() : null,
@@ -203,6 +229,8 @@ export class SpProjectRepository implements IProjectRepository {
       status: ProjectStatus.Priprava,
       projectType: input.projectType,
       location: input.location,
+      latitude: input.latitude,
+      longitude: input.longitude,
       contractPriceNet: input.contractPriceNet,
       currency: input.currency,
       startDate: input.startDate,
@@ -258,6 +286,10 @@ export class SpProjectRepository implements IProjectRepository {
       ProjectStatus: input.status,
       ProjectType: input.projectType ?? null,
       Location: input.location ?? null,
+      // Poloha se zapisuje (nebo maže), jen když je co — před doplněním schématu sloupce neexistují.
+      ...(input.latitude !== undefined || existing.latitude !== undefined
+        ? { Latitude: input.latitude ?? null, Longitude: input.longitude ?? null }
+        : {}),
       ContractPriceNet: input.contractPriceNet ?? null,
       Currency: input.currency,
       StartDate: input.startDate ? input.startDate.toISOString() : null,
@@ -788,6 +820,8 @@ export function mapProject(item: ProjectItem): Project {
     status: (item.ProjectStatus as ProjectStatus) ?? ProjectStatus.Nabidka,
     projectType: item.ProjectType,
     location: item.Location,
+    latitude: item.Latitude ?? undefined,
+    longitude: item.Longitude ?? undefined,
     contractPriceNet: item.ContractPriceNet,
     currency: item.Currency ?? 'CZK',
     startDate: toDate(item.StartDate),

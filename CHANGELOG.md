@@ -26,8 +26,23 @@ Datum ve tvaru den. měsíc. rok.
 - **Schéma dat 3:** nový sloupec „Země" v PRM_Partners. Po nahrání balíčku ho
   doplní Správa → Instalace a diagnostika (jen přidá, nic nesmaže).
 
+- **Mapa projektů** (nová položka v menu). Špendlík má barvu podle typu projektu.
+  Po najetí se ukáže bublina: název, typ, semafor rozpočtu, semafor termínů
+  (červená po termínu, žlutá do 14 dní) a projektový manažer; po kliknutí se
+  otevře projekt. Legenda nad mapou umí typy skrývat. Projekty bez polohy jsou
+  vypsané pod mapou.
+- **Výběr lokality z mapy.** V úpravě i zakládání projektu: napíšete místo, kliknete
+  na „Najít na mapě“, mapa se otevře se špendlíkem na nalezeném místě; špendlík jde
+  přesunout kliknutím nebo přetažením. Mapy: OpenStreetMap, hledání míst: Nominatim
+  (bez klíče a bez poplatků).
+- **Schéma dat 4:** sloupce Zeměpisná šířka a délka v PRM_Projects (jen přidání).
+  Dokud se schéma nedoplní, aplikace funguje dál, jen bez polohy.
+
 **Opraveno**
 
+- **Zákazníka v úpravě projektu nešlo vybrat.** Kliknutí do pole seznam neotevřelo,
+  otevírala ho jen malá šipka vpravo. Teď se seznam otevře i klikem do pole (v úpravě
+  i v zakládání projektu). Když v Partnerech nikdo není, pole to řekne.
 - **Typy projektů (a šablonu složek) v Nastavení nešlo upravit.** Pole po každém
   stisku klávesy smazalo prázdný řádek, takže nový řádek nešlo přidat. Teď jde
   přidávat, přepisovat i mazat položky normálně.

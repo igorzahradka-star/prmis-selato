@@ -96,6 +96,8 @@ export interface NewProjectInput {
   assistantNames?: string[];
   projectType?: string;
   location?: string;
+  latitude?: number;
+  longitude?: number;
   contractPriceNet?: number;
   currency: Currency;
   startDate?: Date;
@@ -132,6 +134,8 @@ export interface ProjectEditInput {
   status: ProjectStatus;
   projectType?: string;
   location?: string;
+  latitude?: number;
+  longitude?: number;
   contractPriceNet?: number;
   currency: Currency;
   startDate?: Date;
