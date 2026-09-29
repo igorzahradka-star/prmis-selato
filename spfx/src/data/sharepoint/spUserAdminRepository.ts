@@ -79,14 +79,23 @@ export class SpUserAdminRepository implements IUserAdminRepository {
         SPHttpClient.configurations.v1,
         {
           headers: {
-            'Content-Type': 'application/json;odata=verbose',
-            Accept: 'application/json;odata=verbose'
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            // SPHttpClient posílá sám `OData-Version: 4.0`. Tenhle starý
+            // endpoint na ni odpoví HTTP 400, takže ji musíme umlčet.
+            'odata-version': ''
           },
           body: JSON.stringify(peoplePickerQuery(trimmed))
         }
       );
+
       if (!response.ok) {
-        throw new Error(`Hledání lidí se nepodařilo (${response.status}).`);
+        // Tělo odpovědi bývá jediné místo, kde SharePoint řekne, co mu vadí.
+        // Bez něj je z 400 jen "nepodařilo se" a nedá se s tím nic dělat.
+        const detail = await response.text().catch(() => '');
+        throw new Error(
+          `Hledání lidí selhalo (HTTP ${response.status}). ${shortenDetail(detail)}`
+        );
       }
       return parsePeoplePickerResults(await response.json());
     } catch (error) {
@@ -160,6 +169,27 @@ export class SpUserAdminRepository implements IUserAdminRepository {
 
     return vytvorene;
   }
+}
+
+/**
+ * Zkrátí odpověď serveru na čitelnou větu. SharePoint vrací celý JSON
+ * s obalem, do hlášky v UI se nevejde a uživateli nic neřekne — ale prvních
+ * pár set znaků obvykle obsahuje skutečnou příčinu.
+ */
+function shortenDetail(raw: string): string {
+  if (!raw) {
+    return '';
+  }
+  try {
+    const json = JSON.parse(raw);
+    const message = json?.error?.message?.value ?? json?.error?.message ?? json?.['odata.error']?.message?.value;
+    if (typeof message === 'string' && message) {
+      return message;
+    }
+  } catch {
+    // Není to JSON — použijeme text tak, jak přišel.
+  }
+  return raw.length > 300 ? `${raw.slice(0, 300)}…` : raw;
 }
 
 function toPerson(u: SiteUserItem): Person {

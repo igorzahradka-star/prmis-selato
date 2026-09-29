@@ -5,6 +5,23 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.2.1 — 29. 9. 2026 — Oprava po prvním nasazení
+
+První verze nasazená na ostrý SharePoint. Instalace datové struktury proběhla
+napoprvé, hledání lidí ne.
+
+**Opraveno**
+
+- **Hledání lidí při přiřazování rolí končilo HTTP 400.** Tři chyby najednou
+  v požadavku na `ClientPeoplePickerSearchUser`:
+  - posílalo se `__metadata` ze starého formátu `odata=verbose`, který se tluče
+    s hlavičkou `OData-Version: 4.0`, kterou SPHttpClient přidává sám,
+  - chybělo `SharePointGroupID`, bez kterého endpoint požadavek odmítne,
+  - chybová hláška zahazovala odpověď serveru, takže z ní nešlo zjistit příčinu.
+  Nález jde jen na ostrém tenantu — v ukázkovém režimu se toto rozhraní nevolá.
+
+---
+
 ## 0.2.0 — 23. 9. 2026 — Fáze 1: Projekty (MVP)
 
 Aplikace umí vést projekt od založení po předání: dá mu číslo, složky,

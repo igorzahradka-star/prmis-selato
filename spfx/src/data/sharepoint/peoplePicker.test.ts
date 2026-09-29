@@ -20,6 +20,17 @@ describe('peoplePickerQuery', () => {
     const q = peoplePickerQuery('novák', 5) as { queryParams: { MaximumEntitySuggestions: number } };
     expect(q.queryParams.MaximumEntitySuggestions).toBe(5);
   });
+
+  // Obojí zjištěno až na ostrém tenantu: endpoint vracel HTTP 400.
+  it('neposílá __metadata — s hlavičkou OData 4.0 od SPHttpClient se tluče', () => {
+    const q = peoplePickerQuery('novák') as { queryParams: Record<string, unknown> };
+    expect('__metadata' in q.queryParams).toBe(false);
+  });
+
+  it('posílá SharePointGroupID — bez něj endpoint požadavek odmítne', () => {
+    const q = peoplePickerQuery('novák') as { queryParams: { SharePointGroupID: number } };
+    expect(q.queryParams.SharePointGroupID).toBe(0);
+  });
 });
 
 describe('parsePeoplePickerResults', () => {

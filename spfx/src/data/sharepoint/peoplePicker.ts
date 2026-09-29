@@ -22,18 +22,28 @@ const PRINCIPAL_TYPE_USER = 1;
 /** Zdroj: 15 = všechny zdroje včetně adresáře firmy (Entra ID), ne jen uživatelé webu. */
 const PRINCIPAL_SOURCE_ALL = 15;
 
-/** Tělo požadavku pro ClientPeoplePickerSearchUser. */
+/**
+ * Tělo požadavku pro ClientPeoplePickerSearchUser.
+ *
+ * Tvar je citlivý na detaily — rozhraní je staré a na cokoli nečekaného
+ * odpovídá HTTP 400 bez vysvětlení:
+ *  - **žádné `__metadata`.** Patří ke starému formátu `odata=verbose`, který
+ *    se tluče s hlavičkou `OData-Version: 4.0`, kterou SPHttpClient přidává sám.
+ *  - **`SharePointGroupID` musí být v těle**, i když hledáme napříč webem.
+ *    Když chybí, endpoint požadavek odmítne.
+ */
 export function peoplePickerQuery(searchText: string, maxResults: number = 15): object {
   return {
     queryParams: {
-      __metadata: { type: 'SP.UI.ApplicationPages.ClientPeoplePickerQueryParameters' },
       AllowEmailAddresses: true,
       AllowMultipleEntities: false,
       AllUrlZones: false,
       MaximumEntitySuggestions: maxResults,
       PrincipalSource: PRINCIPAL_SOURCE_ALL,
       PrincipalType: PRINCIPAL_TYPE_USER,
-      QueryString: searchText
+      QueryString: searchText,
+      // 0 = nehledáme uvnitř konkrétní skupiny webu, ale všude.
+      SharePointGroupID: 0
     }
   };
 }
