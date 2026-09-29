@@ -113,7 +113,7 @@ export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projec
         />
       )}
 
-      <Pivot>
+      <Pivot overflowBehavior="menu" overflowAriaLabel="Další záložky">
         <PivotItem headerText="Přehled" itemIcon="Info">
           <Overview project={project} />
         </PivotItem>

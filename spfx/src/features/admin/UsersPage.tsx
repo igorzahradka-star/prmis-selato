@@ -192,7 +192,7 @@ export const UsersPage: React.FC = () => {
       {!memberships && !error && <Spinner size={SpinnerSize.large} label="Načítám role…" />}
 
       {memberships && (
-        <Pivot styles={{ root: { marginTop: 12 } }}>
+        <Pivot styles={{ root: { marginTop: 12 } }} overflowBehavior="menu" overflowAriaLabel="Další záložky">
           <PivotItem headerText="Podle rolí" itemIcon="SecurityGroup">
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 16 }}>
               {memberships.map((m) => (

@@ -5,13 +5,18 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
-## 0.2.3 — 29. 9. 2026 — Oprava po prvním nasazení
+## 0.2.4 — 29. 9. 2026 — Oprava po prvním nasazení
 
 První verze nasazená na ostrý SharePoint. Instalace datové struktury proběhla
 napoprvé, hledání lidí ne.
 
 **Opraveno**
 
+- **Záložky se při úzké ploše odřízly a byly nedostupné** (v Nastavení „Údaje
+  firmy" a „Jednorázové akce", v detailu projektu poslední záložky). Aplikace
+  běží uvnitř stránky SharePointu s vlastním záhlavím a menu, takže je na ni
+  míň místa, než se čekalo. Nevešlé záložky se teď schovají pod tlačítko
+  „Další záložky". Ověřeno v okně o šířce 1000 px.
 - **Knihovna „Dokumenty" se nenašla — import, záložka Dokumenty i zakládání
   složek.** SharePoint zobrazuje výchozí knihovnu lokalizovaně („Dokumenty"),
   ale hledání podle názvu pracuje s názvem uloženým při založení webu

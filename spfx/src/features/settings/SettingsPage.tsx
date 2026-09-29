@@ -124,7 +124,7 @@ export const SettingsPage: React.FC = () => {
         </MessageBar>
       )}
 
-      <Pivot styles={{ root: { marginTop: 12 } }}>
+      <Pivot styles={{ root: { marginTop: 12 } }} overflowBehavior="menu" overflowAriaLabel="Další záložky">
         <PivotItem headerText="Složky projektů" itemIcon="FolderHorizontal">
           <Panel>
             <Hint>
@@ -368,7 +368,7 @@ const OneOffActions: React.FC = () => {
 
       <ActionCard
         title={`Projekt Režie ${rok}`}
-        description={`Vnitřní projekt pro režijní objednávky a náklady, co nepatří konkrétní zakázce — nájem, telefony, software. Dostane číslo ${overheadProjectNumber(rok)} a v seznamu projektů se objeví jako poslední. Zakládá se jednou za rok.`}
+        description={`Vnitřní projekt pro režijní objednávky a náklady, co nepatří konkrétní zakázce — nájem, telefony, software. Dostane číslo ${overheadProjectNumber(rok)} a v seznamu projektů je vidět mezi ostatními — seznam se řadí od nejvyššího čísla, takže bývá úplně nahoře. Zakládá se jednou za rok.`}
         state={
           overhead === undefined
             ? 'načítám…'

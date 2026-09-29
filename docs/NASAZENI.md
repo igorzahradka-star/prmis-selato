@@ -167,7 +167,7 @@ Zakládá se jednou a pak už tam jen nahráváš nové verze.
 - [ ] Klikni na **26001** — otevře se detail
 - [ ] Záložka **Dokumenty** — ukazuje soubory ze složky projektu
 - [ ] Tlačítko **Otevřít složku projektu** — hodí tě do knihovny
-- [ ] **Nový projekt** — náhled čísla ukazuje **26006**
+- [ ] **Nový projekt** — náhled čísla ukazuje číslo o jedna vyšší než nejvyšší importovaný projekt (při šesti importovaných **26007**)
       (projekt **neukládej**, jen zkontroluj číslo a zavři)
 
 Když všech pět sedí, je nasazeno. **Dej mi vědět a pošli printscreen seznamu projektů.**
