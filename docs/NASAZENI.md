@@ -111,6 +111,32 @@ Zakládá se jednou a pak už tam jen nahráváš nové verze.
 - [ ] U každé role klikni **Přidat** a zadej jméno nebo e-mail (aspoň tři písmena)
 - [ ] **Administrátor PRM:** přidej aspoň ještě jednoho člověka kromě sebe
 
+### 8b. Zkontroluj, že role mají i práva zápisu ⚠️
+
+Nové skupiny vzniknou jen s právem **Číst**. Kdo je jen v nich a nikde jinde,
+aplikaci uvidí, ale **nic v ní neuloží** — projekt nezaloží, termín nepřidá.
+
+U členů týmového webu to problém není, ti mají *Upravovat* automaticky.
+Kdo je ale přidaný jen do role PRM, potřebuje práva doplnit:
+
+- [ ] Na webu RES: **ozubené kolo** → **Oprávnění webu**
+- [ ] → **Rozšířená nastavení oprávnění**
+- [ ] U skupin níže zaškrtni řádek → **Upravit oprávnění uživatele** → nastav úroveň:
+
+| Skupina | Úroveň oprávnění | Proč |
+|---|---|---|
+| PRM Administrátoři | **Úplné řízení** | spouští instalaci, zakládá seznamy a skupiny |
+| PRM Projektoví manažeři | **Upravovat** | zakládají a vedou projekty |
+| PRM Asistenti | **Upravovat** | vystavují objednávky, doplňují termíny |
+| PRM Vedení | **Upravovat** | schvalují — zápis do PRM_Approvals |
+| PRM Finance – důvěrné | Číst | jejich data jsou na webu PRM-Finance, tady jen čtou |
+| PRM Čtenáři | Číst | výchozí stav stačí |
+
+> **Jak si ověříš, že to sedí:** nech někoho z PM otevřít aplikaci a zkusit
+> **Nový projekt**. Když uložení projde, je to v pořádku.
+
+---
+
 ### 9. Import stávajících projektů ⚠️
 
 > **Udělej to dřív, než kdokoli založí první projekt.** Dokud import neproběhne,
