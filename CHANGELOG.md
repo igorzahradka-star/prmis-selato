@@ -19,11 +19,18 @@ Datum ve tvaru den. měsíc. rok.
   U zahraničních firem se místo ARES vyplňuje registrační číslo a DIČ / VAT ID
   s předponou země; formát DIČ se kontroluje jako upozornění, ne zákaz uložení.
   Automatické dohledání v zahraničních registrech zatím není (viz ROZHODNUTI).
+- **Řazení seznamu projektů.** Výchozí je podle čísla vzestupně. Klik na záhlaví
+  (Číslo, Název, Projektový manažer, Celková cena, Termín, Zahájení, Ukončení, Stav)
+  řazení přepne, druhý klik obrátí směr. Projekty bez hodnoty jsou vždy na konci.
+  Export do Excelu drží stejné pořadí jako na obrazovce.
 - **Schéma dat 3:** nový sloupec „Země" v PRM_Partners. Po nahrání balíčku ho
   doplní Správa → Instalace a diagnostika (jen přidá, nic nesmaže).
 
 **Opraveno**
 
+- **Typy projektů (a šablonu složek) v Nastavení nešlo upravit.** Pole po každém
+  stisku klávesy smazalo prázdný řádek, takže nový řádek nešlo přidat. Teď jde
+  přidávat, přepisovat i mazat položky normálně.
 - **Nabídka projektových manažerů obsahovala jen lidi, kteří už nějaký projekt
   mají** — v filtru dashboardu, v úpravě projektu i při zakládání. Teď se bere
   z členů rolí Projektový manažer a Administrátor.

@@ -16,6 +16,7 @@ import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
 import { Link } from '@fluentui/react/lib/Link';
 import { useApp } from '../../ui/AppContext';
 import { loadProjectManagerNames } from './projectManagers';
+import { DEFAULT_SORT, ProjectSortKey, sortProjects } from '../../core/projectSort';
 import { RES, LAYOUT } from '../../ui/theme';
 import { buildHash, RouteName } from '../../ui/router';
 import { BudgetBadge, StatusBadge } from '../../ui/components/StatusBadge';
@@ -40,6 +41,8 @@ export const DashboardPage: React.FC = () => {
   const [pmOptions, setPmOptions] = React.useState<IDropdownOption[]>([]);
   const [isNewProjectOpen, setIsNewProjectOpen] = React.useState(false);
   const [refreshKey, setRefreshKey] = React.useState(0);
+  // Výchozí řazení: podle čísla vzestupně. Klik na záhlaví sloupce řazení přepne.
+  const [sort, setSort] = React.useState<{ key: ProjectSortKey; descending: boolean }>(DEFAULT_SORT);
   const [exporting, setExporting] = React.useState(false);
   const [exportError, setExportError] = React.useState<string | undefined>(undefined);
 
@@ -57,7 +60,7 @@ export const DashboardPage: React.FC = () => {
     const filtrovano = statuses.length > 0 || pms.length > 0 || search.trim() !== '';
 
     import(/* webpackChunkName: 'export-excel' */ './exportToExcel')
-      .then((m) => m.exportProjectsToExcel(projects, filtrovano))
+      .then((m) => m.exportProjectsToExcel(sortProjects(projects, sort.key, sort.descending), filtrovano))
       .then(() => setExporting(false))
       .catch((e: Error) => {
         setExporting(false);
@@ -223,8 +226,12 @@ export const DashboardPage: React.FC = () => {
       {projects && projects.length > 0 && (
         <div style={{ background: RES.white, border: `1px solid ${RES.grayBlue}`, borderRadius: 4 }}>
           <DetailsList
-            items={projects}
-            columns={buildColumns()}
+            items={sortProjects(projects, sort.key, sort.descending)}
+            columns={withSorting(buildColumns(), sort, (key) =>
+              setSort((cur) =>
+                cur.key === key ? { key, descending: !cur.descending } : { key, descending: false }
+              )
+            )}
             selectionMode={SelectionMode.none}
             layoutMode={DetailsListLayoutMode.justified}
             compact
@@ -240,6 +247,29 @@ export const DashboardPage: React.FC = () => {
 /** Přidá nebo odebere hodnotu ze seznamu vybraných. */
 function toggle(current: string[], value: string, selected: boolean): string[] {
   return selected ? [...current, value] : current.filter((v) => v !== value);
+}
+
+/** Sloupce, podle kterých jde řadit (klik na záhlaví). Rozpočet je obrázek, ne hodnota. */
+const SORTABLE_KEYS: ProjectSortKey[] = ['number', 'title', 'pm', 'price', 'deadline', 'start', 'end', 'status'];
+
+/** Doplní sloupcům šipku řazení a reakci na klik. */
+function withSorting(
+  columns: IColumn[],
+  sort: { key: ProjectSortKey; descending: boolean },
+  onSort: (key: ProjectSortKey) => void
+): IColumn[] {
+  return columns.map((c) => {
+    const key = c.key as ProjectSortKey;
+    if (SORTABLE_KEYS.indexOf(key) === -1) {
+      return c;
+    }
+    return {
+      ...c,
+      isSorted: sort.key === key,
+      isSortedDescending: sort.key === key && sort.descending,
+      onColumnClick: () => onSort(key)
+    };
+  });
 }
 
 /** Sloupce tabulky podle zadání, kap. 8.1. */

@@ -32,6 +32,7 @@ import {
 import { describeApprovalLadder } from '../../core/approval';
 import { overheadProjectNumber } from '../../core/overhead';
 import { OVERHEAD_ACCESS_ROLES, accessGroupsForRoles } from '../../core/projectAccess';
+import { parseListText, sameList } from '../../core/listText';
 import { buildHash, RouteName } from '../../ui/router';
 import { ImportProjectsPanel } from '../admin/ImportProjectsPanel';
 
@@ -553,23 +554,33 @@ const ListEditor: React.FC<{
   description?: string;
   values: string[];
   onChange: (values: string[]) => void;
-}> = ({ label, description, values, onChange }) => (
-  <TextField
-    label={label}
-    description={description || 'Jedna položka na řádek.'}
-    multiline
-    rows={6}
-    value={values.join('\n')}
-    onChange={(_, v) =>
-      onChange(
-        (v || '')
-          .split('\n')
-          .map((s) => s.trim())
-          .filter((s) => s.length > 0)
-      )
+}> = ({ label, description, values, onChange }) => {
+  // Text si drží editor sám. Kdyby se pole plnilo ze seznamu, prázdný řádek
+  // (právě stisknutý Enter) by se při každém stisku klávesy smazal a nešlo by
+  // přidat novou položku.
+  const [text, setText] = React.useState(values.join('\n'));
+
+  React.useEffect(() => {
+    // Změna zvenku (Zahodit změny, načtení nastavení) přepíše text; vlastní psaní ne.
+    if (!sameList(values, parseListText(text))) {
+      setText(values.join('\n'));
     }
-  />
-);
+  }, [values]);
+
+  return (
+    <TextField
+      label={label}
+      description={description || 'Jedna položka na řádek.'}
+      multiline
+      rows={6}
+      value={text}
+      onChange={(_, v) => {
+        setText(v || '');
+        onChange(parseListText(v || ''));
+      }}
+    />
+  );
+};
 
 /**
  * Editor stromu složek. Odsazení dvěma mezerami = podsložka.
@@ -581,17 +592,32 @@ const ListEditor: React.FC<{
 const FolderTemplateEditor: React.FC<{
   template: FolderTemplateNode[];
   onChange: (template: FolderTemplateNode[]) => void;
-}> = ({ template, onChange }) => (
-  <TextField
-    label="Šablona složek projektu"
-    description="Jedna složka na řádek. Podsložku odsaďte dvěma mezerami."
-    multiline
-    rows={12}
-    value={templateToText(template)}
-    onChange={(_, v) => onChange(textToTemplate(v || ''))}
-    styles={{ field: { fontFamily: 'Consolas, monospace', fontSize: 12 } }}
-  />
-);
+}> = ({ template, onChange }) => {
+  // Stejný důvod jako u ListEditor: odsazení a prázdné řádky se při psaní
+  // nesmí přepisovat přepočítaným stromem.
+  const [text, setText] = React.useState(templateToText(template));
+
+  React.useEffect(() => {
+    if (templateToText(template) !== templateToText(textToTemplate(text))) {
+      setText(templateToText(template));
+    }
+  }, [template]);
+
+  return (
+    <TextField
+      label="Šablona složek projektu"
+      description="Jedna složka na řádek. Podsložku odsaďte dvěma mezerami."
+      multiline
+      rows={12}
+      value={text}
+      onChange={(_, v) => {
+        setText(v || '');
+        onChange(textToTemplate(v || ''));
+      }}
+      styles={{ field: { fontFamily: 'Consolas, monospace', fontSize: 12 } }}
+    />
+  );
+};
 
 /** Strom složek → text. */
 export function templateToText(nodes: FolderTemplateNode[], level: number = 0): string {
