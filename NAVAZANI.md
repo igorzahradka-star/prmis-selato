@@ -26,7 +26,7 @@ To stačí. Claude si zbytek dohledá sám.
 |---|---|
 | Kód | `C:\Projekty\prm-revoltum` (**mimo OneDrive** — `node_modules` se nesmí synchronizovat) |
 | Náhled v prohlížeči | `http://localhost:4322` |
-| Ostrý SharePoint | tenant **https://revoltum.sharepoint.com**. Aplikace i seznamy poběží na **`/sites/RevoltumEngineeringServices`** — Igor má práva jen k tomuhle webu. ⛔ **Blokuje katalog aplikací**, na ten je potřeba správce tenanta (viz `docs/POZADAVEK-NA-SPRAVCE.md`). |
+| Ostrý SharePoint | tenant **https://revoltum.sharepoint.com**. Aplikace i seznamy poběží na **`/sites/RevoltumEngineeringServices`** (vědomé rozhodnutí — projekty už tam jsou). Igor má roli **Správce SharePointu**, nasazení zvládne sám. |
 
 **Spuštění náhledu — nejjednodušeji:** na ploše je zástupce
 **„PRM Revoltum – náhled"**. Dvojklik sestaví náhled, spustí server a otevře
@@ -119,10 +119,8 @@ v náhledu jen v paměti prohlížeče a po načtení stránky zmizí.
 **Nasazení na tenant.** Postup: [`docs/NASAZENI.md`](docs/NASAZENI.md).
 Balíček `spfx/sharepoint/solution/prm-revoltum.sppkg` verze 0.2.0.0 je hotový.
 
-⛔ **Blokuje to katalog aplikací.** Igor má správcovská práva jen k webu
-*Revoltum Engineering & Services*, ne k celému SharePointu. Nahrát balíček
-tedy sám nemůže — potřebuje správce tenanta. Připravený text požadavku:
-[`docs/POZADAVEK-NA-SPRAVCE.md`](docs/POZADAVEK-NA-SPRAVCE.md).
+Igor má roli **Správce SharePointu** (ověřeno 29. 9. 2026) — katalog aplikací
+si založí sám, cizí správce není potřeba.
 
 Po nasazení:
 
@@ -141,12 +139,13 @@ který nikdy neběžel.
 
 | # | Otázka | Blokuje |
 |---|---|---|
-| 8 | **Kdo je správce Microsoftu 365** a zapne katalog aplikací. ⛔ **Jediná blokující věc.** | nasazení čehokoli |
+| 8 | ✅ zodpovězeno — Igor má roli Správce SharePointu, nasazení zvládne sám |  |
 | 9 | ✅ zodpovězeno — tenant `revoltum.sharepoint.com`, aplikace poběží na `/sites/RevoltumEngineeringServices` |  |
 | 10 | ✅ zodpovězeno — knihovna `Dokumenty`, kořenová složka `General/01_PROJEKTY`, bez podsložek podle roku |  |
 | 3 | Jména schvalovatelů objednávek (limity už zadané) | Fázi 2 |
 | 4 | Vzory PDF a fakturační údaje RES (IČO, DIČ, e-mail účtárny) | Fázi 2 |
-| — | Samostatný web pro důvěrná finanční data | Fázi 5 — bude zase potřeba správce |
+| — | Kde leží **obchodní příležitosti** a jestli je importovat jako projekty ve stavu Nabídka | import |
+| — | Samostatný web pro důvěrná finanční data | Fázi 5 |
 
 Celý seznam včetně zodpovězených rozhodnutí: [`docs/ROZHODNUTI.md`](docs/ROZHODNUTI.md).
 
