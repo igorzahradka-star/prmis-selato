@@ -170,3 +170,53 @@ Když všech pět sedí, je nasazeno. **Dej mi vědět a pošli printscreen sezn
 - **Šablona složek projektu** — teď je tam návrh, porovnáme ho se skutečnými složkami
 - **Web PRM-Finance** — až Fáze 5, na důvěrná firemní čísla. Igor si ho jako
   správce SharePointu založí sám.
+
+---
+
+## Jak se nasazují další verze
+
+Aplikace se bude ještě hodně měnit — Fáze 2 až 5. Nahrávat balíček **do katalogu
+musí vždycky Igor**; Claude k vašemu SharePointu přístup nemá a mít nebude.
+Většina vývoje se ale bez nahrávání obejde.
+
+### Při vývoji — bez nahrávání
+
+Webová část se dá načíst **z Claudova počítače na tvou skutečnou stránku**,
+včetně ostrých dat. Nic se přitom nikam nenasazuje a ostatní lidé pořád vidí
+starou verzi.
+
+1. Claude spustí `npm run start` (vývojový server na `https://localhost:4321`)
+2. Ty otevřeš svou stránku PRM s přívěskem v adrese:
+
+```
+https://revoltum.sharepoint.com/sites/RevoltumEngineeringServices/SitePages/PRM.aspx?loadSPFX=true&debugManifestsFile=https://localhost:4321/temp/build/manifests.js
+```
+
+3. Prohlížeč se zeptá, jestli načíst ladicí skripty — potvrdíš
+4. Vidíš rozpracovanou verzi na ostrých datech. Po zavření karty je po všem.
+
+> Přesnou cestu k `manifests.js` ověříme, až to poprvé pustíme — mezi verzemi
+> SPFx se občas mění.
+>
+> Tohle funguje jen na tvém počítači, kde běží vývojový server.
+
+### Při vydání verze — nahrání do katalogu
+
+1. Claude zvýší číslo verze a sestaví balíček
+2. Ty otevřeš **Katalog aplikací** → *Aplikace pro SharePoint*
+3. Přetáhneš nový `prm-revoltum.sppkg` do okna
+4. SharePoint se zeptá, jestli nahradit — potvrdíš **Nahradit**
+5. **Nasadit**
+
+Trvá to zhruba půl minuty. Uživatelé dostanou novou verzi při dalším načtení
+stránky, nic nemusí dělat.
+
+> **Verzi poznáš** v katalogu ve sloupci *Verze*. Claude ji zvyšuje při každém
+> vydání, takže je vždycky vidět, co je nasazené: 0.2.0.0 = Fáze 1.
+
+### Dá se to zautomatizovat?
+
+Jde to (PnP PowerShell, `Add-PnPApp -Overwrite -Publish`), ale novější verze
+PnP vyžadují **vlastní registraci aplikace v Entra ID** — což je jiné oprávnění
+než správce SharePointu a nemusíš ho mít. Necháváme to na později; kdyby tě
+ruční nahrávání začalo obtěžovat, vrátíme se k tomu.
