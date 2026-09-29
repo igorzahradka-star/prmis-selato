@@ -31,6 +31,7 @@ import {
 } from '../../core/settings';
 import { describeApprovalLadder } from '../../core/approval';
 import { overheadProjectNumber } from '../../core/overhead';
+import { OVERHEAD_ACCESS_ROLES, accessGroupsForRoles } from '../../core/projectAccess';
 import { buildHash, RouteName } from '../../ui/router';
 import { ImportProjectsPanel } from '../admin/ImportProjectsPanel';
 
@@ -348,10 +349,15 @@ const OneOffActions: React.FC = () => {
       .catch((e: Error) => {
         setCreating(false);
         setError(e.message);
+        // Režie mohla vzniknout, i když se omezení přístupu nepovedlo — ať je vidět v kartě.
+        setReloadKey((k) => k + 1);
       });
   };
 
   const rok = new Date().getFullYear();
+  const accessNames = accessGroupsForRoles(OVERHEAD_ACCESS_ROLES, settings.roles)
+    .map((g) => g.groupName)
+    .join(', ');
 
   return (
     <Panel>
@@ -368,7 +374,7 @@ const OneOffActions: React.FC = () => {
 
       <ActionCard
         title={`Projekt Režie ${rok}`}
-        description={`Vnitřní projekt pro režijní objednávky a náklady, co nepatří konkrétní zakázce — nájem, telefony, software. Dostane číslo ${overheadProjectNumber(rok)} a v seznamu projektů je vidět mezi ostatními — seznam se řadí od nejvyššího čísla, takže bývá úplně nahoře. Zakládá se jednou za rok.`}
+        description={`Vnitřní projekt pro režijní objednávky a náklady, co nepatří konkrétní zakázce — nájem, telefony, software. Dostane číslo ${overheadProjectNumber(rok)}. Přístup se omezí hned při založení: uvidí ji jen ${accessNames}. Projektoví manažeři a asistenti ji v seznamu ani v knihovně dokumentů neuvidí. Zakládá se jednou za rok.`}
         state={
           overhead === undefined
             ? 'načítám…'

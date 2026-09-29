@@ -10,6 +10,7 @@ import {
   ROLE_PERMISSION_LEVEL,
   PERMISSION_LEVEL_LABEL,
   Person,
+  projectManagerCandidates,
   RoleMembership
 } from './userAdmin';
 import { DEFAULT_ROLE_GROUPS } from './roles';
@@ -246,5 +247,59 @@ describe('ROLE_PERMISSION_LEVEL', () => {
     expect(PERMISSION_LEVEL_LABEL.Administrator).toBe('Úplné řízení');
     expect(PERMISSION_LEVEL_LABEL.Editor).toBe('Úpravy');
     expect(PERMISSION_LEVEL_LABEL.Reader).toBe('Čtení');
+  });
+});
+
+describe('projectManagerCandidates', () => {
+  const clovek = (id: number, displayName: string): Person => ({
+    id,
+    loginName: `i:0#.f|membership|${id}@revoltum.cz`,
+    displayName
+  });
+  const skupina = (role: Role, members: Person[]): RoleMembership => ({
+    role,
+    groupName: `skupina ${role}`,
+    groupExists: true,
+    members
+  });
+
+  it('nabídne členy rolí PM a Administrátor, ne čtenáře ani vedení', () => {
+    const jmena = projectManagerCandidates([
+      skupina(Role.ProjektovyManazer, [clovek(1, 'Petr Novák')]),
+      skupina(Role.Administrator, [clovek(2, 'Igor Zahrádka')]),
+      skupina(Role.Ctenar, [clovek(3, 'Jana Čtenářová')]),
+      skupina(Role.Vedeni, [clovek(4, 'Karel Vedoucí')])
+    ]);
+    expect(jmena).toEqual(['Igor Zahrádka', 'Petr Novák']);
+  });
+
+  it('přidá i lidi, kteří už projekt vedou, i když v roli nejsou', () => {
+    const jmena = projectManagerCandidates(
+      [skupina(Role.ProjektovyManazer, [clovek(1, 'Petr Novák')])],
+      ['Bývalý Kolega', undefined, '']
+    );
+    expect(jmena).toEqual(['Bývalý Kolega', 'Petr Novák']);
+  });
+
+  it('člověk ve více rolích a ve vedených projektech je v nabídce jednou', () => {
+    const jmena = projectManagerCandidates(
+      [
+        skupina(Role.ProjektovyManazer, [clovek(1, 'Igor Zahrádka')]),
+        skupina(Role.Administrator, [clovek(1, 'Igor Zahrádka')])
+      ],
+      ['igor zahrádka']
+    );
+    expect(jmena).toEqual(['Igor Zahrádka']);
+  });
+
+  it('řadí česky — Čech až za Cyrilem', () => {
+    const jmena = projectManagerCandidates([
+      skupina(Role.ProjektovyManazer, [clovek(1, 'Čech'), clovek(2, 'Cyril'), clovek(3, 'Adam')])
+    ]);
+    expect(jmena).toEqual(['Adam', 'Cyril', 'Čech']);
+  });
+
+  it('bez členů a bez projektů vrátí prázdný seznam', () => {
+    expect(projectManagerCandidates([])).toEqual([]);
   });
 });

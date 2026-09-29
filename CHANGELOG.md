@@ -5,6 +5,31 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.3.0 — 29. 9. 2026 — Režie jen pro vybrané, zahraniční partneři, výběr PM
+
+**Nové**
+
+- **Projekt Režie je omezený.** Záznam i složka dostanou vlastní oprávnění: uvidí
+  ji jen Administrátoři, Vedení a Finance. Projektoví manažeři a asistenti ji
+  v seznamu ani v knihovně dokumentů neuvidí (skrývá to SharePoint, ne aplikace).
+  Nová Režie se zamyká hned při založení. Už založenou Režii zamkne administrátor
+  tlačítkem „Omezit přístup" v jejím detailu; pruh tam ukazuje skutečný stav
+  oprávnění přečtený ze SharePointu. Nic se nemaže, jen se přidávají skupiny.
+- **Zahraniční partneři.** V kartě partnera je výběr země (členské státy EU).
+  U zahraničních firem se místo ARES vyplňuje registrační číslo a DIČ / VAT ID
+  s předponou země; formát DIČ se kontroluje jako upozornění, ne zákaz uložení.
+  Automatické dohledání v zahraničních registrech zatím není (viz ROZHODNUTI).
+- **Schéma dat 3:** nový sloupec „Země" v PRM_Partners. Po nahrání balíčku ho
+  doplní Správa → Instalace a diagnostika (jen přidá, nic nesmaže).
+
+**Opraveno**
+
+- **Nabídka projektových manažerů obsahovala jen lidi, kteří už nějaký projekt
+  mají** — v filtru dashboardu, v úpravě projektu i při zakládání. Teď se bere
+  z členů rolí Projektový manažer a Administrátor.
+
+---
+
 ## 0.2.4 — 29. 9. 2026 — Oprava po prvním nasazení
 
 První verze nasazená na ostrý SharePoint. Instalace datové struktury proběhla

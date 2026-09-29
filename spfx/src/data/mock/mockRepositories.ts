@@ -12,6 +12,13 @@ import { BudgetStatus, CurrentUser, Partner, Project, ProjectStatus, ProjectTask
 import { AppSettings, DEFAULT_SETTINGS, withDefaults } from '../../core/settings';
 import { canDeleteProject, normalizeLogin, RoleGroupMapping } from '../../core/roles';
 import {
+  AccessGroup,
+  OVERHEAD_ACCESS_ROLES,
+  ProjectAccessState,
+  accessGroupsForRoles,
+  canManageProjectAccess
+} from '../../core/projectAccess';
+import {
   Person,
   RoleMembership,
   ROLE_ORDER,
@@ -207,6 +214,8 @@ export class MockProjectRepository implements IProjectRepository {
   private nextId = Math.max(...MOCK_PROJECTS.map((p) => p.id)) + 1;
   private readonly versions = new Map<string, string>();
   private readonly deleted: { projectNumber: string; by: string; reason?: string }[] = [];
+  /** Projekty s omezeným přístupem → kdo je smí vidět. Zastupuje vlastní oprávnění položky ve SharePointu. */
+  private readonly restricted = new Map<string, string[]>();
 
   public constructor(
     private readonly numbering: INumberingRepository,
@@ -342,6 +351,12 @@ export class MockProjectRepository implements IProjectRepository {
     };
     this.projects = [...this.projects, project];
     await this.tryCreateFolders(project);
+    // Režie se zamyká hned při založení — nikdy nesmí být chvíli otevřená všem.
+    const roles = (await this.settings.get()).roles;
+    this.restricted.set(
+      cislo,
+      accessGroupsForRoles(OVERHEAD_ACCESS_ROLES, roles).map((g) => g.groupName)
+    );
     return this.projects.filter((p) => p.id === project.id)[0];
   }
 
@@ -386,6 +401,27 @@ export class MockProjectRepository implements IProjectRepository {
     }
 
     return delay({ imported, failed });
+  }
+
+  public getAccessState(project: Project): Promise<ProjectAccessState> {
+    const allowed = this.restricted.get(project.projectNumber);
+    return delay({
+      recordRestricted: !!allowed,
+      folderRestricted: project.folderUrl ? !!allowed : undefined,
+      allowed: allowed ? [...allowed] : []
+    });
+  }
+
+  public async restrictAccess(project: Project, actor: CurrentUser, groups: AccessGroup[]): Promise<void> {
+    // Stejná kontrola jako v ostré implementaci — skrytí tlačítka v UI není ochrana.
+    if (!canManageProjectAccess(actor.roles)) {
+      throw new Error('Přístup k projektům smí omezovat jen administrátor PRM.');
+    }
+    if (!this.projects.some((p) => p.projectNumber === project.projectNumber)) {
+      throw new Error(`Projekt ${project.projectNumber} nebyl nalezen.`);
+    }
+    this.restricted.set(project.projectNumber, groups.map((g) => g.groupName));
+    return delay(undefined);
   }
 
   public async retryCreateFolders(projectNumber: string): Promise<void> {

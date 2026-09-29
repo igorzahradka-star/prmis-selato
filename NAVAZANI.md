@@ -113,6 +113,15 @@ balíček 0.2.4.0). Nasazení odhalilo čtyři chyby, které se lokálně nedaly
 hledání lidí (HTTP 400), skupiny rolí bez oprávnění, knihovna „Dokumenty" se
 nenašla podle zobrazeného názvu, oříznuté záložky. Všechny opravené.
 
+**Balíček 0.3.0.0 je hotový, ale zatím nenahraný** (vytvořen 29. 9. 2026 večer).
+Přináší: omezený přístup k Režii (jen Administrátoři, Vedení, Finance),
+výběr země u partnerů (EU), opravu nabídky projektových manažerů.
+Po nahrání je třeba **jednou spustit Správa → Instalace a diagnostika** (nový sloupec
+„Země", schéma 3) a v detailu **Režie 26999 kliknout na „Omezit přístup"** —
+stávající Režie 2026 vznikla dřív a je zatím otevřená všem.
+Ověřit na ostrém webu: zda po omezení uvidí Režii jen očekávané skupiny
+(pruh v detailu ukazuje skutečný stav). Lokálně se to ověřit nedá.
+
 Naimportováno šest projektů (26001–26006) a založena Režie 2026 (26999).
 Čítač projektů čeká na 26007. Importované projekty mají jen číslo, název
 a složku — **Igor doplňuje zákazníky, ceny a termíny** v detailu projektu.

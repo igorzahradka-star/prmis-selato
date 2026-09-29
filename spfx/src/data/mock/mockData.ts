@@ -438,6 +438,20 @@ export const MOCK_PARTNERS: Partner[] = [
     phone: '+420 606 555 111',
     paymentTermDays: 21,
     isActive: true
+  },
+  {
+    id: 7,
+    name: 'Solar Komponenten GmbH',
+    partnerType: PartnerType.Dodavatel,
+    country: 'DE',
+    ico: 'HRB 123456',
+    dic: 'DE123456789',
+    isVatPayer: true,
+    address: 'Sonnenallee 12, 80331 München, Německo',
+    contactName: 'Hans Becker',
+    email: 'becker@solar-komponenten.example',
+    paymentTermDays: 30,
+    isActive: true
   }
 ];
 

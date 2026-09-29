@@ -18,6 +18,7 @@ import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
 
 import { useApp } from '../../ui/AppContext';
+import { loadProjectManagerNames } from './projectManagers';
 import { RES } from '../../ui/theme';
 import { CS_CALENDAR_STRINGS } from '../../ui/csCalendarStrings';
 import { navigate, RouteName } from '../../ui/router';
@@ -73,17 +74,7 @@ export const NewProjectPanel: React.FC<NewProjectPanelProps> = ({ isOpen, onDism
       .list({})
       .then(setPartners)
       .catch(() => setPartners([]));
-    repos.projects
-      .list({})
-      .then((all) => {
-        const names = Array.from(new Set(all.map((p) => p.projectManagerName).filter((n): n is string => !!n)));
-        if (names.indexOf(user.displayName) === -1) {
-          names.push(user.displayName);
-        }
-        names.sort((a, b) => a.localeCompare(b, 'cs-CZ'));
-        setPmOptions(names);
-      })
-      .catch(() => setPmOptions([user.displayName]));
+    loadProjectManagerNames(repos, settings.roles, [user.displayName]).then(setPmOptions).catch(() => undefined); // nabídka nikdy neselže, viz projectManagers.ts
     repos.numbering
       .previewNextNumber('PRJ')
       .then(setPreviewNumber)

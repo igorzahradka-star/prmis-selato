@@ -10,6 +10,7 @@ import {
 import { DEFAULT_DOC_TYPES, MOCK_PARTNERS, MOCK_PROJECTS, MOCK_USER } from './mockData';
 import { CurrentUser, PartnerType, ProjectStatus, Role } from '../../core/types';
 import { ProjectEditInput } from '../repositories';
+import { overheadProjectNumber } from '../../core/overhead';
 
 describe('MockNumberingRepository', () => {
   it('přidělí číslo podle vzoru dané řady', async () => {
@@ -273,6 +274,57 @@ describe('MockProjectRepository.ensureOverheadProject', () => {
     await repos.projects.ensureOverheadProject('Igor Zahrádka');
     const po = await repos.numbering.previewNextNumber('PRJ');
     expect(po).toBe(pred);
+  });
+});
+
+const overheadNumber = (): string => overheadProjectNumber(new Date().getFullYear());
+
+describe('MockProjectRepository — omezení přístupu', () => {
+  const admin: CurrentUser = { ...MOCK_USER, roles: [Role.Administrator] };
+  const pm: CurrentUser = { ...MOCK_USER, roles: [Role.ProjektovyManazer] };
+
+  it('Režie se zamyká hned při založení — nikdy není otevřená všem', async () => {
+    const repos = createMockRepositories();
+    // Ukázková data už Režii mají (a ta zůstává otevřená, jako na živém webu před omezením) —
+    // smažeme ji, ať se zakládá znovu.
+    await repos.projects.remove(overheadNumber(), admin);
+    const rezie = await repos.projects.ensureOverheadProject('Igor Zahrádka');
+    const stav = await repos.projects.getAccessState(rezie);
+
+    expect(stav.recordRestricted).toBe(true);
+    expect(stav.folderRestricted).toBe(true);
+    expect(stav.allowed).toContain('PRM Administrátoři');
+    expect(stav.allowed).not.toContain('PRM Projektoví manažeři');
+  });
+
+  it('běžný projekt je otevřený, dokud ho někdo neomezí', async () => {
+    const repos = createMockRepositories();
+    const projekty = await repos.projects.list({});
+    const stav = await repos.projects.getAccessState(projekty[0]);
+    expect(stav.recordRestricted).toBe(false);
+    expect(stav.allowed).toEqual([]);
+  });
+
+  it('administrátor projekt omezí a stav to ukáže', async () => {
+    const repos = createMockRepositories();
+    const projekt = (await repos.projects.list({}))[0];
+    await repos.projects.restrictAccess(projekt, admin, [
+      { role: Role.Administrator, groupName: 'PRM Administrátoři', level: 'Administrator' }
+    ]);
+    const stav = await repos.projects.getAccessState(projekt);
+    expect(stav.recordRestricted).toBe(true);
+    expect(stav.allowed).toEqual(['PRM Administrátoři']);
+  });
+
+  it('projektový manažer přístup omezit nesmí, i kdyby tlačítko obešel', async () => {
+    const repos = createMockRepositories();
+    const projekt = (await repos.projects.list({}))[0];
+    await expect(
+      repos.projects.restrictAccess(projekt, pm, [
+        { role: Role.Administrator, groupName: 'PRM Administrátoři', level: 'Administrator' }
+      ])
+    ).rejects.toThrow(/administrátor/);
+    expect((await repos.projects.getAccessState(projekt)).recordRestricted).toBe(false);
   });
 });
 

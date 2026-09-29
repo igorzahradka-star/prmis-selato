@@ -26,6 +26,15 @@ import { Partner, PartnerType } from '../../core/types';
 import { canManagePartners } from '../../core/roles';
 import { isValidIco } from '../../core/ico';
 import { lookupCompanyByIco } from '../../data/ares';
+import {
+  DEFAULT_COUNTRY,
+  EU_COUNTRIES,
+  countryName,
+  findCountry,
+  isDomestic,
+  normalizeVatId,
+  vatIdWarning
+} from '../../core/countries';
 
 const PARTNER_TYPE_OPTIONS: IDropdownOption[] = [
   { key: PartnerType.Zakaznik, text: PartnerType.Zakaznik },
@@ -33,9 +42,15 @@ const PARTNER_TYPE_OPTIONS: IDropdownOption[] = [
   { key: PartnerType.Oboji, text: PartnerType.Oboji }
 ];
 
+const COUNTRY_OPTIONS: IDropdownOption[] = EU_COUNTRIES.map((c) => ({
+  key: c.code,
+  text: c.name + ' (' + c.code + ')'
+}));
+
 const EMPTY_DRAFT: Omit<Partner, 'id'> = {
   name: '',
   partnerType: PartnerType.Zakaznik,
+  country: DEFAULT_COUNTRY,
   ico: '',
   dic: '',
   isVatPayer: false,
@@ -192,6 +207,24 @@ export const PartnersPage: React.FC = () => {
       >
         {editing && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
+            <Dropdown
+              label="Země"
+              options={COUNTRY_OPTIONS}
+              selectedKey={(editing.country || DEFAULT_COUNTRY).toUpperCase()}
+              onChange={(_, o) => {
+                if (o) {
+                  setAresError(undefined);
+                  setEditing({ ...editing, country: String(o.key) });
+                }
+              }}
+            />
+            {!isDomestic(editing.country) && (
+              <MessageBar messageBarType={MessageBarType.info} isMultiline>
+                Údaje o zahraniční firmě zatím vyplňte ručně. Automatické dohledání v registrech
+                jednotlivých zemí a v evropském systému VIES zatím aplikace neumí.
+              </MessageBar>
+            )}
+            {isDomestic(editing.country) && (
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
               <TextField
                 label="IČO"
@@ -228,6 +261,15 @@ export const PartnersPage: React.FC = () => {
                 )}
               </TooltipHost>
             </div>
+            )}
+            {!isDomestic(editing.country) && (
+              <TextField
+                label="Registrační číslo firmy"
+                description="Obdoba IČO v dané zemi (např. IČO na Slovensku, HRB v Německu)."
+                value={editing.ico ?? ''}
+                onChange={(_, v) => setEditing({ ...editing, ico: v })}
+              />
+            )}
             {aresError && (
               <MessageBar messageBarType={MessageBarType.warning} onDismiss={() => setAresError(undefined)}>
                 {aresError}
@@ -247,9 +289,22 @@ export const PartnersPage: React.FC = () => {
             />
             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
               <TextField
-                label="DIČ"
+                label={isDomestic(editing.country) ? 'DIČ' : 'DIČ / VAT ID'}
+                description={
+                  isDomestic(editing.country)
+                    ? undefined
+                    : 'S předponou země, např. ' + (findCountry(editing.country)?.vatExample ?? '')
+                }
                 value={editing.dic ?? ''}
                 onChange={(_, v) => setEditing({ ...editing, dic: v })}
+                onBlur={() => {
+                  // Uklidí zápis (mezery, malá písmena, chybějící předpona) až po opuštění pole,
+                  // aby se při psaní nepřepisoval pod rukama.
+                  if (editing.dic && !isDomestic(editing.country)) {
+                    setEditing({ ...editing, dic: normalizeVatId(editing.dic, editing.country) });
+                  }
+                }}
+                errorMessage={isDomestic(editing.country) ? undefined : vatIdWarning(editing.dic, editing.country)}
                 styles={{ root: { flex: '1 1 auto' } }}
               />
               <Toggle
@@ -323,6 +378,14 @@ function buildColumns(canManage: boolean, onEdit: (p: Partner) => void): IColumn
         )
     },
     { key: 'type', name: 'Typ', fieldName: 'partnerType', minWidth: 90, maxWidth: 100, isResizable: true },
+    {
+      key: 'country',
+      name: 'Země',
+      minWidth: 70,
+      maxWidth: 100,
+      isResizable: true,
+      onRender: (p: Partner) => countryName(p.country)
+    },
     { key: 'ico', name: 'IČO', fieldName: 'ico', minWidth: 90, maxWidth: 110, isResizable: true },
     {
       key: 'vat',

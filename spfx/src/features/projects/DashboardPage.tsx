@@ -15,6 +15,7 @@ import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
 import { Link } from '@fluentui/react/lib/Link';
 import { useApp } from '../../ui/AppContext';
+import { loadProjectManagerNames } from './projectManagers';
 import { RES, LAYOUT } from '../../ui/theme';
 import { buildHash, RouteName } from '../../ui/router';
 import { BudgetBadge, StatusBadge } from '../../ui/components/StatusBadge';
@@ -29,7 +30,7 @@ import streakUrl from '../../webparts/prm/assets/res-kpi-streak.png';
 const HERO_GRADIENT = `linear-gradient(135deg, ${RES.text} 0%, ${RES.navyDark} 55%, ${RES.blue} 100%)`;
 
 export const DashboardPage: React.FC = () => {
-  const { repos, user } = useApp();
+  const { repos, settings, user } = useApp();
 
   const [projects, setProjects] = React.useState<Project[] | undefined>(undefined);
   const [error, setError] = React.useState<string | undefined>(undefined);
@@ -90,19 +91,13 @@ export const DashboardPage: React.FC = () => {
   // Nabídka jmen PM do filtru — ze všech projektů, nezávisle na aktuálním filtru.
   React.useEffect(() => {
     let cancelled = false;
-    repos.projects
-      .list({})
-      .then((all) => {
-        if (cancelled) {
-          return;
-        }
-        const names = Array.from(new Set(all.map((p) => p.projectManagerName).filter((n): n is string => !!n)));
-        names.sort((a, b) => a.localeCompare(b, 'cs-CZ'));
+    // Z členů rolí, ne jen z lidí, kteří už projekt vedou — jinak by v nabídce byl
+    // jen ten, kdo nějaký projekt má.
+    loadProjectManagerNames(repos, settings.roles).then((names) => {
+      if (!cancelled) {
         setPmOptions(names.map((n) => ({ key: n, text: n })));
-      })
-      .catch(() => {
-        // Nabídka PM je jen doplněk filtru — když se nenačte, dropdown zůstane prázdný.
-      });
+      }
+    }).catch(() => undefined); // nabídka nikdy neselže, viz projectManagers.ts
     return () => {
       cancelled = true;
     };

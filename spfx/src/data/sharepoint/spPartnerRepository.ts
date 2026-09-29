@@ -13,6 +13,7 @@ const SELECT_FIELDS = [
   'Id',
   'Title',
   'PartnerType',
+  'Country',
   'ICO',
   'DIC',
   'IsVatPayer',
@@ -28,6 +29,7 @@ interface PartnerItem {
   Id: number;
   Title: string;
   PartnerType?: string;
+  Country?: string;
   ICO?: string;
   DIC?: string;
   IsVatPayer?: boolean;
@@ -105,6 +107,7 @@ function toPayload(partner: Omit<Partner, 'id'>): Record<string, unknown> {
   return {
     Title: partner.name,
     PartnerType: partner.partnerType,
+    Country: partner.country ?? '',
     ICO: partner.ico ?? '',
     DIC: partner.dic ?? '',
     IsVatPayer: !!partner.isVatPayer,
@@ -122,6 +125,7 @@ function mapPartner(item: PartnerItem): Partner {
     id: item.Id,
     name: item.Title,
     partnerType: (item.PartnerType as PartnerType) ?? PartnerType.Zakaznik,
+    country: item.Country || undefined,
     ico: item.ICO || undefined,
     dic: item.DIC || undefined,
     isVatPayer: !!item.IsVatPayer,
@@ -141,7 +145,7 @@ function applyTextSearch(partners: Partner[], search: string | undefined): Partn
   }
   const q = search.trim().toLocaleLowerCase('cs-CZ');
   return partners.filter((p) =>
-    [p.name, p.ico, p.contactName]
+    [p.name, p.ico, p.dic, p.contactName]
       .filter((v) => !!v)
       .some((v) => (v as string).toLocaleLowerCase('cs-CZ').indexOf(q) !== -1)
   );

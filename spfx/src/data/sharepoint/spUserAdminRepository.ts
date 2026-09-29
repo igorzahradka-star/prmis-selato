@@ -18,22 +18,12 @@ import {
   RoleMembership,
   ROLE_ORDER,
   ROLE_PERMISSION_LEVEL,
-  PERMISSION_LEVEL_LABEL,
-  PermissionLevel
+  PERMISSION_LEVEL_LABEL
 } from '../../core/userAdmin';
 import { IUserAdminRepository, EnsureGroupsResult } from '../repositories';
 import { getSp, describeSpError, extractStatus } from './spContext';
+import { ROLE_TYPE_KIND } from './spPermissions';
 import { peoplePickerQuery, parsePeoplePickerResults } from './peoplePicker';
-
-/**
- * Typy úrovní oprávnění v SharePointu (`SP.RoleType`). Používají se místo
- * českých názvů ("Úpravy", "Čtení"), které se liší podle jazyka webu.
- */
-const ROLE_TYPE_KIND: Record<PermissionLevel, 2 | 5 | 6> = {
-  Reader: 2,
-  Editor: 6,
-  Administrator: 5
-};
 
 interface SiteUserItem {
   Id: number;

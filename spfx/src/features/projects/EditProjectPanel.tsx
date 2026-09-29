@@ -19,6 +19,7 @@ import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
 import { Dialog, DialogType, DialogFooter } from '@fluentui/react/lib/Dialog';
 
 import { useApp } from '../../ui/AppContext';
+import { loadProjectManagerNames } from './projectManagers';
 import { RES } from '../../ui/theme';
 import { CS_CALENDAR_STRINGS } from '../../ui/csCalendarStrings';
 import { navigate, RouteName } from '../../ui/router';
@@ -123,19 +124,7 @@ export const EditProjectPanel: React.FC<EditProjectPanelProps> = ({
       })
       .catch(() => setPartners([]));
 
-    repos.projects
-      .list({})
-      .then((all) => {
-        const names = Array.from(
-          new Set(all.map((p) => p.projectManagerName).filter((n): n is string => !!n))
-        );
-        if (project.projectManagerName && names.indexOf(project.projectManagerName) === -1) {
-          names.push(project.projectManagerName);
-        }
-        names.sort((a, b) => a.localeCompare(b, 'cs-CZ'));
-        setPmOptions(names);
-      })
-      .catch(() => setPmOptions(project.projectManagerName ? [project.projectManagerName] : []));
+    loadProjectManagerNames(repos, settings.roles, [project.projectManagerName]).then(setPmOptions).catch(() => undefined); // nabídka nikdy neselže, viz projectManagers.ts
   }, [isOpen, project]);
 
   const parsedPrice = contractPriceNet.trim() === '' ? undefined : Number(contractPriceNet);

@@ -20,9 +20,11 @@ import { ComingSoonPage } from '../../ui/components/ComingSoonPage';
 import { Project } from '../../core/types';
 import { formatDate, formatMoney } from '../../core/format';
 import { canEditProject } from '../../core/roles';
+import { canManageProjectAccess } from '../../core/projectAccess';
 import { EditProjectPanel } from './EditProjectPanel';
 import { DeadlinesTab } from './DeadlinesTab';
 import { DocumentsTab } from './DocumentsTab';
+import { AccessBar } from './AccessBar';
 
 export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projectNumber }) => {
   const { repos, user } = useApp();
@@ -103,6 +105,8 @@ export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projec
           </div>
         }
       />
+
+      {project.isOverhead && canManageProjectAccess(user.roles) && <AccessBar project={project} />}
 
       {mayEdit && (
         <EditProjectPanel

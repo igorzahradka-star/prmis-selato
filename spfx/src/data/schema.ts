@@ -18,7 +18,7 @@
  * Verze schématu. Ukládá se do PRM_Settings pod klíčem `schemaVersion`.
  * Průvodce porovná uloženou verzi s touto a nabídne doplnění rozdílu.
  */
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 /** Typ sloupce v SharePointu. */
 export type FieldType =
@@ -176,8 +176,9 @@ const PRM_PARTNERS: ListDef = {
   versioning: true,
   fields: [
     { name: 'PartnerType', title: 'Typ', type: 'Choice', choices: ['Zákazník', 'Dodavatel', 'Obojí'], required: true, indexed: true },
-    { name: 'ICO', title: 'IČO', type: 'Text', indexed: true },
-    { name: 'DIC', title: 'DIČ', type: 'Text' },
+    { name: 'Country', title: 'Země', type: 'Text', description: 'Dvoupísmenný kód země (ISO), např. CZ, SK, DE. Prázdné = Česko.' },
+    { name: 'ICO', title: 'IČO', type: 'Text', indexed: true, description: 'U zahraničních partnerů registrační číslo firmy.' },
+    { name: 'DIC', title: 'DIČ', type: 'Text', description: 'U zahraničních partnerů včetně předpony země, např. SK2020317068.' },
     { name: 'IsVatPayer', title: 'Plátce DPH', type: 'Boolean', defaultValue: '0', description: 'Dá se dotáhnout z ARES podle IČO.' },
     { name: 'Address', title: 'Adresa', type: 'Note' },
     { name: 'ContactName', title: 'Kontaktní osoba', type: 'Text' },

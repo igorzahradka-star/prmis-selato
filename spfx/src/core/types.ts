@@ -157,6 +157,8 @@ export interface Partner {
   /** Název — uložený ve sloupci Title. */
   name: string;
   partnerType: PartnerType;
+  /** Dvoupísmenný kód země (ISO). Prázdný = Česko — tak vznikli partneři před zavedením sloupce. */
+  country?: string;
   ico?: string;
   dic?: string;
   /** Plátce DPH — dá se dotáhnout z ARES podle IČO, nebo nastavit ručně. */

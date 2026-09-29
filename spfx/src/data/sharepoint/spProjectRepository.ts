@@ -11,6 +11,13 @@ import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { BudgetStatus, CurrentUser, Project, ProjectStatus } from '../../core/types';
 import { toDate } from '../../core/format';
 import { canDeleteProject } from '../../core/roles';
+import {
+  AccessGroup,
+  OVERHEAD_ACCESS_ROLES,
+  ProjectAccessState,
+  accessGroupsForRoles,
+  canManageProjectAccess
+} from '../../core/projectAccess';
 import { buildProjectFolderPlan } from '../../core/folders';
 import {
   overheadProjectNumber,
@@ -32,6 +39,8 @@ import {
 } from '../repositories';
 import { getSp, getSpForSite, describeSpError, extractStatus } from './spContext';
 import { resolveLibrary } from './spLibrary';
+import { roleDefinitionId } from './spPermissions';
+import { serverRelativePath } from './documentQuery';
 import { escapeODataString } from './spSettingsRepository';
 import { SPFI } from '@pnp/sp';
 
@@ -426,6 +435,18 @@ export class SpProjectRepository implements IProjectRepository {
       // Složky jdou doplnit tlačítkem v detailu projektu.
     }
 
+    // Režie nese náklady celé firmy — vidí ji jen vybrané role. Zamyká se hned
+    // při založení, ne až později, aby nebyla ani chvíli otevřená všem.
+    try {
+      const roles = (await this.settings.get()).roles;
+      await this.applyRestriction(project, accessGroupsForRoles(OVERHEAD_ACCESS_ROLES, roles));
+    } catch (error) {
+      throw new Error(
+        'Režie je založená, ale přístup k ní se nepodařilo omezit — do té doby ji vidí všichni členové webu. ' +
+          `Zkuste to znovu tlačítkem „Omezit přístup". ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+
     return project;
   }
 
@@ -498,6 +519,134 @@ export class SpProjectRepository implements IProjectRepository {
     }
 
     return { imported, failed };
+  }
+
+  public async getAccessState(project: Project): Promise<ProjectAccessState> {
+    try {
+      const sp = getSp(this.context);
+      const item = sp.web.lists.getByTitle(PROJECTS_LIST).items.getById(project.id);
+      const record: { HasUniqueRoleAssignments?: boolean } = await item.select('HasUniqueRoleAssignments')();
+      const recordRestricted = record.HasUniqueRoleAssignments === true;
+
+      // Kdo má přístup, se čte jen u omezeného záznamu — jinak by to byl celý web.
+      let allowed: string[] = [];
+      if (recordRestricted) {
+        const assignments: { Member?: { Title?: string } }[] = await item.roleAssignments.expand('Member')();
+        allowed = assignments
+          .map((a) => a.Member?.Title)
+          .filter((title): title is string => !!title);
+      }
+
+      let folderRestricted: boolean | undefined;
+      if (project.folderUrl) {
+        const folderSp = await this.foldersSp();
+        const folder = await folderSp.web
+          .getFolderByServerRelativePath(serverRelativePath(project.folderUrl))
+          .getItem<{ HasUniqueRoleAssignments?: boolean }>('HasUniqueRoleAssignments');
+        folderRestricted = folder.HasUniqueRoleAssignments === true;
+      }
+
+      return { recordRestricted, folderRestricted, allowed };
+    } catch (error) {
+      throw new Error(
+        describeSpError(error, `Nepodařilo se zjistit, kdo má přístup k projektu ${project.projectNumber}`)
+      );
+    }
+  }
+
+  public async restrictAccess(project: Project, actor: CurrentUser, groups: AccessGroup[]): Promise<void> {
+    // Oprávnění se ověřuje znovu těsně před zápisem (CLAUDE.md, kap. 4) —
+    // skryté tlačítko v UI není ochrana, ochrana jsou oprávnění SharePointu.
+    if (!canManageProjectAccess(actor.roles)) {
+      throw new Error('Přístup k projektům smí omezovat jen administrátor PRM.');
+    }
+    await this.applyRestriction(project, groups);
+  }
+
+  /**
+   * Odpojí záznam i složku projektu od oprávnění webu a přidá jen uvedené skupiny.
+   *
+   * Pořadí je schválně takové: **nejdřív se ověří všechno** (skupiny existují,
+   * úrovně existují), teprve potom se sahá na oprávnění. Kdyby se to obrátilo
+   * a skupina chyběla, zůstal by projekt odpojený a nikdo by k němu neměl přístup.
+   *
+   * Nic se nemaže: `clearSubscopes = false` nechá vlastní oprávnění souborů
+   * uvnitř složky, které tam mohl někdo nastavit ručně.
+   */
+  private async applyRestriction(project: Project, groups: AccessGroup[]): Promise<void> {
+    if (groups.length === 0) {
+      throw new Error('Není komu přístup ponechat — projekt by nikdo neviděl.');
+    }
+    const appSp = getSp(this.context);
+    const folderSp = project.folderUrl ? await this.foldersSp() : undefined;
+
+    try {
+      const recordGrants = await this.resolveGrants(appSp, groups);
+      const folderGrants = folderSp ? await this.resolveGrants(folderSp, groups) : [];
+
+      const item = appSp.web.lists.getByTitle(PROJECTS_LIST).items.getById(project.id);
+      const record: { HasUniqueRoleAssignments?: boolean } = await item.select('HasUniqueRoleAssignments')();
+      if (record.HasUniqueRoleAssignments !== true) {
+        await item.breakRoleInheritance(false, false);
+      }
+      for (const g of recordGrants) {
+        await item.roleAssignments.add(g.principalId, g.roleDefinitionId);
+      }
+
+      if (folderSp && project.folderUrl) {
+        const folder = await folderSp.web
+          .getFolderByServerRelativePath(serverRelativePath(project.folderUrl))
+          .getItem<{ HasUniqueRoleAssignments?: boolean }>('HasUniqueRoleAssignments');
+        if (folder.HasUniqueRoleAssignments !== true) {
+          await folder.breakRoleInheritance(false, false);
+        }
+        for (const g of folderGrants) {
+          await folder.roleAssignments.add(g.principalId, g.roleDefinitionId);
+        }
+      }
+    } catch (error) {
+      throw new Error(
+        describeSpError(
+          error,
+          `Nepodařilo se omezit přístup k projektu ${project.projectNumber}. Omezovat přístup smí jen vlastník webu`
+        )
+      );
+    }
+  }
+
+  /** Ke každé skupině najde její ID a ID úrovně oprávnění; chybějící skupiny nahlásí všechny najednou. */
+  private async resolveGrants(
+    sp: SPFI,
+    groups: AccessGroup[]
+  ): Promise<{ principalId: number; roleDefinitionId: number }[]> {
+    const missing: string[] = [];
+    const grants: { principalId: number; roleDefinitionId: number }[] = [];
+
+    for (const group of groups) {
+      try {
+        const found: { Id: number } = await sp.web.siteGroups.getByName(group.groupName).select('Id')();
+        grants.push({ principalId: found.Id, roleDefinitionId: await roleDefinitionId(sp, group.level) });
+      } catch (error) {
+        if (extractStatus(error) === 404) {
+          missing.push(group.groupName);
+        } else {
+          throw error;
+        }
+      }
+    }
+
+    if (missing.length > 0) {
+      throw new Error(
+        `Skupina „${missing.join('", „')}" na webu neexistuje. Založte ji v Uživatelé a role (tlačítko Založit chybějící skupiny). Zatím se nezměnilo nic.`
+      );
+    }
+    return grants;
+  }
+
+  /** Připojení k webu s knihovnou dokumentů — může být jiný než web aplikace. */
+  private async foldersSp(): Promise<SPFI> {
+    const folders = (await this.settings.get()).folders;
+    return folders.siteUrl ? getSpForSite(this.context, folders.siteUrl) : getSp(this.context);
   }
 
   public async retryCreateFolders(projectNumber: string): Promise<void> {

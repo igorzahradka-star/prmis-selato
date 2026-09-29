@@ -10,6 +10,7 @@ import { CurrentUser, Currency, Partner, Project, ProjectStatus, ProjectTask, Ta
 import { AppSettings } from '../core/settings';
 import { RoleGroupMapping } from '../core/roles';
 import { Person, RoleMembership } from '../core/userAdmin';
+import { AccessGroup, ProjectAccessState } from '../core/projectAccess';
 import { ListDef } from './schema';
 
 /** Kdo je přihlášen a co smí. */
@@ -200,6 +201,27 @@ export interface IProjectRepository {
   ): Promise<ImportResult>;
   /** Znovu založí složky u už uloženého projektu — pro tlačítko „Zkusit znovu založit složky". */
   retryCreateFolders(projectNumber: string): Promise<void>;
+  /**
+   * Skutečný stav oprávnění projektu: je omezený záznam, je omezená složka
+   * a kdo k němu má přístup. Čte se přímo ze SharePointu, ne z paměti aplikace.
+   *
+   * Vyžaduje právo číst oprávnění (administrátor). Ostatním selže — a ti ho
+   * ani nepotřebují.
+   */
+  getAccessState(project: Project): Promise<ProjectAccessState>;
+  /**
+   * Omezí přístup k projektu — k záznamu **i ke složce** — jen na uvedené
+   * skupiny. Ostatní projekt přestanou vidět v seznamu, ve vyhledávání
+   * i v knihovně dokumentů.
+   *
+   * Smí jen administrátor (`canManageProjectAccess`); ověřuje se znovu tady,
+   * skrytí tlačítka v UI není ochrana. Bezpečné pustit opakovaně.
+   *
+   * Nic nemaže: přidává skupiny a odpojuje projekt od oprávnění webu.
+   * Když skupina neexistuje, **nezmění se nic** — nejdřív se ověří všechno,
+   * teprve pak se sahá na oprávnění, aby projekt nezůstal zamčený napůl.
+   */
+  restrictAccess(project: Project, actor: CurrentUser, groups: AccessGroup[]): Promise<void>;
 }
 
 /** Údaje z formuláře smluvního termínu (PRM_Tasks). */

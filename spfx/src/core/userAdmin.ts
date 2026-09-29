@@ -221,3 +221,34 @@ export function normalizeLoginKey(loginName: string): string {
   const pipe = lower.lastIndexOf('|');
   return pipe >= 0 ? lower.slice(pipe + 1) : lower;
 }
+
+/**
+ * Kdo se může nabídnout jako projektový manažer: členové rolí Projektový manažer
+ * a Administrátor (ti projekty zakládají — `canCreateProject`) plus všichni, kdo
+ * už nějaký projekt vedou. Bez členů rolí by nabídka obsahovala jen lidi, kteří
+ * už projekt mají, a nového manažera by nešlo zvolit vůbec.
+ *
+ * Jména se sloučí bez ohledu na velikost písmen a seřadí česky.
+ */
+export function projectManagerCandidates(
+  memberships: RoleMembership[],
+  existingNames: (string | undefined)[] = []
+): string[] {
+  const names: string[] = [];
+  const seen: string[] = [];
+  const add = (raw: string | undefined): void => {
+    const name = (raw || '').trim();
+    const key = name.toLocaleLowerCase('cs-CZ');
+    if (name && seen.indexOf(key) === -1) {
+      seen.push(key);
+      names.push(name);
+    }
+  };
+
+  memberships
+    .filter((m) => m.role === Role.ProjektovyManazer || m.role === Role.Administrator)
+    .forEach((m) => m.members.forEach((p) => add(p.displayName)));
+  existingNames.forEach(add);
+
+  return names.sort((a, b) => a.localeCompare(b, 'cs-CZ'));
+}
