@@ -108,9 +108,19 @@ Hotovo ve Fázi 1:
 
 ### Čím jsme skončili
 
-**Kód Fáze 1 je hotový a ověřený v náhledu.** Všechno další visí na nasazení
-na tenant — dokud aplikace neběží na SharePointu, jsou všechna data
-v náhledu jen v paměti prohlížeče a po načtení stránky zmizí.
+**Aplikace běží ostře** na `/sites/RevoltumEngineeringServices` (nasazeno 29. 9. 2026,
+balíček 0.2.4.0). Nasazení odhalilo čtyři chyby, které se lokálně nedaly najít:
+hledání lidí (HTTP 400), skupiny rolí bez oprávnění, knihovna „Dokumenty" se
+nenašla podle zobrazeného názvu, oříznuté záložky. Všechny opravené.
+
+Naimportováno šest projektů (26001–26006) a založena Režie 2026 (26999).
+Čítač projektů čeká na 26007. Importované projekty mají jen číslo, název
+a složku — **Igor doplňuje zákazníky, ceny a termíny** v detailu projektu.
+
+Struktura knihovny a číslování nabídek jsou zapsané v `docs/ROZHODNUTI.md`.
+Nabídky zatím nestavíme (návrh: otevřené v kořeni `00_OBCHODNI PRILEZITOSTI`,
+prohrané do `CLOSED/rok`, vyhrané se stanou projektem; `N26_0002`, řada oddělená
+od projektů).
 
 ---
 
