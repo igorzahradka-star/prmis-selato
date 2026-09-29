@@ -5,13 +5,20 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
-## 0.2.2 — 29. 9. 2026 — Oprava po prvním nasazení
+## 0.2.3 — 29. 9. 2026 — Oprava po prvním nasazení
 
 První verze nasazená na ostrý SharePoint. Instalace datové struktury proběhla
 napoprvé, hledání lidí ne.
 
 **Opraveno**
 
+- **Knihovna „Dokumenty" se nenašla — import, záložka Dokumenty i zakládání
+  složek.** SharePoint zobrazuje výchozí knihovnu lokalizovaně („Dokumenty"),
+  ale hledání podle názvu pracuje s názvem uloženým při založení webu
+  („Documents"). Na anglicky založeném webu prohlíženém česky proto vracelo
+  404, i když knihovna je před očima. Aplikace teď knihovnu hledá i podle názvu
+  v adrese (`Shared Documents`). Když ji nenajde, hláška vypíše knihovny,
+  které na webu skutečně jsou, takže je jasné, co zadat.
 - **Skupiny rolí vznikly bez jakéhokoli oprávnění na webu.** Na stránce
   *Oprávnění webu* se proto neobjevily a člen role by aplikaci neotevřel.
   Hláška v aplikaci přitom tvrdila, že mají právo Číst — nemaly žádné.

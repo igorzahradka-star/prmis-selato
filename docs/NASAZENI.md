@@ -184,6 +184,7 @@ Když všech pět sedí, je nasazeno. **Dej mi vědět a pošli printscreen sezn
 | Instalace končí červeně | Pošli mi printscreen té červené části. **Nepokračuj.** |
 | Záložka Dokumenty je prázdná | Nastavení → *Složky projektů*: sedí knihovna `Dokumenty` a kořenová složka `General/01_PROJEKTY`? |
 | Import ukazuje 0 projektů | Totéž — kořenová složka musí být `General/01_PROJEKTY`. |
+| „Knihovna … nebyla nalezena" | Hláška vypíše, jaké knihovny na webu jsou. Název i adresu (`Shared Documents`) přijme Nastavení → Složky projektů. |
 | Nový projekt nabízí 26001 | Import neproběhl. Zpátky na krok 9. |
 
 ---

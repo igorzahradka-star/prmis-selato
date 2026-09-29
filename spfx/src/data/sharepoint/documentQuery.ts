@@ -72,3 +72,67 @@ export function formatFileSize(bytes: number | undefined): string {
   }
   return `${(mb / 1024).toFixed(1).replace('.', ',')} GB`;
 }
+
+/** Knihovna dokumentů tak, jak ji vrací SharePoint. */
+export interface LibraryInfo {
+  /** Uložený název. Na webu založeném anglicky bývá "Documents", i když ho člověk vidí česky. */
+  title: string;
+  /** Poslední část adresy: "Shared Documents". Na rozdíl od názvu se nepřekládá. */
+  urlName: string;
+  serverRelativeUrl: string;
+}
+
+/**
+ * Názvy, pod kterými se výchozí knihovna webu ukazuje lidem. Interně se ale
+ * vždycky jmenuje `Shared Documents` (adresa) a uložený název bývá anglický.
+ * Jazyk webu ovlivňuje jen to, co vidí člověk, ne to, co najde `getByTitle`.
+ */
+const DEFAULT_LIBRARY_ALIASES = ['dokumenty', 'documents', 'shared documents', 'sdílené dokumenty'];
+
+const DEFAULT_LIBRARY_URL_NAME = 'shared documents';
+
+/**
+ * Najde v seznamu knihoven tu, kterou uživatel myslel.
+ *
+ * Proč to není jen `getByTitle`: SharePoint zobrazuje výchozí knihovnu
+ * lokalizovaně ("Dokumenty"), ale hledání podle názvu pracuje s názvem
+ * uloženým při založení webu. Na webu založeném anglicky a prohlíženém česky
+ * tak `getByTitle('Dokumenty')` vrací 404, i když knihovna je přímo před očima.
+ *
+ * Pořadí shody, od nejpřesnější:
+ *  1. uložený název (přesně, bez ohledu na velikost písmen),
+ *  2. poslední část adresy ("Shared Documents"),
+ *  3. je-li zadané jméno některé ze známých pojmenování výchozí knihovny,
+ *     knihovna s adresou `Shared Documents`.
+ */
+export function matchLibrary(libraries: LibraryInfo[], wanted: string): LibraryInfo | undefined {
+  const w = (wanted || '').trim().toLocaleLowerCase('cs-CZ');
+  if (!w) {
+    return undefined;
+  }
+  const lower = (x: string): string => x.toLocaleLowerCase('cs-CZ');
+
+  const podleNazvu = libraries.filter((l) => lower(l.title) === w)[0];
+  if (podleNazvu) {
+    return podleNazvu;
+  }
+  const podleAdresy = libraries.filter((l) => lower(l.urlName) === w)[0];
+  if (podleAdresy) {
+    return podleAdresy;
+  }
+  if (DEFAULT_LIBRARY_ALIASES.indexOf(w) !== -1) {
+    return libraries.filter((l) => lower(l.urlName) === DEFAULT_LIBRARY_URL_NAME)[0];
+  }
+  return undefined;
+}
+
+/** Srozumitelná hláška, když knihovna nenajdeme — s výpisem toho, co na webu opravdu je. */
+export function libraryNotFoundMessage(wanted: string, libraries: LibraryInfo[]): string {
+  const dostupne = libraries.map((l) => `„${l.title}" (adresa ${l.urlName})`).join(', ');
+  return (
+    `Knihovna „${wanted}" na webu nebyla nalezena. ` +
+    (dostupne
+      ? `Dostupné knihovny: ${dostupne}. Název upravte v Nastavení → Složky projektů.`
+      : 'Na webu nejsou žádné knihovny dokumentů.')
+  );
+}

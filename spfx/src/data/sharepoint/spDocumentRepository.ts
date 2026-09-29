@@ -12,6 +12,7 @@ import { Project } from '../../core/types';
 import { toDate } from '../../core/format';
 import { IDocumentRepository, ISettingsRepository, ProjectFile } from '../repositories';
 import { getSp, getSpForSite, describeSpError } from './spContext';
+import { resolveLibrary } from './spLibrary';
 import { viewXml, serverRelativePath, folderRelativeTo } from './documentQuery';
 
 interface FileItem {
@@ -47,7 +48,8 @@ export class SpDocumentRepository implements IDocumentRepository {
     const folderPath = serverRelativePath(project.folderUrl);
 
     try {
-      const result = await sp.web.lists.getByTitle(folders.libraryTitle).renderListDataAsStream({
+      const library = await resolveLibrary(sp, folders.libraryTitle);
+      const result = await sp.web.lists.getById(library.id).renderListDataAsStream({
         ViewXml: viewXml(limit),
         FolderServerRelativeUrl: folderPath
       });
@@ -76,11 +78,7 @@ export class SpDocumentRepository implements IDocumentRepository {
 
     const sp = folders.siteUrl ? getSpForSite(this.context, folders.siteUrl) : getSp(this.context);
     try {
-      const list = await sp.web.lists
-        .getByTitle(folders.libraryTitle)
-        .select('RootFolder/ServerRelativeUrl')
-        .expand('RootFolder')();
-      const libraryRoot = (list as { RootFolder: { ServerRelativeUrl: string } }).RootFolder.ServerRelativeUrl;
+      const libraryRoot = (await resolveLibrary(sp, folders.libraryTitle)).serverRelativeUrl;
       const root = folders.rootFolder.trim()
         ? `${libraryRoot}/${folders.rootFolder.replace(/^\/+|\/+$/g, '')}`
         : libraryRoot;

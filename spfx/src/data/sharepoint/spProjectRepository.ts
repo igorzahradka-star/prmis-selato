@@ -31,6 +31,7 @@ import {
   ImportResult
 } from '../repositories';
 import { getSp, getSpForSite, describeSpError, extractStatus } from './spContext';
+import { resolveLibrary } from './spLibrary';
 import { escapeODataString } from './spSettingsRepository';
 import { SPFI } from '@pnp/sp';
 
@@ -564,11 +565,7 @@ export class SpProjectRepository implements IProjectRepository {
 
   /** Server-relativní cesta ke kořeni knihovny — spolehlivější než skládání textu z názvu. */
   private async getLibraryServerRelativeUrl(sp: SPFI, libraryTitle: string): Promise<string> {
-    const list = await sp.web.lists
-      .getByTitle(libraryTitle)
-      .select('RootFolder/ServerRelativeUrl')
-      .expand('RootFolder')();
-    return (list as { RootFolder: { ServerRelativeUrl: string } }).RootFolder.ServerRelativeUrl;
+    return (await resolveLibrary(sp, libraryTitle)).serverRelativeUrl;
   }
 }
 

@@ -1,4 +1,12 @@
-import { viewXml, serverRelativePath, folderRelativeTo, formatFileSize } from './documentQuery';
+import {
+  viewXml,
+  serverRelativePath,
+  folderRelativeTo,
+  formatFileSize,
+  matchLibrary,
+  libraryNotFoundMessage,
+  LibraryInfo
+} from './documentQuery';
 import { normalizeSpaces } from '../../core/format';
 
 describe('viewXml', () => {
@@ -84,5 +92,70 @@ describe('formatFileSize', () => {
 
   it('prázdný soubor je 0 B, ne pomlčka', () => {
     expect(formatFileSize(0)).toBe('0 B');
+  });
+});
+
+describe('matchLibrary', () => {
+  // Přesně to, co bylo zjištěno na webu RES: anglicky založený web, český zobrazovaný název.
+  const web: LibraryInfo[] = [
+    { title: 'Documents', urlName: 'Shared Documents', serverRelativeUrl: '/sites/RES/Shared Documents' },
+    { title: 'Site Assets', urlName: 'SiteAssets', serverRelativeUrl: '/sites/RES/SiteAssets' },
+    { title: 'Prostředky webu', urlName: 'SiteAssets2', serverRelativeUrl: '/sites/RES/SiteAssets2' }
+  ];
+
+  it('najde knihovnu podle českého názvu, i když je uložená anglicky', () => {
+    expect(matchLibrary(web, 'Dokumenty')?.urlName).toBe('Shared Documents');
+  });
+
+  it('najde ji podle uloženého názvu', () => {
+    expect(matchLibrary(web, 'Documents')?.urlName).toBe('Shared Documents');
+  });
+
+  it('najde ji podle názvu v adrese', () => {
+    expect(matchLibrary(web, 'Shared Documents')?.urlName).toBe('Shared Documents');
+  });
+
+  it('nevadí velikost písmen ani okolní mezery', () => {
+    expect(matchLibrary(web, '  dokumenty ')?.urlName).toBe('Shared Documents');
+  });
+
+  it('jinou knihovnu najde podle jejího názvu', () => {
+    expect(matchLibrary(web, 'Site Assets')?.urlName).toBe('SiteAssets');
+  });
+
+  it('přesná shoda názvu má přednost před zástupným jménem výchozí knihovny', () => {
+    const uprava: LibraryInfo[] = [
+      { title: 'Dokumenty', urlName: 'Projektove', serverRelativeUrl: '/sites/RES/Projektove' },
+      ...web
+    ];
+    expect(matchLibrary(uprava, 'Dokumenty')?.urlName).toBe('Projektove');
+  });
+
+  it('neexistující knihovnu nevymyslí', () => {
+    expect(matchLibrary(web, 'Smlouvy')).toBeUndefined();
+  });
+
+  it('prázdný název nenajde nic', () => {
+    expect(matchLibrary(web, '')).toBeUndefined();
+    expect(matchLibrary(web, '   ')).toBeUndefined();
+  });
+
+  it('zástupné jméno bez výchozí knihovny nenajde nic', () => {
+    expect(matchLibrary([web[1]], 'Dokumenty')).toBeUndefined();
+  });
+});
+
+describe('libraryNotFoundMessage', () => {
+  it('vypíše, co na webu opravdu je — jinak by se nedalo poznat, co zadat', () => {
+    const msg = libraryNotFoundMessage('Smlouvy', [
+      { title: 'Documents', urlName: 'Shared Documents', serverRelativeUrl: '/x' }
+    ]);
+    expect(msg).toContain('„Smlouvy"');
+    expect(msg).toContain('Documents');
+    expect(msg).toContain('Shared Documents');
+  });
+
+  it('zvládne web bez knihoven', () => {
+    expect(libraryNotFoundMessage('X', [])).toContain('žádné knihovny');
   });
 });
