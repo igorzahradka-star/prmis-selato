@@ -41,6 +41,7 @@ import {
 } from '../repositories';
 import { getSp, getSpForSite, describeSpError, extractStatus } from './spContext';
 import { resolveLibrary } from './spLibrary';
+import { ensureFolder } from './spFolders';
 import { roleDefinitionId } from './spPermissions';
 import { buildFolderUrl, repairFolderUrl, serverRelativePath } from './documentQuery';
 import { escapeODataString } from './spSettingsRepository';
@@ -849,7 +850,7 @@ export class SpProjectRepository implements IProjectRepository {
 
     for (const relativePath of plan) {
       const fullPath = `${libraryRoot}/${relativePath}`;
-      await foldersSp.web.folders.addUsingPath(fullPath);
+      await ensureFolder(foldersSp, fullPath);
     }
 
     const projectFolderPath = `${libraryRoot}/${plan[plan.length - 1]}`;

@@ -13,6 +13,7 @@ import { toDate } from '../../core/format';
 import { IDocumentRepository, ISettingsRepository, ProjectFile } from '../repositories';
 import { getSp, getSpForSite, describeSpError } from './spContext';
 import { resolveLibrary } from './spLibrary';
+import { ensureFolder } from './spFolders';
 import { viewXml, serverRelativePath, folderRelativeTo } from './documentQuery';
 
 interface FileItem {
@@ -79,7 +80,7 @@ export class SpDocumentRepository implements IDocumentRepository {
       let path = base;
       for (const part of relativeFolder.split('/').filter((p) => p.trim() !== '')) {
         path = `${path}/${part}`;
-        await sp.web.folders.addUsingPath(path);
+        await ensureFolder(sp, path);
       }
       const added = (await sp.web
         .getFolderByServerRelativePath(path)
