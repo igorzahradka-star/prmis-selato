@@ -12,6 +12,9 @@ import { Shimmer } from '@fluentui/react/lib/Shimmer';
 import { Icon } from '@fluentui/react/lib/Icon';
 import { Project, BudgetStatus, ACTIVE_PROJECT_STATUSES } from '../../core/types';
 import { formatMoney, daysBetween } from '../../core/format';
+import { CurrencyCode, RateTable, StoredRates, describeRates, effectiveRates, sumInCzk } from '../../core/currency';
+import { fallbackRatesOf } from '../../core/settings';
+import { useApp } from '../../ui/AppContext';
 import { RES } from '../../ui/theme';
 
 /** Kolik dní dopředu se hlídají smluvní termíny. Ze zadání: 14 dní. */
@@ -26,7 +29,7 @@ export interface KpiSummary {
 }
 
 /** Spočítá čísla do dlaždic. Vytaženo ven kvůli testovatelnosti. */
-export function computeKpi(projects: Project[], today: Date = new Date()): KpiSummary {
+export function computeKpi(projects: Project[], today: Date = new Date(), rates?: RateTable): KpiSummary {
   const active = projects.filter(
     (p) => !p.isOverhead && ACTIVE_PROJECT_STATUSES.indexOf(p.status) !== -1
   );
@@ -45,7 +48,11 @@ export function computeKpi(projects: Project[], today: Date = new Date()): KpiSu
 
   return {
     activeCount: active.length,
-    activeValue: active.reduce((sum, p) => sum + (p.contractPriceNet ?? 0), 0),
+    // Projekty jsou v různých měnách (Kč, EUR, USD) — součet se dělá v Kč podle kurzu ČNB.
+    // Bez kurzů (jen v testech) se sečtou holá čísla.
+    activeValue: rates
+      ? sumInCzk(active.map((p) => ({ amount: p.contractPriceNet, currency: p.currency })), rates)
+      : active.reduce((sum, p) => sum + (p.contractPriceNet ?? 0), 0),
     redCount: active.filter((p) => p.budgetStatus === BudgetStatus.Cervena).length,
     upcomingDeadlines: upcoming.length,
     overdueDeadlines: overdue.length
@@ -57,11 +64,28 @@ export function computeKpi(projects: Project[], today: Date = new Date()): KpiSu
  * (viz `DashboardPage`) — sama žádné pozadí nemá, jen řadu dlaždic.
  */
 export const KpiTiles: React.FC<{ projects: Project[] | undefined }> = ({ projects }) => {
+  const { repos, settings } = useApp();
+  const [stored, setStored] = React.useState<StoredRates | undefined>(undefined);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    repos.rates
+      .getLatest()
+      .then((r) => !cancelled && setStored(r))
+      .catch(() => !cancelled && setStored({}));
+    return () => {
+      cancelled = true;
+    };
+  }, [repos]);
+
   if (!projects) {
     return <Shimmer styles={{ root: { height: 40 } }} />;
   }
 
-  const kpi = computeKpi(projects);
+  const rates = effectiveRates(stored, fallbackRatesOf(settings.approvals));
+  const kpi = computeKpi(projects, new Date(), rates);
+  const used = Array.from(new Set(projects.map((p) => p.currency))) as CurrencyCode[];
+  const rateNote = describeRates(rates, used);
 
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -73,9 +97,10 @@ export const KpiTiles: React.FC<{ projects: Project[] | undefined }> = ({ projec
       />
       <Tile
         icon="Money"
-        label="Hodnota aktivních"
+        label="Hodnota aktivních (Kč)"
         value={formatMoney(kpi.activeValue)}
         color={RES.green}
+        hint={rateNote || 'Součet cen aktivních projektů bez DPH.'}
       />
       <Tile
         icon="StatusErrorFull"
@@ -103,13 +128,15 @@ export const KpiTiles: React.FC<{ projects: Project[] | undefined }> = ({ projec
  * Poloprůhledný šedý „čip" za textem — motiv v pozadí (viz `DashboardPage`)
  * zůstane vidět, ale číslo a popisek jsou čitelnější.
  */
-const Tile: React.FC<{ icon: string; label: string; value: string; color: string }> = ({
+const Tile: React.FC<{ icon: string; label: string; value: string; color: string; hint?: string }> = ({
   icon,
   label,
   value,
-  color
+  color,
+  hint
 }) => (
   <div
+    title={hint}
     style={{
       display: 'flex',
       alignItems: 'center',

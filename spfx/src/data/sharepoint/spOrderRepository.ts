@@ -14,6 +14,8 @@
 import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { CurrentUser, Project } from '../../core/types';
 import { toDate } from '../../core/format';
+import { fallbackRatesOf } from '../../core/settings';
+import { effectiveRates } from '../../core/currency';
 import { isOverheadNumber } from '../../core/overhead';
 import {
   ApprovalLevel,
@@ -49,6 +51,7 @@ import {
   INumberingRepository,
   IOrderRepository,
   IProjectRepository,
+  IRatesRepository,
   ISettingsRepository,
   OrderFilter,
   OrderInput
@@ -121,7 +124,8 @@ export class SpOrderRepository implements IOrderRepository {
     private readonly context: WebPartContext,
     private readonly numbering: INumberingRepository,
     private readonly projects: IProjectRepository,
-    private readonly settings: ISettingsRepository
+    private readonly settings: ISettingsRepository,
+    private readonly rates: IRatesRepository
   ) {}
 
   public async list(filter?: OrderFilter): Promise<PurchaseOrder[]> {
@@ -318,7 +322,8 @@ export class SpOrderRepository implements IOrderRepository {
     const now = new Date();
 
     // Rozhodnutí a kontrola oprávnění — stejný kód, který používá obrazovka, ale zde je poslední pojistka.
-    const change = decide(order, { project: toWorkflowProject(project), settings: approvals, actor: toActor(actor), now });
+    const rates = effectiveRates(await this.rates.getLatest(), fallbackRatesOf(approvals));
+    const change = decide(order, { project: toWorkflowProject(project), settings: approvals, actor: toActor(actor), now, rates });
     const after = applyOrderChange(order, change, now);
 
     const fields: Record<string, unknown> = {

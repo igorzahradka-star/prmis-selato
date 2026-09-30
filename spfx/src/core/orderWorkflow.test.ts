@@ -17,6 +17,7 @@ import {
   submitOrder
 } from './orderWorkflow';
 import { OrderStatus, PurchaseOrder } from './orders';
+import { effectiveRates } from './currency';
 import { DEFAULT_SETTINGS } from './settings';
 import { Role } from './types';
 
@@ -42,8 +43,10 @@ const rezie: WorkflowProject = { projectNumber: '26999', projectManagerLogin: AD
 
 const NOW = new Date(2026, 9, 1, 10, 0);
 
+const KURZY = effectiveRates(undefined, { EUR: 25, USD: 23 });
+
 function ctx(actor: Actor, project: WorkflowProject = projekt, settings = SETTINGS): WorkflowContext {
-  return { project, settings, actor, now: NOW };
+  return { project, settings, actor, now: NOW, rates: KURZY };
 }
 
 function objednavka(extra: Partial<PurchaseOrder> = {}): PurchaseOrder {

@@ -19,6 +19,7 @@ import { approvalTierIndex } from './approval';
 import { hasAnyRole, normalizeLogin, canEditProject } from './roles';
 import { Role } from './types';
 import { formatMoney } from './format';
+import { RateTable } from './currency';
 import {
   ApprovalLevel,
   ApprovalStep,
@@ -50,6 +51,8 @@ export interface WorkflowContext {
   settings: ApprovalSettings;
   actor: Actor;
   now: Date;
+  /** Kurzy pro přepočet cizích měn na koruny (podle nich se určuje pásmo schvalování). */
+  rates: RateTable;
 }
 
 export type OrderAction = 'edit' | 'submit' | 'approve' | 'return' | 'reject' | 'send' | 'deliver' | 'close' | 'cancel';
@@ -283,7 +286,7 @@ export function submitOrder(order: PurchaseOrder, ctx: WorkflowContext): OrderCh
     throw new WorkflowError(`Objednávku nejde odeslat ke schválení: ${issues.slice(0, 3).map((i) => i.message).join(' ')}`);
   }
 
-  const amountCzk = amountNetInCzk(order.amountNet, order.currency, ctx.settings.eurRateForLimits);
+  const amountCzk = amountNetInCzk(order.amountNet, order.currency, ctx.rates);
   const { steps, outsideApp } = buildApprovalChain({
     amountNetCzk: amountCzk,
     issuerLogin: order.requestedByLogin,

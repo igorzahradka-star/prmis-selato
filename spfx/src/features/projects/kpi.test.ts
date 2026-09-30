@@ -1,3 +1,4 @@
+import { effectiveRates } from '../../core/currency';
 import { computeKpi, DEADLINE_WINDOW_DAYS } from './KpiTiles';
 import { BudgetStatus, Project, ProjectStatus } from '../../core/types';
 
@@ -98,5 +99,26 @@ describe('computeKpi', () => {
   it('termíny u neaktivních projektů nehlídá', () => {
     const data = [projekt({ status: ProjectStatus.Dokonceno, nextDeadline: zaDni(-5) })];
     expect(computeKpi(data, DNES).overdueDeadlines).toBe(0);
+  });
+});
+
+describe('computeKpi — součet v korunách', () => {
+  const kurzy = effectiveRates({ EUR: { currency: 'EUR', rate: 24, date: new Date(2026, 8, 29) } }, { EUR: 25, USD: 23 });
+
+  it('projekty v EUR a USD se přepočítají na Kč, nesčítají se holá čísla', () => {
+    const data = [
+      projekt({ id: 1, contractPriceNet: 1000000, currency: 'CZK' }),
+      projekt({ id: 2, contractPriceNet: 10000, currency: 'EUR' }),
+      projekt({ id: 3, contractPriceNet: 1000, currency: 'USD' })
+    ];
+    expect(computeKpi(data, DNES, kurzy).activeValue).toBe(1000000 + 240000 + 23000);
+  });
+
+  it('neaktivní projekty se do hodnoty nepočítají ani v cizí měně', () => {
+    const data = [
+      projekt({ id: 1, contractPriceNet: 100, currency: 'CZK' }),
+      projekt({ id: 2, contractPriceNet: 5000, currency: 'EUR', status: ProjectStatus.Dokonceno })
+    ];
+    expect(computeKpi(data, DNES, kurzy).activeValue).toBe(100);
   });
 });

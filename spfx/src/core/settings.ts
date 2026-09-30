@@ -88,6 +88,8 @@ export interface ApprovalSettings {
    * (limity jsou v Kč). Na objednávce zůstává částka v eurech.
    */
   eurRateForLimits: number;
+  /** Totéž pro americké dolary. Platí, dokud v seznamu kurzů není zapsaný kurz ČNB. */
+  usdRateForLimits: number;
 }
 
 /** Fakturační a kontaktní údaje RES pro hlavičky a patičky PDF. */
@@ -189,7 +191,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
     // Rozhodnutí zadavatele (30. 9. 2026): i malou objednávku vystavenou PM schvaluje vedení.
     pmSelfApprovalEnabled: false,
     overheadRequiresVedeni: true,
-    eurRateForLimits: 25
+    eurRateForLimits: 25,
+    usdRateForLimits: 23
   },
   roles: DEFAULT_ROLE_GROUPS,
   company: {
@@ -250,6 +253,9 @@ export function validateSettings(settings: AppSettings): string[] {
     problems.push('Práh žlutého semaforu nesmí být záporný.');
   }
   const a = settings.approvals;
+  if (!(a.eurRateForLimits > 0) || !(a.usdRateForLimits > 0)) {
+    problems.push('Nouzové kurzy EUR a USD musí být kladná čísla.');
+  }
   if (a.pmLimit < 0 || a.vedeniLimit < 0 || a.jednatelLimit < 0) {
     problems.push('Limity schvalování nesmí být záporné.');
   }
@@ -267,4 +273,9 @@ export function validateSettings(settings: AppSettings): string[] {
   }
 
   return problems;
+}
+
+/** Nouzové kurzy z Nastavení — použijí se, dokud v seznamu kurzů není zapsaný kurz ČNB. */
+export function fallbackRatesOf(a: ApprovalSettings): { EUR: number; USD: number } {
+  return { EUR: a.eurRateForLimits, USD: a.usdRateForLimits };
 }

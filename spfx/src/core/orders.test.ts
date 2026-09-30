@@ -1,3 +1,4 @@
+import { effectiveRates } from './currency';
 import {
   OrderDraft,
   OrderStatus,
@@ -51,13 +52,15 @@ describe('částky', () => {
     expect(orderTotals([], 21)).toEqual({ net: 0, vat: 0, gross: 0 });
   });
 
-  it('eura se pro limity přepočítají kurzem, koruny zůstanou', () => {
-    expect(amountNetInCzk(1000, 'EUR', 25)).toBe(25000);
-    expect(amountNetInCzk(1000, 'CZK', 25)).toBe(1000);
+  it('eura a dolary se pro limity přepočítají kurzem, koruny zůstanou', () => {
+    const k = effectiveRates(undefined, { EUR: 25, USD: 23 });
+    expect(amountNetInCzk(1000, 'EUR', k)).toBe(25000);
+    expect(amountNetInCzk(1000, 'USD', k)).toBe(23000);
+    expect(amountNetInCzk(1000, 'CZK', k)).toBe(1000);
   });
 
-  it('nesmyslný kurz eura nevynuluje částku', () => {
-    expect(amountNetInCzk(1000, 'EUR', 0)).toBe(1000);
+  it('nesmyslný kurz nevynuluje částku', () => {
+    expect(amountNetInCzk(1000, 'EUR', effectiveRates(undefined, { EUR: 0, USD: 0 }))).toBe(1000);
   });
 });
 

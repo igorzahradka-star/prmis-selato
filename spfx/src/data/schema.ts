@@ -18,7 +18,7 @@
  * Verze schématu. Ukládá se do PRM_Settings pod klíčem `schemaVersion`.
  * Průvodce porovná uloženou verzi s touto a nabídne doplnění rozdílu.
  */
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 7;
 
 /** Typ sloupce v SharePointu. */
 export type FieldType =
@@ -212,7 +212,7 @@ const PRM_PROJECTS: ListDef = {
     { name: 'StorageCapacityKWh', title: 'Kapacita úložiště (kWh)', type: 'Number', decimals: 2 },
     { name: 'ContractNumber', title: 'Číslo smlouvy', type: 'Text' },
     { name: 'ContractPriceNet', title: 'Cena bez DPH', type: 'Currency', decimals: 2 },
-    { name: 'Currency', title: 'Měna', type: 'Choice', choices: ['CZK', 'EUR'], defaultValue: 'CZK' },
+    { name: 'Currency', title: 'Měna', type: 'Choice', choices: ['CZK', 'EUR', 'USD'], defaultValue: 'CZK' },
     { name: 'ExchangeRate', title: 'Kurz k CZK', type: 'Number', decimals: 4, description: 'Vyplňuje se jen u měny EUR.' },
     { name: 'StartDate', title: 'Zahájení', type: 'DateTime', indexed: true },
     { name: 'EndDatePlanned', title: 'Ukončení plánované', type: 'DateTime', indexed: true },
@@ -332,7 +332,7 @@ const PRM_PURCHASE_ORDERS: ListDef = {
     { name: 'Lines', title: 'Položky (JSON)', type: 'Note' },
     { name: 'AmountNet', title: 'Částka bez DPH', type: 'Currency', decimals: 2 },
     { name: 'VATRate', title: 'Sazba DPH (%)', type: 'Number', decimals: 0, defaultValue: '21' },
-    { name: 'Currency', title: 'Měna', type: 'Choice', choices: ['CZK', 'EUR'], defaultValue: 'CZK' },
+    { name: 'Currency', title: 'Měna', type: 'Choice', choices: ['CZK', 'EUR', 'USD'], defaultValue: 'CZK' },
     { name: 'DeliveryDate', title: 'Termín dodání', type: 'DateTime', indexed: true },
     { name: 'PaymentTermDays', title: 'Splatnost (dnů)', type: 'Number', decimals: 0, defaultValue: '30' },
     { name: 'POStatus', title: 'Stav', type: 'Choice', choices: PO_STATUS_CHOICES, defaultValue: 'Koncept', indexed: true },
@@ -538,10 +538,25 @@ const FIN_CF_SUBMISSIONS: ListDef = {
 };
 
 /** Všechny seznamy a knihovny aplikace. */
+const PRM_EXCHANGE_RATES: ListDef = {
+  name: 'PRM_ExchangeRates',
+  title: 'PRM – Kurzy',
+  description: 'Kurzy ČNB (střed) pro přepočet cizích měn na koruny. Zapisuje se ručně v Nastavení, nebo automaticky (Power Automate).',
+  kind: 'list',
+  site: 'PRM',
+  versioning: true,
+  fields: [
+    { name: 'RateDate', title: 'Platí pro den', type: 'DateTime', required: true, indexed: true },
+    { name: 'Rate', title: 'Kurz (Kč za 1 jednotku)', type: 'Number', decimals: 4, required: true },
+    { name: 'Source', title: 'Zdroj', type: 'Text', description: 'ČNB, ruční zápis…' }
+  ]
+};
+
 export const LISTS: ListDef[] = [
   PRM_SETTINGS,
   PRM_DOCTYPES,
   PRM_COUNTERS,
+  PRM_EXCHANGE_RATES,
   PRM_PARTNERS,
   PRM_PROJECTS,
   PRM_TASKS,

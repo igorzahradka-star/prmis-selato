@@ -29,6 +29,7 @@ import { SpProjectRepository } from '../../data/sharepoint/spProjectRepository';
 import { SpPartnerRepository } from '../../data/sharepoint/spPartnerRepository';
 import { SpTaskRepository } from '../../data/sharepoint/spTaskRepository';
 import { SpOrderRepository } from '../../data/sharepoint/spOrderRepository';
+import { SpRatesRepository } from '../../data/sharepoint/spRatesRepository';
 import { SpDocumentRepository } from '../../data/sharepoint/spDocumentRepository';
 import { SpNumberingRepository } from '../../data/sharepoint/spNumberingRepository';
 import { SpInstallRepository } from '../../data/sharepoint/spInstallRepository';
@@ -76,6 +77,7 @@ export default class PrmWebPart extends BaseClientSideWebPart<IPrmWebPartProps> 
     const userId = (this.context.pageContext.legacyPageContext || {}).userId as number;
     const projects = new SpProjectRepository(this.context, userId, numbering, settings);
     const partners = new SpPartnerRepository(this.context);
+    const rates = new SpRatesRepository(this.context);
 
     return {
       users: new SpUserRepository(this.context, financeSiteUrl),
@@ -87,7 +89,8 @@ export default class PrmWebPart extends BaseClientSideWebPart<IPrmWebPartProps> 
       partners,
       tasks: new SpTaskRepository(this.context),
       documents: new SpDocumentRepository(this.context, settings),
-      orders: new SpOrderRepository(this.context, numbering, projects, settings),
+      orders: new SpOrderRepository(this.context, numbering, projects, settings, rates),
+      rates,
       numbering,
       install: new SpInstallRepository(this.context, financeSiteUrl, settings)
     };

@@ -15,6 +15,7 @@
 
 import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { DocTypeConfig, INumberingRepository } from '../repositories';
+import { findDefaultDocType } from '../defaultDocTypes';
 import { renderDocumentNumber, nextSequence, counterScopeKey } from '../../core/numbering';
 import { getSp, describeSpError, extractStatus } from './spContext';
 import { escapeODataString } from './spSettingsRepository';
@@ -127,12 +128,39 @@ export class SpNumberingRepository implements INumberingRepository {
       const items: DocTypeItem[] = await sp.web.lists
         .getByTitle(DOC_TYPES_LIST)
         .items.select('Title', 'Code', 'Pattern', 'Padding', 'ResetPeriod', 'Scope', 'StartValue', 'Active')
-        .filter(`Code eq '${escapeODataString(code)}' and Active eq 1`)
+        .filter(`Code eq '${escapeODataString(code)}'`)
         .top(1)();
-      return items.length > 0 ? mapDocType(items[0]) : undefined;
+      if (items.length > 0) {
+        // Kdo řadu vypnul, ten ji vypnout chtěl — nezapíná se zpátky.
+        return items[0].Active ? mapDocType(items[0]) : undefined;
+      }
+      return await this.seedDefault(code);
     } catch (error) {
       throw new Error(describeSpError(error, 'Nepodařilo se načíst číselnou řadu'));
     }
+  }
+
+  /**
+   * Doplní chybějící výchozí řadu (např. OBJ pro objednávky na webu, kde se dosud číslovaly jen projekty).
+   * Jde o startovní nastavení, které si administrátor může upravit — existující řádek se nikdy nepřepisuje.
+   */
+  private async seedDefault(code: string): Promise<DocTypeConfig | undefined> {
+    const def = findDefaultDocType(code);
+    if (!def) {
+      return undefined;
+    }
+    const sp = getSp(this.context);
+    await sp.web.lists.getByTitle(DOC_TYPES_LIST).items.add({
+      Title: def.name,
+      Code: def.code,
+      Pattern: def.pattern,
+      Padding: def.padding,
+      ResetPeriod: def.resetPeriod,
+      Scope: def.scope,
+      StartValue: def.startValue,
+      Active: true
+    });
+    return def;
   }
 
   /**

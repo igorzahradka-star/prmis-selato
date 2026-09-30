@@ -7,7 +7,7 @@
  */
 
 import { BudgetStatus, Partner, PartnerType, Project, ProjectStatus, ProjectTask, Role, TaskType } from '../../core/types';
-import { DocTypeConfig, ProjectFile } from '../repositories';
+import { ProjectFile } from '../repositories';
 import { Person } from '../../core/userAdmin';
 
 /** Pomocník: datum relativně ke dnešku, aby ukázka nezestárla. */
@@ -470,51 +470,5 @@ export const MOCK_PARTNERS: Partner[] = [
   }
 ];
 
-/**
- * Výchozí číselné řady (PRM_DocTypes) — návrh podle zadání kap. 7.
- * Administrátor je bude moct upravit v Nastavení; tohle je jen startovní sada.
- */
-export const DEFAULT_DOC_TYPES: DocTypeConfig[] = [
-  {
-    // Formát bez pomlčky — navazuje na čísla, která RES používá od roku 2026
-    // ve složkách projektů (25001, 25002…). Viz docs/ROZHODNUTI.md, 23. 9. 2026.
-    code: 'PRJ',
-    name: 'Číslo projektu',
-    pattern: '{YY}{N}',
-    padding: 3,
-    resetPeriod: 'Ročně',
-    scope: 'Globální',
-    startValue: 1,
-    active: true
-  },
-  {
-    code: 'OBJ',
-    name: 'Objednávka',
-    pattern: 'OBJ-{YYYY}-{N}',
-    padding: 4,
-    resetPeriod: 'Ročně',
-    scope: 'Globální',
-    startValue: 1,
-    active: true
-  },
-  {
-    code: 'FP',
-    name: 'Podklad pro fakturaci',
-    pattern: 'FP{YY}{N}',
-    padding: 3,
-    resetPeriod: 'Ročně',
-    scope: 'Globální',
-    startValue: 1,
-    active: true
-  },
-  {
-    code: 'PP',
-    name: 'Předávací protokol',
-    pattern: 'PP-{PRJ}-{N}',
-    padding: 2,
-    resetPeriod: 'Nikdy',
-    scope: 'Projekt',
-    startValue: 1,
-    active: true
-  }
-];
+// Výchozí číselné řady jsou v `data/defaultDocTypes.ts` (používá je i ostrá implementace).
+export { DEFAULT_DOC_TYPES } from '../defaultDocTypes';

@@ -43,6 +43,8 @@ import {
   toWorkflowProject
 } from '../../core/orderWorkflow';
 import { ApprovalRecord, OrderInput } from '../../data/repositories';
+import { CurrencyCode, StoredRates, describeRates, effectiveRates, toCzk } from '../../core/currency';
+import { fallbackRatesOf } from '../../core/settings';
 import { OrderStatusBadge } from './OrderStatusBadge';
 
 export interface OrderPanelProps {
@@ -82,7 +84,8 @@ const VAT_OPTIONS: IDropdownOption[] = [
 ];
 const CURRENCY_OPTIONS: IDropdownOption[] = [
   { key: 'CZK', text: 'CZK' },
-  { key: 'EUR', text: 'EUR' }
+  { key: 'EUR', text: 'EUR' },
+  { key: 'USD', text: 'USD' }
 ];
 
 export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, projectNumber, onDismiss, onChanged }) => {
@@ -94,6 +97,7 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
   const [approvals, setApprovals] = React.useState<ApprovalRecord[]>([]);
   const [projects, setProjects] = React.useState<Project[]>([]);
   const [partners, setPartners] = React.useState<Partner[]>([]);
+  const [storedRates, setStoredRates] = React.useState<StoredRates>({});
   const [editing, setEditing] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | undefined>(undefined);
@@ -148,14 +152,16 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
     Promise.all([
       repos.projects.list({ includeOverhead: true }),
       repos.partners.list({}),
-      orderId !== undefined ? repos.orders.getById(orderId) : Promise.resolve(undefined)
+      orderId !== undefined ? repos.orders.getById(orderId) : Promise.resolve(undefined),
+      repos.rates.getLatest().catch((): StoredRates => ({}))
     ])
-      .then(([projectList, partnerList, loaded]) => {
+      .then(([projectList, partnerList, loaded, ratesList]) => {
         if (cancelled) {
           return;
         }
         setProjects(projectList);
         setPartners(partnerList);
+        setStoredRates(ratesList);
         setOrder(loaded);
         fillForm(loaded, projectNumber);
         setEditing(orderId === undefined);
@@ -281,13 +287,15 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
     }
   };
 
+  const rates = effectiveRates(storedRates, fallbackRatesOf(settings.approvals));
+
   // Náhled cesty schvalování ve formuláři — ať vystavitel ví, co ho čeká, ještě než objednávku odešle.
   const input = buildInput();
   const totals = orderTotals(input.lines, fVat);
   const formProject = projects.filter((p) => p.projectNumber === fProject)[0];
   const route = formProject
     ? buildApprovalChain({
-        amountNetCzk: amountNetInCzk(totals.net, fCurrency, settings.approvals.eurRateForLimits),
+        amountNetCzk: amountNetInCzk(totals.net, fCurrency, rates),
         issuerLogin: order ? order.requestedByLogin : user.loginName,
         projectManagerLogin: formProject.projectManagerLogin,
         isOverhead: formProject.isOverhead,
@@ -538,6 +546,7 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
             <TextField label="Poznámka" multiline rows={2} value={fNote} onChange={(_, v) => setFNote(v ?? '')} />
 
             <TotalsBox net={totals.net} vat={totals.vat} gross={totals.gross} currency={fCurrency} vatRate={fVat} />
+            <CzkNote net={totals.net} currency={fCurrency} rates={rates} />
 
             {route && (
               <MessageBar
@@ -560,7 +569,7 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
         )}
 
         {!loading && !editing && order && (
-          <OrderDetail order={order} approvals={approvals} />
+          <OrderDetail order={order} approvals={approvals} rates={rates} />
         )}
       </Panel>
 
@@ -599,6 +608,20 @@ function lastComment(approvals: ApprovalRecord[]): string {
   return last ? `${last.approverName}: „${last.comment}“` : '';
 }
 
+/** U objednávky v cizí měně: kolik to je v korunách a z jakého kurzu. U korun nic. */
+const CzkNote: React.FC<{ net: number; currency: string; rates: ReturnType<typeof effectiveRates> }> = ({ net, currency, rates }) => {
+  if (currency === 'CZK') {
+    return null;
+  }
+  return (
+    <div style={{ alignSelf: 'flex-end', fontSize: 12, color: RES.gray, textAlign: 'right', marginTop: 4 }}>
+      Bez DPH v Kč: <strong style={{ color: RES.text }}>≈ {formatMoney(toCzk(net, currency, rates), 'CZK')}</strong>
+      <br />
+      {describeRates(rates, [currency as CurrencyCode])}
+    </div>
+  );
+};
+
 const TotalsBox: React.FC<{ net: number; vat: number; gross: number; currency: string; vatRate: number }> = ({
   net,
   vat,
@@ -631,7 +654,11 @@ const Row: React.FC<{ label: string; value: React.ReactNode; bold?: boolean }> =
 );
 
 /** Zobrazení objednávky jen ke čtení: údaje, položky, součty, cesta schvalování a historie. */
-const OrderDetail: React.FC<{ order: PurchaseOrder; approvals: ApprovalRecord[] }> = ({ order, approvals }) => {
+const OrderDetail: React.FC<{ order: PurchaseOrder; approvals: ApprovalRecord[]; rates: ReturnType<typeof effectiveRates> }> = ({
+  order,
+  approvals,
+  rates
+}) => {
   const totals = orderTotals(order.lines, order.vatRate);
   const currentIndex = order.approvalChain.findIndex((s) => !s.approved);
 
@@ -697,6 +724,7 @@ const OrderDetail: React.FC<{ order: PurchaseOrder; approvals: ApprovalRecord[] 
           </tbody>
         </table>
         <TotalsBox net={totals.net} vat={totals.vat} gross={totals.gross} currency={order.currency} vatRate={order.vatRate} />
+        <CzkNote net={totals.net} currency={order.currency} rates={rates} />
       </Section>
 
       {order.approvalChain.length > 0 && (

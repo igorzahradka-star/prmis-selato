@@ -13,6 +13,7 @@ import { Person, RoleMembership } from '../core/userAdmin';
 import { AccessGroup, ProjectAccessState } from '../core/projectAccess';
 import { StatusChange } from '../core/projectStatus';
 import { OrderLine, PurchaseOrder } from '../core/orders';
+import { StoredRate, StoredRates } from '../core/currency';
 import { ListDef } from './schema';
 
 /** Kdo je přihlášen a co smí. */
@@ -492,6 +493,22 @@ export interface IOrderRepository {
   listApprovals(id: number): Promise<ApprovalRecord[]>;
 }
 
+/**
+ * Kurzy ČNB (střed) pro přepočet EUR a USD na koruny.
+ *
+ * Aplikace je sama z internetu stáhnout nemůže — veřejné rozhraní ČNB neposílá prohlížeči povolení
+ * (CORS). Kurzy se proto ukládají do seznamu PRM_ExchangeRates (ručně v Nastavení, nebo denně
+ * automaticky přes Power Automate) a všechno se počítá z nich.
+ */
+export interface IRatesRepository {
+  /** Nejnovější zapsaný kurz každé měny. Bez kurzů (nebo před instalací seznamu) vrátí prázdný objekt — nikdy nespadne. */
+  getLatest(): Promise<StoredRates>;
+  /** Poslední zápisy od nejnovějšího — pro přehled v Nastavení. */
+  listRecent(limit?: number): Promise<StoredRate[]>;
+  /** Zapíše kurz. Smí jen administrátor; ověřuje se i zde. */
+  add(rate: StoredRate, actor: CurrentUser): Promise<void>;
+}
+
 /** Vše dohromady — předává se komponentám přes React context. */
 export interface RepositorySet {
   users: IUserRepository;
@@ -502,6 +519,7 @@ export interface RepositorySet {
   tasks: ITaskRepository;
   documents: IDocumentRepository;
   orders: IOrderRepository;
+  rates: IRatesRepository;
   numbering: INumberingRepository;
   install: IInstallRepository;
 }

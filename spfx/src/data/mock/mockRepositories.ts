@@ -65,6 +65,7 @@ import {
 } from '../repositories';
 import { LISTS, ListDef, SCHEMA_VERSION, creationOrder } from '../schema';
 import { MockOrderRepository } from './mockOrderRepository';
+import { MockRatesRepository } from './mockRatesRepository';
 import {
   DEFAULT_DOC_TYPES,
   MOCK_DIRECTORY,
@@ -857,13 +858,15 @@ export function createMockRepositories(): RepositorySet {
   numbering.seedCounter('OBJ', { year: 2026, lastValue: 4 });
   const projects = new MockProjectRepository(numbering, settings);
   const partners = new MockPartnerRepository();
+  const rates = new MockRatesRepository();
   return {
     users: new MockUserRepository(),
     userAdmin: new MockUserAdminRepository(),
     settings,
     projects,
     partners,
-    orders: new MockOrderRepository(numbering, projects, settings, partners),
+    orders: new MockOrderRepository(numbering, projects, settings, partners, rates),
+    rates,
     tasks: new MockTaskRepository((projectNumber, next) => projects.setNextDeadline(projectNumber, next)),
     documents: new MockDocumentRepository(),
     numbering,

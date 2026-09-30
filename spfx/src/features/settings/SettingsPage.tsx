@@ -35,6 +35,7 @@ import { OVERHEAD_ACCESS_ROLES, accessGroupsForRoles } from '../../core/projectA
 import { parseListText, sameList } from '../../core/listText';
 import { buildHash, RouteName } from '../../ui/router';
 import { ImportProjectsPanel } from '../admin/ImportProjectsPanel';
+import { RatesTab } from './RatesTab';
 
 export const SettingsPage: React.FC = () => {
   const { settings, repos, user, reloadSettings } = useApp();
@@ -248,7 +249,27 @@ export const SettingsPage: React.FC = () => {
               checked={draft.approvals.overheadRequiresVedeni}
               onChange={(_, c) => patch('approvals', { overheadRequiresVedeni: !!c })}
             />
+            <Hint>
+              Objednávky v EUR a USD se pro určení pásma přepočítají kurzem ČNB ze záložky <strong>Kurzy</strong>.
+              Nouzové kurzy níže platí jen do chvíle, než tam bude zapsaný první kurz.
+            </Hint>
+            <NumberField
+              label="Nouzový kurz EUR (Kč)"
+              value={draft.approvals.eurRateForLimits}
+              step={0.5}
+              onChange={(v) => patch('approvals', { eurRateForLimits: v })}
+            />
+            <NumberField
+              label="Nouzový kurz USD (Kč)"
+              value={draft.approvals.usdRateForLimits}
+              step={0.5}
+              onChange={(v) => patch('approvals', { usdRateForLimits: v })}
+            />
           </Panel>
+        </PivotItem>
+
+        <PivotItem headerText="Kurzy" itemIcon="Money">
+          <RatesTab />
         </PivotItem>
 
         <PivotItem headerText="Role" itemIcon="People">

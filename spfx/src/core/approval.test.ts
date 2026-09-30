@@ -8,7 +8,8 @@ const limity: ApprovalSettings = {
   jednatelLimit: 1000000,
   pmSelfApprovalEnabled: true,
   overheadRequiresVedeni: true,
-  eurRateForLimits: 25
+  eurRateForLimits: 25,
+  usdRateForLimits: 23
 };
 
 describe('describeApprovalLadder', () => {

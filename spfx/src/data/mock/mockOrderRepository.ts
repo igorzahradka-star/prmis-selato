@@ -6,13 +6,15 @@
  */
 
 import { CurrentUser, Project } from '../../core/types';
-import { ApprovalSettings } from '../../core/settings';
+import { ApprovalSettings, fallbackRatesOf } from '../../core/settings';
+import { effectiveRates } from '../../core/currency';
 import {
   ApprovalRecord,
   INumberingRepository,
   IOrderRepository,
   IPartnerRepository,
   IProjectRepository,
+  IRatesRepository,
   ISettingsRepository,
   OrderFilter,
   OrderInput
@@ -148,6 +150,7 @@ export class MockOrderRepository implements IOrderRepository {
     private readonly projects: IProjectRepository,
     private readonly settings: ISettingsRepository,
     private readonly partners: IPartnerRepository,
+    private readonly rates: IRatesRepository,
     seed: PurchaseOrder[] = MOCK_ORDERS
   ) {
     this.orders = seed.map((o) => ({ ...o, lines: o.lines.map((l) => ({ ...l })), approvalChain: o.approvalChain.map((s) => ({ ...s })) }));
@@ -300,7 +303,8 @@ export class MockOrderRepository implements IOrderRepository {
     const approvals: ApprovalSettings = (await this.settings.get()).approvals;
     const now = new Date();
 
-    const change = decide(order, { project: toWorkflowProject(project), settings: approvals, actor: toActor(actor), now });
+    const rates = effectiveRates(await this.rates.getLatest(), fallbackRatesOf(approvals));
+    const change = decide(order, { project: toWorkflowProject(project), settings: approvals, actor: toActor(actor), now, rates });
     const updated = applyOrderChange(order, change, now);
     this.replace(updated);
 

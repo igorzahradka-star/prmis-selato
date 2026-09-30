@@ -4,6 +4,8 @@
  * Workflow (kdo smí co, schvalovací řetěz) je v `orderWorkflow.ts`.
  */
 
+import { RateTable, toCzk } from './currency';
+
 /** Stavy objednávky (zadání kap. 8.5). Hodnoty odpovídají volbám ve sloupci Stav seznamu PRM_PurchaseOrders. */
 export enum OrderStatus {
   Koncept = 'Koncept',
@@ -120,10 +122,10 @@ export function orderTotals(lines: OrderLine[], vatRate: number): OrderTotals {
 
 /**
  * Částka bez DPH v korunách — podle ní se vybírá pásmo schvalování, limity jsou v Kč.
- * Euro se přepočítá kurzem z Nastavení (jen pro určení pásma, na objednávce zůstává v eurech).
+ * Cizí měna se přepočítá kurzem ČNB (jen pro určení pásma, na objednávce zůstává v původní měně).
  */
-export function amountNetInCzk(amountNet: number, currency: string, eurRate: number): number {
-  return round2(currency === 'EUR' ? amountNet * (eurRate > 0 ? eurRate : 1) : amountNet);
+export function amountNetInCzk(amountNet: number, currency: string, rates: RateTable): number {
+  return toCzk(amountNet, currency, rates);
 }
 
 // --- kontrola zadání -------------------------------------------------------

@@ -155,7 +155,7 @@ export interface ProjectTask {
 }
 
 /** Měna. Výchozí CZK; EUR se ukládá s kurzem k datu. */
-export type Currency = 'CZK' | 'EUR';
+export type Currency = 'CZK' | 'EUR' | 'USD';
 
 /** Typ partnera. */
 export enum PartnerType {
