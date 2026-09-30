@@ -66,6 +66,7 @@ import {
 import { LISTS, ListDef, SCHEMA_VERSION, creationOrder } from '../schema';
 import { MockOrderRepository } from './mockOrderRepository';
 import { MockInvoiceRepository } from './mockInvoiceRepository';
+import { MockDiaryRepository } from './mockDiaryRepository';
 import { MockRatesRepository } from './mockRatesRepository';
 import { MockMailRepository } from './mockMailRepository';
 import {
@@ -558,6 +559,33 @@ export class MockTaskRepository implements ITaskRepository {
  * a chová se stejně jako na ostro, aby šlo ladit vzhled záložky Dokumenty.
  */
 class MockDocumentRepository implements IDocumentRepository {
+  /** Soubory uložené v ukázkovém režimu — jen v paměti prohlížeče, do zavření stránky. */
+  private readonly stored = new Map<string, { name: string; folder: string; blob: Blob; url: string; modified: Date }>();
+
+  private key(project: Project, folder: string, name: string): string {
+    return `${project.projectNumber}/${folder}/${name}`;
+  }
+
+  public listFolderFiles(project: Project, relativeFolder: string): Promise<ProjectFile[]> {
+    const out: ProjectFile[] = [];
+    this.stored.forEach((f, k) => {
+      if (k.indexOf(`${project.projectNumber}/${relativeFolder}/`) === 0 && k.slice(`${project.projectNumber}/${relativeFolder}/`.length).indexOf('/') === -1) {
+        out.push({ name: f.name, relativeFolder, url: f.url, sizeBytes: f.blob.size, modified: f.modified });
+      }
+    });
+    return delay(out.sort((a, b) => (a.modified as Date).getTime() - (b.modified as Date).getTime()));
+  }
+
+  public readProjectFile(project: Project, relativeFolder: string, fileName: string): Promise<Blob> {
+    const f = this.stored.get(this.key(project, relativeFolder, fileName));
+    return f ? delay(f.blob) : Promise.reject(new Error(`Soubor „${fileName}“ nebyl nalezen.`));
+  }
+
+  public deleteProjectFile(project: Project, relativeFolder: string, fileName: string): Promise<void> {
+    this.stored.delete(this.key(project, relativeFolder, fileName));
+    return delay(undefined);
+  }
+
   public listRecentFiles(project: Project, limit: number = 10): Promise<ProjectFile[]> {
     if (!project.folderUrl) {
       return delay([]);
@@ -570,12 +598,19 @@ class MockDocumentRepository implements IDocumentRepository {
     return delay(files.slice(0, limit));
   }
 
-  public saveProjectFile(project: Project, relativeFolder: string, fileName: string): Promise<string> {
+  public saveProjectFile(project: Project, relativeFolder: string, fileName: string, content: Blob): Promise<string> {
     if (!project.folderUrl) {
       return Promise.reject(new Error(`Projekt ${project.projectNumber} nemá složku, kam by se soubor uložil.`));
     }
-    // V ukázkovém režimu se nic neukládá; vrací se jen odkaz tvaru, jaký by vznikl na ostro.
-    return delay(`#/ukazkovy-rezim/soubor/${encodeURIComponent(`${relativeFolder}/${fileName}`)}`);
+    // V ukázkovém režimu se soubor drží jen v paměti prohlížeče; odkaz míří na něj (nebo na tvar, jaký by vznikl na ostro).
+    const url =
+      content && typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function'
+        ? URL.createObjectURL(content)
+        : `#/ukazkovy-rezim/soubor/${encodeURIComponent(`${relativeFolder}/${fileName}`)}`;
+    if (content) {
+      this.stored.set(this.key(project, relativeFolder, fileName), { name: fileName, folder: relativeFolder, blob: content, url, modified: new Date() });
+    }
+    return delay(url);
   }
 
   public listProjectFolderNames(): Promise<string[]> {
@@ -879,6 +914,7 @@ export function createMockRepositories(): RepositorySet {
     partners,
     orders: new MockOrderRepository(numbering, projects, settings, partners, rates),
     invoices: new MockInvoiceRepository(numbering, projects),
+    diary: new MockDiaryRepository(projects, settings),
     rates,
     mail: new MockMailRepository(),
     tasks: new MockTaskRepository((projectNumber, next) => projects.setNextDeadline(projectNumber, next)),

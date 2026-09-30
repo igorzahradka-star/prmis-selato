@@ -23,6 +23,7 @@ import { PartnersPage } from '../../../features/partners/PartnersPage';
 import { ProjectsMapPage } from '../../../features/map/ProjectsMapPage';
 import { OrdersPage } from '../../../features/orders/OrdersPage';
 import { InvoicesPage } from '../../../features/invoicing/InvoicesPage';
+import { DiaryPage } from '../../../features/diary/DiaryPage';
 import { WaitingForMePage } from '../../../features/orders/WaitingForMePage';
 import { InstallPage } from '../../../features/admin/InstallPage';
 import { SettingsPage } from '../../../features/settings/SettingsPage';
@@ -135,6 +136,8 @@ function renderRoute(route: Route): React.ReactNode {
       return <WaitingForMePage orderId={orderIdFrom(route.param)} />;
     case RouteName.Orders:
       return <OrdersPage orderId={orderIdFrom(route.param)} />;
+    case RouteName.Diary:
+      return <DiaryPage entryId={orderIdFrom(route.param)} />;
     case RouteName.Invoicing:
       return <InvoicesPage invoiceId={orderIdFrom(route.param)} />;
     case RouteName.Benchmark:

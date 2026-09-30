@@ -11,7 +11,7 @@ import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { Project } from '../../core/types';
 import { toDate } from '../../core/format';
 import { IDocumentRepository, ISettingsRepository, ProjectFile } from '../repositories';
-import { getSp, getSpForSite, describeSpError } from './spContext';
+import { getSp, getSpForSite, describeSpError, extractStatus } from './spContext';
 import { resolveLibrary } from './spLibrary';
 import { ensureFolder } from './spFolders';
 import { viewXml, serverRelativePath, folderRelativeTo } from './documentQuery';
@@ -92,6 +92,58 @@ export class SpDocumentRepository implements IDocumentRepository {
       return `${this.origin(folders.siteUrl)}${relative.indexOf('/') === 0 ? '' : '/'}${relative}`;
     } catch (error) {
       throw new Error(describeSpError(error, `Soubor „${fileName}“ se nepodařilo uložit do složky projektu ${project.projectNumber}`));
+    }
+  }
+
+  /** Cesta podsložky projektu od kořene webu; chyba, když projekt nemá složku. */
+  private async folderPathOf(project: Project, relativeFolder: string): Promise<{ sp: ReturnType<typeof getSp>; path: string; origin: string }> {
+    if (!project.folderUrl) {
+      throw new Error(`Projekt ${project.projectNumber} nemá složku. Složku doplňte v detailu projektu.`);
+    }
+    const folders = (await this.settings.get()).folders;
+    const sp = folders.siteUrl ? getSpForSite(this.context, folders.siteUrl) : getSp(this.context);
+    const parts = relativeFolder.split('/').filter((p) => p.trim() !== '');
+    return { sp, path: [serverRelativePath(project.folderUrl), ...parts].join('/'), origin: this.origin(folders.siteUrl) };
+  }
+
+  public async listFolderFiles(project: Project, relativeFolder: string): Promise<ProjectFile[]> {
+    const { sp, path, origin } = await this.folderPathOf(project, relativeFolder);
+    try {
+      const items: { Name: string; ServerRelativeUrl: string; Length: string; TimeLastModified: string }[] = await sp.web
+        .getFolderByServerRelativePath(path)
+        .files.select('Name', 'ServerRelativeUrl', 'Length', 'TimeLastModified')
+        .orderBy('TimeCreated')();
+      return items.map((f) => ({
+        name: f.Name,
+        relativeFolder,
+        url: `${origin}${f.ServerRelativeUrl}`,
+        sizeBytes: f.Length !== undefined ? parseInt(f.Length, 10) : undefined,
+        modified: toDate(f.TimeLastModified)
+      }));
+    } catch (error) {
+      // Složka, která ještě nevznikla (nikdo do ní nic neuložil), není chyba — je prostě prázdná.
+      if (extractStatus(error) === 404) {
+        return [];
+      }
+      throw new Error(describeSpError(error, `Nepodařilo se načíst soubory ze složky „${relativeFolder}“ projektu ${project.projectNumber}`));
+    }
+  }
+
+  public async readProjectFile(project: Project, relativeFolder: string, fileName: string): Promise<Blob> {
+    const { sp, path } = await this.folderPathOf(project, relativeFolder);
+    try {
+      return await sp.web.getFileByServerRelativePath(`${path}/${fileName}`).getBlob();
+    } catch (error) {
+      throw new Error(describeSpError(error, `Soubor „${fileName}“ se nepodařilo načíst`));
+    }
+  }
+
+  public async deleteProjectFile(project: Project, relativeFolder: string, fileName: string): Promise<void> {
+    const { sp, path } = await this.folderPathOf(project, relativeFolder);
+    try {
+      await sp.web.getFileByServerRelativePath(`${path}/${fileName}`).recycle();
+    } catch (error) {
+      throw new Error(describeSpError(error, `Soubor „${fileName}“ se nepodařilo smazat`));
     }
   }
 

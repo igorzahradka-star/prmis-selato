@@ -15,6 +15,7 @@ import { StatusChange } from '../core/projectStatus';
 import { ApprovalLevel, OrderAttachment, OrderLine, PurchaseOrder } from '../core/orders';
 import { Assignee } from '../core/orderWorkflow';
 import { InvoiceBasis } from '../core/invoiceBases';
+import { DiaryEntry, EntryInput, EntryListFilter, SiteDiary } from '../core/siteDiary';
 import { StoredRate, StoredRates } from '../core/currency';
 import { ListDef } from './schema';
 
@@ -311,6 +312,12 @@ export interface IDocumentRepository {
    * Vrací odkaz na uložený soubor.
    */
   saveProjectFile(project: Project, relativeFolder: string, fileName: string, content: Blob): Promise<string>;
+  /** Soubory přímo v podsložce projektu (bez podsložek), od nejstaršího. Složka, která ještě nevznikla, vrací prázdný seznam. */
+  listFolderFiles(project: Project, relativeFolder: string): Promise<ProjectFile[]>;
+  /** Obsah souboru z podsložky projektu (např. fotka pro PDF zápisu). */
+  readProjectFile(project: Project, relativeFolder: string, fileName: string): Promise<Blob>;
+  /** Smaže soubor z podsložky projektu (v SharePointu do koše webu). */
+  deleteProjectFile(project: Project, relativeFolder: string, fileName: string): Promise<void>;
 }
 
 /** Jeden projekt k naimportování ze složky, která už v knihovně je. */
@@ -530,6 +537,43 @@ export interface InvoiceHistoryEntry {
   at?: Date;
 }
 
+/** Jeden záznam historie zápisu ze stavby. */
+export interface DiaryHistoryEntry {
+  action: string;
+  byName: string;
+  at?: Date;
+}
+
+/**
+ * Stavební deníky a zápisy ze stavby (PRM_SiteDiaries, PRM_DiaryEntries). Soubory zápisů leží ve složce projektu
+ * (Nastavení → Složky), v seznamu je jen obsah zápisu, stav a odkazy. Pravidla (kdo smí co) jsou v `core/siteDiary`
+ * a datová vrstva je znovu ověřuje těsně před zápisem; každá změna jde do audit logu.
+ */
+export interface IDiaryRepository {
+  listDiaries(projectNumber?: string): Promise<SiteDiary[]>;
+  /** Založí deník projektu. Smí ten, kdo smí na projektu psát zápisy. */
+  createDiary(projectNumber: string, title: string, note: string | undefined, actor: CurrentUser): Promise<SiteDiary>;
+  /** Přejmenuje / vypne / zapne deník. Složky už založených zápisů se nemění. */
+  updateDiary(id: number, patch: { title?: string; isActive?: boolean; note?: string }, actor: CurrentUser): Promise<SiteDiary>;
+  listEntries(filter?: EntryListFilter): Promise<DiaryEntry[]>;
+  getEntry(id: number): Promise<DiaryEntry | undefined>;
+  /** Založí koncept zápisu, přidělí mu další číslo v deníku a určí jeho složku. */
+  createEntry(input: EntryInput, actor: CurrentUser): Promise<DiaryEntry>;
+  /** Upraví koncept. */
+  updateEntry(id: number, input: EntryInput, actor: CurrentUser): Promise<DiaryEntry>;
+  /** Uzavře zápis: zamkne ho a zapíše otisk obsahu a odkazy na vytvořené PDF a Word. */
+  close(id: number, contentHash: string, output: { pdfUrl?: string; docxUrl?: string }, actor: CurrentUser): Promise<DiaryEntry>;
+  reopen(id: number, reason: string, actor: CurrentUser): Promise<DiaryEntry>;
+  /** Podpis v aplikaci; `currentHash` je otisk obsahu spočítaný teď a musí se shodovat s otiskem z uzavření. */
+  signInApp(id: number, currentHash: string, actor: CurrentUser): Promise<DiaryEntry>;
+  /** Podpis skenem: připojí odkaz na nahraný podepsaný sken. */
+  attachScan(id: number, signedUrl: string, actor: CurrentUser): Promise<DiaryEntry>;
+  cancel(id: number, reason: string, actor: CurrentUser): Promise<DiaryEntry>;
+  /** Smaže zápis — jen administrátor (Jednorázové akce); v SharePointu do koše webu, s auditem. */
+  delete(id: number, actor: CurrentUser): Promise<void>;
+  history(id: number): Promise<DiaryHistoryEntry[]>;
+}
+
 /** Jedno rozhodnutí schvalovatele z historie. */
 export interface ApprovalRecord {
   stepNo: number;
@@ -648,6 +692,7 @@ export interface RepositorySet {
   documents: IDocumentRepository;
   orders: IOrderRepository;
   invoices: IInvoiceRepository;
+  diary: IDiaryRepository;
   rates: IRatesRepository;
   mail: IMailRepository;
   numbering: INumberingRepository;

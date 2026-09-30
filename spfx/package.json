@@ -27,6 +27,7 @@
     "@pnp/core": "4.21.0",
     "@pnp/queryable": "4.21.0",
     "@pnp/sp": "4.21.0",
+    "docx": "^9.8.1",
     "exceljs": "^4.4.0",
     "leaflet": "^1.9.4",
     "pdfjs-dist": "^3.11.174",

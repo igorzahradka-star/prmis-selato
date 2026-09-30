@@ -162,6 +162,18 @@ export const SettingsPage: React.FC = () => {
               checked={draft.folders.subfolderByYear}
               onChange={(_, c) => patch('folders', { subfolderByYear: !!c })}
             />
+            <TextField
+              label="Složka zápisů a stavebních deníků"
+              description="Cesta uvnitř složky projektu, např. „Zápisy“. Chybějící složky vzniknou při prvním uložení zápisu."
+              value={draft.folders.diaryFolder}
+              onChange={(_, v) => patch('folders', { diaryFolder: v || '' })}
+            />
+            <TextField
+              label="Složka fotodokumentace"
+              description="Cesta uvnitř složky projektu, např. „07_Dokumentace a podklady/FOTO“. Uvnitř vznikají složky podle roku a dne."
+              value={draft.folders.photoFolder}
+              onChange={(_, v) => patch('folders', { photoFolder: v || '' })}
+            />
             <FolderTemplateEditor
               template={draft.folders.template}
               onChange={(template) => patch('folders', { template })}

@@ -18,7 +18,7 @@
  * Verze schématu. Ukládá se do PRM_Settings pod klíčem `schemaVersion`.
  * Průvodce porovná uloženou verzi s touto a nabídne doplnění rozdílu.
  */
-export const SCHEMA_VERSION = 8;
+export const SCHEMA_VERSION = 9;
 
 /** Typ sloupce v SharePointu. */
 export type FieldType =
@@ -378,6 +378,49 @@ const PRM_INVOICE_BASES: ListDef = {
   ]
 };
 
+const PRM_SITE_DIARIES: ListDef = {
+  name: 'PRM_SiteDiaries',
+  title: 'PRM – Stavební deníky',
+  description: 'Deníky staveb. K jednomu projektu jich může být víc. Název deníku je ve sloupci Název.',
+  kind: 'list',
+  site: 'PRM',
+  versioning: true,
+  fields: [
+    { name: 'Project', title: 'Projekt', type: 'Lookup', lookupList: 'PRM_Projects', lookupField: 'ProjectNumber', required: true, indexed: true },
+    { name: 'IsActive', title: 'Aktivní', type: 'Boolean', defaultValue: '1' },
+    { name: 'DiaryNote', title: 'Poznámka', type: 'Note' }
+  ]
+};
+
+const PRM_DIARY_ENTRIES: ListDef = {
+  name: 'PRM_DiaryEntries',
+  title: 'PRM – Zápisy ze stavby',
+  description: 'Zápisy stavebních deníků a jednání na stavbě. Soubory (fotky, náčrty, PDF, Word) leží ve složce projektu.',
+  kind: 'list',
+  site: 'PRM',
+  versioning: true,
+  fields: [
+    { name: 'Diary', title: 'Deník', type: 'Lookup', lookupList: 'PRM_SiteDiaries', lookupField: 'Title', required: true, indexed: true },
+    { name: 'Project', title: 'Projekt', type: 'Lookup', lookupList: 'PRM_Projects', lookupField: 'ProjectNumber', required: true, indexed: true },
+    { name: 'EntryNo', title: 'Pořadové číslo', type: 'Number', decimals: 0, indexed: true },
+    { name: 'EntryDate', title: 'Datum zápisu', type: 'DateTime', indexed: true },
+    { name: 'EntryStatus', title: 'Stav', type: 'Choice', choices: ['Koncept', 'Uzavřeno', 'Podepsáno', 'Storno'], defaultValue: 'Koncept', indexed: true },
+    { name: 'Content', title: 'Obsah (JSON)', type: 'Note', description: 'Hlavička, účastníci, body jednání a úkoly. Zapisuje aplikace.' },
+    { name: 'FolderPath', title: 'Složka zápisu', type: 'Text', description: 'Cesta uvnitř složky projektu. Zapisuje aplikace.' },
+    { name: 'EntryAuthor', title: 'Autor zápisu', type: 'User', indexed: true },
+    { name: 'ClosedByName', title: 'Uzavřel', type: 'Text' },
+    { name: 'ClosedAt', title: 'Uzavřeno dne', type: 'DateTime' },
+    { name: 'ContentHash', title: 'Otisk obsahu (SHA-256)', type: 'Text' },
+    { name: 'SignatureKind', title: 'Způsob podpisu', type: 'Choice', choices: ['aplikace', 'sken'] },
+    { name: 'SignedByName', title: 'Podepsal', type: 'Text' },
+    { name: 'SignedAt', title: 'Podepsáno dne', type: 'DateTime' },
+    { name: 'PdfUrl', title: 'PDF', type: 'Url' },
+    { name: 'DocxUrl', title: 'Word', type: 'Url' },
+    { name: 'SignedUrl', title: 'Podepsaný sken', type: 'Url' },
+    { name: 'CancelReason', title: 'Důvod storna', type: 'Note' }
+  ]
+};
+
 const PRM_DOCUMENTS: ListDef = {
   name: 'PRM_Documents',
   title: 'PRM – Číslované dokumenty',
@@ -571,6 +614,8 @@ export const LISTS: ListDef[] = [
   PRM_INCOME_PLAN,
   PRM_PURCHASE_ORDERS,
   PRM_INVOICE_BASES,
+  PRM_SITE_DIARIES,
+  PRM_DIARY_ENTRIES,
   PRM_DOCUMENTS,
   PRM_ACTUAL_CASHFLOWS,
   PRM_APPROVALS,

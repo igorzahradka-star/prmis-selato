@@ -5,6 +5,33 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.10.0 — 1. 10. 2026 — Fáze 2, krok 3: zápisy ze stavby a stavební deníky
+
+**Nové**
+
+- **Stavební deník** (nová položka v nabídce a záložka v detailu projektu): k jednomu projektu **víc deníků**, v každém zápisy
+  s vlastním pořadovým číslem. Deník jde přejmenovat, vypnout a zapnout (tlačítko *Deníky projektu*).
+- **Zápis** má hlavičku předepsanou z projektu (název stavby, místo, datum, projektový manažer) **a firemní údaje z Nastavení —
+  vše jde před uzavřením upravit**; dále počasí a podmínky, účastníky (z Partnerů i jiné subjekty, přítomen / omluven),
+  *Jednání s* (dodavatel nebo jiný subjekt), body jednání a dohodnuté úkoly (kdo, do kdy).
+- **Fotky, náčrty a přílohy u bodů jednání:** tlačítko *Vyfotit* (v mobilu rovnou spustí foťák), *Přidat soubor nebo fotku*
+  a *Nakreslit náčrt* (kreslení prstem nebo myší). Do fotky jde i **kreslit** (šipky, zakroužkování, popis závady). Fotky se před
+  uložením zmenší (delší strana nejvýš 2 000 bodů) a leží ve složce zápisu ve složce projektu.
+- **Výstupy:** PDF v grafice RES (vodoznak KONCEPT do uzavření, podpisové řádky přítomných) a **editovatelný Word** — obojí se při uzavření
+  uloží do složky zápisu (*Zápisy / název deníku / Z007*, přílohy v podsložce *Přílohy*).
+- **Podpis podle situace v terénu:** (1) **podpis v aplikaci** — zápis se uzavře (zamkne), zapíše se kdo a kdy a **otisk obsahu**
+  (SHA-256 textu i všech fotek); podpis projde jen když se obsah od uzavření nezměnil; (2) **vytisknout, podepsat a nahrát sken** —
+  sken se připojí k zápisu. Podepsaný zápis se už nemění. Jde o jednoduchý elektronický podpis, ne kvalifikovaný.
+- **Znovu otevřít** (s důvodem, dokud není podepsaný), **storno** a **historie** zápisu z auditního logu. Smazání jen administrátorem
+  (Nastavení → Jednorázové akce).
+- **Nastavení → Složky:** *Složka zápisů a stavebních deníků* (výchozí `Zápisy`) a *Složka fotodokumentace* (výchozí
+  `07_Dokumentace a podklady/FOTO`, využije se v dalším kroku). Chybějící složky vznikají při prvním uložení.
+
+**Vyžaduje po nahrání:** *Instalace a diagnostika → Doplnit chybějící části* (schéma 9: nové seznamy *PRM – Stavební deníky* a
+*PRM – Zápisy ze stavby*; nic se nemaže). V *Nastavení → Složky* zkontrolovat názvy složek podle skutečné struktury projektů.
+
+---
+
 ## 0.9.0 — 30. 9. 2026 — Fáze 2, krok 2: podklady pro fakturaci
 
 **Nové**

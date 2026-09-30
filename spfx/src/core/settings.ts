@@ -38,6 +38,10 @@ export interface FolderSettings {
   subfolderByYear: boolean;
   /** Šablona složek. Více šablon podle typu projektu se doplní ve Fázi 1. */
   template: FolderTemplateNode[];
+  /** Kam se ukládají zápisy a stavební deníky (cesta uvnitř složky projektu; chybějící složky vzniknou při prvním uložení). */
+  diaryFolder: string;
+  /** Kam se ukládá fotodokumentace (cesta uvnitř složky projektu; uvnitř vznikají složky podle roku a dne). */
+  photoFolder: string;
 }
 
 /** Nastavení generování názvu projektu. */
@@ -162,7 +166,10 @@ export const DEFAULT_SETTINGS: AppSettings = {
     // Projekty leží v 01_PROJEKTY přímo, bez mezipatra podle roku.
     // Ověřeno na skutečné složce 23. 9. 2026.
     subfolderByYear: false,
-    template: DEFAULT_FOLDER_TEMPLATE
+    template: DEFAULT_FOLDER_TEMPLATE,
+    // Rozhodnuto 1. 10. 2026 podle zadavatele: zápisy ve složce Zápisy, fotky v 07 Dokumentace a podklady / FOTO.
+    diaryFolder: 'Zápisy',
+    photoFolder: '07_Dokumentace a podklady/FOTO'
   },
   numbering: {},
   projects: {
@@ -248,6 +255,12 @@ export function validateSettings(settings: AppSettings): string[] {
   }
   if (settings.folders.template.length === 0) {
     problems.push('Šablona složek je prázdná — u nového projektu by nevznikly žádné podsložky.');
+  }
+  if (!settings.folders.diaryFolder.trim()) {
+    problems.push('Není vyplněna složka zápisů a stavebních deníků.');
+  }
+  if (!settings.folders.photoFolder.trim()) {
+    problems.push('Není vyplněna složka fotodokumentace.');
   }
   if (!settings.projects.titlePattern.includes('{CISLO}')) {
     problems.push('Vzor názvu projektu musí obsahovat token {CISLO}, jinak by názvy nebyly jednoznačné.');

@@ -13,6 +13,7 @@ import { RES } from '../../ui/theme';
 import { formatDate, formatMoney } from '../../core/format';
 import { PurchaseOrder, ordersToRenumber } from '../../core/orders';
 import { InvoiceBasis } from '../../core/invoiceBases';
+import { DiaryEntry } from '../../core/siteDiary';
 import { canDeleteOrder, toActor } from '../../core/orderWorkflow';
 import { DeleteDocumentCard } from './DeleteDocumentCard';
 
@@ -28,6 +29,10 @@ function describeInvoice(i: InvoiceBasis): string {
     i.amountNet,
     i.currency
   )} bez DPH · vystavil ${i.requestedByName || '—'} · ID ${i.id}`;
+}
+
+function describeEntry(e: DiaryEntry): string {
+  return `${formatDate(e.date)} · deník ${e.diaryTitle || e.diaryId} · ${e.status} · ${e.header.constructionName || '—'} · zapsal ${e.createdByName || '—'} · ID ${e.id}`;
 }
 
 export const DeleteOrderCard: React.FC = () => {
@@ -98,6 +103,18 @@ export const DeleteOrderCard: React.FC = () => {
         placeholder="FP26004"
         list={() => repos.invoices.list().then((all) => all.map((i) => ({ id: i.id, number: i.number, description: describeInvoice(i) })))}
         remove={(id) => repos.invoices.delete(id, user)}
+      />
+
+      <DeleteDocumentCard
+        title="Smazat zápis ze stavby"
+        noun="Zápis"
+        placeholder="26001 Z1"
+        list={() =>
+          repos.diary
+            .listEntries()
+            .then((all) => all.map((e) => ({ id: e.id, number: `${e.projectNumber} Z${e.entryNo}`, description: describeEntry(e) })))
+        }
+        remove={(id) => repos.diary.delete(id, user)}
       />
 
       <div style={{ border: `1px solid ${RES.grayBlue}`, borderRadius: 4, padding: '14px 18px' }}>
