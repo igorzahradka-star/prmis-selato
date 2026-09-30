@@ -17,6 +17,7 @@ export enum RouteName {
   WaitingForMe = 'ceka-na-me',
   Invoicing = 'fakturace',
   Diary = 'denik',
+  Photos = 'foto',
   Finance = 'firemni-cashflow',
   Benchmark = 'benchmark',
   Users = 'uzivatele',

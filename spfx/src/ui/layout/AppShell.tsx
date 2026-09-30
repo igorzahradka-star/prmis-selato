@@ -93,7 +93,8 @@ function useNavItems(): NavItem[] {
     { route: RouteName.WaitingForMe, label: 'Čeká na mě', icon: 'Inbox' },
     { route: RouteName.Orders, label: 'Objednávky', icon: 'ShoppingCart' },
     { route: RouteName.Invoicing, label: 'Fakturace', icon: 'M365InvoicingLogo' },
-    { route: RouteName.Diary, label: 'Stavební deník', icon: 'Dictionary' }
+    { route: RouteName.Diary, label: 'Stavební deník', icon: 'Dictionary' },
+    { route: RouteName.Photos, label: 'Fotodokumentace', icon: 'Camera' }
   ];
 
   if (canOpenBenchmark(user.roles)) {

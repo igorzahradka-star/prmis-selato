@@ -30,6 +30,9 @@ import { EXTERNAL_LINK_PROPS } from '../../ui/components/ExternalLink';
 import { ProjectOrdersTab } from '../orders/ProjectOrdersTab';
 import { ProjectInvoicesTab } from '../invoicing/ProjectInvoicesTab';
 import { ProjectDiaryTab } from '../diary/ProjectDiaryTab';
+import { PhotoUploader } from '../photos/PhotoUploader';
+import { canWriteDiary } from '../../core/siteDiary';
+import { toActor, toWorkflowProject } from '../../core/orderWorkflow';
 
 export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projectNumber }) => {
   const { repos, user } = useApp();
@@ -176,6 +179,17 @@ export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projec
         </PivotItem>
         <PivotItem headerText="Stavební deník" itemIcon="Dictionary">
           <ProjectDiaryTab project={project} />
+        </PivotItem>
+        <PivotItem headerText="Fotodokumentace" itemIcon="Camera">
+          <div style={{ marginTop: 16, maxWidth: 720 }}>
+            {canWriteDiary(toWorkflowProject(project), toActor(user)) ? (
+              <PhotoUploader project={project} />
+            ) : (
+              <MessageBar messageBarType={MessageBarType.info} isMultiline>
+                Fotky nahrává projektový manažer, asistent projektu a vedení. Nahrané fotky najdete ve složce projektu.
+              </MessageBar>
+            )}
+          </div>
         </PivotItem>
         <PivotItem headerText="Dokumenty" itemIcon="DocumentSet">
           <DocumentsTab project={project} />

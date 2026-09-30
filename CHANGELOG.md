@@ -5,6 +5,26 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.11.0 — 1. 10. 2026 — Fáze 2, krok 4: fotodokumentace z mobilu
+
+**Nové**
+
+- **Fotodokumentace** (nová položka v nabídce a záložka v detailu projektu), určená hlavně pro mobil: vybrat projekt, stisknout
+  **Vyfotit** (foťák se spustí rovnou, dá se vyfotit víc fotek za sebou) nebo **Vybrat z galerie**. Naposledy zvolený projekt si
+  prohlížeč pamatuje.
+- Fotky se uloží do složky projektu **`07_Dokumentace a podklady / FOTO / rok / den`** (např. `…/FOTO/2026/2026-10-01`);
+  složky vznikají samy při první fotce. Název souboru je z času pořízení a volitelného popisu, např. `Foto_20261001_142530_panely-jih.jpg`.
+  Cesta základní složky se mění v *Nastavení → Složky*.
+- Fotka se před nahráním zmenší (delší strana nejvýš 2 000 bodů, JPEG), takže nahrávání z mobilu je rychlé a složka nebobtná.
+- **Fronta nahrávání:** fotky se nahrávají po jedné se stavem (čeká, nahrává, nahráno). Když se při slabém signálu některá nepovede,
+  zůstane ve frontě a jde ji poslat znovu (jednotlivě nebo „Zkusit znovu vše"). Stránku je nutné nechat otevřenou, dokud nejsou nahrané.
+- **Dnešní fotky projektu** jako miniatury (klik otevře fotku v nové kartě) a odkaz **Otevřít složku FOTO**.
+- Fotky nahrává projektový manažer, asistent projektu a vedení (stejně jako zápisy ze stavby); ostatní fotky ve složce projektu vidí.
+
+**Bez změny schématu dat** (zůstává 9). Po nahrání není nutná Instalace a diagnostika.
+
+---
+
 ## 0.10.0 — 1. 10. 2026 — Fáze 2, krok 3: zápisy ze stavby a stavební deníky
 
 **Nové**
