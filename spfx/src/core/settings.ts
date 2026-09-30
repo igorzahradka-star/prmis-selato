@@ -83,6 +83,11 @@ export interface ApprovalSettings {
   pmSelfApprovalEnabled: boolean;
   /** Projekt Režie: schvaluje vždy Vedení bez ohledu na částku. */
   overheadRequiresVedeni: boolean;
+  /**
+   * Kurz eura v korunách, kterým se objednávky v EUR přepočítají **jen pro určení pásma schvalování**
+   * (limity jsou v Kč). Na objednávce zůstává částka v eurech.
+   */
+  eurRateForLimits: number;
 }
 
 /** Fakturační a kontaktní údaje RES pro hlavičky a patičky PDF. */
@@ -181,8 +186,10 @@ export const DEFAULT_SETTINGS: AppSettings = {
     pmLimit: 100000,
     vedeniLimit: 500000,
     jednatelLimit: 1000000,
-    pmSelfApprovalEnabled: true,
-    overheadRequiresVedeni: true
+    // Rozhodnutí zadavatele (30. 9. 2026): i malou objednávku vystavenou PM schvaluje vedení.
+    pmSelfApprovalEnabled: false,
+    overheadRequiresVedeni: true,
+    eurRateForLimits: 25
   },
   roles: DEFAULT_ROLE_GROUPS,
   company: {

@@ -7,7 +7,8 @@ const limity: ApprovalSettings = {
   vedeniLimit: 500000,
   jednatelLimit: 1000000,
   pmSelfApprovalEnabled: true,
-  overheadRequiresVedeni: true
+  overheadRequiresVedeni: true,
+  eurRateForLimits: 25
 };
 
 describe('describeApprovalLadder', () => {

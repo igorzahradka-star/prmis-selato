@@ -16,6 +16,7 @@ import { Role } from './types';
 export interface RoleGroupMapping {
   [Role.Administrator]: string;
   [Role.Vedeni]: string;
+  [Role.Jednatel]: string;
   [Role.Finance]: string;
   [Role.ProjektovyManazer]: string;
   [Role.AsistentPM]: string;
@@ -25,6 +26,7 @@ export interface RoleGroupMapping {
 export const DEFAULT_ROLE_GROUPS: RoleGroupMapping = {
   [Role.Administrator]: 'PRM Administrátoři',
   [Role.Vedeni]: 'PRM Vedení',
+  [Role.Jednatel]: 'PRM Jednatelé',
   [Role.Finance]: 'PRM Finance – důvěrné',
   [Role.ProjektovyManazer]: 'PRM Projektoví manažeři',
   [Role.AsistentPM]: 'PRM Asistenti',

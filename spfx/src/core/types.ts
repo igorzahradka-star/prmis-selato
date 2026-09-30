@@ -11,6 +11,8 @@ export enum Role {
   Administrator = 'Administrator',
   /** Vidí všechny projekty, schvaluje objednávky nad limit a realizační rozpočty. */
   Vedeni = 'Vedeni',
+  /** Schvaluje objednávky nad limit vedení. */
+  Jednatel = 'Jednatel',
   /** Firemní CF, důvěrné položky, Excel report pro FO. Ověřuje se i přístupem na web PRM-Finance. */
   Finance = 'Finance',
   /** Zakládá a spravuje své projekty, schvaluje objednávky ve svém limitu. */
@@ -25,6 +27,7 @@ export enum Role {
 export const ROLE_LABELS: Record<Role, string> = {
   [Role.Administrator]: 'Administrátor PRM',
   [Role.Vedeni]: 'Vedení',
+  [Role.Jednatel]: 'Jednatel',
   [Role.Finance]: 'Finance – důvěrné',
   [Role.ProjektovyManazer]: 'Projektový manažer',
   [Role.AsistentPM]: 'Asistent PM',

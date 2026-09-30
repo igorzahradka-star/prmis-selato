@@ -138,6 +138,7 @@ export const ROLE_PURPOSE: Record<Role, string> = {
   [Role.Administrator]:
     'Nastavení, instalace, číselné řady, šablony složek, správa rolí. Jediný, kdo smí smazat projekt.',
   [Role.Vedeni]: 'Vidí všechny projekty, schvaluje objednávky nad limit PM a realizační rozpočty.',
+  [Role.Jednatel]: 'Schvaluje objednávky nad limit vedení. Nevidí víc než vedení, jen má poslední slovo u velkých objednávek.',
   [Role.Finance]:
     'Firemní cashflow a důvěrné částky. Kromě role musí mít i přístup na web PRM-Finance — to se ověřuje zvlášť.',
   [Role.ProjektovyManazer]:
@@ -153,6 +154,7 @@ export const ROLE_PURPOSE: Record<Role, string> = {
 export const ROLE_ORDER: Role[] = [
   Role.Administrator,
   Role.Vedeni,
+  Role.Jednatel,
   Role.Finance,
   Role.ProjektovyManazer,
   Role.AsistentPM,
@@ -184,6 +186,8 @@ export type PermissionLevel = 'Administrator' | 'Editor' | 'Reader';
 export const ROLE_PERMISSION_LEVEL: Record<Role, PermissionLevel> = {
   [Role.Administrator]: 'Administrator',
   [Role.Vedeni]: 'Editor',
+  // Schválení zapisuje do objednávky, proto Úpravy (Čtení by nestačilo).
+  [Role.Jednatel]: 'Editor',
   [Role.Finance]: 'Reader',
   [Role.ProjektovyManazer]: 'Editor',
   [Role.AsistentPM]: 'Editor',
