@@ -5,6 +5,13 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.8.2 — 30. 9. 2026 — Odeslání objednávky: srozumitelná chyba
+
+- Když se odeslání (i opakované) nepovede, hláška říká, **který krok selhal** (vytvoření PDF, uložení PDF do složky projektu, odeslání e-mailu, zápis do objednávky) a proč; pokud e-mail už odešel, upozorní, že se nemá posílat znovu.
+- U **opakovaného** odeslání už neblokuje odeslání e-mailu to, že se nepovedlo přepsat PDF ve složce projektu (PDF tam už je).
+
+---
+
 ## 0.8.1 — 30. 9. 2026 — Číslování objednávek, částky v Kč, vzhled filtrů, šedá mapa
 
 **Opraveno**

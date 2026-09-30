@@ -541,26 +541,49 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
     }
     setBusy(true);
     setSendError(undefined);
+    // Které kroky už proběhly — kvůli chybové hlášce (hlavně aby bylo jasné, jestli e-mail odešel).
+    let stage = 'Vytvoření PDF';
+    let mailSent = false;
+    const why = (e: unknown): string => (e instanceof Error ? e.message : String(e));
     try {
       const blob = await renderOrderPdf(data);
       const fileName = orderPdfFileName(order.orderNumber);
-      const pdfUrl = await repos.documents.saveProjectFile(project, '03_Nákup/Objednávky', fileName, blob);
+      stage = 'Uložení PDF do složky projektu';
+      let pdfUrl: string | undefined;
+      try {
+        pdfUrl = await repos.documents.saveProjectFile(project, '03_Nákup/Objednávky', fileName, blob);
+      } catch (e) {
+        // U opakovaného odeslání PDF ve složce už je; jeho neúspěšné přepsání nesmí bránit odeslání e-mailu.
+        if (!again) {
+          throw e;
+        }
+        pdfUrl = order.pdfUrl;
+      }
       if (payload) {
+        stage = 'Příprava příloh e-mailu';
         const files: MailAttachment[] = [{ name: fileName, contentType: 'application/pdf', content: blob }];
         if (payload.includeAttachments) {
           for (const a of attachments) {
             files.push({ name: a.name, contentType: 'application/octet-stream', content: await repos.orders.readAttachment(order.id, a.name) });
           }
         }
+        stage = 'Odeslání e-mailu';
         await repos.mail.send({ to: payload.to, cc: payload.cc, subject: payload.subject, bodyText: payload.body, attachments: files });
+        mailSent = true;
       }
+      stage = again ? 'Zápis opakovaného odeslání do objednávky' : 'Zápis odeslání do objednávky';
       const options = { sentTo: payload ? payload.to.join(', ') : undefined, pdfUrl };
       const updated = again ? await repos.orders.resend(order.id, user, options) : await repos.orders.send(order.id, user, options);
       setSendOpen(undefined);
       afterChange(updated);
     } catch (e) {
       setBusy(false);
-      setSendError(e instanceof Error ? e.message : String(e));
+      setSendError(
+        `${stage} se nepodařilo: ${why(e)}` +
+          (mailSent
+            ? ` E-mail už ODEŠEL — neposílejte ho znovu, jen zapište odeslání (tlačítko „Jen uložit PDF a ${again ? 'zapsat odeslání' : 'označit jako odesláno'}“).`
+            : '')
+      );
     }
   };
 
