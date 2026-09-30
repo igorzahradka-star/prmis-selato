@@ -270,3 +270,38 @@ export function linesFromJson(text: string | undefined): OrderLine[] {
     return [];
   }
 }
+
+// --- filtr a řazení seznamu --------------------------------------------------
+
+export interface OrderListFilter {
+  projectNumber?: string;
+  statuses?: string[];
+  search?: string;
+}
+
+/** Fulltext přes číslo, předmět, dodavatele a projekt; filtr stavů a projektu. Vrací kopii. */
+export function filterOrders(orders: PurchaseOrder[], filter?: OrderListFilter): PurchaseOrder[] {
+  const f = filter || {};
+  const q = (f.search || '').trim().toLocaleLowerCase('cs-CZ');
+  return orders.filter((o) => {
+    if (f.projectNumber && o.projectNumber !== f.projectNumber) {
+      return false;
+    }
+    if (f.statuses && f.statuses.length > 0 && f.statuses.indexOf(o.status) === -1) {
+      return false;
+    }
+    if (!q) {
+      return true;
+    }
+    return [o.orderNumber, o.subject, o.supplierName, o.projectNumber, o.projectTitle]
+      .filter((v) => !!v)
+      .some((v) => (v as string).toLocaleLowerCase('cs-CZ').indexOf(q) !== -1);
+  });
+}
+
+/** Nejnovější číslo první; čísla s ročníkem a pořadím (OBJ-2026-0012) se řadí podle hodnoty. */
+export function sortOrdersNewestFirst(orders: PurchaseOrder[]): PurchaseOrder[] {
+  return orders
+    .slice()
+    .sort((a, b) => b.orderNumber.localeCompare(a.orderNumber, 'cs-CZ', { numeric: true }));
+}

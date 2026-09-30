@@ -18,7 +18,7 @@
  * Verze schématu. Ukládá se do PRM_Settings pod klíčem `schemaVersion`.
  * Průvodce porovná uloženou verzi s touto a nabídne doplnění rozdílu.
  */
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 6;
 
 /** Typ sloupce v SharePointu. */
 export type FieldType =
@@ -338,6 +338,9 @@ const PRM_PURCHASE_ORDERS: ListDef = {
     { name: 'POStatus', title: 'Stav', type: 'Choice', choices: PO_STATUS_CHOICES, defaultValue: 'Koncept', indexed: true },
     { name: 'RequestedBy', title: 'Vystavil', type: 'User', indexed: true },
     { name: 'CurrentApprover', title: 'Čeká na schválení', type: 'User', indexed: true },
+    { name: 'ApprovalLevel', title: 'Čeká na (úroveň)', type: 'Text', indexed: true, description: 'Kdo je právě na řadě: pm, vedeni, jednatel. Nastavuje aplikace.' },
+    { name: 'ApprovalChain', title: 'Řetěz schválení (JSON)', type: 'Note', description: 'Kroky schvalování a kdo je kdy schválil. Nastavuje aplikace.' },
+    { name: 'CancelReason', title: 'Důvod storna', type: 'Note' },
     { name: 'PdfUrl', title: 'PDF', type: 'Url' },
     { name: 'SentDate', title: 'Odesláno dodavateli', type: 'DateTime' },
     { name: 'Note', title: 'Poznámka', type: 'Note' }

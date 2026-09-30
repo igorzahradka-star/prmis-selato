@@ -28,6 +28,7 @@ import { SpSettingsRepository } from '../../data/sharepoint/spSettingsRepository
 import { SpProjectRepository } from '../../data/sharepoint/spProjectRepository';
 import { SpPartnerRepository } from '../../data/sharepoint/spPartnerRepository';
 import { SpTaskRepository } from '../../data/sharepoint/spTaskRepository';
+import { SpOrderRepository } from '../../data/sharepoint/spOrderRepository';
 import { SpDocumentRepository } from '../../data/sharepoint/spDocumentRepository';
 import { SpNumberingRepository } from '../../data/sharepoint/spNumberingRepository';
 import { SpInstallRepository } from '../../data/sharepoint/spInstallRepository';
@@ -73,6 +74,8 @@ export default class PrmWebPart extends BaseClientSideWebPart<IPrmWebPartProps> 
     const settings = new SpSettingsRepository(this.context);
     const numbering = new SpNumberingRepository(this.context);
     const userId = (this.context.pageContext.legacyPageContext || {}).userId as number;
+    const projects = new SpProjectRepository(this.context, userId, numbering, settings);
+    const partners = new SpPartnerRepository(this.context);
 
     return {
       users: new SpUserRepository(this.context, financeSiteUrl),
@@ -80,10 +83,11 @@ export default class PrmWebPart extends BaseClientSideWebPart<IPrmWebPartProps> 
       settings,
       // ID uživatele je už v kontextu stránky — kvůli filtru „moje projekty"
       // tak nemusíme čekat na další dotaz do SharePointu.
-      projects: new SpProjectRepository(this.context, userId, numbering, settings),
-      partners: new SpPartnerRepository(this.context),
+      projects,
+      partners,
       tasks: new SpTaskRepository(this.context),
       documents: new SpDocumentRepository(this.context, settings),
+      orders: new SpOrderRepository(this.context, numbering, projects, settings),
       numbering,
       install: new SpInstallRepository(this.context, financeSiteUrl, settings)
     };

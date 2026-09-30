@@ -1,5 +1,9 @@
 import {
   OrderDraft,
+  OrderStatus,
+  PurchaseOrder,
+  filterOrders,
+  sortOrdersNewestFirst,
   amountNetInCzk,
   chainFromJson,
   chainToJson,
@@ -140,5 +144,59 @@ describe('ukládání do SharePointu', () => {
     expect(linesFromJson(linesToJson(polozky))).toEqual(polozky);
     expect(linesFromJson('nesmysl')).toEqual([]);
     expect(linesFromJson(undefined)).toEqual([]);
+  });
+});
+
+describe('filterOrders / sortOrdersNewestFirst', () => {
+  const o = (orderNumber: string, extra: Partial<PurchaseOrder> = {}): PurchaseOrder => ({
+    id: 1,
+    orderNumber,
+    projectNumber: '26001',
+    subject: 'Kabely',
+    lines: [],
+    amountNet: 0,
+    vatRate: 21,
+    currency: 'CZK',
+    status: OrderStatus.Koncept,
+    requestedByName: 'A',
+    requestedByLogin: 'a',
+    approvalChain: [],
+    ...extra
+  });
+
+  it('filtruje podle projektu a stavu', () => {
+    const data = [
+      o('OBJ-2026-0001'),
+      o('OBJ-2026-0002', { projectNumber: '26002' }),
+      o('OBJ-2026-0003', { status: OrderStatus.Schvaleno })
+    ];
+    expect(filterOrders(data, { projectNumber: '26002' }).map((x) => x.orderNumber)).toEqual(['OBJ-2026-0002']);
+    expect(filterOrders(data, { statuses: [OrderStatus.Schvaleno] }).map((x) => x.orderNumber)).toEqual(['OBJ-2026-0003']);
+  });
+
+  it('fulltext hledá v čísle, předmětu, dodavateli i projektu, bez ohledu na velikost písmen a diakritiku v malých/velkých', () => {
+    const data = [
+      o('OBJ-2026-0001', { supplierName: 'Solar Komponenten GmbH' }),
+      o('OBJ-2026-0002', { subject: 'Měnič', projectTitle: '26002 Mastířovice' })
+    ];
+    expect(filterOrders(data, { search: 'solar' }).length).toBe(1);
+    expect(filterOrders(data, { search: 'MĚNIČ' }).length).toBe(1);
+    expect(filterOrders(data, { search: 'mastířovice' }).length).toBe(1);
+    expect(filterOrders(data, { search: '0002' }).length).toBe(1);
+    expect(filterOrders(data, { search: 'nic takového' }).length).toBe(0);
+  });
+
+  it('prázdný filtr vrátí vše', () => {
+    expect(filterOrders([o('OBJ-2026-0001')], undefined).length).toBe(1);
+    expect(filterOrders([o('OBJ-2026-0001')], { statuses: [], search: ' ' }).length).toBe(1);
+  });
+
+  it('řadí nejnovější první podle hodnoty čísla, ne abecedně', () => {
+    const data = [o('OBJ-2026-0009'), o('OBJ-2026-0100'), o('OBJ-2026-0010')];
+    expect(sortOrdersNewestFirst(data).map((x) => x.orderNumber)).toEqual([
+      'OBJ-2026-0100',
+      'OBJ-2026-0010',
+      'OBJ-2026-0009'
+    ]);
   });
 });

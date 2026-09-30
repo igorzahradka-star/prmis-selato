@@ -422,3 +422,38 @@ export function cancelOrder(order: PurchaseOrder, reason: string, ctx: WorkflowC
     auditAction: `Stornováno: ${text}`
   };
 }
+
+// --- pomocné převody -------------------------------------------------------
+
+/** Přihlášený uživatel jako účastník workflow. */
+export function toActor(user: { loginName: string; displayName: string; roles: Role[] }): Actor {
+  return { login: user.loginName, displayName: user.displayName, roles: user.roles };
+}
+
+/** Projekt jako podklad pro workflow. */
+export function toWorkflowProject(project: {
+  projectNumber: string;
+  projectManagerLogin?: string;
+  assistantLogins?: string[];
+  isOverhead: boolean;
+}): WorkflowProject {
+  return {
+    projectNumber: project.projectNumber,
+    projectManagerLogin: project.projectManagerLogin,
+    assistantLogins: project.assistantLogins,
+    isOverhead: project.isOverhead
+  };
+}
+
+/** Objednávka po provedení změny stavu. Samotný zápis (SharePoint, paměť) si řeší datová vrstva. */
+export function applyOrderChange(order: PurchaseOrder, change: OrderChange, now: Date): PurchaseOrder {
+  return {
+    ...order,
+    status: change.status,
+    approvalChain: change.approvalChain,
+    currentApprovalLevel: change.currentApprovalLevel,
+    sentDate: change.sentDate ?? order.sentDate,
+    cancelReason: change.cancelReason ?? order.cancelReason,
+    modified: now
+  };
+}

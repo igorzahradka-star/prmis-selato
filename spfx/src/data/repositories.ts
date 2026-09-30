@@ -12,6 +12,7 @@ import { RoleGroupMapping } from '../core/roles';
 import { Person, RoleMembership } from '../core/userAdmin';
 import { AccessGroup, ProjectAccessState } from '../core/projectAccess';
 import { StatusChange } from '../core/projectStatus';
+import { OrderLine, PurchaseOrder } from '../core/orders';
 import { ListDef } from './schema';
 
 /** Kdo je přihlášen a co smí. */
@@ -432,6 +433,65 @@ export interface IInstallRepository {
   getPlannedLists(): ListDef[];
 }
 
+/** Filtr pro seznam objednávek. */
+export interface OrderFilter {
+  projectNumber?: string;
+  statuses?: string[];
+  /** Fulltext přes číslo, předmět, dodavatele a projekt. */
+  search?: string;
+}
+
+/** Údaje z formuláře objednávky. */
+export interface OrderInput {
+  projectNumber: string;
+  supplierId?: number;
+  supplierName?: string;
+  subject: string;
+  lines: OrderLine[];
+  vatRate: number;
+  currency: Currency;
+  deliveryDate?: Date;
+  paymentTermDays?: number;
+  note?: string;
+}
+
+/** Jedno rozhodnutí schvalovatele z historie. */
+export interface ApprovalRecord {
+  stepNo: number;
+  approverName: string;
+  decision: string;
+  comment?: string;
+  decidedAt?: Date;
+}
+
+/**
+ * Nákupní objednávky a jejich schvalování (zadání kap. 8.5).
+ *
+ * Všechna pravidla (kdo smí co, schvalovací řetěz) jsou v `core/orderWorkflow` — repozitář jen
+ * načte objednávku, nechá workflow rozhodnout a výsledek zapíše. Kontrola oprávnění tak probíhá
+ * znovu těsně před zápisem (CLAUDE.md, kap. 4); skrytí tlačítka v obrazovce ochrana není.
+ *
+ * Objednávky se **nemažou**, jen stornují — řada čísel zůstane bez děr (důležité pro audit).
+ * Každá změna stavu zapíše záznam do PRM_AuditLog a každé rozhodnutí schvalovatele do PRM_Approvals.
+ */
+export interface IOrderRepository {
+  list(filter?: OrderFilter): Promise<PurchaseOrder[]>;
+  getById(id: number): Promise<PurchaseOrder | undefined>;
+  /** Založí koncept a přidělí mu číslo z řady OBJ. */
+  create(input: OrderInput, actor: CurrentUser): Promise<PurchaseOrder>;
+  /** Upraví koncept nebo vrácenou objednávku. */
+  update(id: number, input: OrderInput, actor: CurrentUser): Promise<PurchaseOrder>;
+  /** Odešle ke schválení; podle částky a vystavitele může být rovnou schválená. */
+  submit(id: number, actor: CurrentUser): Promise<PurchaseOrder>;
+  decide(id: number, decision: 'approve' | 'return' | 'reject', comment: string, actor: CurrentUser): Promise<PurchaseOrder>;
+  send(id: number, actor: CurrentUser): Promise<PurchaseOrder>;
+  deliver(id: number, actor: CurrentUser): Promise<PurchaseOrder>;
+  close(id: number, actor: CurrentUser): Promise<PurchaseOrder>;
+  cancel(id: number, reason: string, actor: CurrentUser): Promise<PurchaseOrder>;
+  /** Kdo a jak o objednávce rozhodl, od prvního kroku. */
+  listApprovals(id: number): Promise<ApprovalRecord[]>;
+}
+
 /** Vše dohromady — předává se komponentám přes React context. */
 export interface RepositorySet {
   users: IUserRepository;
@@ -441,6 +501,7 @@ export interface RepositorySet {
   partners: IPartnerRepository;
   tasks: ITaskRepository;
   documents: IDocumentRepository;
+  orders: IOrderRepository;
   numbering: INumberingRepository;
   install: IInstallRepository;
 }

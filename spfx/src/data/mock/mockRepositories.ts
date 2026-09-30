@@ -64,6 +64,7 @@ import {
   RepositorySet
 } from '../repositories';
 import { LISTS, ListDef, SCHEMA_VERSION, creationOrder } from '../schema';
+import { MockOrderRepository } from './mockOrderRepository';
 import {
   DEFAULT_DOC_TYPES,
   MOCK_DIRECTORY,
@@ -211,8 +212,22 @@ class MockSettingsRepository implements ISettingsRepository {
   }
 }
 
+/**
+ * Ukázkové projekty mají jen jméno PM. Přihlašovací jména se doplní z ukázkového adresáře, aby fungovala
+ * pravidla, která na ně koukají (kdo smí upravovat, kdo schvaluje objednávku). Asistentem je u dvou projektů Martin Svoboda.
+ */
+function withDemoLogins(p: Project): Project {
+  const person = MOCK_DIRECTORY.filter((d) => d.displayName === p.projectManagerName)[0];
+  const martin = MOCK_DIRECTORY.filter((d) => d.displayName === 'Martin Svoboda')[0];
+  return {
+    ...p,
+    projectManagerLogin: p.projectManagerLogin ?? person?.loginName,
+    assistantLogins: p.assistantLogins ?? (p.projectNumber === '25002' || p.projectNumber === '25003' ? [martin.loginName] : undefined)
+  };
+}
+
 export class MockProjectRepository implements IProjectRepository {
-  private projects: Project[] = MOCK_PROJECTS.map((p) => ({ ...p }));
+  private projects: Project[] = MOCK_PROJECTS.map((p) => withDemoLogins(p));
   private nextId = Math.max(...MOCK_PROJECTS.map((p) => p.id)) + 1;
   private readonly versions = new Map<string, string>();
   private readonly deleted: { projectNumber: string; by: string; reason?: string }[] = [];
@@ -838,13 +853,17 @@ export function createMockRepositories(): RepositorySet {
   const settings = new MockSettingsRepository();
   const numbering = new MockNumberingRepository();
   numbering.seedCounter('PRJ', seedProjectCounter());
+  // Ukázkové objednávky mají čísla OBJ-2026-0001 až 0004 — další nová naváže za nimi.
+  numbering.seedCounter('OBJ', { year: 2026, lastValue: 4 });
   const projects = new MockProjectRepository(numbering, settings);
+  const partners = new MockPartnerRepository();
   return {
     users: new MockUserRepository(),
     userAdmin: new MockUserAdminRepository(),
     settings,
     projects,
-    partners: new MockPartnerRepository(),
+    partners,
+    orders: new MockOrderRepository(numbering, projects, settings, partners),
     tasks: new MockTaskRepository((projectNumber, next) => projects.setNextDeadline(projectNumber, next)),
     documents: new MockDocumentRepository(),
     numbering,

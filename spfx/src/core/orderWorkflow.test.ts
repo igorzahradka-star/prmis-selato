@@ -10,6 +10,7 @@ import {
   closeOrder,
   decideOrder,
   deliverOrder,
+  applyOrderChange,
   isWaitingFor,
   sendOrder,
   submitOrder
@@ -369,5 +370,33 @@ describe('availableActions / isWaitingFor', () => {
     expect(isWaitingFor(kSchvaleni, projekt, pm)).toBe(true);
     expect(isWaitingFor(kSchvaleni, projekt, vedeni)).toBe(false);
     expect(isWaitingFor(kSchvaleni, projekt, asistent)).toBe(false);
+  });
+});
+
+describe('applyOrderChange', () => {
+  it('přenese nový stav, řetěz, kdo je na řadě a důvod storna; ostatní údaje nechá', () => {
+    const puvodni = objednavka({ subject: 'Kabely' });
+    const zmena = cancelOrder(puvodni, 'Chyba v zadání', ctx(asistent));
+    const po = applyOrderChange(puvodni, zmena, NOW);
+    expect(po.status).toBe(OrderStatus.Storno);
+    expect(po.cancelReason).toBe('Chyba v zadání');
+    expect(po.subject).toBe('Kabely');
+    expect(po.modified).toEqual(NOW);
+  });
+
+  it('po vrácení k úpravě zůstane objednávka bez řetězce a bez schvalovatele', () => {
+    const z = submitOrder(objednavka(), ctx(asistent));
+    const kSchvaleni = applyOrderChange(objednavka(), z, NOW);
+    const vracena = applyOrderChange(kSchvaleni, decideOrder(kSchvaleni, 'return', 'Doplnit', ctx(pm)), NOW);
+    expect(vracena.approvalChain).toEqual([]);
+    expect(vracena.currentApprovalLevel).toBeUndefined();
+  });
+
+  it('datum odeslání se po odeslání zapíše a při dalších změnách nezmizí', () => {
+    const schvalena = objednavka({ status: OrderStatus.Schvaleno });
+    const odeslana = applyOrderChange(schvalena, sendOrder(schvalena, ctx(asistent)), NOW);
+    expect(odeslana.sentDate).toEqual(NOW);
+    const dodana = applyOrderChange(odeslana, deliverOrder(odeslana, ctx(asistent)), new Date(2026, 9, 5));
+    expect(dodana.sentDate).toEqual(NOW);
   });
 });
