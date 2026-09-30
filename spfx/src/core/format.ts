@@ -219,3 +219,20 @@ export function pluralProjects(count: number): string {
   }
   return `${count} projektů`;
 }
+
+/**
+ * Přečte číslo napsané česky: `1 250,50` → 1250.5. Mezery (i nezlomitelné) se ignorují,
+ * desetinná čárka i tečka platí. Prázdný nebo nečitelný text vrátí `undefined`.
+ */
+export function parseAmount(text: string | undefined | null): number | undefined {
+  if (text === undefined || text === null) {
+    return undefined;
+  }
+  const cleaned = String(text)
+    .replace(/[\s ]/g, '')
+    .replace(',', '.');
+  if (cleaned === '' || !/^-?\d*\.?\d+$/.test(cleaned)) {
+    return undefined;
+  }
+  return Number(cleaned);
+}

@@ -15,7 +15,7 @@ import { RES, LAYOUT, RES_FONT_FAMILY } from '../theme';
 import { Route, RouteName, buildHash } from '../router';
 import { ROLE_LABELS } from '../../core/types';
 import { canOpenAdmin, canOpenBenchmark, canOpenFinance } from '../../core/roles';
-import { isWebViewMode, toggleWebViewUrl } from '../fullscreen';
+import { isWebViewMode, siteHomeUrl, toggleWebViewUrl } from '../fullscreen';
 
 import logoUrl from '../../webparts/prm/assets/res-logo-header.svg';
 
@@ -90,8 +90,8 @@ function useNavItems(): NavItem[] {
     { route: RouteName.Dashboard, label: 'Projekty', icon: 'ViewList' },
     { route: RouteName.Map, label: 'Mapa projektů', icon: 'MapPin' },
     { route: RouteName.Partners, label: 'Partneři', icon: 'ContactCard' },
-    { route: RouteName.WaitingForMe, label: 'Čeká na mě', icon: 'Inbox', comingSoon: true },
-    { route: RouteName.Orders, label: 'Objednávky', icon: 'ShoppingCart', comingSoon: true },
+    { route: RouteName.WaitingForMe, label: 'Čeká na mě', icon: 'Inbox' },
+    { route: RouteName.Orders, label: 'Objednávky', icon: 'ShoppingCart' },
     { route: RouteName.Invoicing, label: 'Fakturace', icon: 'M365InvoicingLogo', comingSoon: true }
   ];
 
@@ -206,11 +206,39 @@ const Header: React.FC<{ onToggleNav: () => void }> = ({ onToggleNav }) => {
             secondaryText: { color: RES.grayBlue }
           }}
         />
+        {dataSource !== 'mock' && <HomeButton />}
         {dataSource !== 'mock' && <FullScreenButton />}
       </div>
     </header>
   );
 };
+
+/**
+ * Domeček: zpět na úvodní stránku webu SharePointu. V režimu „celé okno" není lišta SharePointu vidět,
+ * takže jinak by se z aplikace nešlo dostat na zbytek webu.
+ */
+const HomeButton: React.FC = () => (
+  <TooltipHost content="Úvodní stránka webu SharePoint">
+    <button
+      type="button"
+      onClick={() => {
+        window.location.href = siteHomeUrl(window.location.href);
+      }}
+      aria-label="Úvodní stránka webu SharePoint"
+      style={{
+        background: 'transparent',
+        border: 'none',
+        color: RES.white,
+        cursor: 'pointer',
+        fontSize: 16,
+        padding: 6,
+        borderRadius: 4
+      }}
+    >
+      <Icon iconName="Home" />
+    </button>
+  </TooltipHost>
+);
 
 /**
  * Přepínač „celé okno": schová lištu a záhlaví SharePointu, aby aplikace měla celé okno

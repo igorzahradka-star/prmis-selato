@@ -11,7 +11,8 @@ import {
   dueLabel,
   pluralDays,
   pluralProjects,
-  normalizeSpaces
+  normalizeSpaces,
+  parseAmount
 } from './format';
 
 describe('formatMoney', () => {
@@ -214,5 +215,31 @@ describe('parseCzechDate', () => {
   it('to, co formatDate vypíše, umí zase přečíst', () => {
     const datum = new Date(2026, 10, 6);
     expect(parseCzechDate(formatDate(datum))).toEqual(datum);
+  });
+});
+
+describe('parseAmount', () => {
+  it('přečte české číslo s čárkou a mezerami', () => {
+    expect(parseAmount('1 250,50')).toBe(1250.5);
+    expect(parseAmount('1 250,5')).toBe(1250.5);
+  });
+
+  it('přečte i tečku jako desetinný oddělovač a celá čísla', () => {
+    expect(parseAmount('12.5')).toBe(12.5);
+    expect(parseAmount('100')).toBe(100);
+    expect(parseAmount(',5')).toBe(0.5);
+  });
+
+  it('prázdný nebo nečitelný text vrátí undefined, ne nulu', () => {
+    expect(parseAmount('')).toBeUndefined();
+    expect(parseAmount('  ')).toBeUndefined();
+    expect(parseAmount('abc')).toBeUndefined();
+    expect(parseAmount('12,3,4')).toBeUndefined();
+    expect(parseAmount(undefined)).toBeUndefined();
+    expect(parseAmount(null)).toBeUndefined();
+  });
+
+  it('záporné číslo projde (validace ceny ho pak odmítne jinde)', () => {
+    expect(parseAmount('-5')).toBe(-5);
   });
 });

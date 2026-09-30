@@ -39,3 +39,19 @@ export function toggleWebViewUrl(href: string): string {
     return href;
   }
 }
+
+/**
+ * Adresa úvodní stránky webu SharePointu, na kterém aplikace běží.
+ * Stránka aplikace leží v `…/sites/Web/SitePages/PRM.aspx` — úvodní stránka je kořen toho webu.
+ * Když adresa tvar `/SitePages/` nemá, vrátí se kořen celé domény.
+ */
+export function siteHomeUrl(href: string): string {
+  try {
+    const url = new URL(href);
+    const at = url.pathname.toLowerCase().indexOf('/sitepages/');
+    const base = at === -1 ? '' : url.pathname.slice(0, at);
+    return `${url.origin}${base}/`;
+  } catch {
+    return href;
+  }
+}

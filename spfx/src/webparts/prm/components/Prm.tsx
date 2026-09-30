@@ -21,6 +21,8 @@ import { DashboardPage } from '../../../features/projects/DashboardPage';
 import { ProjectDetailPage } from '../../../features/projects/ProjectDetailPage';
 import { PartnersPage } from '../../../features/partners/PartnersPage';
 import { ProjectsMapPage } from '../../../features/map/ProjectsMapPage';
+import { OrdersPage } from '../../../features/orders/OrdersPage';
+import { WaitingForMePage } from '../../../features/orders/WaitingForMePage';
 import { InstallPage } from '../../../features/admin/InstallPage';
 import { SettingsPage } from '../../../features/settings/SettingsPage';
 import { UsersPage } from '../../../features/admin/UsersPage';
@@ -129,21 +131,9 @@ function renderRoute(route: Route): React.ReactNode {
     case RouteName.Help:
       return <HelpPage />;
     case RouteName.WaitingForMe:
-      return (
-        <ComingSoonPage
-          title="Čeká na mě"
-          phase="Fáze 2"
-          description="Přehled objednávek a dokladů, které čekají na vaše schválení."
-        />
-      );
+      return <WaitingForMePage orderId={orderIdFrom(route.param)} />;
     case RouteName.Orders:
-      return (
-        <ComingSoonPage
-          title="Objednávky"
-          phase="Fáze 2"
-          description="Nákupní objednávky napříč projekty se schvalovacím workflow a PDF v grafice RES."
-        />
-      );
+      return <OrdersPage orderId={orderIdFrom(route.param)} />;
     case RouteName.Invoicing:
       return (
         <ComingSoonPage
@@ -174,3 +164,9 @@ function renderRoute(route: Route): React.ReactNode {
 }
 
 export default PrmApp;
+
+/** Číslo objednávky z adresy (`#/objednavky/12`); cokoli jiného znamená „bez objednávky". */
+function orderIdFrom(param: string | undefined): number | undefined {
+  const n = param ? parseInt(param, 10) : NaN;
+  return isNaN(n) ? undefined : n;
+}

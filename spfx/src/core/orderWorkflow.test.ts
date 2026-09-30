@@ -11,6 +11,7 @@ import {
   decideOrder,
   deliverOrder,
   applyOrderChange,
+  describeApprovalRoute,
   isWaitingFor,
   sendOrder,
   submitOrder
@@ -398,5 +399,24 @@ describe('applyOrderChange', () => {
     expect(odeslana.sentDate).toEqual(NOW);
     const dodana = applyOrderChange(odeslana, deliverOrder(odeslana, ctx(asistent)), new Date(2026, 9, 5));
     expect(dodana.sentDate).toEqual(NOW);
+  });
+});
+
+describe('describeApprovalRoute', () => {
+  it('složí cestu schvalování do věty', () => {
+    expect(
+      describeApprovalRoute([
+        { level: 'pm', approved: false },
+        { level: 'vedeni', approved: false }
+      ])
+    ).toBe('Projektový manažer → Vedení');
+  });
+
+  it('automaticky vyřízený krok označí', () => {
+    expect(describeApprovalRoute([{ level: 'pm', approved: true, auto: true }])).toBe('Projektový manažer (automaticky)');
+  });
+
+  it('prázdná cesta je „bez schvalování"', () => {
+    expect(describeApprovalRoute([])).toBe('bez schvalování');
   });
 });

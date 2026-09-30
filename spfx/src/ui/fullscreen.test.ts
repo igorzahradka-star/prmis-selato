@@ -1,4 +1,4 @@
-import { isWebViewMode, toggleWebViewUrl } from './fullscreen';
+import { isWebViewMode, siteHomeUrl, toggleWebViewUrl } from './fullscreen';
 
 const STRANKA = 'https://revoltum.sharepoint.com/sites/RevoltumEngineeringServices/SitePages/PRM.aspx';
 
@@ -39,5 +39,25 @@ describe('toggleWebViewUrl', () => {
 
   it('neplatnou adresu vrátí beze změny', () => {
     expect(toggleWebViewUrl('není adresa')).toBe('není adresa');
+  });
+});
+
+describe('siteHomeUrl', () => {
+  it('z adresy stránky aplikace udělá úvodní stránku webu', () => {
+    expect(siteHomeUrl(`${STRANKA}?env=WebView#/projekt/26001`)).toBe(
+      'https://revoltum.sharepoint.com/sites/RevoltumEngineeringServices/'
+    );
+  });
+
+  it('velikost písmen v cestě nevadí', () => {
+    expect(siteHomeUrl('https://x.sharepoint.com/sites/Web/sitepages/PRM.aspx')).toBe('https://x.sharepoint.com/sites/Web/');
+  });
+
+  it('bez SitePages v adrese vrátí kořen domény', () => {
+    expect(siteHomeUrl('https://x.sharepoint.com/neco/jineho')).toBe('https://x.sharepoint.com/');
+  });
+
+  it('neplatnou adresu vrátí beze změny', () => {
+    expect(siteHomeUrl('není adresa')).toBe('není adresa');
   });
 });

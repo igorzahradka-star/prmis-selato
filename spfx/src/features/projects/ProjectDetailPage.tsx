@@ -26,6 +26,7 @@ import { EditProjectPanel } from './EditProjectPanel';
 import { DeadlinesTab } from './DeadlinesTab';
 import { DocumentsTab } from './DocumentsTab';
 import { AccessBar } from './AccessBar';
+import { ProjectOrdersTab } from '../orders/ProjectOrdersTab';
 
 export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projectNumber }) => {
   const { repos, user } = useApp();
@@ -165,11 +166,7 @@ export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projec
           />
         </PivotItem>
         <PivotItem headerText="Objednávky" itemIcon="ShoppingCart">
-          <ComingSoonPage
-            title="Objednávky projektu"
-            phase="Fáze 2"
-            description="Nákupní objednávky tohoto projektu včetně schvalování a PDF v grafice RES."
-          />
+          <ProjectOrdersTab project={project} />
         </PivotItem>
         <PivotItem headerText="Fakturace" itemIcon="M365InvoicingLogo">
           <ComingSoonPage

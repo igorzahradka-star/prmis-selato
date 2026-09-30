@@ -457,3 +457,13 @@ export function applyOrderChange(order: PurchaseOrder, change: OrderChange, now:
     modified: now
   };
 }
+
+/** Kdo objednávku schvaluje, jako věta: „Projektový manažer → Vedení". Automaticky vyřízený krok se označí. */
+export function describeApprovalRoute(steps: ApprovalStep[]): string {
+  if (steps.length === 0) {
+    return 'bez schvalování';
+  }
+  return steps
+    .map((s) => APPROVAL_LEVEL_LABELS[s.level] + (s.auto ? ' (automaticky)' : ''))
+    .join(' → ');
+}

@@ -113,7 +113,7 @@ balíček 0.2.4.0). Nasazení odhalilo čtyři chyby, které se lokálně nedaly
 hledání lidí (HTTP 400), skupiny rolí bez oprávnění, knihovna „Dokumenty" se
 nenašla podle zobrazeného názvu, oříznuté záložky. Všechny opravené.
 
-**Aktuální balíček je 0.5.4.0** (30. 9. 2026; na ostrém webu běží 0.3.x nebo 0.4.0.0 — ověřit v katalogu). Přidává stavy projektů
+**Aktuální balíček je 0.6.0.0** (30. 9. 2026; na ostrém webu běží 0.3.x nebo 0.4.0.0 — ověřit v katalogu). Přidává stavy projektů
 (Uzavřeno zrušeno, nově Reklamace), barvy špendlíků podle stavu, legendu mapy. **Po nahrání znovu
 spustit Instalace a diagnostika** — doplní volbu „Reklamace" do sloupce Stav (schéma 5). Pokud
 by automatické doplnění selhalo, přidat volbu ručně: nastavení seznamu PRM – Projekty → sloupec Stav
@@ -121,6 +121,11 @@ by automatické doplnění selhalo, přidat volbu ručně: nastavení seznamu PR
 
 Starší poznámka k balíčku 0.3.0.0 (obsah je součástí všech novějších):
 Balíček 0.3.0.0 byl hotový (vytvořen 29. 9. 2026 večer).
+Verze 0.6.0.0 přidává **objednávky a schvalování** (Fáze 2, krok 1). Po nahrání: (1) Instalace a diagnostika (schéma 6),
+(2) Uživatelé a role → založit chybějící skupiny (vznikne „PRM Jednatelé") a obsadit ji, (3) v Nastavení → Schvalování
+zkontrolovat přepínač „PM si schválí sám" (má být vypnutý, rozhodnutí zadavatele) a kurz EUR pro limity.
+**Otevřené:** správa lidí s přístupem k Režii v aplikaci; oprávnění objednávek na Režii (viz ROZHODNUTI).
+
 Přináší také: mapu projektů (Leaflet + OpenStreetMap, hledání míst Nominatim), výběr lokality
 z mapy, řazení seznamu, opravu editoru typů projektů a výběru zákazníka; schéma je nyní 4
 (sloupce Země u partnerů, šířka a délka u projektů; aplikace bez doplnění schématu nespadne).

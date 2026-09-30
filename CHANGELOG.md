@@ -5,6 +5,28 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.6.0 — 30. 9. 2026 — Fáze 2, krok 1: objednávky a schvalování
+
+**Nové**
+
+- **Objednávky** (menu Objednávky, záložka Objednávky v detailu projektu, stránka Čeká na mě):
+  vystavení, položky s DPH, schvalování, odeslání dodavateli, dodání, uzavření, storno s důvodem.
+  Čísla `OBJ-2026-0001` bez děr; objednávky se nemažou, jen stornují.
+- **Schvalování podle limitů z Nastavení:** do limitu PM schvaluje PM projektu, nad ním navíc vedení,
+  nad limitem vedení navíc jednatel, nad limitem jednatele se schvaluje mimo aplikaci. Vlastní objednávku
+  nesmí schválit nikdo. Objednávku vystavenou PM schvaluje vedení (rozhodnutí zadavatele; přepínač
+  v Nastavení to umí změnit). Režii schvaluje vždy vedení. Eura se pro určení pásma přepočítají kurzem z
+  Nastavení.
+- **Nová role Jednatel** (skupina „PRM Jednatelé").
+- Každé rozhodnutí se zapisuje do historie schvalování a každá změna stavu do auditního logu; zápis
+  stavu hlídá souběh (dva schvalovatelé najednou).
+- **Schéma dat 6:** nové sloupce v seznamu objednávek (kdo je na řadě, řetěz schválení, důvod storna).
+- **Tlačítko Domeček** v hlavičce: zpět na úvodní stránku webu SharePointu, když je aplikace na celé okno.
+
+**Zatím není** (další kroky Fáze 2): PDF objednávky, e-maily schvalovatelům, podklady pro fakturaci.
+
+---
+
 ## 0.5.4 — 30. 9. 2026 — Tlačítko Celé okno: úprava
 
 **Změněno**
