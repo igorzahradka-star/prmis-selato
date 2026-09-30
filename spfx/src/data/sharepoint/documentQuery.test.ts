@@ -5,7 +5,9 @@ import {
   formatFileSize,
   matchLibrary,
   libraryNotFoundMessage,
-  LibraryInfo
+  LibraryInfo,
+  buildFolderUrl,
+  repairFolderUrl
 } from './documentQuery';
 import { normalizeSpaces } from '../../core/format';
 
@@ -157,5 +159,79 @@ describe('libraryNotFoundMessage', () => {
 
   it('zvládne web bez knihoven', () => {
     expect(libraryNotFoundMessage('X', [])).toContain('žádné knihovny');
+  });
+});
+
+describe('buildFolderUrl', () => {
+  it('složí odkaz ze skutečné adresy knihovny, kořenové složky a názvu složky', () => {
+    expect(
+      buildFolderUrl(
+        'https://revoltum.sharepoint.com',
+        '/sites/RevoltumEngineeringServices/Shared Documents',
+        'General/01_PROJEKTY',
+        '26001-MASTIROVICE 1 GENERALNI OPRAVA'
+      )
+    ).toBe(
+      'https://revoltum.sharepoint.com/sites/RevoltumEngineeringServices/Shared%20Documents/General/01_PROJEKTY/26001-MASTIROVICE%201%20GENERALNI%20OPRAVA'
+    );
+  });
+
+  it('prázdná kořenová složka se vynechá a lomítka navíc nevadí', () => {
+    expect(buildFolderUrl('https://x.sharepoint.com/', '/sites/A/Shared Documents/', '/', '26001')).toBe(
+      'https://x.sharepoint.com/sites/A/Shared%20Documents/26001'
+    );
+  });
+
+  it('zakóduje diakritiku v názvu složky', () => {
+    expect(buildFolderUrl('https://x.sharepoint.com', '/sites/A/Docs', '', '26002-Mastířovice')).toContain(
+      'Mast%C3%AD%C5%99ovice'
+    );
+  });
+});
+
+describe('repairFolderUrl', () => {
+  const LIB = '/sites/RevoltumEngineeringServices/Shared Documents';
+
+  it('opraví odkaz složený z názvu knihovny „Dokumenty" místo její adresy', () => {
+    const spatny =
+      'https://revoltum.sharepoint.com/sites/RevoltumEngineeringServices/Dokumenty/General/01_PROJEKTY/26001-MASTIROVICE%201%20GENERALNI%20OPRAVA';
+    expect(repairFolderUrl(spatny, LIB, 'Dokumenty')).toBe(
+      'https://revoltum.sharepoint.com/sites/RevoltumEngineeringServices/Shared%20Documents/General/01_PROJEKTY/26001-MASTIROVICE%201%20GENERALNI%20OPRAVA'
+    );
+  });
+
+  it('správný odkaz nechá být', () => {
+    const dobry =
+      'https://revoltum.sharepoint.com/sites/RevoltumEngineeringServices/Shared%20Documents/General/01_PROJEKTY/26001';
+    expect(repairFolderUrl(dobry, LIB, 'Dokumenty')).toBeUndefined();
+  });
+
+  it('odkaz jinam (jiný web, jiná knihovna) nepřepisuje', () => {
+    expect(repairFolderUrl('https://revoltum.sharepoint.com/sites/Jiny/Dokumenty/x', LIB, 'Dokumenty')).toBeUndefined();
+    expect(
+      repairFolderUrl('https://revoltum.sharepoint.com/sites/RevoltumEngineeringServices/Faktury/x', LIB, 'Dokumenty')
+    ).toBeUndefined();
+  });
+
+  it('názvy, které jen začínají stejně (Dokumenty2), se nepletou s knihovnou', () => {
+    expect(
+      repairFolderUrl('https://revoltum.sharepoint.com/sites/RevoltumEngineeringServices/Dokumenty2/x', LIB, 'Dokumenty')
+    ).toBeUndefined();
+  });
+
+  it('neplatný odkaz nebo relativní cesta vrátí undefined, ne výjimku', () => {
+    expect(repairFolderUrl('#/ukazkovy-rezim/slozka/x', LIB, 'Dokumenty')).toBeUndefined();
+    expect(repairFolderUrl('', LIB, 'Dokumenty')).toBeUndefined();
+  });
+
+  it('velikost písmen v cestě nevadí', () => {
+    const spatny = 'https://revoltum.sharepoint.com/sites/revoltumengineeringservices/dokumenty/General/26001';
+    expect(repairFolderUrl(spatny, LIB, 'Dokumenty')).toContain('/Shared%20Documents/General/26001');
+  });
+
+  it('opravený odkaz už se podruhé neopravuje (idempotence)', () => {
+    const spatny = 'https://revoltum.sharepoint.com/sites/RevoltumEngineeringServices/Dokumenty/General/26001';
+    const oprava = repairFolderUrl(spatny, LIB, 'Dokumenty') as string;
+    expect(repairFolderUrl(oprava, LIB, 'Dokumenty')).toBeUndefined();
   });
 });

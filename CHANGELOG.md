@@ -5,6 +5,20 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.5.2 — 30. 9. 2026 — Oprava odkazů na složky projektů
+
+**Opraveno**
+
+- **Tlačítko „Otevřít složku projektu" vedlo na „404 NOT FOUND"** u naimportovaných projektů.
+  Import skládal odkaz z názvu knihovny, který lidé vidí („Dokumenty"), místo z její skutečné
+  adresy („Shared Documents"). Stejný chybný odkaz používala i záložka Dokumenty a omezení
+  přístupu ke složce. Import teď adresu skládá správně.
+- **Nové tlačítko Opravit odkazy** (Nastavení → Jednorázové akce) opraví už uložené odkazy.
+  Přepisuje jen odkazy poznatelně tohoto špatného tvaru; správné a jinam mířící nechává být,
+  dá se pustit opakovaně.
+
+---
+
 ## 0.5.1 — 30. 9. 2026 — Ikona aplikace
 
 **Nové**

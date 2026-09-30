@@ -204,6 +204,12 @@ export interface IProjectRepository {
     counterByYear: { year: number; lastValue: number }[],
     projectManagerName: string
   ): Promise<ImportResult>;
+  /**
+   * Opraví odkazy na složky, které vznikly z názvu knihovny („Dokumenty") místo z její
+   * skutečné adresy („Shared Documents") a vedly na „404 NOT FOUND". Přepisuje **jen** odkazy
+   * poznatelně tohoto tvaru; ostatní (správné i jinam mířící) nechává být. Dá se pustit opakovaně.
+   */
+  repairFolderLinks(): Promise<FolderLinkRepairResult>;
   /** Znovu založí složky u už uloženého projektu — pro tlačítko „Zkusit znovu založit složky". */
   retryCreateFolders(projectNumber: string): Promise<void>;
   /**
@@ -300,8 +306,21 @@ export interface ImportProjectInput {
   projectNumber: string;
   title: string;
   isOverhead: boolean;
-  /** Existující složka projektu — projekt se na ni jen naváže, nezakládá se nová. */
-  folderUrl?: string;
+  /**
+   * Název existující složky projektu — projekt se na ni jen naváže, nezakládá se nová.
+   * Odkaz na ni si složí repozitář ze skutečné adresy knihovny; UI ho skládat nesmí
+   * (znalo by jen zobrazený název knihovny, ne její adresu).
+   */
+  folderName?: string;
+}
+
+/** Výsledek opravy odkazů na složky projektů. */
+export interface FolderLinkRepairResult {
+  /** Čísla projektů, kterým se odkaz opravil. */
+  fixed: string[];
+  /** Kolika projektů se oprava netýkala (odkaz byl v pořádku, nebo žádný nemají). */
+  unchanged: number;
+  failed: { projectNumber: string; message: string }[];
 }
 
 /** Výsledek importu: co se povedlo a co ne. */

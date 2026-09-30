@@ -315,6 +315,10 @@ const OneOffActions: React.FC = () => {
   const [error, setError] = React.useState<string | undefined>(undefined);
   const [importOpen, setImportOpen] = React.useState(false);
   const [reloadKey, setReloadKey] = React.useState(0);
+  const [repairing, setRepairing] = React.useState(false);
+  const [repairMessage, setRepairMessage] = React.useState<{ text: string; type: MessageBarType } | undefined>(
+    undefined
+  );
 
   React.useEffect(() => {
     let cancelled = false;
@@ -352,6 +356,38 @@ const OneOffActions: React.FC = () => {
         setError(e.message);
         // Režie mohla vzniknout, i když se omezení přístupu nepovedlo — ať je vidět v kartě.
         setReloadKey((k) => k + 1);
+      });
+  };
+
+  const opravitOdkazy = (): void => {
+    setRepairing(true);
+    setRepairMessage(undefined);
+    repos.projects
+      .repairFolderLinks()
+      .then((r) => {
+        setRepairing(false);
+        if (r.failed.length > 0) {
+          setRepairMessage({
+            text: `Opraveno ${r.fixed.length}, nepovedlo se ${r.failed.length}: ${r.failed
+              .map((f) => `${f.projectNumber} (${f.message})`)
+              .join('; ')}`,
+            type: MessageBarType.warning
+          });
+        } else if (r.fixed.length > 0) {
+          setRepairMessage({
+            text: `Hotovo. Opravené odkazy: ${r.fixed.join(', ')}. Ostatních ${r.unchanged} projektů se oprava netýkala.`,
+            type: MessageBarType.success
+          });
+        } else {
+          setRepairMessage({
+            text: 'Všechny odkazy jsou v pořádku, nebylo co opravovat.',
+            type: MessageBarType.success
+          });
+        }
+      })
+      .catch((e: Error) => {
+        setRepairing(false);
+        setRepairMessage({ text: e.message, type: MessageBarType.error });
       });
   };
 
@@ -407,6 +443,19 @@ const OneOffActions: React.FC = () => {
         done={false}
         action={<PrimaryButton text="Otevřít import" onClick={() => setImportOpen(true)} />}
       />
+
+      <ActionCard
+        title="Opravit odkazy na složky projektů"
+        description="Když tlačítko „Otevřít složku projektu“ skončí chybou „404 NOT FOUND“, je v projektu uložený odkaz na složku se špatnou adresou knihovny. Tohle tlačítko takové odkazy opraví. Přepisuje jen odkazy poznatelně špatného tvaru, správné a jinam mířící nechá být."
+        state="dá se pustit opakovaně"
+        done={false}
+        action={<PrimaryButton text={repairing ? 'Opravuji…' : 'Opravit odkazy'} disabled={repairing} onClick={opravitOdkazy} />}
+      />
+      {repairMessage && (
+        <MessageBar messageBarType={repairMessage.type} isMultiline onDismiss={() => setRepairMessage(undefined)}>
+          {repairMessage.text}
+        </MessageBar>
+      )}
 
       <MessageBar messageBarType={MessageBarType.warning} isMultiline>
         <strong>Import spusťte dřív, než někdo založí první projekt.</strong> Dokud neproběhne,

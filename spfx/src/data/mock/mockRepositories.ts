@@ -57,6 +57,7 @@ import {
   ProjectEditInput,
   ImportProjectInput,
   ImportResult,
+  FolderLinkRepairResult,
   DocTypeConfig,
   DiagnosticReport,
   InstallProgress,
@@ -393,7 +394,9 @@ export class MockProjectRepository implements IProjectRepository {
           status: ProjectStatus.Realizace,
           projectType: input.isOverhead ? OVERHEAD_PROJECT_TYPE : undefined,
           currency: 'CZK',
-          folderUrl: input.folderUrl,
+          folderUrl: input.folderName
+            ? `#/ukazkovy-rezim/slozka/${encodeURIComponent(input.folderName)}`
+            : undefined,
           isOverhead: input.isOverhead,
           budgetStatus: BudgetStatus.Bez
         }
@@ -450,6 +453,11 @@ export class MockProjectRepository implements IProjectRepository {
     };
     this.projects = this.projects.map((p) => (p.projectNumber === projectNumber ? updated : p));
     return delay(updated);
+  }
+
+  public repairFolderLinks(): Promise<FolderLinkRepairResult> {
+    // V ukázkovém režimu jsou odkazy vždy správné — není co opravovat.
+    return delay({ fixed: [], unchanged: this.projects.length, failed: [] });
   }
 
   public async retryCreateFolders(projectNumber: string): Promise<void> {

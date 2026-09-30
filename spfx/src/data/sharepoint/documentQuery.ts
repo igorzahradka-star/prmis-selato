@@ -136,3 +136,68 @@ export function libraryNotFoundMessage(wanted: string, libraries: LibraryInfo[])
       : 'Na webu nejsou žádné knihovny dokumentů.')
   );
 }
+
+// --- odkazy na složky projektů ---------------------------------------------
+
+/** Zakóduje každý díl cesty zvlášť, lomítka mezi díly zůstanou. */
+function encodePath(path: string): string {
+  return path
+    .split('/')
+    .map((part) => encodeURIComponent(part))
+    .join('/');
+}
+
+/**
+ * Odkaz na složku projektu: adresa webu + **skutečná** adresa knihovny + kořenová složka + název složky.
+ *
+ * Knihovna se musí brát podle své adresy (`/Shared Documents`), ne podle názvu, který
+ * lidé vidí (`Dokumenty`) — ten v adrese není a odkaz by skončil na „404 NOT FOUND".
+ */
+export function buildFolderUrl(
+  origin: string,
+  libraryServerRelativeUrl: string,
+  rootFolder: string,
+  folderName: string
+): string {
+  const parts = [
+    libraryServerRelativeUrl.replace(/\/+$/, ''),
+    rootFolder.replace(/^\/+|\/+$/g, ''),
+    folderName
+  ].filter((p) => p.length > 0);
+  return `${origin.replace(/\/+$/, '')}${encodePath(parts.join('/'))}`;
+}
+
+/**
+ * Opraví odkaz, který vznikl z názvu knihovny místo její adresy — např.
+ * `…/RevoltumEngineeringServices/Dokumenty/General/…` místo `…/Shared Documents/General/…`.
+ *
+ * Vrací opravený odkaz, nebo `undefined`, když není co opravovat: odkaz je už správný,
+ * nebo míří jinam, než kde knihovna leží (takový se nikdy nepřepisuje).
+ */
+export function repairFolderUrl(
+  url: string,
+  libraryServerRelativeUrl: string,
+  libraryTitle: string
+): string | undefined {
+  let origin: string;
+  let path: string;
+  try {
+    const parsed = new URL(url);
+    origin = parsed.origin;
+    path = decodeURIComponent(parsed.pathname);
+  } catch {
+    return undefined;
+  }
+
+  const libraryRoot = libraryServerRelativeUrl.replace(/\/+$/, '');
+  const siteBase = libraryRoot.slice(0, libraryRoot.lastIndexOf('/'));
+  const wrongRoot = `${siteBase}/${libraryTitle.trim()}`;
+  const lower = path.toLowerCase();
+  const startsWith = (prefix: string): boolean =>
+    lower === prefix.toLowerCase() || lower.indexOf(`${prefix.toLowerCase()}/`) === 0;
+
+  if (startsWith(libraryRoot) || !startsWith(wrongRoot)) {
+    return undefined;
+  }
+  return `${origin}${encodePath(libraryRoot + path.slice(wrongRoot.length))}`;
+}

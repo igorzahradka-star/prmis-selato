@@ -36,12 +36,13 @@ import {
   CreateProjectResult,
   ProjectEditInput,
   ImportProjectInput,
-  ImportResult
+  ImportResult,
+  FolderLinkRepairResult
 } from '../repositories';
 import { getSp, getSpForSite, describeSpError, extractStatus } from './spContext';
 import { resolveLibrary } from './spLibrary';
 import { roleDefinitionId } from './spPermissions';
-import { serverRelativePath } from './documentQuery';
+import { buildFolderUrl, repairFolderUrl, serverRelativePath } from './documentQuery';
 import { escapeODataString } from './spSettingsRepository';
 import { SPFI } from '@pnp/sp';
 
@@ -509,6 +510,7 @@ export class SpProjectRepository implements IProjectRepository {
     const failed: { projectNumber: string; message: string }[] = [];
 
     const projectManagerId = await this.resolveUserId(sp, projectManagerName);
+    const folderLinks = await this.folderLinkBuilder();
 
     for (const input of inputs) {
       try {
@@ -531,9 +533,10 @@ export class SpProjectRepository implements IProjectRepository {
           ProjectType: input.isOverhead ? OVERHEAD_PROJECT_TYPE : null,
           ProjectYear: yearFromProjectNumber(input.projectNumber),
           Currency: 'CZK',
-          FolderUrl: input.folderUrl
-            ? { Url: input.folderUrl, Description: `${input.projectNumber} ${input.title}` }
-            : null,
+          FolderUrl:
+            input.folderName && folderLinks
+              ? { Url: folderLinks(input.folderName), Description: `${input.projectNumber} ${input.title}` }
+              : null,
           IsOverhead: input.isOverhead,
           BudgetStatus: BudgetStatus.Bez
         });
@@ -740,6 +743,56 @@ export class SpProjectRepository implements IProjectRepository {
       throw new Error(describeSpError(error, `Nepodařilo se změnit stav projektu ${projectNumber}`));
     }
     return (await this.getByNumber(projectNumber)) ?? { ...existing, status: change.status };
+  }
+
+  /** Skládač odkazů na složky podle skutečné adresy knihovny; `undefined`, když knihovna v Nastavení není. */
+  private async folderLinkBuilder(): Promise<((folderName: string) => string) | undefined> {
+    const folders = (await this.settings.get()).folders;
+    if (!folders.libraryTitle.trim()) {
+      return undefined;
+    }
+    const foldersSp = await this.foldersSp();
+    const library = await resolveLibrary(foldersSp, folders.libraryTitle);
+    const origin = new URL(folders.siteUrl || this.context.pageContext.web.absoluteUrl).origin;
+    return (folderName: string) => buildFolderUrl(origin, library.serverRelativeUrl, folders.rootFolder, folderName);
+  }
+
+  public async repairFolderLinks(): Promise<FolderLinkRepairResult> {
+    const folders = (await this.settings.get()).folders;
+    const result: FolderLinkRepairResult = { fixed: [], unchanged: 0, failed: [] };
+    if (!folders.libraryTitle.trim()) {
+      return result;
+    }
+
+    let libraryRoot: string;
+    try {
+      libraryRoot = (await resolveLibrary(await this.foldersSp(), folders.libraryTitle)).serverRelativeUrl;
+    } catch (error) {
+      throw new Error(describeSpError(error, 'Knihovnu dokumentů se nepodařilo najít'));
+    }
+
+    const sp = getSp(this.context);
+    const projects = await this.list({ includeOverhead: true });
+    for (const p of projects) {
+      const repaired = p.folderUrl ? repairFolderUrl(p.folderUrl, libraryRoot, folders.libraryTitle) : undefined;
+      if (!repaired) {
+        result.unchanged++;
+        continue;
+      }
+      try {
+        await sp.web.lists
+          .getByTitle(PROJECTS_LIST)
+          .items.getById(p.id)
+          .update({ FolderUrl: { Url: repaired, Description: p.title } });
+        result.fixed.push(p.projectNumber);
+      } catch (error) {
+        result.failed.push({
+          projectNumber: p.projectNumber,
+          message: describeSpError(error, 'Odkaz se nepodařilo opravit')
+        });
+      }
+    }
+    return result;
   }
 
   public async retryCreateFolders(projectNumber: string): Promise<void> {

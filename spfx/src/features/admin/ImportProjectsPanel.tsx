@@ -94,7 +94,7 @@ export const ImportProjectsPanel: React.FC<ImportProjectsPanelProps> = ({
         projectNumber: c.projectNumber as string,
         title: c.title as string,
         isOverhead: c.isOverhead,
-        folderUrl: folderUrlFor(c.folderName)
+        folderName: c.folderName
       }));
 
     repos.projects
@@ -109,17 +109,6 @@ export const ImportProjectsPanel: React.FC<ImportProjectsPanelProps> = ({
         setError(e.message);
       });
   };
-
-  /** Odkaz na existující složku projektu podle nastavení knihovny. */
-  function folderUrlFor(folderName: string): string | undefined {
-    const f = settings.folders;
-    if (!f.siteUrl || !f.libraryTitle) {
-      return undefined;
-    }
-    const root = f.rootFolder.replace(/^\/+|\/+$/g, '');
-    const cesta = [f.libraryTitle, root, folderName].filter((x) => !!x).join('/');
-    return `${f.siteUrl.replace(/\/+$/, '')}/${cesta.split('/').map(encodeURIComponent).join('/')}`;
-  }
 
   const columns: IColumn[] = [
     {
