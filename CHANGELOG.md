@@ -5,6 +5,15 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.5.4 — 30. 9. 2026 — Tlačítko Celé okno: úprava
+
+**Změněno**
+
+- Tlačítko „Celé okno" je **úplně vpravo v hlavičce** (za jménem) a má **pořád stejnou ikonu**.
+  Dřív se ikona měnila podle stavu a šipky ukazovaly opačně, než bylo potřeba.
+
+---
+
 ## 0.5.3 — 30. 9. 2026 — Aplikace na celé okno
 
 **Nové**

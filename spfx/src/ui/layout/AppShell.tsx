@@ -196,7 +196,6 @@ const Header: React.FC<{ onToggleNav: () => void }> = ({ onToggleNav }) => {
       <span style={{ fontSize: 17, fontWeight: 600, letterSpacing: 0.2 }}>PRM Revoltum</span>
 
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 18 }}>
-        {dataSource !== 'mock' && <FullScreenButton />}
         <HeaderTools />
         <Persona
           text={user.displayName}
@@ -207,6 +206,7 @@ const Header: React.FC<{ onToggleNav: () => void }> = ({ onToggleNav }) => {
             secondaryText: { color: RES.grayBlue }
           }}
         />
+        {dataSource !== 'mock' && <FullScreenButton />}
       </div>
     </header>
   );
@@ -235,10 +235,12 @@ const FullScreenButton: React.FC = () => {
           cursor: 'pointer',
           fontSize: 16,
           padding: 6,
+          marginRight: -8,
           borderRadius: 4
         }}
       >
-        <Icon iconName={active ? 'BackToWindow' : 'FullScreen'} />
+        {/* Ikona se nemění podle stavu: šipky směřující ven nebo dovnitř lidi mátly. */}
+        <Icon iconName="ChromeMaximize" />
       </button>
     </TooltipHost>
   );
