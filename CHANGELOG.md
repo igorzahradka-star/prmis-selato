@@ -5,6 +5,38 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.7.0 — 30. 9. 2026 — Objednávky: PDF, e-mail, přílohy, měny, schvalovatel
+
+**Opraveno**
+
+- **„Neznámá nebo neaktivní číselná řada OBJ"** při zakládání objednávky. Na webu byla v seznamu řad jen řada
+  pro projekty. Chybějící výchozí řada (OBJ, FP, PP) se teď doplní sama při prvním použití; existující řádky
+  se nikdy nepřepisují a vypnutá řada zůstane vypnutá.
+- **Součet hodnoty aktivních projektů sčítal Kč i EUR dohromady.** Součet je teď vždy v Kč, cizí měny se
+  přepočítají kurzem ČNB.
+
+**Nové**
+
+- **PDF objednávky v grafice RES** (logo, údaje firmy, dodavatel, položky, DPH, schvalovatelé) a tlačítko
+  **Náhled objednávky**. Neschválená objednávka má přes stránku vodoznak „NÁHLED – NESCHVÁLENO".
+- **Odeslání dodavateli:** po schválení tlačítko Odeslat dodavateli — adresát předvyplněný z partnera, kopie,
+  předmět a text jdou upravit. E-mail odchází ze schránky přihlášeného uživatele (Microsoft Graph) s PDF
+  a volitelně s přílohami. PDF se uloží do složky projektu (`03_Nákup/Objednávky`). Bez schváleného oprávnění
+  e-mailu je k dispozici cesta „Jen uložit PDF a označit jako odesláno".
+- **Přílohy objednávky** (více souborů, odebrání jen u konceptu a vrácené objednávky).
+- **Měny CZK, EUR a USD.** Objednávka se sčítá v měně, kterou zvolíte (výchozí CZK), u cizí měny se ukáže
+  přepočet do Kč. Kurzy ČNB se zapisují v *Nastavení → Kurzy* (návod na automatiku: docs/KURZY-CNB.md).
+- **Výběr schvalovatele.** Při odeslání ke schválení je schvalovatel předvyplněný (PM projektu; vedení a
+  jednatel podle číselníku v *Nastavení → Schvalování*) a žadatel ho může změnit. Dokud objednávka čeká,
+  jde schvalovatele změnit odkazem Změnit. Vystavitel nemůže být schvalovatelem.
+- **Schéma dat 7:** nový seznam PRM – Kurzy, měna USD.
+
+**Vyžaduje po nahrání:** *Instalace a diagnostika*; v SharePoint admin centru potvrdit požadavek na oprávnění
+*Microsoft Graph – Mail.Send* (Zabezpečení → Přístup k rozhraní API), jinak e-maily neodejdou; v *Nastavení → Kurzy*
+zapsat kurzy ČNB.
+
+---
+
 ## 0.6.0 — 30. 9. 2026 — Fáze 2, krok 1: objednávky a schvalování
 
 **Nové**

@@ -53,6 +53,12 @@ export interface ApprovalStep {
   byName?: string;
   byLogin?: string;
   at?: Date;
+  /**
+   * Konkrétní schvalovatel kroku. Předvyplní se z číselníku (u PM je to PM projektu) a žadatel ho může změnit.
+   * Bez přiřazení smí krok schválit kdokoli z příslušné role.
+   */
+  assignedLogin?: string;
+  assignedName?: string;
 }
 
 /** Položka objednávky. */
@@ -88,6 +94,8 @@ export interface PurchaseOrder {
   note?: string;
   cancelReason?: string;
   sentDate?: Date;
+  /** Odkaz na PDF objednávky uložené ve složce projektu (vzniká při odeslání dodavateli). */
+  pdfUrl?: string;
   created?: Date;
   modified?: Date;
 }
@@ -208,6 +216,8 @@ interface StoredStep {
   byName?: string;
   byLogin?: string;
   at?: string;
+  assignedLogin?: string;
+  assignedName?: string;
 }
 
 /** Řetězec do textu pro sloupec Note v SharePointu. */
@@ -218,7 +228,9 @@ export function chainToJson(chain: ApprovalStep[]): string {
     auto: s.auto || undefined,
     byName: s.byName,
     byLogin: s.byLogin,
-    at: s.at ? s.at.toISOString() : undefined
+    at: s.at ? s.at.toISOString() : undefined,
+    assignedLogin: s.assignedLogin,
+    assignedName: s.assignedName
   }));
   return JSON.stringify(stored);
 }
@@ -241,7 +253,9 @@ export function chainFromJson(text: string | undefined): ApprovalStep[] {
         auto: s.auto === true ? true : undefined,
         byName: s.byName,
         byLogin: s.byLogin,
-        at: s.at ? new Date(s.at) : undefined
+        at: s.at ? new Date(s.at) : undefined,
+        assignedLogin: s.assignedLogin || undefined,
+        assignedName: s.assignedName || undefined
       }));
   } catch {
     return [];
@@ -306,4 +320,41 @@ export function sortOrdersNewestFirst(orders: PurchaseOrder[]): PurchaseOrder[] 
   return orders
     .slice()
     .sort((a, b) => b.orderNumber.localeCompare(a.orderNumber, 'cs-CZ', { numeric: true }));
+}
+
+// --- přílohy -----------------------------------------------------------------
+
+/** Příloha objednávky (soubor uložený u položky v SharePointu). */
+export interface OrderAttachment {
+  name: string;
+  url: string;
+  sizeBytes?: number;
+}
+
+/** Nejvíc, co se smí připojit jako jedna příloha. SharePoint zvládne víc, ale e-mail dodavateli ne. */
+export const ATTACHMENT_MAX_BYTES = 25 * 1024 * 1024;
+
+/** Přípony spustitelných souborů — do objednávky nepatří a mohly by se dostat k dodavateli. */
+const BLOCKED_EXTENSIONS = ['exe', 'bat', 'cmd', 'com', 'msi', 'scr', 'js', 'vbs', 'ps1', 'jar', 'dll'];
+
+/** Zkontroluje soubor před nahráním. Vrací větu pro člověka, nebo `undefined`, když je v pořádku. */
+export function validateAttachment(fileName: string, sizeBytes: number): string | undefined {
+  const name = (fileName || '').trim();
+  if (name === '') {
+    return 'Soubor nemá název.';
+  }
+  if (/["*:<>?/\\|#%]/.test(name)) {
+    return `Název souboru „${name}“ obsahuje znak, který SharePoint nepovoluje (" * : < > ? / \\ | # %). Soubor přejmenujte.`;
+  }
+  const ext = name.indexOf('.') === -1 ? '' : name.slice(name.lastIndexOf('.') + 1).toLowerCase();
+  if (BLOCKED_EXTENSIONS.indexOf(ext) !== -1) {
+    return `Soubory typu .${ext} se k objednávce připojit nesmí.`;
+  }
+  if (!(sizeBytes > 0)) {
+    return `Soubor „${name}“ je prázdný.`;
+  }
+  if (sizeBytes > ATTACHMENT_MAX_BYTES) {
+    return `Soubor „${name}“ je větší než ${Math.round(ATTACHMENT_MAX_BYTES / 1024 / 1024)} MB.`;
+  }
+  return undefined;
 }

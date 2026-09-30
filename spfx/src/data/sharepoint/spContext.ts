@@ -16,6 +16,8 @@ import '@pnp/sp/site-users/index.js';
 import '@pnp/sp/site-groups/index.js';
 import '@pnp/sp/security/index.js';
 import '@pnp/sp/folders/index.js';
+import '@pnp/sp/attachments/index.js';
+import '@pnp/sp/files/index.js';
 
 /** Připojení k webu, na kterém běží aplikace (web PRM). */
 export function getSp(context: WebPartContext): SPFI {

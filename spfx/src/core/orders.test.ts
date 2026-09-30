@@ -6,6 +6,7 @@ import {
   filterOrders,
   sortOrdersNewestFirst,
   amountNetInCzk,
+  ATTACHMENT_MAX_BYTES,
   chainFromJson,
   chainToJson,
   linesFromJson,
@@ -13,6 +14,7 @@ import {
   lineTotalNet,
   orderTotals,
   round2,
+  validateAttachment,
   validateOrderDraft
 } from './orders';
 
@@ -201,5 +203,45 @@ describe('filterOrders / sortOrdersNewestFirst', () => {
       'OBJ-2026-0010',
       'OBJ-2026-0009'
     ]);
+  });
+});
+
+describe('přiřazený schvalovatel v uloženém řetězci', () => {
+  it('přežije uložení do textu', () => {
+    const zpet = chainFromJson(
+      chainToJson([{ level: 'vedeni', approved: false, assignedLogin: 'v@revoltum.cz', assignedName: 'Viktor Vedení' }])
+    );
+    expect(zpet[0]).toMatchObject({ assignedLogin: 'v@revoltum.cz', assignedName: 'Viktor Vedení' });
+  });
+
+  it('krok bez přiřazení zůstane bez přiřazení', () => {
+    const zpet = chainFromJson(chainToJson([{ level: 'pm', approved: false }]));
+    expect(zpet[0].assignedLogin).toBeUndefined();
+  });
+});
+
+describe('validateAttachment', () => {
+  it('běžný soubor projde', () => {
+    expect(validateAttachment('nabidka.pdf', 120000)).toBeUndefined();
+    expect(validateAttachment('Výkres č. 3.dwg', 5000)).toBeUndefined();
+  });
+
+  it('spustitelné soubory odmítne', () => {
+    expect(validateAttachment('instalace.exe', 1000)).toContain('.exe');
+    expect(validateAttachment('SKRIPT.PS1', 1000)).toContain('.ps1');
+  });
+
+  it('prázdný a příliš velký soubor odmítne', () => {
+    expect(validateAttachment('a.pdf', 0)).toContain('prázdný');
+    expect(validateAttachment('a.pdf', ATTACHMENT_MAX_BYTES + 1)).toContain('větší');
+  });
+
+  it('název se znakem, který SharePoint nepovoluje, odmítne; název bez přípony projde', () => {
+    expect(validateAttachment('faktura #12.pdf', 100)).toContain('nepovoluje');
+    expect(validateAttachment('poznamky', 100)).toBeUndefined();
+  });
+
+  it('bez názvu odmítne', () => {
+    expect(validateAttachment('  ', 100)).toContain('název');
   });
 });

@@ -90,6 +90,15 @@ export interface ApprovalSettings {
   eurRateForLimits: number;
   /** Totéž pro americké dolary. Platí, dokud v seznamu kurzů není zapsaný kurz ČNB. */
   usdRateForLimits: number;
+  /**
+   * Číselník výchozích schvalovatelů: kdo se předvyplní u kroku vedení a jednatele. U kroku projektového
+   * manažera je výchozí vždy PM projektu. Žadatel může předvyplněného schvalovatele při odeslání změnit.
+   * Bez výchozí osoby smí krok schválit kdokoli z příslušné role.
+   */
+  defaultApprovers?: {
+    vedeni?: { login: string; name: string };
+    jednatel?: { login: string; name: string };
+  };
 }
 
 /** Fakturační a kontaktní údaje RES pro hlavičky a patičky PDF. */

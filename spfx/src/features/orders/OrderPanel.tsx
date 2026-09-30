@@ -25,6 +25,8 @@ import { Currency, Partner, PartnerType, Project } from '../../core/types';
 import { formatDate, formatDateTime, formatMoney, parseAmount, parseCzechDate } from '../../core/format';
 import {
   APPROVAL_LEVEL_LABELS,
+  ApprovalLevel,
+  OrderAttachment,
   OrderLine,
   OrderStatus,
   PurchaseOrder,
@@ -34,15 +36,27 @@ import {
   validateOrderDraft
 } from '../../core/orders';
 import {
+  Assignee,
   OrderAction,
+  approverCandidates,
   availableActions,
   buildApprovalChain,
+  canAddAttachment,
   canIssueOrder,
+  canRemoveAttachment,
+  defaultApproverLogin,
   describeApprovalRoute,
   toActor,
   toWorkflowProject
 } from '../../core/orderWorkflow';
-import { ApprovalRecord, OrderInput } from '../../data/repositories';
+import { RoleMembership } from '../../core/userAdmin';
+import { defaultOrderMail } from '../../core/mail';
+import { ApproverDialog, ApproverRow } from './ApproverDialog';
+import { OrderPdfPreview } from './OrderPdfPreview';
+import { SendOrderDialog, SendPayload } from './SendOrderDialog';
+import { AttachmentsSection } from './AttachmentsSection';
+import { orderPdfData, orderPdfFileName, renderOrderPdf } from './orderPdf';
+import { ApprovalRecord, MailAttachment, OrderInput } from '../../data/repositories';
 import { CurrencyCode, StoredRates, describeRates, effectiveRates, toCzk } from '../../core/currency';
 import { fallbackRatesOf } from '../../core/settings';
 import { OrderStatusBadge } from './OrderStatusBadge';
@@ -103,6 +117,16 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
   const [error, setError] = React.useState<string | undefined>(undefined);
   const [issues, setIssues] = React.useState<string[]>([]);
   const [dialog, setDialog] = React.useState<{ kind: DialogKind; comment: string } | undefined>(undefined);
+  const [roleMembers, setRoleMembers] = React.useState<RoleMembership[]>([]);
+  const [attachments, setAttachments] = React.useState<OrderAttachment[]>([]);
+  const [pendingFiles, setPendingFiles] = React.useState<File[]>([]);
+  const [approverDialog, setApproverDialog] = React.useState<
+    { key: number; mode: 'submit' | 'reassign'; orderId: number; rows: ApproverRow[]; level?: ApprovalLevel } | undefined
+  >(undefined);
+  const [previewOpen, setPreviewOpen] = React.useState(false);
+  const [previewBlob, setPreviewBlob] = React.useState<Blob | undefined>(undefined);
+  const [sendOpen, setSendOpen] = React.useState(false);
+  const [sendError, setSendError] = React.useState<string | undefined>(undefined);
 
   const [fProject, setFProject] = React.useState<string | undefined>(undefined);
   const [fSupplierId, setFSupplierId] = React.useState<number | undefined>(undefined);
@@ -148,20 +172,27 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
     setLoading(true);
     setOrder(undefined);
     setApprovals([]);
+    setAttachments([]);
+    setPendingFiles([]);
+    setApproverDialog(undefined);
+    setPreviewOpen(false);
+    setSendOpen(false);
 
     Promise.all([
       repos.projects.list({ includeOverhead: true }),
       repos.partners.list({}),
       orderId !== undefined ? repos.orders.getById(orderId) : Promise.resolve(undefined),
-      repos.rates.getLatest().catch((): StoredRates => ({}))
+      repos.rates.getLatest().catch((): StoredRates => ({})),
+      repos.userAdmin.listRoleMembers(settings.roles).catch((): RoleMembership[] => [])
     ])
-      .then(([projectList, partnerList, loaded, ratesList]) => {
+      .then(([projectList, partnerList, loaded, ratesList, membersList]) => {
         if (cancelled) {
           return;
         }
         setProjects(projectList);
         setPartners(partnerList);
         setStoredRates(ratesList);
+        setRoleMembers(membersList);
         setOrder(loaded);
         fillForm(loaded, projectNumber);
         setEditing(orderId === undefined);
@@ -173,6 +204,10 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
           repos.orders
             .listApprovals(loaded.id)
             .then((a) => !cancelled && setApprovals(a))
+            .catch(() => undefined);
+          repos.orders
+            .listAttachments(loaded.id)
+            .then((a) => !cancelled && setAttachments(a))
             .catch(() => undefined);
         }
       })
@@ -237,6 +272,30 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
       .catch(() => undefined);
   };
 
+  const reloadAttachments = (id: number): void => {
+    repos.orders
+      .listAttachments(id)
+      .then(setAttachments)
+      .catch(() => undefined);
+  };
+
+  /** Nahraje soubory čekající na uložení objednávky. Nepovedený soubor nezdrží ostatní; o chybách se řekne. */
+  const uploadPending = async (id: number): Promise<string[]> => {
+    const failed: string[] = [];
+    for (const file of pendingFiles) {
+      try {
+        await repos.orders.addAttachment(id, file, user);
+      } catch (e) {
+        failed.push(`${file.name}: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    }
+    setPendingFiles([]);
+    if (pendingFiles.length > 0) {
+      reloadAttachments(id);
+    }
+    return failed;
+  };
+
   const save = async (thenSubmit: boolean): Promise<void> => {
     const input = buildInput();
     const found = validateOrderDraft(input, thenSubmit);
@@ -248,18 +307,233 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
     setError(undefined);
     setBusy(true);
     try {
-      let saved = order ? await repos.orders.update(order.id, input, user) : await repos.orders.create(input, user);
+      const saved = order ? await repos.orders.update(order.id, input, user) : await repos.orders.create(input, user);
       // Hned po uložení si objednávku pamatujeme — kdyby selhalo odeslání, další pokus koncept upraví, nezaloží druhý.
       setOrder(saved);
       onChanged();
-      if (thenSubmit) {
-        saved = await repos.orders.submit(saved.id, user);
-      }
+      const failedFiles = await uploadPending(saved.id);
       afterChange(saved);
       setEditing(false);
+      if (failedFiles.length > 0) {
+        setError(`Objednávka je uložená, ale tyto přílohy se nenahrály — ${failedFiles.join(' | ')}`);
+      } else if (thenSubmit) {
+        beginSubmit(saved);
+      }
     } catch (e) {
       setBusy(false);
       setError(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  /**
+   * Odeslání ke schválení: u každého nevyřízeného kroku si žadatel může vybrat schvalovatele (předvyplněný
+   * z číselníku). Když krok schvalovat nikdo nemusí (vlastní objednávka PM v limitu), odešle se rovnou.
+   */
+  const beginSubmit = (target: PurchaseOrder): void => {
+    const project = projects.filter((p) => p.projectNumber === target.projectNumber)[0];
+    if (!project) {
+      setError(`Projekt ${target.projectNumber} nebyl nalezen, nebo na něj nemáte oprávnění.`);
+      return;
+    }
+    const wf = toWorkflowProject(project);
+    const chain = buildApprovalChain({
+      amountNetCzk: amountNetInCzk(target.amountNet, target.currency, rates),
+      issuerLogin: target.requestedByLogin,
+      projectManagerLogin: project.projectManagerLogin,
+      isOverhead: project.isOverhead,
+      settings: settings.approvals
+    });
+    if (chain.outsideApp) {
+      setError(
+        `Částka překračuje limit jednatele (${formatMoney(settings.approvals.jednatelLimit)}). Takovou objednávku nejde v aplikaci schválit — schvaluje se mimo aplikaci.`
+      );
+      return;
+    }
+    const pending = chain.steps.filter((st) => !st.approved);
+    if (pending.length === 0) {
+      run(() => repos.orders.submit(target.id, user));
+      return;
+    }
+    const rows: ApproverRow[] = pending.map((st) => {
+      const candidates = approverCandidates(st.level, roleMembers, wf, target.requestedByLogin);
+      return {
+        level: st.level,
+        candidates,
+        selected: defaultApproverLogin(st.level, candidates, wf, settings.approvals.defaultApprovers, target.requestedByLogin)
+      };
+    });
+    setApproverDialog({ key: Date.now(), mode: 'submit', orderId: target.id, rows });
+  };
+
+  const beginReassign = (level: ApprovalLevel): void => {
+    if (!order || !workflowProject) {
+      return;
+    }
+    const step = order.approvalChain.filter((st) => st.level === level)[0];
+    const candidates = approverCandidates(level, roleMembers, workflowProject, order.requestedByLogin);
+    setApproverDialog({
+      key: Date.now(),
+      mode: 'reassign',
+      orderId: order.id,
+      level,
+      rows: [{ level, candidates, selected: step && step.assignedLogin ? step.assignedLogin : '' }]
+    });
+  };
+
+  const confirmApprovers = (assignees: Partial<Record<ApprovalLevel, Assignee>>): void => {
+    const d = approverDialog;
+    setApproverDialog(undefined);
+    if (!d) {
+      return;
+    }
+    if (d.mode === 'submit') {
+      run(() => repos.orders.submit(d.orderId, user, assignees));
+    } else if (d.level) {
+      const level = d.level;
+      run(() => repos.orders.reassign(d.orderId, level, assignees[level], user));
+    }
+  };
+
+  // --- přílohy ---
+  const addFiles = (files: File[]): void => {
+    if (!order) {
+      setPendingFiles((cur) => [...cur, ...files]);
+      return;
+    }
+    setError(undefined);
+    setBusy(true);
+    (async (): Promise<void> => {
+      const failed: string[] = [];
+      for (const file of files) {
+        try {
+          await repos.orders.addAttachment(order.id, file, user);
+        } catch (e) {
+          failed.push(`${file.name}: ${e instanceof Error ? e.message : String(e)}`);
+        }
+      }
+      reloadAttachments(order.id);
+      setBusy(false);
+      if (failed.length > 0) {
+        setError(failed.join(' | '));
+      }
+    })().catch(() => setBusy(false));
+  };
+
+  const removeSavedAttachment = (name: string): void => {
+    if (!order) {
+      return;
+    }
+    setError(undefined);
+    setBusy(true);
+    repos.orders
+      .removeAttachment(order.id, name, user)
+      .then(() => {
+        reloadAttachments(order.id);
+        setBusy(false);
+      })
+      .catch((e: Error) => {
+        setBusy(false);
+        setError(e.message);
+      });
+  };
+
+  // --- náhled PDF a odeslání dodavateli ---
+  const supplierOf = (id: number | undefined): Partner | undefined => partners.filter((p) => p.id === id)[0];
+
+  const pdfSource = (): { data: ReturnType<typeof orderPdfData>; project?: Project } => {
+    const projectNo = editing || !order ? fProject : order.projectNumber;
+    const project = projects.filter((p) => p.projectNumber === projectNo)[0];
+    const supplierId = editing || !order ? fSupplierId : order.supplierId;
+    const supplier = supplierOf(supplierId);
+    const current: PurchaseOrder =
+      editing || !order
+        ? {
+            id: order ? order.id : 0,
+            orderNumber: order ? order.orderNumber : 'NÁVRH',
+            projectNumber: fProject ?? '',
+            supplierId: fSupplierId,
+            supplierName: supplier ? supplier.name : '',
+            subject: fSubject,
+            lines: buildLines(),
+            amountNet: orderTotals(buildLines(), fVat).net,
+            vatRate: fVat,
+            currency: fCurrency,
+            deliveryDate: fDelivery,
+            paymentTermDays: parseAmount(fPayment),
+            note: fNote.trim() || undefined,
+            status: order ? order.status : OrderStatus.Koncept,
+            requestedByName: order ? order.requestedByName : user.displayName,
+            requestedByLogin: order ? order.requestedByLogin : user.loginName,
+            approvalChain: order ? order.approvalChain : [],
+            created: order && order.created ? order.created : new Date()
+          }
+        : order;
+    return {
+      data: orderPdfData(
+        current,
+        project ? project.shortName || project.title : '',
+        {
+          name: supplier ? supplier.name : current.supplierName || '—',
+          address: supplier ? supplier.address : undefined,
+          ico: supplier ? supplier.ico : undefined,
+          dic: supplier ? supplier.dic : undefined,
+          email: supplier ? supplier.email : undefined
+        },
+        settings.company
+      ),
+      project
+    };
+  };
+
+  const openPreview = (): void => {
+    setError(undefined);
+    setPreviewBlob(undefined);
+    setPreviewOpen(true);
+    renderOrderPdf(pdfSource().data)
+      .then(setPreviewBlob)
+      .catch((e: Error) => {
+        setPreviewOpen(false);
+        setError(`Náhled se nepodařilo vytvořit: ${e.message}`);
+      });
+  };
+
+  /**
+   * Odeslání dodavateli: vytvoří PDF, uloží ho do složky projektu, (volitelně) pošle e-mail a teprve potom
+   * označí objednávku jako odeslanou. Kdyby e-mail selhal, objednávka zůstane „Schváleno" a dá se to zkusit znovu.
+   */
+  const runSend = async (payload?: SendPayload): Promise<void> => {
+    if (!order) {
+      return;
+    }
+    const { data, project } = pdfSource();
+    if (!project) {
+      setSendError('Projekt objednávky nebyl nalezen.');
+      return;
+    }
+    setBusy(true);
+    setSendError(undefined);
+    try {
+      const blob = await renderOrderPdf(data);
+      const fileName = orderPdfFileName(order.orderNumber);
+      const pdfUrl = await repos.documents.saveProjectFile(project, '03_Nákup/Objednávky', fileName, blob);
+      if (payload) {
+        const files: MailAttachment[] = [{ name: fileName, contentType: 'application/pdf', content: blob }];
+        if (payload.includeAttachments) {
+          for (const a of attachments) {
+            files.push({ name: a.name, contentType: 'application/octet-stream', content: await repos.orders.readAttachment(order.id, a.name) });
+          }
+        }
+        await repos.mail.send({ to: payload.to, cc: payload.cc, subject: payload.subject, bodyText: payload.body, attachments: files });
+      }
+      const updated = await repos.orders.send(order.id, user, {
+        sentTo: payload ? payload.to.join(', ') : undefined,
+        pdfUrl
+      });
+      setSendOpen(false);
+      afterChange(updated);
+    } catch (e) {
+      setBusy(false);
+      setSendError(e instanceof Error ? e.message : String(e));
     }
   };
 
@@ -320,6 +594,7 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
             disabled={busy}
             onClick={() => save(true).catch(() => undefined)}
           />
+          <DefaultButton iconProps={{ iconName: 'PDF' }} text="Náhled objednávky" disabled={busy} onClick={openPreview} />
           {order && (
             <DefaultButton
               text="Zrušit úpravy"
@@ -344,7 +619,7 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
           <DefaultButton iconProps={{ iconName: 'Edit' }} text="Upravit" disabled={busy} onClick={() => setEditing(true)} />
         )}
         {actions.indexOf('submit') !== -1 && (
-          <PrimaryButton text="Odeslat ke schválení" disabled={busy} onClick={() => run(() => repos.orders.submit(order.id, user))} />
+          <PrimaryButton text="Odeslat ke schválení" disabled={busy} onClick={() => beginSubmit(order)} />
         )}
         {actions.indexOf('approve') !== -1 && (
           <PrimaryButton text="Schválit" disabled={busy} onClick={() => setDialog({ kind: 'approve', comment: '' })} />
@@ -356,7 +631,14 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
           <DefaultButton text="Zamítnout" disabled={busy} onClick={() => setDialog({ kind: 'reject', comment: '' })} />
         )}
         {actions.indexOf('send') !== -1 && (
-          <PrimaryButton text="Odesláno dodavateli" disabled={busy} onClick={() => run(() => repos.orders.send(order.id, user))} />
+          <PrimaryButton
+            text="Odeslat dodavateli"
+            disabled={busy}
+            onClick={() => {
+              setSendError(undefined);
+              setSendOpen(true);
+            }}
+          />
         )}
         {actions.indexOf('deliver') !== -1 && (
           <PrimaryButton text="Označit jako dodané" disabled={busy} onClick={() => run(() => repos.orders.deliver(order.id, user))} />
@@ -367,6 +649,7 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
         {actions.indexOf('cancel') !== -1 && (
           <DefaultButton text="Stornovat" disabled={busy} onClick={() => setDialog({ kind: 'cancel', comment: '' })} />
         )}
+        <DefaultButton iconProps={{ iconName: 'PDF' }} text="Náhled objednávky" disabled={busy} onClick={openPreview} />
       </div>
     );
   };
@@ -545,6 +828,17 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
 
             <TextField label="Poznámka" multiline rows={2} value={fNote} onChange={(_, v) => setFNote(v ?? '')} />
 
+            <AttachmentsSection
+              attachments={attachments}
+              pending={pendingFiles}
+              canAdd={!order || (!!workflowProject && canAddAttachment(order, workflowProject, actor))}
+              canRemove={!order || (!!workflowProject && canRemoveAttachment(order, workflowProject, actor))}
+              busy={busy}
+              onAdd={addFiles}
+              onRemoveSaved={removeSavedAttachment}
+              onRemovePending={(i) => setPendingFiles((cur) => cur.filter((_, idx) => idx !== i))}
+            />
+
             <TotalsBox net={totals.net} vat={totals.vat} gross={totals.gross} currency={fCurrency} vatRate={fVat} />
             <CzkNote net={totals.net} currency={fCurrency} rates={rates} />
 
@@ -569,9 +863,82 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
         )}
 
         {!loading && !editing && order && (
-          <OrderDetail order={order} approvals={approvals} rates={rates} />
+          <OrderDetail
+            order={order}
+            approvals={approvals}
+            rates={rates}
+            attachments={attachments}
+            canAddAttachment={!!workflowProject && canAddAttachment(order, workflowProject, actor)}
+            canRemoveAttachment={!!workflowProject && canRemoveAttachment(order, workflowProject, actor)}
+            busy={busy}
+            onAddFiles={addFiles}
+            onRemoveAttachment={removeSavedAttachment}
+            onReassign={actions.indexOf('reassign') !== -1 ? beginReassign : undefined}
+          />
         )}
       </Panel>
+
+      {approverDialog && (
+        <ApproverDialog
+          key={approverDialog.key}
+          title={approverDialog.mode === 'submit' ? 'Odeslat ke schválení' : 'Změnit schvalovatele'}
+          description={
+            approverDialog.mode === 'submit'
+              ? 'Schvalovatel se předvyplňuje podle číselníku. Můžete ho změnit, nebo nechat „kdokoli z role“.'
+              : 'Nový schvalovatel dostane objednávku do přehledu Čeká na mě. Nemůže jím být vystavitel.'
+          }
+          confirmText={approverDialog.mode === 'submit' ? 'Odeslat ke schválení' : 'Uložit'}
+          rows={approverDialog.rows}
+          busy={busy}
+          onConfirm={confirmApprovers}
+          onDismiss={() => setApproverDialog(undefined)}
+        />
+      )}
+
+      {previewOpen && (
+        <OrderPdfPreview
+          blob={previewBlob}
+          fileName={orderPdfFileName(order ? order.orderNumber : 'NAVRH')}
+          title={order ? `Náhled objednávky ${order.orderNumber}` : 'Náhled objednávky (návrh)'}
+          onDismiss={() => setPreviewOpen(false)}
+        />
+      )}
+
+      {sendOpen && order && (
+        <SendOrderDialog
+          orderNumber={order.orderNumber}
+          initialTo={(supplierOf(order.supplierId) || { email: '' }).email || ''}
+          initialCc={user.email || ''}
+          initialSubject={
+            defaultOrderMail({
+              orderNumber: order.orderNumber,
+              projectNumber: order.projectNumber,
+              companyName: settings.company.name,
+              senderName: user.displayName,
+              senderEmail: user.email,
+              deliveryDate: order.deliveryDate ? formatDate(order.deliveryDate) : undefined,
+              paymentTermDays: order.paymentTermDays
+            }).subject
+          }
+          initialBody={
+            defaultOrderMail({
+              orderNumber: order.orderNumber,
+              projectNumber: order.projectNumber,
+              companyName: settings.company.name,
+              senderName: user.displayName,
+              senderEmail: user.email,
+              deliveryDate: order.deliveryDate ? formatDate(order.deliveryDate) : undefined,
+              paymentTermDays: order.paymentTermDays
+            }).body
+          }
+          attachmentCount={attachments.length}
+          busy={busy}
+          error={sendError}
+          onSendMail={(payload) => runSend(payload).catch(() => undefined)}
+          onMarkOnly={() => runSend(undefined).catch(() => undefined)}
+          onDismiss={() => setSendOpen(false)}
+        />
+      )}
 
       {dialog && (
         <Dialog
@@ -654,11 +1021,18 @@ const Row: React.FC<{ label: string; value: React.ReactNode; bold?: boolean }> =
 );
 
 /** Zobrazení objednávky jen ke čtení: údaje, položky, součty, cesta schvalování a historie. */
-const OrderDetail: React.FC<{ order: PurchaseOrder; approvals: ApprovalRecord[]; rates: ReturnType<typeof effectiveRates> }> = ({
-  order,
-  approvals,
-  rates
-}) => {
+const OrderDetail: React.FC<{
+  order: PurchaseOrder;
+  approvals: ApprovalRecord[];
+  rates: ReturnType<typeof effectiveRates>;
+  attachments: OrderAttachment[];
+  canAddAttachment: boolean;
+  canRemoveAttachment: boolean;
+  busy: boolean;
+  onAddFiles: (files: File[]) => void;
+  onRemoveAttachment: (name: string) => void;
+  onReassign?: (level: ApprovalLevel) => void;
+}> = ({ order, approvals, rates, attachments, canAddAttachment: mayAdd, canRemoveAttachment: mayRemove, busy, onAddFiles, onRemoveAttachment, onReassign }) => {
   const totals = orderTotals(order.lines, order.vatRate);
   const currentIndex = order.approvalChain.findIndex((s) => !s.approved);
 
@@ -690,6 +1064,9 @@ const OrderDetail: React.FC<{ order: PurchaseOrder; approvals: ApprovalRecord[];
         <Row label="Splatnost" value={order.paymentTermDays !== undefined ? `${order.paymentTermDays} dnů` : '—'} />
         <Row label="Vystavil" value={order.requestedByName || '—'} />
         {order.sentDate && <Row label="Odesláno dodavateli" value={formatDate(order.sentDate)} />}
+        {order.pdfUrl && (
+          <Row label="PDF objednávky" value={<Link href={order.pdfUrl} target="_blank">otevřít ve složce projektu</Link>} />
+        )}
         {order.note && <Row label="Poznámka" value={order.note} />}
       </Section>
 
@@ -736,11 +1113,32 @@ const OrderDetail: React.FC<{ order: PurchaseOrder; approvals: ApprovalRecord[];
                 {APPROVAL_LEVEL_LABELS[s.level]}
                 {s.approved && s.auto && ' — schváleno automaticky (vystavitel je projektový manažer)'}
                 {s.approved && !s.auto && s.byName && ` — ${s.byName}${s.at ? `, ${formatDateTime(s.at)}` : ''}`}
+                {!s.approved && ` — ${s.assignedName ? s.assignedName : 'kdokoli z role'}`}
+                {!s.approved && onReassign && (
+                  <>
+                    {' '}
+                    <Link onClick={() => onReassign(s.level)}>Změnit</Link>
+                  </>
+                )}
               </li>
             ))}
           </ol>
         </Section>
       )}
+
+      <Section title="Přílohy">
+        <AttachmentsSection
+          hideTitle
+          attachments={attachments}
+          pending={[]}
+          canAdd={mayAdd}
+          canRemove={mayRemove}
+          busy={busy}
+          onAdd={onAddFiles}
+          onRemoveSaved={onRemoveAttachment}
+          onRemovePending={() => undefined}
+        />
+      </Section>
 
       {approvals.length > 0 && (
         <Section title="Historie rozhodnutí">

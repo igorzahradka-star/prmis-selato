@@ -11,7 +11,12 @@ import {
   decideOrder,
   deliverOrder,
   applyOrderChange,
+  approverCandidates,
+  canAddAttachment,
+  canRemoveAttachment,
+  defaultApproverLogin,
   describeApprovalRoute,
+  reassignApprover,
   isWaitingFor,
   sendOrder,
   submitOrder
@@ -356,8 +361,8 @@ describe('availableActions / isWaitingFor', () => {
   });
 
   it('ve schvalování: schvalovatel má tlačítka rozhodnutí, vystavitel jen storno', () => {
-    expect(availableActions(kSchvaleni, projekt, pm)).toEqual(['approve', 'return', 'reject', 'cancel']);
-    expect(availableActions(kSchvaleni, projekt, asistent)).toEqual(['cancel']);
+    expect(availableActions(kSchvaleni, projekt, pm)).toEqual(['approve', 'return', 'reject', 'reassign', 'cancel']);
+    expect(availableActions(kSchvaleni, projekt, asistent)).toEqual(['reassign', 'cancel']);
   });
 
   it('nepříslušný uživatel nemá žádná tlačítka', () => {
@@ -421,5 +426,214 @@ describe('describeApprovalRoute', () => {
 
   it('prázdná cesta je „bez schvalování"', () => {
     expect(describeApprovalRoute([])).toBe('bez schvalování');
+  });
+});
+
+describe('přiřazený schvalovatel', () => {
+  const VEDENI_JINY: Actor = vedeni2;
+
+  it('při odeslání se schvalovatelé zapíšou do kroků', () => {
+    const z = submitOrder(objednavka(castka(300000)), ctx(asistent), {
+      pm: { login: PM, name: 'Petr Manažer' },
+      vedeni: { login: VEDENI, name: 'Viktor Vedení' }
+    });
+    expect(z.approvalChain.map((s) => [s.level, s.assignedLogin])).toEqual([
+      ['pm', PM],
+      ['vedeni', VEDENI]
+    ]);
+  });
+
+  it('krok s přiřazeným schvalovatelem smí schválit jen on, ne jiný člen téže role', () => {
+    const z = submitOrder(objednavka(castka(300000)), ctx(asistent), {
+      pm: { login: PM, name: 'Petr Manažer' },
+      vedeni: { login: VEDENI, name: 'Viktor Vedení' }
+    });
+    const o = objednavka({ ...castka(300000), status: z.status, approvalChain: z.approvalChain, currentApprovalLevel: z.currentApprovalLevel });
+    const poPm = applyOrderChange(o, decideOrder(o, 'approve', '', ctx(pm)), NOW);
+    expect(() => decideOrder(poPm, 'approve', '', ctx(VEDENI_JINY))).toThrow(/Viktor Vedení/);
+    expect(decideOrder(poPm, 'approve', '', ctx(vedeni)).status).toBe(OrderStatus.Schvaleno);
+  });
+
+  it('bez přiřazení smí krok schválit kdokoli z role', () => {
+    const z = submitOrder(objednavka(castka(300000)), ctx(asistent));
+    const o = objednavka({ ...castka(300000), status: z.status, approvalChain: z.approvalChain, currentApprovalLevel: z.currentApprovalLevel });
+    const poPm = applyOrderChange(o, decideOrder(o, 'approve', '', ctx(pm)), NOW);
+    expect(decideOrder(poPm, 'approve', '', ctx(vedeni2)).status).toBe(OrderStatus.Schvaleno);
+  });
+
+  it('žadatel může jako PM-schvalovatele určit i jiného člověka než PM projektu', () => {
+    const jinyPm: Actor = { login: 'i:0#.f|membership|jiny@revoltum.cz', displayName: 'Jiný PM', roles: [Role.ProjektovyManazer] };
+    const z = submitOrder(objednavka(), ctx(asistent), { pm: { login: jinyPm.login, name: jinyPm.displayName } });
+    const o = objednavka({ status: z.status, approvalChain: z.approvalChain, currentApprovalLevel: z.currentApprovalLevel });
+    expect(() => decideOrder(o, 'approve', '', ctx(pm))).toThrow(/Jiný PM/);
+    expect(decideOrder(o, 'approve', '', ctx(jinyPm)).status).toBe(OrderStatus.Schvaleno);
+  });
+
+  it('přiřazený schvalovatel vedení musí mít stále roli vedení', () => {
+    const bezRole: Actor = { login: VEDENI, displayName: 'Viktor', roles: [Role.ProjektovyManazer] };
+    const o = objednavka({
+      status: OrderStatus.KeSchvaleni,
+      approvalChain: [{ level: 'vedeni', approved: false, assignedLogin: VEDENI, assignedName: 'Viktor' }],
+      currentApprovalLevel: 'vedeni'
+    });
+    expect(() => decideOrder(o, 'approve', '', ctx(bezRole))).toThrow(WorkflowError);
+  });
+
+  it('vystavitel nemůže být schvalovatelem, ani když ho žadatel vybere', () => {
+    expect(() =>
+      submitOrder(objednavka(), ctx(asistent), { pm: { login: ASISTENT, name: 'Anna Asistentka' } })
+    ).toThrow(/vystavitel/);
+  });
+
+  it('isWaitingFor respektuje přiřazení: čeká jen na určeného člověka', () => {
+    const o = objednavka({
+      status: OrderStatus.KeSchvaleni,
+      approvalChain: [{ level: 'vedeni', approved: false, assignedLogin: VEDENI, assignedName: 'Viktor' }],
+      currentApprovalLevel: 'vedeni'
+    });
+    expect(isWaitingFor(o, projekt, vedeni)).toBe(true);
+    expect(isWaitingFor(o, projekt, vedeni2)).toBe(false);
+  });
+});
+
+describe('defaultApproverLogin', () => {
+  const kandidati = [
+    { login: VEDENI, name: 'Viktor Vedení' },
+    { login: VEDENI2, name: 'Vera Vedení' }
+  ];
+  const nastaveni = { vedeni: { login: VEDENI2, name: 'Vera Vedení' } };
+
+  it('u PM je výchozí PM projektu', () => {
+    expect(defaultApproverLogin('pm', [], projekt, nastaveni, ASISTENT)).toBe(PM);
+  });
+
+  it('u vedení je výchozí osoba z číselníku, když je mezi kandidáty', () => {
+    expect(defaultApproverLogin('vedeni', kandidati, projekt, nastaveni, ASISTENT)).toBe(VEDENI2);
+  });
+
+  it('bez položky v číselníku zůstává „kdokoli z role"', () => {
+    expect(defaultApproverLogin('jednatel', [], projekt, nastaveni, ASISTENT)).toBe('');
+    expect(defaultApproverLogin('vedeni', kandidati, projekt, undefined, ASISTENT)).toBe('');
+  });
+
+  it('výchozí osoba, která není mezi kandidáty (odešla ze skupiny), se nepředvyplní', () => {
+    expect(defaultApproverLogin('vedeni', [kandidati[0]], projekt, nastaveni, ASISTENT)).toBe('');
+  });
+
+  it('vystavitel se jako výchozí schvalovatel nikdy nepředvyplní', () => {
+    expect(defaultApproverLogin('pm', [], projekt, nastaveni, PM)).toBe('');
+    expect(defaultApproverLogin('vedeni', kandidati, projekt, nastaveni, VEDENI2)).toBe('');
+  });
+});
+
+describe('reassignApprover', () => {
+  const kSchvaleni = objednavka({
+    ...castka(300000),
+    status: OrderStatus.KeSchvaleni,
+    approvalChain: [
+      { level: 'pm', approved: true, byName: 'Petr Manažer', byLogin: PM },
+      { level: 'vedeni', approved: false, assignedLogin: VEDENI, assignedName: 'Viktor Vedení' }
+    ],
+    currentApprovalLevel: 'vedeni'
+  });
+
+  it('vystavitel může změnit schvalovatele nevyřízeného kroku', () => {
+    const z = reassignApprover(kSchvaleni, 'vedeni', { login: VEDENI2, name: 'Vera Vedení' }, ctx(asistent));
+    expect(z.status).toBe(OrderStatus.KeSchvaleni);
+    expect(z.approvalChain[1]).toMatchObject({ assignedLogin: VEDENI2, assignedName: 'Vera Vedení', approved: false });
+    expect(z.approvalChain[0].approved).toBe(true);
+    expect(z.auditAction).toContain('Vera Vedení');
+  });
+
+  it('nový schvalovatel pak schvaluje, původní už ne', () => {
+    const z = reassignApprover(kSchvaleni, 'vedeni', { login: VEDENI2, name: 'Vera Vedení' }, ctx(asistent));
+    const po = applyOrderChange(kSchvaleni, z, NOW);
+    expect(() => decideOrder(po, 'approve', '', ctx(vedeni))).toThrow(WorkflowError);
+    expect(decideOrder(po, 'approve', '', ctx(vedeni2)).status).toBe(OrderStatus.Schvaleno);
+  });
+
+  it('bez nového schvalovatele se krok vrátí na „kdokoli z role"', () => {
+    const z = reassignApprover(kSchvaleni, 'vedeni', undefined, ctx(asistent));
+    expect(z.approvalChain[1].assignedLogin).toBeUndefined();
+  });
+
+  it('vyřízený krok změnit nejde', () => {
+    expect(() => reassignApprover(kSchvaleni, 'pm', { login: PM, name: 'x' }, ctx(asistent))).toThrow(/vyřízený/);
+  });
+
+  it('vystavitele jako nového schvalovatele odmítne', () => {
+    expect(() => reassignApprover(kSchvaleni, 'vedeni', { login: ASISTENT, name: 'Anna' }, ctx(asistent))).toThrow(/vystavitel/);
+  });
+
+  it('změnit smí jen ten, kdo s objednávkou smí nakládat; u objednávky mimo schvalování to nejde', () => {
+    const cizi: Actor = { login: 'i:0#.f|membership|cizi@revoltum.cz', displayName: 'Cizí', roles: [Role.ProjektovyManazer] };
+    expect(() => reassignApprover(kSchvaleni, 'vedeni', undefined, ctx(cizi))).toThrow(/spravovat/);
+    expect(() => reassignApprover(objednavka(), 'pm', undefined, ctx(asistent))).toThrow(WorkflowError);
+  });
+
+  it('tlačítko Změnit schvalovatele se nabízí jen ve schvalování a jen těm, kdo smějí', () => {
+    expect(availableActions(kSchvaleni, projekt, asistent)).toContain('reassign');
+    expect(availableActions(kSchvaleni, projekt, vedeni)).toContain('reassign');
+    expect(availableActions(objednavka(), projekt, asistent)).not.toContain('reassign');
+  });
+});
+
+describe('přílohy', () => {
+  it('přidat smí, kdo smí objednávku spravovat, dokud není uzavřená ani stornovaná', () => {
+    expect(canAddAttachment(objednavka(), projekt, asistent)).toBe(true);
+    expect(canAddAttachment(objednavka({ status: OrderStatus.Odeslano }), projekt, asistent)).toBe(true);
+    expect(canAddAttachment(objednavka({ status: OrderStatus.Uzavreno }), projekt, asistent)).toBe(false);
+    expect(canAddAttachment(objednavka({ status: OrderStatus.Storno }), projekt, asistent)).toBe(false);
+  });
+
+  it('cizí člověk přílohu nepřidá', () => {
+    const cizi: Actor = { login: 'i:0#.f|membership|cizi@revoltum.cz', displayName: 'Cizí', roles: [Role.ProjektovyManazer] };
+    expect(canAddAttachment(objednavka(), projekt, cizi)).toBe(false);
+  });
+
+  it('odebrat jde jen u konceptu a vrácené objednávky, ne po schválení', () => {
+    expect(canRemoveAttachment(objednavka(), projekt, asistent)).toBe(true);
+    expect(canRemoveAttachment(objednavka({ status: OrderStatus.VracenoKUprave }), projekt, asistent)).toBe(true);
+    expect(canRemoveAttachment(objednavka({ status: OrderStatus.Schvaleno }), projekt, asistent)).toBe(false);
+    expect(canRemoveAttachment(objednavka({ status: OrderStatus.KeSchvaleni }), projekt, asistent)).toBe(false);
+  });
+});
+
+describe('approverCandidates', () => {
+  const osoba = (login: string, name: string): { id: number; loginName: string; displayName: string } => ({
+    id: 1,
+    loginName: login,
+    displayName: name
+  });
+  const clenstvi = [
+    { role: Role.Vedeni, groupName: 'V', groupExists: true, members: [osoba(VEDENI, 'Viktor Vedení'), osoba(VEDENI2, 'Vera Vedení')] },
+    { role: Role.Jednatel, groupName: 'J', groupExists: true, members: [osoba(JEDNATEL, 'Jaroslav Jednatel')] },
+    { role: Role.ProjektovyManazer, groupName: 'P', groupExists: true, members: [osoba(PM, 'Petr Manažer')] }
+  ];
+  const projektBezJmena = { ...projekt, projectManagerName: 'Petr Manažer' };
+
+  it('u vedení nabídne členy role Vedení, česky seřazené', () => {
+    expect(approverCandidates('vedeni', clenstvi, projektBezJmena, ASISTENT).map((c) => c.name)).toEqual([
+      'Vera Vedení',
+      'Viktor Vedení'
+    ]);
+  });
+
+  it('u jednatele členy role Jednatel', () => {
+    expect(approverCandidates('jednatel', clenstvi, projektBezJmena, ASISTENT).map((c) => c.login)).toEqual([JEDNATEL]);
+  });
+
+  it('vystavitel se nenabízí, ani když v roli je', () => {
+    expect(approverCandidates('vedeni', clenstvi, projektBezJmena, VEDENI).map((c) => c.login)).toEqual([VEDENI2]);
+  });
+
+  it('u PM se přidá PM projektu, i když v roli není zapsaný, a bez duplicity', () => {
+    const bezRole = [{ role: Role.ProjektovyManazer, groupName: 'P', groupExists: true, members: [] }];
+    expect(approverCandidates('pm', bezRole, projektBezJmena, ASISTENT).map((c) => c.login)).toEqual([PM]);
+    expect(approverCandidates('pm', clenstvi, projektBezJmena, ASISTENT).map((c) => c.login)).toEqual([PM]);
+  });
+
+  it('prázdná role nemá kandidáty', () => {
+    expect(approverCandidates('jednatel', [], projektBezJmena, ASISTENT)).toEqual([]);
   });
 });

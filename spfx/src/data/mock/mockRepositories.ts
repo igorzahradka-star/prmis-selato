@@ -66,6 +66,7 @@ import {
 import { LISTS, ListDef, SCHEMA_VERSION, creationOrder } from '../schema';
 import { MockOrderRepository } from './mockOrderRepository';
 import { MockRatesRepository } from './mockRatesRepository';
+import { MockMailRepository } from './mockMailRepository';
 import {
   DEFAULT_DOC_TYPES,
   MOCK_DIRECTORY,
@@ -568,6 +569,14 @@ class MockDocumentRepository implements IDocumentRepository {
     return delay(files.slice(0, limit));
   }
 
+  public saveProjectFile(project: Project, relativeFolder: string, fileName: string): Promise<string> {
+    if (!project.folderUrl) {
+      return Promise.reject(new Error(`Projekt ${project.projectNumber} nemá složku, kam by se soubor uložil.`));
+    }
+    // V ukázkovém režimu se nic neukládá; vrací se jen odkaz tvaru, jaký by vznikl na ostro.
+    return delay(`#/ukazkovy-rezim/soubor/${encodeURIComponent(`${relativeFolder}/${fileName}`)}`);
+  }
+
   public listProjectFolderNames(): Promise<string[]> {
     return delay(MOCK_PROJECT_FOLDERS.slice());
   }
@@ -867,6 +876,7 @@ export function createMockRepositories(): RepositorySet {
     partners,
     orders: new MockOrderRepository(numbering, projects, settings, partners, rates),
     rates,
+    mail: new MockMailRepository(),
     tasks: new MockTaskRepository((projectNumber, next) => projects.setNextDeadline(projectNumber, next)),
     documents: new MockDocumentRepository(),
     numbering,

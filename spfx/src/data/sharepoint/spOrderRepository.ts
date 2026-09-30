@@ -13,6 +13,7 @@
 
 import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { CurrentUser, Project } from '../../core/types';
+import { OrderAttachment, validateAttachment } from '../../core/orders';
 import { toDate } from '../../core/format';
 import { fallbackRatesOf } from '../../core/settings';
 import { effectiveRates } from '../../core/currency';
@@ -31,16 +32,20 @@ import {
   validateOrderDraft
 } from '../../core/orders';
 import {
+  Assignee,
   OrderChange,
   WorkflowContext,
   WorkflowError,
   applyOrderChange,
+  canAddAttachment,
   canEditOrder,
   canIssueOrder,
+  canRemoveAttachment,
   cancelOrder,
   closeOrder,
   decideOrder,
   deliverOrder,
+  reassignApprover,
   sendOrder,
   submitOrder,
   toActor,
@@ -83,6 +88,7 @@ const SELECT_FIELDS = [
   'RequestedBy/Name',
   'ApprovalLevel',
   'ApprovalChain',
+  'PdfUrl',
   'CancelReason',
   'SentDate',
   'Note',
@@ -108,6 +114,7 @@ interface OrderItem {
   RequestedBy?: { Title: string; Name: string };
   ApprovalLevel?: string;
   ApprovalChain?: string;
+  PdfUrl?: { Url: string };
   CancelReason?: string;
   SentDate?: string;
   Note?: string;
@@ -206,8 +213,21 @@ export class SpOrderRepository implements IOrderRepository {
     return (await this.requireOrder(id)).order;
   }
 
-  public submit(id: number, actor: CurrentUser): Promise<PurchaseOrder> {
-    return this.transition(id, actor, (o, c) => submitOrder(o, c));
+  public submit(
+    id: number,
+    actor: CurrentUser,
+    assignees?: Partial<Record<ApprovalLevel, Assignee>>
+  ): Promise<PurchaseOrder> {
+    return this.transition(id, actor, (o, c) => submitOrder(o, c, assignees));
+  }
+
+  public reassign(
+    id: number,
+    level: ApprovalLevel,
+    assignee: Assignee | undefined,
+    actor: CurrentUser
+  ): Promise<PurchaseOrder> {
+    return this.transition(id, actor, (o, c) => reassignApprover(o, level, assignee, c));
   }
 
   public decide(
@@ -219,8 +239,8 @@ export class SpOrderRepository implements IOrderRepository {
     return this.transition(id, actor, (o, c) => decideOrder(o, decision, comment, c));
   }
 
-  public send(id: number, actor: CurrentUser): Promise<PurchaseOrder> {
-    return this.transition(id, actor, (o, c) => sendOrder(o, c));
+  public send(id: number, actor: CurrentUser, options?: { sentTo?: string; pdfUrl?: string }): Promise<PurchaseOrder> {
+    return this.transition(id, actor, (o, c) => sendOrder(o, c, options));
   }
 
   public deliver(id: number, actor: CurrentUser): Promise<PurchaseOrder> {
@@ -260,6 +280,66 @@ export class SpOrderRepository implements IOrderRepository {
       }));
     } catch (error) {
       throw new Error(explain(error, 'Nepodařilo se načíst historii schvalování'));
+    }
+  }
+
+  public async listAttachments(id: number): Promise<OrderAttachment[]> {
+    try {
+      const sp = getSp(this.context);
+      const origin = new URL(this.context.pageContext.web.absoluteUrl).origin;
+      const files: { FileName: string; ServerRelativeUrl: string }[] = await sp.web.lists
+        .getByTitle(ORDERS_LIST)
+        .items.getById(id)
+        .attachmentFiles();
+      return files.map((f) => ({ name: f.FileName, url: `${origin}${f.ServerRelativeUrl}` }));
+    } catch (error) {
+      throw new Error(explain(error, 'Nepodařilo se načíst přílohy objednávky'));
+    }
+  }
+
+  public async addAttachment(id: number, file: File, actor: CurrentUser): Promise<OrderAttachment> {
+    const { order } = await this.requireOrder(id);
+    const project = await this.requireProject(order.projectNumber);
+    if (!canAddAttachment(order, toWorkflowProject(project), toActor(actor))) {
+      throw new WorkflowError('K této objednávce teď přílohu přidat nemůžete (nemáte oprávnění, nebo je uzavřená či stornovaná).');
+    }
+    const problem = validateAttachment(file.name, file.size);
+    if (problem) {
+      throw new WorkflowError(problem);
+    }
+    try {
+      const sp = getSp(this.context);
+      await sp.web.lists.getByTitle(ORDERS_LIST).items.getById(id).attachmentFiles.add(file.name, file);
+    } catch (error) {
+      throw new Error(explain(error, `Přílohu „${file.name}“ se nepodařilo nahrát`));
+    }
+    await this.writeAudit(id, order.orderNumber, actor, `Příloha přidána: ${file.name}`, order.status, order.status);
+    const found = (await this.listAttachments(id)).filter((a) => a.name === file.name)[0];
+    return found ?? { name: file.name, url: '' };
+  }
+
+  public async removeAttachment(id: number, fileName: string, actor: CurrentUser): Promise<void> {
+    const { order } = await this.requireOrder(id);
+    const project = await this.requireProject(order.projectNumber);
+    if (!canRemoveAttachment(order, toWorkflowProject(project), toActor(actor))) {
+      throw new WorkflowError('Přílohu jde odebrat jen u konceptu nebo vrácené objednávky.');
+    }
+    // Audit jde první: odebraný soubor je v koši SharePointu, ale bez záznamu by nebylo vidět, kdo ho odebral.
+    await this.writeAudit(id, order.orderNumber, actor, `Příloha odebrána: ${fileName}`, order.status, order.status);
+    try {
+      const sp = getSp(this.context);
+      await sp.web.lists.getByTitle(ORDERS_LIST).items.getById(id).attachmentFiles.getByName(fileName).delete();
+    } catch (error) {
+      throw new Error(explain(error, `Přílohu „${fileName}“ se nepodařilo odebrat`));
+    }
+  }
+
+  public async readAttachment(id: number, fileName: string): Promise<Blob> {
+    try {
+      const sp = getSp(this.context);
+      return await sp.web.lists.getByTitle(ORDERS_LIST).items.getById(id).attachmentFiles.getByName(fileName).getBlob();
+    } catch (error) {
+      throw new Error(explain(error, `Přílohu „${fileName}“ se nepodařilo načíst`));
     }
   }
 
@@ -336,6 +416,9 @@ export class SpOrderRepository implements IOrderRepository {
     }
     if (change.cancelReason) {
       fields.CancelReason = change.cancelReason;
+    }
+    if (change.pdfUrl) {
+      fields.PdfUrl = { Url: change.pdfUrl, Description: `${order.orderNumber}.pdf` };
     }
     await this.write(id, fields, etag, `Nepodařilo se změnit stav objednávky ${order.orderNumber}`);
 
@@ -439,6 +522,7 @@ function mapOrder(item: OrderItem): PurchaseOrder {
     note: item.Note || undefined,
     cancelReason: item.CancelReason || undefined,
     sentDate: toDate(item.SentDate),
+    pdfUrl: item.PdfUrl?.Url || undefined,
     created: toDate(item.Created),
     modified: toDate(item.Modified)
   };

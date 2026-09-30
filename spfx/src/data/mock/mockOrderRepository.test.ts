@@ -165,3 +165,108 @@ describe('MockOrderRepository — Režie a životní cyklus', () => {
     expect(keSchvaleni.every((x) => x.status === OrderStatus.KeSchvaleni)).toBe(true);
   });
 });
+
+const soubor = (name: string, size: number = 20): File => new File([new Uint8Array(size).fill(65)], name, { type: 'application/pdf' });
+
+describe('MockOrderRepository — přílohy', () => {
+  it('k objednávce jde připojit soubor a objeví se v seznamu příloh', async () => {
+    const r = await repos();
+    const o = await r.orders.create(vstup(), igor);
+    await r.orders.addAttachment(o.id, soubor('nabidka.pdf'), igor);
+    const prilohy = await r.orders.listAttachments(o.id);
+    expect(prilohy.map((p) => p.name)).toEqual(['nabidka.pdf']);
+    expect(prilohy[0].sizeBytes).toBe(20);
+  });
+
+  it('soubor stejného názvu nahradí předchozí, nezdvojí se', async () => {
+    const r = await repos();
+    const o = await r.orders.create(vstup(), igor);
+    await r.orders.addAttachment(o.id, soubor('a.pdf', 10), igor);
+    await r.orders.addAttachment(o.id, soubor('a.pdf', 30), igor);
+    const prilohy = await r.orders.listAttachments(o.id);
+    expect(prilohy).toHaveLength(1);
+    expect(prilohy[0].sizeBytes).toBe(30);
+  });
+
+  it('spustitelný soubor a nepovolený název odmítne', async () => {
+    const r = await repos();
+    const o = await r.orders.create(vstup(), igor);
+    await expect(r.orders.addAttachment(o.id, soubor('virus.exe'), igor)).rejects.toThrow(/\.exe/);
+    await expect(r.orders.addAttachment(o.id, soubor('a#b.pdf'), igor)).rejects.toThrow(/nepovoluje/);
+  });
+
+  it('cizí PM přílohu nepřidá, ani když zná číslo objednávky', async () => {
+    const r = await repos();
+    const o = await r.orders.create(vstup(), igor);
+    await expect(r.orders.addAttachment(o.id, soubor('a.pdf'), cizi)).rejects.toThrow();
+  });
+
+  it('u konceptu jde přílohu odebrat, po odeslání ke schválení už ne', async () => {
+    const r = await repos();
+    const o = await r.orders.create(vstup({ projectNumber: '25003' }), jan);
+    await r.orders.addAttachment(o.id, soubor('a.pdf'), jan);
+    await r.orders.addAttachment(o.id, soubor('b.pdf'), jan);
+    await r.orders.removeAttachment(o.id, 'a.pdf', jan);
+    expect((await r.orders.listAttachments(o.id)).map((p) => p.name)).toEqual(['b.pdf']);
+
+    await r.orders.submit(o.id, jan);
+    await expect(r.orders.removeAttachment(o.id, 'b.pdf', jan)).rejects.toThrow(/jen u konceptu/);
+    // přidat jde dál — schvalovatel třeba chce doplnit podklad
+    await r.orders.addAttachment(o.id, soubor('c.pdf'), jan);
+  });
+
+  it('u stornované objednávky už přílohu přidat nejde', async () => {
+    const r = await repos();
+    const o = await r.orders.create(vstup(), igor);
+    await r.orders.cancel(o.id, 'Test', igor);
+    await expect(r.orders.addAttachment(o.id, soubor('a.pdf'), igor)).rejects.toThrow();
+  });
+
+  it('obsah přílohy jde přečíst zpět (pro přiložení k e-mailu)', async () => {
+    const r = await repos();
+    const o = await r.orders.create(vstup(), igor);
+    await r.orders.addAttachment(o.id, soubor('a.pdf', 42), igor);
+    expect((await r.orders.readAttachment(o.id, 'a.pdf')).size).toBe(42);
+    await expect(r.orders.readAttachment(o.id, 'neni.pdf')).rejects.toThrow();
+  });
+});
+
+describe('MockOrderRepository — schvalovatel a odeslání dodavateli', () => {
+  it('s určeným schvalovatelem schválí krok jen on; jiný člen téže role ne', async () => {
+    const r = await repos();
+    const o = await r.orders.create(vstup({ projectNumber: '25003' }), jan);
+    const vedeni2 = uzivatel('vedeni.druhy', 'Druhé Vedení', [Role.Vedeni]);
+    await r.orders.submit(o.id, jan, { vedeni: { login: petr.loginName, name: petr.displayName } });
+    await expect(r.orders.decide(o.id, 'approve', '', vedeni2)).rejects.toThrow(/Petr Dvořák/);
+    expect((await r.orders.decide(o.id, 'approve', '', petr)).status).toBe(OrderStatus.Schvaleno);
+  });
+
+  it('žadatel může schvalovatele změnit, dokud objednávka čeká', async () => {
+    const r = await repos();
+    const o = await r.orders.create(vstup({ projectNumber: '25003' }), jan);
+    const vedeni2 = uzivatel('vedeni.druhy', 'Druhé Vedení', [Role.Vedeni]);
+    await r.orders.submit(o.id, jan, { vedeni: { login: petr.loginName, name: petr.displayName } });
+    const zmenena = await r.orders.reassign(o.id, 'vedeni', { login: vedeni2.loginName, name: vedeni2.displayName }, jan);
+    expect(zmenena.approvalChain[0].assignedName).toBe('Druhé Vedení');
+    await expect(r.orders.decide(o.id, 'approve', '', petr)).rejects.toThrow();
+    expect((await r.orders.decide(o.id, 'approve', '', vedeni2)).status).toBe(OrderStatus.Schvaleno);
+  });
+
+  it('cizí PM schvalovatele změnit nesmí', async () => {
+    const r = await repos();
+    const o = await r.orders.create(vstup({ projectNumber: '25003' }), jan);
+    await r.orders.submit(o.id, jan);
+    await expect(r.orders.reassign(o.id, 'vedeni', undefined, cizi)).rejects.toThrow();
+  });
+
+  it('odeslání dodavateli zapíše odkaz na PDF a datum; adresát jde do audit logu', async () => {
+    const r = await repos();
+    const o = await r.orders.create(vstup({ projectNumber: '25003' }), jan);
+    await r.orders.submit(o.id, jan);
+    await r.orders.decide(o.id, 'approve', '', petr);
+    const odeslana = await r.orders.send(o.id, jan, { sentTo: 'objednavky@dodavatel.cz', pdfUrl: 'https://x/OBJ.pdf' });
+    expect(odeslana.status).toBe(OrderStatus.Odeslano);
+    expect(odeslana.pdfUrl).toBe('https://x/OBJ.pdf');
+    expect(odeslana.sentDate).toBeDefined();
+  });
+});

@@ -12,7 +12,8 @@ import { RoleGroupMapping } from '../core/roles';
 import { Person, RoleMembership } from '../core/userAdmin';
 import { AccessGroup, ProjectAccessState } from '../core/projectAccess';
 import { StatusChange } from '../core/projectStatus';
-import { OrderLine, PurchaseOrder } from '../core/orders';
+import { ApprovalLevel, OrderAttachment, OrderLine, PurchaseOrder } from '../core/orders';
+import { Assignee } from '../core/orderWorkflow';
 import { StoredRate, StoredRates } from '../core/currency';
 import { ListDef } from './schema';
 
@@ -301,6 +302,12 @@ export interface IDocumentRepository {
    * Podklad pro import stávajících projektů — čtou se jen názvy, nic se nemění.
    */
   listProjectFolderNames(): Promise<string[]>;
+  /**
+   * Uloží soubor do podsložky složky projektu (např. PDF objednávky do `03_Nákup/Objednávky`).
+   * Chybějící podsložky vytvoří, existující soubor stejného názvu přepíše (nová verze téhož dokladu).
+   * Vrací odkaz na uložený soubor.
+   */
+  saveProjectFile(project: Project, relativeFolder: string, fileName: string, content: Blob): Promise<string>;
 }
 
 /** Jeden projekt k naimportování ze složky, která už v knihovně je. */
@@ -482,15 +489,54 @@ export interface IOrderRepository {
   create(input: OrderInput, actor: CurrentUser): Promise<PurchaseOrder>;
   /** Upraví koncept nebo vrácenou objednávku. */
   update(id: number, input: OrderInput, actor: CurrentUser): Promise<PurchaseOrder>;
-  /** Odešle ke schválení; podle částky a vystavitele může být rovnou schválená. */
-  submit(id: number, actor: CurrentUser): Promise<PurchaseOrder>;
+  /**
+   * Odešle ke schválení; podle částky a vystavitele může být rovnou schválená.
+   * `assignees` jsou konkrétní schvalovatelé jednotlivých kroků (předvyplněné z číselníku, žadatel je může změnit);
+   * bez nich smí krok schválit kdokoli z příslušné role.
+   */
+  submit(id: number, actor: CurrentUser, assignees?: Partial<Record<ApprovalLevel, Assignee>>): Promise<PurchaseOrder>;
+  /** Změní schvalovatele nevyřízeného kroku (prázdný = „kdokoli z role"). Stav objednávky se nemění. */
+  reassign(id: number, level: ApprovalLevel, assignee: Assignee | undefined, actor: CurrentUser): Promise<PurchaseOrder>;
   decide(id: number, decision: 'approve' | 'return' | 'reject', comment: string, actor: CurrentUser): Promise<PurchaseOrder>;
-  send(id: number, actor: CurrentUser): Promise<PurchaseOrder>;
+  /** Označí objednávku jako odeslanou dodavateli. `sentTo` a `pdfUrl` se zapíšou k objednávce a do audit logu. */
+  send(id: number, actor: CurrentUser, options?: { sentTo?: string; pdfUrl?: string }): Promise<PurchaseOrder>;
   deliver(id: number, actor: CurrentUser): Promise<PurchaseOrder>;
   close(id: number, actor: CurrentUser): Promise<PurchaseOrder>;
   cancel(id: number, reason: string, actor: CurrentUser): Promise<PurchaseOrder>;
   /** Kdo a jak o objednávce rozhodl, od prvního kroku. */
   listApprovals(id: number): Promise<ApprovalRecord[]>;
+  /** Přílohy objednávky (soubory uložené u položky). */
+  listAttachments(id: number): Promise<OrderAttachment[]>;
+  /** Připojí soubor. Smí, kdo smí objednávku spravovat, dokud není uzavřená ani stornovaná. */
+  addAttachment(id: number, file: File, actor: CurrentUser): Promise<OrderAttachment>;
+  /** Odebere přílohu — jen u konceptu a vrácené objednávky. */
+  removeAttachment(id: number, fileName: string, actor: CurrentUser): Promise<void>;
+  /** Obsah přílohy (pro přiložení k e-mailu dodavateli). */
+  readAttachment(id: number, fileName: string): Promise<Blob>;
+}
+
+/** Příloha odesílaného e-mailu. */
+export interface MailAttachment {
+  name: string;
+  contentType: string;
+  content: Blob;
+}
+
+/** E-mail k odeslání. */
+export interface OutgoingMail {
+  to: string[];
+  cc?: string[];
+  subject: string;
+  bodyText: string;
+  attachments: MailAttachment[];
+}
+
+/**
+ * Odesílání e-mailů. Zpráva odchází ze schránky přihlášeného uživatele (Microsoft Graph, `Mail.Send`) —
+ * aplikace nemá vlastní odesílací účet. Bez schváleného oprávnění skončí chybou s návodem.
+ */
+export interface IMailRepository {
+  send(mail: OutgoingMail): Promise<void>;
 }
 
 /**
@@ -520,6 +566,7 @@ export interface RepositorySet {
   documents: IDocumentRepository;
   orders: IOrderRepository;
   rates: IRatesRepository;
+  mail: IMailRepository;
   numbering: INumberingRepository;
   install: IInstallRepository;
 }

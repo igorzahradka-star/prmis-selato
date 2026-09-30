@@ -36,6 +36,7 @@ import { parseListText, sameList } from '../../core/listText';
 import { buildHash, RouteName } from '../../ui/router';
 import { ImportProjectsPanel } from '../admin/ImportProjectsPanel';
 import { RatesTab } from './RatesTab';
+import { DefaultApproversEditor } from './DefaultApproversEditor';
 
 export const SettingsPage: React.FC = () => {
   const { settings, repos, user, reloadSettings } = useApp();
@@ -248,6 +249,10 @@ export const SettingsPage: React.FC = () => {
               label="Objednávky na Režii vždy schvaluje vedení"
               checked={draft.approvals.overheadRequiresVedeni}
               onChange={(_, c) => patch('approvals', { overheadRequiresVedeni: !!c })}
+            />
+            <DefaultApproversEditor
+              value={draft.approvals.defaultApprovers}
+              onChange={(defaultApprovers) => patch('approvals', { defaultApprovers })}
             />
             <Hint>
               Objednávky v EUR a USD se pro určení pásma přepočítají kurzem ČNB ze záložky <strong>Kurzy</strong>.

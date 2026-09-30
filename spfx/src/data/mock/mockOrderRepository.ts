@@ -6,6 +6,7 @@
  */
 
 import { CurrentUser, Project } from '../../core/types';
+import { ApprovalLevel, OrderAttachment, validateAttachment } from '../../core/orders';
 import { ApprovalSettings, fallbackRatesOf } from '../../core/settings';
 import { effectiveRates } from '../../core/currency';
 import {
@@ -28,16 +29,20 @@ import {
   validateOrderDraft
 } from '../../core/orders';
 import {
+  Assignee,
   OrderChange,
   WorkflowContext,
   WorkflowError,
   applyOrderChange,
+  canAddAttachment,
   canEditOrder,
   canIssueOrder,
+  canRemoveAttachment,
   cancelOrder,
   closeOrder,
   decideOrder,
   deliverOrder,
+  reassignApprover,
   sendOrder,
   submitOrder,
   toActor,
@@ -143,6 +148,7 @@ export const MOCK_ORDERS: PurchaseOrder[] = [
 export class MockOrderRepository implements IOrderRepository {
   private orders: PurchaseOrder[];
   private readonly approvals = new Map<number, ApprovalRecord[]>();
+  private readonly files = new Map<number, { name: string; blob: Blob; url: string }[]>();
   private nextId: number;
 
   public constructor(
@@ -210,8 +216,21 @@ export class MockOrderRepository implements IOrderRepository {
     return delay(updated);
   }
 
-  public submit(id: number, actor: CurrentUser): Promise<PurchaseOrder> {
-    return this.transition(id, actor, (o, c) => submitOrder(o, c));
+  public submit(
+    id: number,
+    actor: CurrentUser,
+    assignees?: Partial<Record<ApprovalLevel, Assignee>>
+  ): Promise<PurchaseOrder> {
+    return this.transition(id, actor, (o, c) => submitOrder(o, c, assignees));
+  }
+
+  public reassign(
+    id: number,
+    level: ApprovalLevel,
+    assignee: Assignee | undefined,
+    actor: CurrentUser
+  ): Promise<PurchaseOrder> {
+    return this.transition(id, actor, (o, c) => reassignApprover(o, level, assignee, c));
   }
 
   public decide(
@@ -223,8 +242,8 @@ export class MockOrderRepository implements IOrderRepository {
     return this.transition(id, actor, (o, c) => decideOrder(o, decision, comment, c));
   }
 
-  public send(id: number, actor: CurrentUser): Promise<PurchaseOrder> {
-    return this.transition(id, actor, (o, c) => sendOrder(o, c));
+  public send(id: number, actor: CurrentUser, options?: { sentTo?: string; pdfUrl?: string }): Promise<PurchaseOrder> {
+    return this.transition(id, actor, (o, c) => sendOrder(o, c, options));
   }
 
   public deliver(id: number, actor: CurrentUser): Promise<PurchaseOrder> {
@@ -241,6 +260,49 @@ export class MockOrderRepository implements IOrderRepository {
 
   public listApprovals(id: number): Promise<ApprovalRecord[]> {
     return delay((this.approvals.get(id) ?? []).map((a) => ({ ...a })));
+  }
+
+  public listAttachments(id: number): Promise<OrderAttachment[]> {
+    return delay((this.files.get(id) ?? []).map((f) => ({ name: f.name, url: f.url, sizeBytes: f.blob.size })));
+  }
+
+  public async addAttachment(id: number, file: File, actor: CurrentUser): Promise<OrderAttachment> {
+    const order = this.require(id);
+    const project = await this.requireProject(order.projectNumber);
+    if (!canAddAttachment(order, toWorkflowProject(project), toActor(actor))) {
+      throw new WorkflowError('K této objednávce teď přílohu přidat nemůžete (nemáte oprávnění, nebo je uzavřená či stornovaná).');
+    }
+    const problem = validateAttachment(file.name, file.size);
+    if (problem) {
+      throw new WorkflowError(problem);
+    }
+    // V ukázkovém režimu se soubor drží jen v paměti prohlížeče.
+    const url = typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function' ? URL.createObjectURL(file) : '#';
+    const list = (this.files.get(id) ?? []).filter((f) => f.name !== file.name);
+    list.push({ name: file.name, blob: file, url });
+    this.files.set(id, list);
+    return delay({ name: file.name, url, sizeBytes: file.size });
+  }
+
+  public async removeAttachment(id: number, fileName: string, actor: CurrentUser): Promise<void> {
+    const order = this.require(id);
+    const project = await this.requireProject(order.projectNumber);
+    if (!canRemoveAttachment(order, toWorkflowProject(project), toActor(actor))) {
+      throw new WorkflowError('Přílohu jde odebrat jen u konceptu nebo vrácené objednávky.');
+    }
+    this.files.set(
+      id,
+      (this.files.get(id) ?? []).filter((f) => f.name !== fileName)
+    );
+    return delay(undefined);
+  }
+
+  public readAttachment(id: number, fileName: string): Promise<Blob> {
+    const found = (this.files.get(id) ?? []).filter((f) => f.name === fileName)[0];
+    if (!found) {
+      return Promise.reject(new WorkflowError('Příloha nebyla nalezena.'));
+    }
+    return delay(found.blob);
   }
 
   // --- vnitřní ---

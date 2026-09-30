@@ -66,6 +66,34 @@ export class SpDocumentRepository implements IDocumentRepository {
     }
   }
 
+  public async saveProjectFile(project: Project, relativeFolder: string, fileName: string, content: Blob): Promise<string> {
+    if (!project.folderUrl) {
+      throw new Error(`Projekt ${project.projectNumber} nemá složku, kam by se soubor uložil. Složku doplňte v detailu projektu.`);
+    }
+    const folders = (await this.settings.get()).folders;
+    const sp = folders.siteUrl ? getSpForSite(this.context, folders.siteUrl) : getSp(this.context);
+    const base = serverRelativePath(project.folderUrl);
+
+    try {
+      // Podsložky se zakládají po jedné od shora — SharePoint nevytvoří celou cestu najednou.
+      let path = base;
+      for (const part of relativeFolder.split('/').filter((p) => p.trim() !== '')) {
+        path = `${path}/${part}`;
+        await sp.web.folders.addUsingPath(path);
+      }
+      const added = (await sp.web
+        .getFolderByServerRelativePath(path)
+        .files.addUsingPath(fileName, content, { Overwrite: true })) as unknown as {
+        data?: { ServerRelativeUrl?: string };
+        ServerRelativeUrl?: string;
+      };
+      const relative = (added.data && added.data.ServerRelativeUrl) || added.ServerRelativeUrl || `${path}/${fileName}`;
+      return `${this.origin(folders.siteUrl)}${relative.indexOf('/') === 0 ? '' : '/'}${relative}`;
+    } catch (error) {
+      throw new Error(describeSpError(error, `Soubor „${fileName}“ se nepodařilo uložit do složky projektu ${project.projectNumber}`));
+    }
+  }
+
   /**
    * Názvy podsložek v kořenové složce projektů. Čtou se **jen názvy** —
    * import se z nich rozhoduje, ale nic se nemění.

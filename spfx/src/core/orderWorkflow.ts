@@ -20,6 +20,7 @@ import { hasAnyRole, normalizeLogin, canEditProject } from './roles';
 import { Role } from './types';
 import { formatMoney } from './format';
 import { RateTable } from './currency';
+import { RoleMembership } from './userAdmin';
 import {
   ApprovalLevel,
   ApprovalStep,
@@ -42,6 +43,7 @@ export interface Actor {
 export interface WorkflowProject {
   projectNumber: string;
   projectManagerLogin?: string;
+  projectManagerName?: string;
   assistantLogins?: string[];
   isOverhead: boolean;
 }
@@ -55,7 +57,23 @@ export interface WorkflowContext {
   rates: RateTable;
 }
 
-export type OrderAction = 'edit' | 'submit' | 'approve' | 'return' | 'reject' | 'send' | 'deliver' | 'close' | 'cancel';
+export type OrderAction =
+  | 'edit'
+  | 'submit'
+  | 'approve'
+  | 'return'
+  | 'reject'
+  | 'reassign'
+  | 'send'
+  | 'deliver'
+  | 'close'
+  | 'cancel';
+
+/** Konkrétní osoba přiřazená ke kroku schvalování. */
+export interface Assignee {
+  login: string;
+  name: string;
+}
 
 export type ApprovalDecision = 'Schváleno' | 'Vráceno k úpravě' | 'Zamítnuto';
 
@@ -66,6 +84,7 @@ export interface OrderChange {
   currentApprovalLevel?: ApprovalLevel;
   sentDate?: Date;
   cancelReason?: string;
+  pdfUrl?: string;
   /** Věta do auditního logu. */
   auditAction: string;
   /** Záznam do historie schvalování (PRM_Approvals); jen u rozhodnutí. */
@@ -117,8 +136,30 @@ export function canManageOrder(order: PurchaseOrder, project: WorkflowProject, a
 /**
  * Smí uživatel schválit daný krok? Vždy platí, že nikdo neschvaluje vlastní objednávku —
  * ani když by mu to role jinak dovolila.
+ *
+ * Má-li krok přiřazeného schvalovatele, smí ho schválit jen on (a u vedení a jednatele musí stále mít
+ * příslušnou roli). Bez přiřazení smí kdokoli z role: PM projektu, člen vedení, jednatel.
  */
-export function mayApproveLevel(level: ApprovalLevel, order: PurchaseOrder, project: WorkflowProject, actor: Actor): boolean {
+export function mayApproveStep(step: ApprovalStep, order: PurchaseOrder, project: WorkflowProject, actor: Actor): boolean {
+  if (sameLogin(order.requestedByLogin, actor.login)) {
+    return false;
+  }
+  if (step.assignedLogin) {
+    if (!sameLogin(step.assignedLogin, actor.login)) {
+      return false;
+    }
+    if (step.level === 'vedeni') {
+      return hasAnyRole(actor.roles, Role.Vedeni);
+    }
+    if (step.level === 'jednatel') {
+      return hasAnyRole(actor.roles, Role.Jednatel);
+    }
+    return true;
+  }
+  return mayApproveLevel(step.level, order, project, actor);
+}
+
+function mayApproveLevel(level: ApprovalLevel, order: PurchaseOrder, project: WorkflowProject, actor: Actor): boolean {
   if (sameLogin(order.requestedByLogin, actor.login)) {
     return false;
   }
@@ -148,7 +189,7 @@ export function isWaitingFor(order: PurchaseOrder, project: WorkflowProject, act
     return false;
   }
   const i = currentStepIndex(order.approvalChain);
-  return i !== -1 && mayApproveLevel(order.approvalChain[i].level, order, project, actor);
+  return i !== -1 && mayApproveStep(order.approvalChain[i], order, project, actor);
 }
 
 /** Jde objednávku upravovat? Jen koncept nebo vrácenou a jen těm, kdo s ní smějí nakládat. */
@@ -169,6 +210,9 @@ export function availableActions(order: PurchaseOrder, project: WorkflowProject,
   }
   if (isWaitingFor(order, project, actor)) {
     actions.push('approve', 'return', 'reject');
+  }
+  if (manage && order.status === OrderStatus.KeSchvaleni && currentStepIndex(order.approvalChain) !== -1) {
+    actions.push('reassign');
   }
   if (manage && order.status === OrderStatus.Schvaleno) {
     actions.push('send');
@@ -193,6 +237,8 @@ export interface ChainInput {
   projectManagerLogin?: string;
   isOverhead: boolean;
   settings: ApprovalSettings;
+  /** Konkrétní schvalovatelé jednotlivých kroků; bez nich smí krok schválit kdokoli z role. */
+  assignees?: Partial<Record<ApprovalLevel, Assignee>>;
 }
 
 /**
@@ -228,14 +274,46 @@ export function buildApprovalChain(input: ChainInput): { steps: ApprovalStep[]; 
       // Vypnuté samoschvalování: krok PM vypadne, o objednávce PM rozhoduje vedení.
       return;
     }
-    steps.push({ level, approved: false });
+    steps.push(pendingStep(level, input.assignees));
   });
 
   // PM vystavil sám a samoschvalování je vypnuté: jeho krok vypadl a nic nezbylo, rozhoduje vedení.
   if (steps.length === 0) {
-    steps.push({ level: 'vedeni', approved: false });
+    steps.push(pendingStep('vedeni', input.assignees));
   }
   return { steps, outsideApp: false };
+}
+
+function pendingStep(level: ApprovalLevel, assignees: ChainInput['assignees']): ApprovalStep {
+  const a = assignees ? assignees[level] : undefined;
+  return a && a.login ? { level, approved: false, assignedLogin: a.login, assignedName: a.name } : { level, approved: false };
+}
+
+/**
+ * Koho předvyplnit jako schvalovatele kroku. Přednost má číselník z Nastavení (u PM je to PM projektu),
+ * ale jen když je dotyčný mezi možnými schvalovateli a **není vystavitelem** — vlastní objednávku nikdo neschvaluje.
+ * Vrací přihlašovací jméno, nebo prázdný text = „kdokoli z role".
+ */
+export function defaultApproverLogin(
+  level: ApprovalLevel,
+  candidates: Assignee[],
+  project: WorkflowProject,
+  configured: { vedeni?: Assignee; jednatel?: Assignee } | undefined,
+  requesterLogin: string
+): string {
+  const wanted: Assignee | undefined =
+    level === 'pm'
+      ? project.projectManagerLogin
+        ? { login: project.projectManagerLogin, name: project.projectManagerName || project.projectManagerLogin }
+        : undefined
+      : level === 'vedeni'
+        ? configured && configured.vedeni
+        : configured && configured.jednatel;
+  if (!wanted || sameLogin(wanted.login, requesterLogin)) {
+    return '';
+  }
+  const inList = candidates.filter((c) => sameLogin(c.login, wanted.login))[0];
+  return inList ? inList.login : level === 'pm' ? wanted.login : '';
 }
 
 // --- přechody --------------------------------------------------------------
@@ -261,7 +339,11 @@ function afterChain(chain: ApprovalStep[]): { status: OrderStatus; level?: Appro
 }
 
 /** Odeslání objednávky ke schválení. Stačí-li automatické schválení, rovnou skončí jako Schváleno. */
-export function submitOrder(order: PurchaseOrder, ctx: WorkflowContext): OrderChange {
+export function submitOrder(
+  order: PurchaseOrder,
+  ctx: WorkflowContext,
+  assignees?: Partial<Record<ApprovalLevel, Assignee>>
+): OrderChange {
   requireStatus(order, [OrderStatus.Koncept, OrderStatus.VracenoKUprave], 'Odeslat ke schválení');
   requireManage(order, ctx, 'Odeslat ke schválení');
   if (!canIssueOrder(ctx.project, ctx.actor) && !sameLogin(order.requestedByLogin, ctx.actor.login)) {
@@ -286,13 +368,21 @@ export function submitOrder(order: PurchaseOrder, ctx: WorkflowContext): OrderCh
     throw new WorkflowError(`Objednávku nejde odeslat ke schválení: ${issues.slice(0, 3).map((i) => i.message).join(' ')}`);
   }
 
+  (['pm', 'vedeni', 'jednatel'] as ApprovalLevel[]).forEach((level) => {
+    const a = assignees ? assignees[level] : undefined;
+    if (a && sameLogin(a.login, order.requestedByLogin)) {
+      throw new WorkflowError('Schvalovatelem nemůže být vystavitel objednávky — vlastní objednávku nikdo neschvaluje.');
+    }
+  });
+
   const amountCzk = amountNetInCzk(order.amountNet, order.currency, ctx.rates);
   const { steps, outsideApp } = buildApprovalChain({
     amountNetCzk: amountCzk,
     issuerLogin: order.requestedByLogin,
     projectManagerLogin: ctx.project.projectManagerLogin,
     isOverhead: ctx.project.isOverhead,
-    settings: ctx.settings
+    settings: ctx.settings,
+    assignees
   });
   if (outsideApp) {
     throw new WorkflowError(
@@ -330,9 +420,11 @@ export function decideOrder(
   if (sameLogin(order.requestedByLogin, ctx.actor.login)) {
     throw new WorkflowError('Vlastní objednávku nesmíte schválit, vrátit ani zamítnout. Musí to udělat někdo jiný.');
   }
-  if (!mayApproveLevel(step.level, order, ctx.project, ctx.actor)) {
+  if (!mayApproveStep(step, order, ctx.project, ctx.actor)) {
     throw new WorkflowError(
-      `Teď schvaluje ${APPROVAL_LEVEL_LABELS[step.level]}. Vy k tomu kroku oprávnění nemáte.`
+      step.assignedName
+        ? `Teď schvaluje ${step.assignedName} (${APPROVAL_LEVEL_LABELS[step.level]}). Vy k tomu kroku oprávnění nemáte.`
+        : `Teď schvaluje ${APPROVAL_LEVEL_LABELS[step.level]}. Vy k tomu kroku oprávnění nemáte.`
     );
   }
   const text = (comment || '').trim();
@@ -381,15 +473,24 @@ export function decideOrder(
   };
 }
 
-/** Odeslání schválené objednávky dodavateli. */
-export function sendOrder(order: PurchaseOrder, ctx: WorkflowContext): OrderChange {
+/**
+ * Odeslání schválené objednávky dodavateli. `sentTo` (adresát e-mailu) a `pdfUrl` (uložené PDF) se
+ * zapíšou do audit logu, resp. k objednávce — aby bylo vidět, komu a co odešlo.
+ */
+export function sendOrder(
+  order: PurchaseOrder,
+  ctx: WorkflowContext,
+  options?: { sentTo?: string; pdfUrl?: string }
+): OrderChange {
   requireStatus(order, [OrderStatus.Schvaleno], 'Odeslat dodavateli');
   requireManage(order, ctx, 'Odeslat dodavateli');
+  const sentTo = options && options.sentTo ? options.sentTo.trim() : '';
   return {
     status: OrderStatus.Odeslano,
     approvalChain: order.approvalChain,
     sentDate: ctx.now,
-    auditAction: 'Odesláno dodavateli'
+    pdfUrl: options && options.pdfUrl ? options.pdfUrl : undefined,
+    auditAction: sentTo ? `Odesláno dodavateli (${sentTo})` : 'Odesláno dodavateli'
   };
 }
 
@@ -437,12 +538,14 @@ export function toActor(user: { loginName: string; displayName: string; roles: R
 export function toWorkflowProject(project: {
   projectNumber: string;
   projectManagerLogin?: string;
+  projectManagerName?: string;
   assistantLogins?: string[];
   isOverhead: boolean;
 }): WorkflowProject {
   return {
     projectNumber: project.projectNumber,
     projectManagerLogin: project.projectManagerLogin,
+    projectManagerName: project.projectManagerName,
     assistantLogins: project.assistantLogins,
     isOverhead: project.isOverhead
   };
@@ -456,6 +559,7 @@ export function applyOrderChange(order: PurchaseOrder, change: OrderChange, now:
     approvalChain: change.approvalChain,
     currentApprovalLevel: change.currentApprovalLevel,
     sentDate: change.sentDate ?? order.sentDate,
+    pdfUrl: change.pdfUrl ?? order.pdfUrl,
     cancelReason: change.cancelReason ?? order.cancelReason,
     modified: now
   };
@@ -469,4 +573,83 @@ export function describeApprovalRoute(steps: ApprovalStep[]): string {
   return steps
     .map((s) => APPROVAL_LEVEL_LABELS[s.level] + (s.auto ? ' (automaticky)' : ''))
     .join(' → ');
+}
+
+/**
+ * Změna schvalovatele u nevyřízeného kroku (např. když je určený člověk nepřítomný).
+ * Smí vystavitel, PM projektu, vedení a administrátor. Nový schvalovatel nemůže být vystavitel;
+ * `undefined` vrátí krok do stavu „kdokoli z role". Stav objednávky se nemění.
+ */
+export function reassignApprover(
+  order: PurchaseOrder,
+  level: ApprovalLevel,
+  assignee: Assignee | undefined,
+  ctx: WorkflowContext
+): OrderChange {
+  requireStatus(order, [OrderStatus.KeSchvaleni], 'Změnit schvalovatele');
+  requireManage(order, ctx, 'Změnit schvalovatele');
+  const index = order.approvalChain.findIndex((s) => s.level === level && !s.approved);
+  if (index === -1) {
+    throw new WorkflowError('Tento krok schvalování už je vyřízený nebo v objednávce není — schvalovatele nejde změnit.');
+  }
+  if (assignee && sameLogin(assignee.login, order.requestedByLogin)) {
+    throw new WorkflowError('Schvalovatelem nemůže být vystavitel objednávky — vlastní objednávku nikdo neschvaluje.');
+  }
+  const chain = order.approvalChain.map((s, i) =>
+    i === index
+      ? { ...s, assignedLogin: assignee ? assignee.login : undefined, assignedName: assignee ? assignee.name : undefined }
+      : s
+  );
+  const next = afterChain(chain);
+  return {
+    status: order.status,
+    approvalChain: chain,
+    currentApprovalLevel: next.level,
+    auditAction: `Změněn schvalovatel (${APPROVAL_LEVEL_LABELS[level]}): ${assignee ? assignee.name : 'kdokoli z role'}`
+  };
+}
+
+// --- přílohy ---------------------------------------------------------------
+
+/** Přílohu smí přidat, kdo s objednávkou smí nakládat, dokud není uzavřená ani stornovaná. */
+export function canAddAttachment(order: PurchaseOrder, project: WorkflowProject, actor: Actor): boolean {
+  return canManageOrder(order, project, actor) && FINAL_ORDER_STATUSES.indexOf(order.status) === -1;
+}
+
+/**
+ * Přílohu smí odebrat jen ten, kdo smí objednávku upravovat (koncept, vrácená). U schválené objednávky
+ * se přílohy neodebírají — schvalovatel rozhodoval nad konkrétním podkladem.
+ */
+export function canRemoveAttachment(order: PurchaseOrder, project: WorkflowProject, actor: Actor): boolean {
+  return canEditOrder(order, project, actor);
+}
+
+/**
+ * Kdo může být v daném kroku schvalovatelem — z těchto lidí si žadatel vybírá.
+ *  - PM: členové role Projektový manažer a PM projektu (i kdyby v roli nebyl zapsaný),
+ *  - vedení: členové role Vedení, jednatel: členové role Jednatel.
+ * Vystavitel se nenabízí, vlastní objednávku nikdo neschvaluje. Jména se neopakují, řadí se česky.
+ */
+export function approverCandidates(
+  level: ApprovalLevel,
+  memberships: RoleMembership[],
+  project: WorkflowProject,
+  requesterLogin: string
+): Assignee[] {
+  const role = level === 'pm' ? Role.ProjektovyManazer : level === 'vedeni' ? Role.Vedeni : Role.Jednatel;
+  const result: Assignee[] = [];
+  const add = (login: string | undefined, name: string | undefined): void => {
+    if (!login || sameLogin(login, requesterLogin)) {
+      return;
+    }
+    if (result.some((r) => sameLogin(r.login, login))) {
+      return;
+    }
+    result.push({ login, name: name || login });
+  };
+  memberships.filter((m) => m.role === role).forEach((m) => m.members.forEach((p) => add(p.loginName, p.displayName)));
+  if (level === 'pm') {
+    add(project.projectManagerLogin, project.projectManagerName);
+  }
+  return result.sort((a, b) => a.name.localeCompare(b.name, 'cs-CZ'));
 }
