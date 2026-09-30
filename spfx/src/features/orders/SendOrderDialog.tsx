@@ -30,6 +30,8 @@ export interface SendOrderDialogProps {
   initialSubject: string;
   initialBody: string;
   attachmentCount: number;
+  /** Opakované odeslání už odeslané objednávky (nedorazila, nebo jde na jinou adresu). */
+  resend?: boolean;
   busy: boolean;
   error?: string;
   onSendMail: (payload: SendPayload) => void;
@@ -44,6 +46,7 @@ export const SendOrderDialog: React.FC<SendOrderDialogProps> = ({
   initialSubject,
   initialBody,
   attachmentCount,
+  resend,
   busy,
   error,
   onSendMail,
@@ -81,7 +84,7 @@ export const SendOrderDialog: React.FC<SendOrderDialogProps> = ({
     <Dialog
       hidden={false}
       onDismiss={busy ? undefined : onDismiss}
-      dialogContentProps={{ type: DialogType.normal, title: `Odeslat objednávku ${orderNumber} dodavateli` }}
+      dialogContentProps={{ type: DialogType.normal, title: resend ? `Odeslat objednávku ${orderNumber} dodavateli znovu` : `Odeslat objednávku ${orderNumber} dodavateli` }}
       modalProps={{ isBlocking: true }}
       minWidth={560}
     >
@@ -106,13 +109,14 @@ export const SendOrderDialog: React.FC<SendOrderDialogProps> = ({
           />
         )}
         <div style={{ fontSize: 12, color: '#5A6472' }}>
-          PDF se zároveň uloží do složky projektu (03_Nákup/Objednávky) a objednávka se označí jako odeslaná dodavateli.
-          E-mail odejde z vaší schránky a bude i ve vaší poště Odeslané.
+          {resend
+            ? 'PDF se znovu uloží do složky projektu (03_Nákup/Objednávky) a v historii objednávky bude zapsáno, komu a kdy šla znovu. Stav objednávky se nemění. E-mail odejde z vaší schránky.'
+            : 'PDF se zároveň uloží do složky projektu (03_Nákup/Objednávky) a objednávka se označí jako odeslaná dodavateli. E-mail odejde z vaší schránky a bude i ve vaší poště Odeslané.'}
         </div>
       </div>
       <DialogFooter>
         <PrimaryButton text={busy ? 'Odesílám…' : 'Odeslat e-mailem'} disabled={busy} onClick={send} />
-        <DefaultButton text="Jen uložit PDF a označit jako odesláno" disabled={busy} onClick={onMarkOnly} />
+        <DefaultButton text={resend ? 'Jen uložit PDF a zapsat odeslání' : 'Jen uložit PDF a označit jako odesláno'} disabled={busy} onClick={onMarkOnly} />
         <DefaultButton text="Zpět" disabled={busy} onClick={onDismiss} />
       </DialogFooter>
     </Dialog>

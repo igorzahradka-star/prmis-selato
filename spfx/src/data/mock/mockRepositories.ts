@@ -182,7 +182,7 @@ export class MockUserAdminRepository implements IUserAdminRepository {
         granted.push({ groupName: name, level: PERMISSION_LEVEL_LABEL[ROLE_PERMISSION_LEVEL[role]] });
       }
     });
-    return delay({ created, granted });
+    return delay({ created, granted, failed: [] });
   }
 
   /** Jen pro testy: smaže skupinu, aby šlo vyzkoušet chování při chybějící skupině. */

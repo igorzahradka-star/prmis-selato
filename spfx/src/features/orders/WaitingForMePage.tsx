@@ -12,6 +12,7 @@ import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 import { useApp } from '../../ui/AppContext';
 import { RES } from '../../ui/theme';
 import { PageHeading } from '../../ui/components/PageHeading';
+import { useAutoRefresh } from '../../ui/useAutoRefresh';
 import { navigate, RouteName } from '../../ui/router';
 import { OrderStatus, PurchaseOrder } from '../../core/orders';
 import { isWaitingFor, toActor, toWorkflowProject } from '../../core/orderWorkflow';
@@ -48,6 +49,8 @@ export const WaitingForMePage: React.FC<{ orderId?: number }> = ({ orderId }) =>
       cancelled = true;
     };
   }, [repos, reloadKey]);
+
+  useAutoRefresh(() => setReloadKey((k) => k + 1), orderId !== undefined);
 
   const actor = React.useMemo(() => toActor(user), [user]);
   const mine = (orders ?? []).filter((o) => {

@@ -29,6 +29,7 @@
     "@pnp/sp": "4.21.0",
     "exceljs": "^4.4.0",
     "leaflet": "^1.9.4",
+    "pdfjs-dist": "^3.11.174",
     "pdfmake": "^0.2.20",
     "react": "17.0.1",
     "react-dom": "17.0.1",

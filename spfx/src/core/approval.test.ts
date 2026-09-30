@@ -18,7 +18,7 @@ describe('describeApprovalLadder', () => {
     expect(rows[0]).toBe('do 100 000 Kč schvaluje projektový manažer');
     expect(rows[1]).toBe('nad 100 000 Kč do 500 000 Kč schvaluje navíc vedení');
     expect(rows[2]).toBe('nad 500 000 Kč do 1 000 000 Kč schvaluje navíc jednatel');
-    expect(rows[3]).toBe('nad 1 000 000 Kč se objednávka schvaluje mimo aplikaci');
+    expect(rows[3]).toBe('nad 1 000 000 Kč se schvaluje stejně (projektový manažer, vedení, jednatel) — i takové objednávky schvaluje aplikace');
   });
 
   it('vysvětlí, že si PM schvaluje sám, když je to zapnuté', () => {

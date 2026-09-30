@@ -18,6 +18,8 @@ import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 import { Link } from '@fluentui/react/lib/Link';
 
 import { useApp } from '../../ui/AppContext';
+import { useAutoRefresh } from '../../ui/useAutoRefresh';
+import { ExternalLink } from '../../ui/components/ExternalLink';
 import { RES } from '../../ui/theme';
 import { CS_CALENDAR_STRINGS } from '../../ui/csCalendarStrings';
 import { buildHash, RouteName } from '../../ui/router';
@@ -46,11 +48,19 @@ import {
   canRemoveAttachment,
   defaultApproverLogin,
   describeApprovalRoute,
+  editResetsApproval,
   toActor,
   toWorkflowProject
 } from '../../core/orderWorkflow';
 import { RoleMembership } from '../../core/userAdmin';
 import { defaultOrderMail } from '../../core/mail';
+import {
+  approvalRecipients,
+  approvalRequestMail,
+  decisionMail,
+  orderLink,
+  requesterRecipient
+} from '../../core/orderNotify';
 import { ApproverDialog, ApproverRow } from './ApproverDialog';
 import { OrderPdfPreview } from './OrderPdfPreview';
 import { SendOrderDialog, SendPayload } from './SendOrderDialog';
@@ -121,12 +131,13 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
   const [attachments, setAttachments] = React.useState<OrderAttachment[]>([]);
   const [pendingFiles, setPendingFiles] = React.useState<File[]>([]);
   const [approverDialog, setApproverDialog] = React.useState<
-    { key: number; mode: 'submit' | 'reassign'; orderId: number; rows: ApproverRow[]; level?: ApprovalLevel } | undefined
+    { key: number; mode: 'submit' | 'reassign'; orderId: number; rows: ApproverRow[] } | undefined
   >(undefined);
   const [previewOpen, setPreviewOpen] = React.useState(false);
   const [previewBlob, setPreviewBlob] = React.useState<Blob | undefined>(undefined);
-  const [sendOpen, setSendOpen] = React.useState(false);
+  const [sendOpen, setSendOpen] = React.useState<'send' | 'resend' | undefined>(undefined);
   const [sendError, setSendError] = React.useState<string | undefined>(undefined);
+  const [notice, setNotice] = React.useState<{ text: string; type: MessageBarType } | undefined>(undefined);
 
   const [fProject, setFProject] = React.useState<string | undefined>(undefined);
   const [fSupplierId, setFSupplierId] = React.useState<number | undefined>(undefined);
@@ -176,7 +187,8 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
     setPendingFiles([]);
     setApproverDialog(undefined);
     setPreviewOpen(false);
-    setSendOpen(false);
+    setSendOpen(undefined);
+    setNotice(undefined);
 
     Promise.all([
       repos.projects.list({ includeOverhead: true }),
@@ -343,15 +355,9 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
       isOverhead: project.isOverhead,
       settings: settings.approvals
     });
-    if (chain.outsideApp) {
-      setError(
-        `Částka překračuje limit jednatele (${formatMoney(settings.approvals.jednatelLimit)}). Takovou objednávku nejde v aplikaci schválit — schvaluje se mimo aplikaci.`
-      );
-      return;
-    }
     const pending = chain.steps.filter((st) => !st.approved);
     if (pending.length === 0) {
-      run(() => repos.orders.submit(target.id, user));
+      run(() => repos.orders.submit(target.id, user), notifyApprovers);
       return;
     }
     const rows: ApproverRow[] = pending.map((st) => {
@@ -365,18 +371,23 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
     setApproverDialog({ key: Date.now(), mode: 'submit', orderId: target.id, rows });
   };
 
-  const beginReassign = (level: ApprovalLevel): void => {
+  /** Změna schvalovatele: dialog nabídne všechny ještě nevyřízené kroky (třeba když je určený člověk na dovolené). */
+  const beginReassign = (): void => {
     if (!order || !workflowProject) {
       return;
     }
-    const step = order.approvalChain.filter((st) => st.level === level)[0];
-    const candidates = approverCandidates(level, roleMembers, workflowProject, order.requestedByLogin);
+    const pendingSteps = order.approvalChain.filter((st) => !st.approved);
+    const wf = workflowProject;
+    const orderNow = order;
     setApproverDialog({
       key: Date.now(),
       mode: 'reassign',
       orderId: order.id,
-      level,
-      rows: [{ level, candidates, selected: step && step.assignedLogin ? step.assignedLogin : '' }]
+      rows: pendingSteps.map((step) => ({
+        level: step.level,
+        candidates: approverCandidates(step.level, roleMembers, wf, orderNow.requestedByLogin),
+        selected: step.assignedLogin ? step.assignedLogin : ''
+      }))
     });
   };
 
@@ -387,11 +398,29 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
       return;
     }
     if (d.mode === 'submit') {
-      run(() => repos.orders.submit(d.orderId, user, assignees));
-    } else if (d.level) {
-      const level = d.level;
-      run(() => repos.orders.reassign(d.orderId, level, assignees[level], user));
+      run(() => repos.orders.submit(d.orderId, user, assignees), notifyApprovers);
+      return;
     }
+    // Mění se jen ty kroky, u kterých se výběr opravdu změnil; každá změna jde do historie zvlášť.
+    const current = order ? order.approvalChain : [];
+    const changed = d.rows
+      .map((r) => r.level)
+      .filter((level) => {
+        const step = current.filter((st) => st.level === level && !st.approved)[0];
+        const before = step && step.assignedLogin ? step.assignedLogin : '';
+        const picked = assignees[level];
+        return before !== (picked ? picked.login : '');
+      });
+    if (changed.length === 0) {
+      return;
+    }
+    run(async () => {
+      let saved: PurchaseOrder | undefined;
+      for (const level of changed) {
+        saved = await repos.orders.reassign(d.orderId, level, assignees[level], user);
+      }
+      return saved as PurchaseOrder;
+    }, notifyApprovers);
   };
 
   // --- přílohy ---
@@ -501,7 +530,7 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
    * Odeslání dodavateli: vytvoří PDF, uloží ho do složky projektu, (volitelně) pošle e-mail a teprve potom
    * označí objednávku jako odeslanou. Kdyby e-mail selhal, objednávka zůstane „Schváleno" a dá se to zkusit znovu.
    */
-  const runSend = async (payload?: SendPayload): Promise<void> => {
+  const runSend = async (payload: SendPayload | undefined, again: boolean): Promise<void> => {
     if (!order) {
       return;
     }
@@ -525,11 +554,9 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
         }
         await repos.mail.send({ to: payload.to, cc: payload.cc, subject: payload.subject, bodyText: payload.body, attachments: files });
       }
-      const updated = await repos.orders.send(order.id, user, {
-        sentTo: payload ? payload.to.join(', ') : undefined,
-        pdfUrl
-      });
-      setSendOpen(false);
+      const options = { sentTo: payload ? payload.to.join(', ') : undefined, pdfUrl };
+      const updated = again ? await repos.orders.resend(order.id, user, options) : await repos.orders.send(order.id, user, options);
+      setSendOpen(undefined);
       afterChange(updated);
     } catch (e) {
       setBusy(false);
@@ -537,16 +564,105 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
     }
   };
 
-  const run = (action: () => Promise<PurchaseOrder>): void => {
+  /**
+   * Provede změnu a po ní (nepovinně) upozorní e-mailem. Když e-mail selže, změna zůstává platná
+   * a člověk se to dozví — schvalovatel objednávku v každém případě uvidí v přehledu „Čeká na mě“.
+   */
+  const run = (action: () => Promise<PurchaseOrder>, after?: (saved: PurchaseOrder) => Promise<void>): void => {
     setError(undefined);
+    setNotice(undefined);
     setBusy(true);
     action()
-      .then((o) => afterChange(o))
+      .then((o) => {
+        afterChange(o);
+        if (after) {
+          after(o).catch(() => undefined);
+        }
+      })
       .catch((e: Error) => {
         setBusy(false);
         setError(e.message);
       });
   };
+
+  const pageUrl = typeof window !== 'undefined' ? window.location.href : '';
+  const projectOf = (o: PurchaseOrder): Project | undefined => projects.filter((p) => p.projectNumber === o.projectNumber)[0];
+
+  /** E-mail schvalovateli, že objednávka čeká na jeho rozhodnutí, s odkazem přímo na ni. */
+  const notifyApprovers = async (saved: PurchaseOrder): Promise<void> => {
+    if (saved.status !== OrderStatus.KeSchvaleni) {
+      return;
+    }
+    const project = projectOf(saved);
+    const step = saved.approvalChain.filter((s) => !s.approved)[0];
+    if (!project || !step) {
+      return;
+    }
+    const recipients = approvalRecipients(saved, toWorkflowProject(project), roleMembers);
+    if (recipients.length === 0) {
+      setNotice({
+        text: 'Schvalovateli se nepodařilo poslat upozornění e-mailem (nenašla se jeho adresa). Objednávku uvidí v přehledu Čeká na mě.',
+        type: MessageBarType.warning
+      });
+      return;
+    }
+    const mail = approvalRequestMail({
+      orderNumber: saved.orderNumber,
+      projectNumber: saved.projectNumber,
+      projectName: project.shortName || project.title,
+      subject: saved.subject,
+      supplierName: saved.supplierName,
+      amountText: formatMoney(saved.amountNet, saved.currency),
+      requesterName: saved.requestedByName,
+      level: step.level,
+      link: orderLink(pageUrl, RouteName.WaitingForMe, saved.id),
+      companyName: settings.company.name
+    });
+    try {
+      await repos.mail.send({ to: recipients.map((r) => r.email), subject: mail.subject, bodyText: mail.body, attachments: [] });
+      setNotice({
+        text: `Schvalovatel byl upozorněn e-mailem: ${recipients.map((r) => r.name).join(', ')}.`,
+        type: MessageBarType.success
+      });
+    } catch (e) {
+      setNotice({
+        text: `Objednávka čeká na schválení, ale e-mail schvalovateli se nepodařilo odeslat (${e instanceof Error ? e.message : String(e)}). Objednávku uvidí v přehledu Čeká na mě.`,
+        type: MessageBarType.warning
+      });
+    }
+  };
+
+  /** Po rozhodnutí: další schvalovatel dostane výzvu, při posledním kroku / vrácení / zamítnutí vystavitel výsledek. */
+  const notifyAfterDecision =
+    (kind: 'approve' | 'return' | 'reject', comment: string): ((saved: PurchaseOrder) => Promise<void>) =>
+    async (saved: PurchaseOrder): Promise<void> => {
+      if (kind === 'approve' && saved.status === OrderStatus.KeSchvaleni) {
+        await notifyApprovers(saved);
+        return;
+      }
+      const requester = requesterRecipient(saved, roleMembers);
+      if (!requester || requester.email.toLowerCase() === (user.email || '').toLowerCase()) {
+        return;
+      }
+      const mail = decisionMail({
+        orderNumber: saved.orderNumber,
+        subject: saved.subject,
+        outcome: kind === 'approve' ? 'schvaleno' : kind === 'return' ? 'vraceno' : 'zamitnuto',
+        decidedBy: user.displayName,
+        comment: comment.trim() || undefined,
+        link: orderLink(pageUrl, RouteName.Orders, saved.id),
+        companyName: settings.company.name
+      });
+      try {
+        await repos.mail.send({ to: [requester.email], subject: mail.subject, bodyText: mail.body, attachments: [] });
+        setNotice({ text: `Vystavitel (${requester.name}) byl o rozhodnutí informován e-mailem.`, type: MessageBarType.success });
+      } catch (e) {
+        setNotice({
+          text: `Rozhodnutí je uložené, ale e-mail vystaviteli se nepodařilo odeslat (${e instanceof Error ? e.message : String(e)}).`,
+          type: MessageBarType.warning
+        });
+      }
+    };
 
   const confirmDialog = (): void => {
     if (!dialog || !order) {
@@ -557,9 +673,33 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
     if (kind === 'cancel') {
       run(() => repos.orders.cancel(order.id, comment, user));
     } else {
-      run(() => repos.orders.decide(order.id, kind, comment, user));
+      run(() => repos.orders.decide(order.id, kind, comment, user), notifyAfterDecision(kind, comment));
     }
   };
+
+  // Objednávku mezitím mohl schválit, vrátit nebo změnit někdo jiný — otevřený detail se sám obnoví.
+  const refreshOrder = (): void => {
+    if (!order) {
+      return;
+    }
+    const id = order.id;
+    const before = order.modified ? order.modified.getTime() : 0;
+    repos.orders
+      .getById(id)
+      .then((fresh) => {
+        if (fresh && (fresh.modified ? fresh.modified.getTime() : 0) !== before) {
+          setOrder(fresh);
+          repos.orders
+            .listApprovals(id)
+            .then(setApprovals)
+            .catch(() => undefined);
+          reloadAttachments(id);
+          onChanged();
+        }
+      })
+      .catch(() => undefined);
+  };
+  useAutoRefresh(refreshOrder, !isOpen || !order || editing || busy || !!dialog || !!approverDialog || previewOpen || !!sendOpen);
 
   const rates = effectiveRates(storedRates, fallbackRatesOf(settings.approvals));
 
@@ -630,13 +770,27 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
         {actions.indexOf('reject') !== -1 && (
           <DefaultButton text="Zamítnout" disabled={busy} onClick={() => setDialog({ kind: 'reject', comment: '' })} />
         )}
+        {actions.indexOf('reassign') !== -1 && (
+          <DefaultButton iconProps={{ iconName: 'Contact' }} text="Změnit schvalovatele" disabled={busy} onClick={beginReassign} />
+        )}
         {actions.indexOf('send') !== -1 && (
           <PrimaryButton
             text="Odeslat dodavateli"
             disabled={busy}
             onClick={() => {
               setSendError(undefined);
-              setSendOpen(true);
+              setSendOpen('send');
+            }}
+          />
+        )}
+        {actions.indexOf('resend') !== -1 && (
+          <DefaultButton
+            iconProps={{ iconName: 'Mail' }}
+            text="Odeslat znovu"
+            disabled={busy}
+            onClick={() => {
+              setSendError(undefined);
+              setSendOpen('resend');
             }}
           />
         )}
@@ -675,6 +829,11 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
             {error}
           </MessageBar>
         )}
+        {notice && (
+          <MessageBar messageBarType={notice.type} isMultiline onDismiss={() => setNotice(undefined)}>
+            {notice.text}
+          </MessageBar>
+        )}
 
         {!loading && editing && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 8 }}>
@@ -685,6 +844,13 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
                     <li key={m}>{m}</li>
                   ))}
                 </ul>
+              </MessageBar>
+            )}
+
+            {order && editResetsApproval(order) && (
+              <MessageBar messageBarType={MessageBarType.warning} isMultiline>
+                Objednávka je {order.status === OrderStatus.Schvaleno ? 'schválená' : 'zamítnutá'}.{' '}
+                <strong>Po uložení úprav se dosavadní schvalování smaže</strong> a objednávku bude nutné znovu odeslat ke schválení.
               </MessageBar>
             )}
 
@@ -843,20 +1009,8 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
             <CzkNote net={totals.net} currency={fCurrency} rates={rates} />
 
             {route && (
-              <MessageBar
-                messageBarType={route.outsideApp ? MessageBarType.warning : MessageBarType.info}
-                isMultiline
-              >
-                {route.outsideApp ? (
-                  <>
-                    Částka překračuje limit jednatele ({formatMoney(settings.approvals.jednatelLimit)}). Takovou objednávku
-                    nejde v aplikaci schválit — schvaluje se mimo aplikaci.
-                  </>
-                ) : (
-                  <>
-                    <strong>Schvaluje:</strong> {describeApprovalRoute(route.steps)}.
-                  </>
-                )}
+              <MessageBar messageBarType={MessageBarType.info} isMultiline>
+                <strong>Schvaluje:</strong> {describeApprovalRoute(route.steps)}.
               </MessageBar>
             )}
           </div>
@@ -873,10 +1027,8 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
             busy={busy}
             onAddFiles={addFiles}
             onRemoveAttachment={removeSavedAttachment}
-            onReassign={actions.indexOf('reassign') !== -1 ? beginReassign : undefined}
           />
         )}
-      </Panel>
 
       {approverDialog && (
         <ApproverDialog
@@ -885,7 +1037,7 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
           description={
             approverDialog.mode === 'submit'
               ? 'Schvalovatel se předvyplňuje podle číselníku. Můžete ho změnit, nebo nechat „kdokoli z role“.'
-              : 'Nový schvalovatel dostane objednávku do přehledu Čeká na mě. Nemůže jím být vystavitel.'
+              : 'Nový schvalovatel dostane objednávku do přehledu Čeká na mě a e-mail s odkazem. Nemůže jím být vystavitel. Už schválené kroky se nemění.'
           }
           confirmText={approverDialog.mode === 'submit' ? 'Odeslat ke schválení' : 'Uložit'}
           rows={approverDialog.rows}
@@ -906,6 +1058,7 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
 
       {sendOpen && order && (
         <SendOrderDialog
+          resend={sendOpen === 'resend'}
           orderNumber={order.orderNumber}
           initialTo={(supplierOf(order.supplierId) || { email: '' }).email || ''}
           initialCc={user.email || ''}
@@ -934,9 +1087,9 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
           attachmentCount={attachments.length}
           busy={busy}
           error={sendError}
-          onSendMail={(payload) => runSend(payload).catch(() => undefined)}
-          onMarkOnly={() => runSend(undefined).catch(() => undefined)}
-          onDismiss={() => setSendOpen(false)}
+          onSendMail={(payload) => runSend(payload, sendOpen === 'resend').catch(() => undefined)}
+          onMarkOnly={() => runSend(undefined, sendOpen === 'resend').catch(() => undefined)}
+          onDismiss={() => setSendOpen(undefined)}
         />
       )}
 
@@ -965,6 +1118,7 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
           </DialogFooter>
         </Dialog>
       )}
+      </Panel>
     </>
   );
 };
@@ -1031,8 +1185,7 @@ const OrderDetail: React.FC<{
   busy: boolean;
   onAddFiles: (files: File[]) => void;
   onRemoveAttachment: (name: string) => void;
-  onReassign?: (level: ApprovalLevel) => void;
-}> = ({ order, approvals, rates, attachments, canAddAttachment: mayAdd, canRemoveAttachment: mayRemove, busy, onAddFiles, onRemoveAttachment, onReassign }) => {
+}> = ({ order, approvals, rates, attachments, canAddAttachment: mayAdd, canRemoveAttachment: mayRemove, busy, onAddFiles, onRemoveAttachment }) => {
   const totals = orderTotals(order.lines, order.vatRate);
   const currentIndex = order.approvalChain.findIndex((s) => !s.approved);
 
@@ -1063,9 +1216,10 @@ const OrderDetail: React.FC<{
         <Row label="Termín dodání" value={order.deliveryDate ? formatDate(order.deliveryDate) : '—'} />
         <Row label="Splatnost" value={order.paymentTermDays !== undefined ? `${order.paymentTermDays} dnů` : '—'} />
         <Row label="Vystavil" value={order.requestedByName || '—'} />
+        <Row label="Vystaveno" value={order.created ? formatDate(order.created) : '—'} />
         {order.sentDate && <Row label="Odesláno dodavateli" value={formatDate(order.sentDate)} />}
         {order.pdfUrl && (
-          <Row label="PDF objednávky" value={<Link href={order.pdfUrl} target="_blank">otevřít ve složce projektu</Link>} />
+          <Row label="PDF objednávky" value={<ExternalLink href={order.pdfUrl}>otevřít v nové záložce</ExternalLink>} />
         )}
         {order.note && <Row label="Poznámka" value={order.note} />}
       </Section>
@@ -1114,12 +1268,6 @@ const OrderDetail: React.FC<{
                 {s.approved && s.auto && ' — schváleno automaticky (vystavitel je projektový manažer)'}
                 {s.approved && !s.auto && s.byName && ` — ${s.byName}${s.at ? `, ${formatDateTime(s.at)}` : ''}`}
                 {!s.approved && ` — ${s.assignedName ? s.assignedName : 'kdokoli z role'}`}
-                {!s.approved && onReassign && (
-                  <>
-                    {' '}
-                    <Link onClick={() => onReassign(s.level)}>Změnit</Link>
-                  </>
-                )}
               </li>
             ))}
           </ol>

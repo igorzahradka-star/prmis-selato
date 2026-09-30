@@ -18,7 +18,7 @@ import { DetailsList, DetailsListLayoutMode, IColumn, SelectionMode } from '@flu
 import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
 import { DefaultButton } from '@fluentui/react/lib/Button';
-import { Link } from '@fluentui/react/lib/Link';
+import { ExternalLink, EXTERNAL_LINK_PROPS } from '../../ui/components/ExternalLink';
 
 import { useApp } from '../../ui/AppContext';
 import { RES } from '../../ui/theme';
@@ -77,9 +77,9 @@ export const DocumentsTab: React.FC<{ project: Project }> = ({ project }) => {
       minWidth: 240,
       isResizable: true,
       onRender: (f: ProjectFile) => (
-        <Link href={f.url} target="_blank" title={`Otevřít ${f.name}`}>
+        <ExternalLink href={f.url} title={`Otevřít ${f.name}`}>
           {f.name}
-        </Link>
+        </ExternalLink>
       )
     },
     {
@@ -137,7 +137,7 @@ export const DocumentsTab: React.FC<{ project: Project }> = ({ project }) => {
           iconProps={{ iconName: 'FolderHorizontal' }}
           text="Otevřít složku"
           href={project.folderUrl}
-          target="_blank"
+          {...EXTERNAL_LINK_PROPS}
         />
       </div>
 

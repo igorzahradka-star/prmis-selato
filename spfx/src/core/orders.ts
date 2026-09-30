@@ -293,6 +293,14 @@ export interface OrderListFilter {
   projectNumber?: string;
   statuses?: string[];
   search?: string;
+  /** Vystaveno od (včetně) a do (včetně) — podle data založení objednávky. */
+  issuedFrom?: Date;
+  issuedTo?: Date;
+}
+
+/** Den bez času — porovnání dat podle kalendářního dne, ne podle hodin. */
+function dayOf(d: Date): number {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 }
 
 /** Fulltext přes číslo, předmět, dodavatele a projekt; filtr stavů a projektu. Vrací kopii. */
@@ -304,6 +312,15 @@ export function filterOrders(orders: PurchaseOrder[], filter?: OrderListFilter):
       return false;
     }
     if (f.statuses && f.statuses.length > 0 && f.statuses.indexOf(o.status) === -1) {
+      return false;
+    }
+    if ((f.issuedFrom || f.issuedTo) && !o.created) {
+      return false;
+    }
+    if (f.issuedFrom && o.created && dayOf(o.created) < dayOf(f.issuedFrom)) {
+      return false;
+    }
+    if (f.issuedTo && o.created && dayOf(o.created) > dayOf(f.issuedTo)) {
       return false;
     }
     if (!q) {
@@ -357,4 +374,92 @@ export function validateAttachment(fileName: string, sizeBytes: number): string 
     return `Soubor „${name}“ je větší než ${Math.round(ATTACHMENT_MAX_BYTES / 1024 / 1024)} MB.`;
   }
   return undefined;
+}
+
+// --- náhled přílohy -----------------------------------------------------------
+
+/** Jak se příloha zobrazí v dlaždici: obrázek přímo, PDF první stranou, ostatní ikonou podle typu. */
+export type AttachmentKind = 'image' | 'pdf' | 'word' | 'excel' | 'powerpoint' | 'archive' | 'other';
+
+const EXT_KIND: Record<string, AttachmentKind> = {
+  png: 'image',
+  jpg: 'image',
+  jpeg: 'image',
+  gif: 'image',
+  webp: 'image',
+  bmp: 'image',
+  pdf: 'pdf',
+  doc: 'word',
+  docx: 'word',
+  odt: 'word',
+  xls: 'excel',
+  xlsx: 'excel',
+  xlsm: 'excel',
+  csv: 'excel',
+  ods: 'excel',
+  ppt: 'powerpoint',
+  pptx: 'powerpoint',
+  zip: 'archive',
+  rar: 'archive',
+  '7z': 'archive'
+};
+
+/** Druh přílohy podle přípony (bez ohledu na velikost písmen). */
+export function attachmentKind(fileName: string): AttachmentKind {
+  const name = (fileName || '').trim().toLowerCase();
+  const dot = name.lastIndexOf('.');
+  return (dot === -1 ? undefined : EXT_KIND[name.slice(dot + 1)]) ?? 'other';
+}
+
+// --- řazení podle sloupce ---------------------------------------------------------
+
+export type OrderSortKey = 'number' | 'project' | 'supplier' | 'subject' | 'status' | 'by' | 'created' | 'delivery';
+
+function compareText(a: string | undefined, b: string | undefined): number {
+  return (a || '').localeCompare(b || '', 'cs-CZ', { numeric: true });
+}
+
+function compareDate(a: Date | undefined, b: Date | undefined): number {
+  // Objednávky bez data jdou vždy na konec při vzestupném řazení.
+  if (!a && !b) {
+    return 0;
+  }
+  if (!a) {
+    return 1;
+  }
+  if (!b) {
+    return -1;
+  }
+  return a.getTime() - b.getTime();
+}
+
+/** Seřadí objednávky podle sloupce. Stabilní: při shodě zůstane dosavadní pořadí. Vrací kopii. */
+export function sortOrders(orders: PurchaseOrder[], key: OrderSortKey, descending: boolean): PurchaseOrder[] {
+  const compare = (a: PurchaseOrder, b: PurchaseOrder): number => {
+    switch (key) {
+      case 'number':
+        return compareText(a.orderNumber, b.orderNumber);
+      case 'project':
+        return compareText(a.projectNumber, b.projectNumber);
+      case 'supplier':
+        return compareText(a.supplierName, b.supplierName);
+      case 'subject':
+        return compareText(a.subject, b.subject);
+      case 'status':
+        return ORDER_STATUS_ORDER.indexOf(a.status) - ORDER_STATUS_ORDER.indexOf(b.status);
+      case 'by':
+        return compareText(a.requestedByName, b.requestedByName);
+      case 'created':
+        return compareDate(a.created, b.created);
+      case 'delivery':
+        return compareDate(a.deliveryDate, b.deliveryDate);
+    }
+  };
+  return orders
+    .map((o, i) => ({ o, i }))
+    .sort((x, y) => {
+      const c = compare(x.o, y.o);
+      return c !== 0 ? (descending ? -c : c) : x.i - y.i;
+    })
+    .map((x) => x.o);
 }

@@ -5,6 +5,44 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.8.0 — 30. 9. 2026 — Objednávky: zpětná vazba z ostrého zkoušení
+
+**Opraveno**
+
+- **Náhled PDF zavřel celou objednávku.** Okna (náhled PDF, odeslání, výběr schvalovatele, komentář) se otevírala
+  vedle panelu objednávky, takže klik v nich panel považoval za klik „ven" a zavřel se. Teď jsou uvnitř panelu;
+  náhled se zavře sám a rozepsaná objednávka zůstane.
+- **Objednávka nad 1 000 000 Kč nešla schválit** („schvaluje se mimo aplikaci"). Schvaluje se v aplikaci: projektový
+  manažer → vedení → jednatel, stejně jako v pásmu jednatele. Nic už nezůstane viset mimo aplikaci.
+- **Seznam objednávek neukázal změnu od někoho jiného** (např. zamítnutí). Seznam, „Čeká na mě", záložka projektu
+  i otevřený detail se obnovují sami každých 30 sekund a při návratu do okna; v seznamu je i tlačítko Obnovit.
+- **Soubory a PDF ve složce projektu** se otevírají vždy v nové kartě (a odpojeně od aplikace), takže jejich zavření
+  nezavře aplikaci. Platí pro PDF objednávky, přílohy, dokumenty projektu i tlačítko Otevřít složku.
+- **Zakládání skupin rolí** (např. PRM Jednatelé): jedna neúspěšná skupina nezastaví ostatní, chyba se ukáže celá
+  s návodem na ruční založení, a u chybějící role je na kartě tlačítko **Založit skupinu**.
+
+**Nové**
+
+- **Přílohy jako dlaždice s miniaturou** (velikost středních ikon ve Windows): obrázek přímo, u PDF první strana,
+  ostatní ikonou podle typu souboru. Kliknutím se soubor otevře v nové kartě.
+- **Změna schvalovatele tlačítkem** *Změnit schvalovatele* u objednávky čekající na schválení (i když je určený člověk
+  na dovolené); nabídne všechny nevyřízené kroky. Už schválený krok ani schválenou objednávku nejde měnit.
+- **E-mail schvalovateli** s odkazem přímo na objednávku: po odeslání ke schválení, po schválení předchozího kroku a po
+  změně schvalovatele. Vystavitel dostane e-mail o výsledku (schváleno, vráceno, zamítnuto). Odchází ze schránky
+  toho, kdo akci provedl (Microsoft Graph, stejné oprávnění jako odeslání dodavateli). Nepodaří-li se, objednávka
+  zůstane platná a aplikace na to upozorní.
+- **Úprava po schválení a zamítnutí.** Schválenou (ještě neodeslanou) i zamítnutou objednávku jde upravit; úprava smaže
+  dosavadní schvalování a objednávku je nutné znovu odeslat ke schválení (aplikace na to před uložením upozorní).
+- **Odeslat znovu** u odeslané objednávky — na stejnou nebo jinou adresu. Stav se nemění, do historie se zapíše komu a kdy.
+- **Smazání objednávky jen administrátorem** (*Nastavení → Jednorázové akce*): ukáže se, o jakou objednávku jde, a musí se
+  opsat její číslo. V SharePointu zůstane v koši webu, do historie se zapíše, kdo ji smazal. Běžně se objednávky stornují.
+- **Datum vystavení** v přehledu objednávek, filtr *Vystaveno od – do* a řazení kliknutím na záhlaví sloupců.
+- V přehledu se u čekající objednávky místo role ukazuje jméno určeného schvalovatele.
+
+**Bez změny schématu dat** (zůstává 7). Po nahrání není nutná Instalace a diagnostika.
+
+---
+
 ## 0.7.0 — 30. 9. 2026 — Objednávky: PDF, e-mail, přílohy, měny, schvalovatel
 
 **Opraveno**

@@ -26,6 +26,7 @@ import { EditProjectPanel } from './EditProjectPanel';
 import { DeadlinesTab } from './DeadlinesTab';
 import { DocumentsTab } from './DocumentsTab';
 import { AccessBar } from './AccessBar';
+import { EXTERNAL_LINK_PROPS } from '../../ui/components/ExternalLink';
 import { ProjectOrdersTab } from '../orders/ProjectOrdersTab';
 
 export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projectNumber }) => {
@@ -107,7 +108,7 @@ export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projec
                 iconProps={{ iconName: 'FolderHorizontal' }}
                 text="Otevřít složku projektu"
                 href={project.folderUrl}
-                target="_blank"
+                {...EXTERNAL_LINK_PROPS}
               />
             )}
           </div>

@@ -40,12 +40,15 @@ import {
   canAddAttachment,
   canEditOrder,
   canIssueOrder,
+  canDeleteOrder,
   canRemoveAttachment,
   cancelOrder,
   closeOrder,
   decideOrder,
   deliverOrder,
+  orderEditChange,
   reassignApprover,
+  resendOrder,
   sendOrder,
   submitOrder,
   toActor,
@@ -208,9 +211,39 @@ export class SpOrderRepository implements IOrderRepository {
     }
     assertValid(input);
 
-    await this.write(id, toFields(input), etag, `Nepodařilo se uložit objednávku ${order.orderNumber}`);
-    await this.writeAudit(id, order.orderNumber, actor, 'Upraveno', order.status, order.status);
+    // U schválené a zamítnuté objednávky úprava smaže schvalování — objednávka se vrací na koncept.
+    const change = orderEditChange(order);
+    const fields: Record<string, unknown> = toFields(input);
+    if (change.status !== order.status) {
+      fields.POStatus = change.status;
+      fields.ApprovalChain = chainToJson(change.approvalChain);
+      fields.ApprovalLevel = null;
+    }
+    await this.write(id, fields, etag, `Nepodařilo se uložit objednávku ${order.orderNumber}`);
+    await this.writeAudit(id, order.orderNumber, actor, change.auditAction, order.status, change.status);
     return (await this.requireOrder(id)).order;
+  }
+
+  public async delete(id: number, actor: CurrentUser): Promise<void> {
+    if (!canDeleteOrder(toActor(actor))) {
+      throw new WorkflowError('Objednávku smí smazat jen administrátor PRM.');
+    }
+    const { order } = await this.requireOrder(id);
+    // Audit jde první: smazaná objednávka je v koši SharePointu, ale bez záznamu by nebylo vidět, kdo ji smazal.
+    await this.writeAudit(
+      id,
+      order.orderNumber,
+      actor,
+      `Objednávka smazána administrátorem (projekt ${order.projectNumber}, stav „${order.status}“, ${order.subject})`,
+      order.status,
+      'Smazáno'
+    );
+    try {
+      const sp = getSp(this.context);
+      await sp.web.lists.getByTitle(ORDERS_LIST).items.getById(id).recycle();
+    } catch (error) {
+      throw new Error(explain(error, `Objednávku ${order.orderNumber} se nepodařilo smazat`));
+    }
   }
 
   public submit(
@@ -241,6 +274,10 @@ export class SpOrderRepository implements IOrderRepository {
 
   public send(id: number, actor: CurrentUser, options?: { sentTo?: string; pdfUrl?: string }): Promise<PurchaseOrder> {
     return this.transition(id, actor, (o, c) => sendOrder(o, c, options));
+  }
+
+  public resend(id: number, actor: CurrentUser, options?: { sentTo?: string; pdfUrl?: string }): Promise<PurchaseOrder> {
+    return this.transition(id, actor, (o, c) => resendOrder(o, c, options));
   }
 
   public deliver(id: number, actor: CurrentUser): Promise<PurchaseOrder> {

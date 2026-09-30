@@ -9,6 +9,7 @@ import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 
 import { useApp } from '../../ui/AppContext';
 import { RES } from '../../ui/theme';
+import { useAutoRefresh } from '../../ui/useAutoRefresh';
 import { Project } from '../../core/types';
 import { PurchaseOrder } from '../../core/orders';
 import { canIssueOrder, toActor, toWorkflowProject } from '../../core/orderWorkflow';
@@ -34,6 +35,8 @@ export const ProjectOrdersTab: React.FC<{ project: Project }> = ({ project }) =>
       cancelled = true;
     };
   }, [repos, project.projectNumber, reloadKey]);
+
+  useAutoRefresh(() => setReloadKey((k) => k + 1), openId !== undefined || creating);
 
   const mayIssue = canIssueOrder(toWorkflowProject(project), toActor(user));
 

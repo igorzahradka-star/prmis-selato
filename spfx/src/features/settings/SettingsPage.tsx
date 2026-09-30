@@ -37,6 +37,7 @@ import { buildHash, RouteName } from '../../ui/router';
 import { ImportProjectsPanel } from '../admin/ImportProjectsPanel';
 import { RatesTab } from './RatesTab';
 import { DefaultApproversEditor } from './DefaultApproversEditor';
+import { DeleteOrderCard } from './DeleteOrderCard';
 
 export const SettingsPage: React.FC = () => {
   const { settings, repos, user, reloadSettings } = useApp();
@@ -232,7 +233,7 @@ export const SettingsPage: React.FC = () => {
             />
             <NumberField
               label="Limit jednatele (Kč)"
-              description="Nad limit vedení až sem schvaluje navíc jednatel. Nad tuto částku se objednávka schvaluje mimo aplikaci."
+              description="Nad limit vedení až sem schvaluje navíc jednatel. Nad tuto částku se schvaluje stejně — aplikace schvaluje všechno, nic nezůstává mimo ni."
               value={draft.approvals.jednatelLimit}
               step={100000}
               onChange={(v) => patch('approvals', { jednatelLimit: v })}
@@ -482,6 +483,8 @@ const OneOffActions: React.FC = () => {
           {repairMessage.text}
         </MessageBar>
       )}
+
+      <DeleteOrderCard />
 
       <MessageBar messageBarType={MessageBarType.warning} isMultiline>
         <strong>Import spusťte dřív, než někdo založí první projekt.</strong> Dokud neproběhne,

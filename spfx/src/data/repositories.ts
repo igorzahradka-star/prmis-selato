@@ -64,6 +64,8 @@ export interface EnsureGroupsResult {
   created: string[];
   /** Skupiny, kterým se přidělilo oprávnění na webu (nové i dřív založené bez něj). */
   granted: { groupName: string; level: string }[];
+  /** Skupiny, které se nepovedlo založit nebo jim přidělit oprávnění (s důvodem). Ostatní se dokončily. */
+  failed: { groupName: string; message: string }[];
 }
 
 /** Nastavení aplikace. */
@@ -447,6 +449,9 @@ export interface OrderFilter {
   statuses?: string[];
   /** Fulltext přes číslo, předmět, dodavatele a projekt. */
   search?: string;
+  /** Vystaveno od / do (včetně), podle data založení objednávky. */
+  issuedFrom?: Date;
+  issuedTo?: Date;
 }
 
 /** Údaje z formuláře objednávky. */
@@ -487,7 +492,10 @@ export interface IOrderRepository {
   getById(id: number): Promise<PurchaseOrder | undefined>;
   /** Založí koncept a přidělí mu číslo z řady OBJ. */
   create(input: OrderInput, actor: CurrentUser): Promise<PurchaseOrder>;
-  /** Upraví koncept nebo vrácenou objednávku. */
+  /**
+   * Upraví koncept, vrácenou, zamítnutou nebo schválenou (ještě neodeslanou) objednávku. U schválené a zamítnuté
+   * se schvalování zruší — objednávka se vrátí na koncept a musí se znovu odeslat ke schválení.
+   */
   update(id: number, input: OrderInput, actor: CurrentUser): Promise<PurchaseOrder>;
   /**
    * Odešle ke schválení; podle částky a vystavitele může být rovnou schválená.
@@ -500,6 +508,13 @@ export interface IOrderRepository {
   decide(id: number, decision: 'approve' | 'return' | 'reject', comment: string, actor: CurrentUser): Promise<PurchaseOrder>;
   /** Označí objednávku jako odeslanou dodavateli. `sentTo` a `pdfUrl` se zapíšou k objednávce a do audit logu. */
   send(id: number, actor: CurrentUser, options?: { sentTo?: string; pdfUrl?: string }): Promise<PurchaseOrder>;
+  /** Opakované odeslání už odeslané objednávky (nedorazila / jiná adresa). Stav se nemění, zapíše se do audit logu. */
+  resend(id: number, actor: CurrentUser, options?: { sentTo?: string; pdfUrl?: string }): Promise<PurchaseOrder>;
+  /**
+   * Smaže objednávku — jen administrátor (Jednorázové akce). Běžně se objednávky stornují; mazání je pro omyly.
+   * V SharePointu jde položka do koše, do audit logu se zapíše, kdo a kdy.
+   */
+  delete(id: number, actor: CurrentUser): Promise<void>;
   deliver(id: number, actor: CurrentUser): Promise<PurchaseOrder>;
   close(id: number, actor: CurrentUser): Promise<PurchaseOrder>;
   cancel(id: number, reason: string, actor: CurrentUser): Promise<PurchaseOrder>;

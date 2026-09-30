@@ -148,13 +148,15 @@ export class SpUserAdminRepository implements IUserAdminRepository {
     const sp = getSp(this.context);
     const created: string[] = [];
     const granted: { groupName: string; level: string }[] = [];
+    const failed: { groupName: string; message: string }[] = [];
 
     for (const role of ROLE_ORDER) {
       const groupName = mapping[role];
       if (!groupName || !groupName.trim()) {
         continue;
       }
-
+      // Jedna neúspěšná skupina nezastaví ostatní — zbytek se dokončí a na chybu se upozorní zvlášť.
+      try {
       let groupId: number | undefined;
       try {
         const g: { Id: number } = await sp.web.siteGroups.getByName(groupName).select('Id')();
@@ -210,9 +212,12 @@ export class SpUserAdminRepository implements IUserAdminRepository {
           );
         }
       }
+      } catch (error) {
+        failed.push({ groupName, message: error instanceof Error ? error.message : String(error) });
+      }
     }
 
-    return { created, granted };
+    return { created, granted, failed };
   }
 }
 

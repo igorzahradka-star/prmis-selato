@@ -10,6 +10,11 @@ import {
   closeOrder,
   decideOrder,
   deliverOrder,
+  resendOrder,
+  canDeleteOrder,
+  canEditOrder,
+  editResetsApproval,
+  orderEditChange,
   applyOrderChange,
   approverCandidates,
   canAddAttachment,
@@ -91,7 +96,6 @@ describe('buildApprovalChain', () => {
   it('objednávku asistenta do limitu PM schvaluje PM', () => {
     const r = buildApprovalChain(vstup(50000, ASISTENT));
     expect(r.steps.map((s) => s.level)).toEqual(['pm']);
-    expect(r.outsideApp).toBe(false);
   });
 
   it('hranice limitu patří ještě do nižšího pásma (přesně 100 000 schvaluje jen PM)', () => {
@@ -104,10 +108,10 @@ describe('buildApprovalChain', () => {
     expect(buildApprovalChain(vstup(800000, ASISTENT)).steps.map((s) => s.level)).toEqual(['pm', 'vedeni', 'jednatel']);
   });
 
-  it('nad limit jednatele se schvaluje mimo aplikaci', () => {
+  it('nad limit jednatele se schvaluje v aplikaci stejně jako v pásmu jednatele', () => {
     const r = buildApprovalChain(vstup(1000001, ASISTENT));
-    expect(r.outsideApp).toBe(true);
-    expect(r.steps).toEqual([]);
+    expect(r.steps.map((s) => s.level)).toEqual(['pm', 'vedeni', 'jednatel']);
+    expect(buildApprovalChain(vstup(50000000, ASISTENT)).steps.map((s) => s.level)).toEqual(['pm', 'vedeni', 'jednatel']);
   });
 
   it('objednávku PM schvaluje vedení, když je samoschvalování vypnuté (výchozí rozhodnutí)', () => {
@@ -168,8 +172,10 @@ describe('submitOrder', () => {
     expect(() => submitOrder(objednavka(), ctx(cizi))).toThrow(/spravovat/);
   });
 
-  it('objednávka nad limit jednatele se odmítne s vysvětlením', () => {
-    expect(() => submitOrder(objednavka(castka(2000000)), ctx(asistent))).toThrow(/mimo aplikaci/);
+  it('objednávka nad limit jednatele jde ke schválení PM → vedení → jednatel', () => {
+    const z = submitOrder(objednavka(castka(2000000)), ctx(asistent));
+    expect(z.status).toBe(OrderStatus.KeSchvaleni);
+    expect(z.approvalChain.map((s) => s.level)).toEqual(['pm', 'vedeni', 'jednatel']);
   });
 
   it('objednávka PM se samoschvalováním do limitu je hned schválená; bez něj jde na vedení', () => {
@@ -358,6 +364,21 @@ describe('availableActions / isWaitingFor', () => {
 
   it('koncept: vystavitel může upravit, odeslat a stornovat, ale ne schvalovat', () => {
     expect(availableActions(objednavka(), projekt, asistent)).toEqual(['edit', 'submit', 'cancel']);
+  });
+
+  it('schválená objednávka jde upravit (zruší se schválení) a odeslat, ale přímo ke schválení ne', () => {
+    const a = availableActions(objednavka({ status: OrderStatus.Schvaleno }), projekt, asistent);
+    expect(a).toEqual(['edit', 'send', 'cancel']);
+  });
+
+  it('zamítnutá objednávka jde upravit a znovu odeslat ke schválení přes koncept', () => {
+    expect(availableActions(objednavka({ status: OrderStatus.Zamitnuto }), projekt, asistent)).toEqual(['edit', 'cancel']);
+  });
+
+  it('odeslaná objednávka nejde upravit, ale jde ji odeslat znovu, dodat a stornovat', () => {
+    const a = availableActions(objednavka({ status: OrderStatus.Odeslano }), projekt, asistent);
+    expect(a).toEqual(['resend', 'deliver', 'cancel']);
+    expect(canEditOrder(objednavka({ status: OrderStatus.Odeslano }), projekt, asistent)).toBe(false);
   });
 
   it('ve schvalování: schvalovatel má tlačítka rozhodnutí, vystavitel jen storno', () => {
@@ -635,5 +656,65 @@ describe('approverCandidates', () => {
 
   it('prázdná role nemá kandidáty', () => {
     expect(approverCandidates('jednatel', [], projektBezJmena, ASISTENT)).toEqual([]);
+  });
+});
+
+describe('úprava schválené a zamítnuté objednávky', () => {
+  it('úprava schválené nebo zamítnuté objednávky smaže schvalovací řetězec a vrátí ji na koncept', () => {
+    const schvalena = objednavka({
+      status: OrderStatus.Schvaleno,
+      approvalChain: [{ level: 'pm', approved: true, byName: 'Petr Manažer', byLogin: PM }]
+    });
+    expect(editResetsApproval(schvalena)).toBe(true);
+    const zmena = orderEditChange(schvalena);
+    expect(zmena.status).toBe(OrderStatus.Koncept);
+    expect(zmena.approvalChain).toEqual([]);
+    expect(zmena.currentApprovalLevel).toBeUndefined();
+    expect(zmena.auditAction).toMatch(/znovu odeslat/);
+
+    const zamitnuta = objednavka({ status: OrderStatus.Zamitnuto, approvalChain: [{ level: 'pm', approved: false }] });
+    const po = applyOrderChange(zamitnuta, orderEditChange(zamitnuta), NOW);
+    expect(po.status).toBe(OrderStatus.Koncept);
+    expect(po.approvalChain).toEqual([]);
+  });
+
+  it('úprava konceptu nebo vrácené objednávky stav nemění', () => {
+    expect(editResetsApproval(objednavka())).toBe(false);
+    expect(orderEditChange(objednavka()).status).toBe(OrderStatus.Koncept);
+    expect(orderEditChange(objednavka({ status: OrderStatus.VracenoKUprave })).status).toBe(OrderStatus.VracenoKUprave);
+  });
+
+  it('po úpravě se schvaluje znovu od začátku', () => {
+    const schvalena = objednavka({
+      status: OrderStatus.Schvaleno,
+      approvalChain: [{ level: 'pm', approved: true, byName: 'Petr Manažer', byLogin: PM }]
+    });
+    const koncept = applyOrderChange(schvalena, orderEditChange(schvalena), NOW);
+    const znovu = submitOrder(koncept, ctx(asistent));
+    expect(znovu.status).toBe(OrderStatus.KeSchvaleni);
+    expect(znovu.approvalChain.every((s) => !s.approved)).toBe(true);
+  });
+});
+
+describe('opakované odeslání dodavateli a mazání', () => {
+  const odeslana = objednavka({ status: OrderStatus.Odeslano, sentDate: NOW });
+
+  it('odeslanou objednávku jde odeslat znovu; stav i datum prvního odeslání zůstanou, adresát jde do auditu', () => {
+    const z = resendOrder(odeslana, ctx(asistent), { sentTo: 'jiny@dodavatel.cz', pdfUrl: 'https://x/OBJ.pdf' });
+    expect(z.status).toBe(OrderStatus.Odeslano);
+    expect(z.sentDate).toBe(NOW);
+    expect(z.auditAction).toBe('Odesláno dodavateli znovu (jiny@dodavatel.cz)');
+  });
+
+  it('neodeslanou ani cizí objednávku znovu odeslat nejde', () => {
+    expect(() => resendOrder(objednavka({ status: OrderStatus.Schvaleno }), ctx(asistent))).toThrow(WorkflowError);
+    const cizi: Actor = { login: 'i:0#.f|membership|cizi@revoltum.cz', displayName: 'Cizí', roles: [Role.ProjektovyManazer] };
+    expect(() => resendOrder(odeslana, ctx(cizi))).toThrow(/spravovat/);
+  });
+
+  it('objednávku smaže jen administrátor', () => {
+    expect(canDeleteOrder(admin)).toBe(true);
+    expect(canDeleteOrder(pm)).toBe(false);
+    expect(canDeleteOrder(vedeni)).toBe(false);
   });
 });

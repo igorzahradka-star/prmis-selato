@@ -37,12 +37,15 @@ import {
   canAddAttachment,
   canEditOrder,
   canIssueOrder,
+  canDeleteOrder,
   canRemoveAttachment,
   cancelOrder,
   closeOrder,
   decideOrder,
   deliverOrder,
+  orderEditChange,
   reassignApprover,
+  resendOrder,
   sendOrder,
   submitOrder,
   toActor,
@@ -211,9 +214,24 @@ export class MockOrderRepository implements IOrderRepository {
     }
     this.assertValid(input);
 
-    const updated: PurchaseOrder = { ...order, ...(await this.fromInput(input)), modified: new Date() };
+    const change = orderEditChange(order);
+    const updated: PurchaseOrder = {
+      ...applyOrderChange(order, change, new Date()),
+      ...(await this.fromInput(input))
+    };
     this.replace(updated);
     return delay(updated);
+  }
+
+  public async delete(id: number, actor: CurrentUser): Promise<void> {
+    if (!canDeleteOrder(toActor(actor))) {
+      throw new WorkflowError('Objednávku smí smazat jen administrátor PRM.');
+    }
+    this.require(id);
+    this.orders = this.orders.filter((o) => o.id !== id);
+    this.approvals.delete(id);
+    this.files.delete(id);
+    return delay(undefined);
   }
 
   public submit(
@@ -244,6 +262,10 @@ export class MockOrderRepository implements IOrderRepository {
 
   public send(id: number, actor: CurrentUser, options?: { sentTo?: string; pdfUrl?: string }): Promise<PurchaseOrder> {
     return this.transition(id, actor, (o, c) => sendOrder(o, c, options));
+  }
+
+  public resend(id: number, actor: CurrentUser, options?: { sentTo?: string; pdfUrl?: string }): Promise<PurchaseOrder> {
+    return this.transition(id, actor, (o, c) => resendOrder(o, c, options));
   }
 
   public deliver(id: number, actor: CurrentUser): Promise<PurchaseOrder> {

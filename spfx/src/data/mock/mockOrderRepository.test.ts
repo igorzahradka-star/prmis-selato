@@ -270,3 +270,85 @@ describe('MockOrderRepository — schvalovatel a odeslání dodavateli', () => {
     expect(odeslana.sentDate).toBeDefined();
   });
 });
+
+describe('MockOrderRepository — úprava po schválení, opakované odeslání, mazání, nadlimitní částky', () => {
+  const jednatel = uzivatel('jednatel', 'Jana Jednatelka', [Role.Jednatel]);
+
+  it('úprava schválené objednávky smaže schvalování a vrátí ji na koncept; po odeslání se schvaluje znovu', async () => {
+    const r = await repos();
+    const o = await r.orders.create(vstup({ projectNumber: '25003' }), jan);
+    await r.orders.submit(o.id, jan);
+    const schvalena = await r.orders.decide(o.id, 'approve', '', petr);
+    expect(schvalena.status).toBe(OrderStatus.Schvaleno);
+
+    const upravena = await r.orders.update(o.id, vstup({ projectNumber: '25003', subject: 'Opravený předmět' }), jan);
+    expect(upravena.status).toBe(OrderStatus.Koncept);
+    expect(upravena.approvalChain).toEqual([]);
+    expect(upravena.subject).toBe('Opravený předmět');
+
+    const znovu = await r.orders.submit(o.id, jan);
+    expect(znovu.status).toBe(OrderStatus.KeSchvaleni);
+    expect(znovu.approvalChain.every((s) => !s.approved)).toBe(true);
+  });
+
+  it('zamítnutou objednávku jde upravit a odeslat znovu', async () => {
+    const r = await repos();
+    const o = await r.orders.create(vstup({ projectNumber: '25003' }), jan);
+    await r.orders.submit(o.id, jan);
+    await r.orders.decide(o.id, 'reject', 'Moc drahé', petr);
+    const upravena = await r.orders.update(o.id, vstup({ projectNumber: '25003', subject: 'Levnější' }), jan);
+    expect(upravena.status).toBe(OrderStatus.Koncept);
+    expect((await r.orders.submit(o.id, jan)).status).toBe(OrderStatus.KeSchvaleni);
+  });
+
+  it('odeslanou objednávku už upravit nejde', async () => {
+    const r = await repos();
+    const o = await r.orders.create(vstup({ projectNumber: '25003' }), jan);
+    await r.orders.submit(o.id, jan);
+    await r.orders.decide(o.id, 'approve', '', petr);
+    await r.orders.send(o.id, jan, { sentTo: 'a@b.cz' });
+    await expect(r.orders.update(o.id, vstup({ projectNumber: '25003' }), jan)).rejects.toThrow(/nejde upravovat/);
+  });
+
+  it('odeslanou objednávku jde odeslat znovu na jinou adresu; stav zůstane, datum prvního odeslání také', async () => {
+    const r = await repos();
+    const o = await r.orders.create(vstup({ projectNumber: '25003' }), jan);
+    await r.orders.submit(o.id, jan);
+    await r.orders.decide(o.id, 'approve', '', petr);
+    const odeslana = await r.orders.send(o.id, jan, { sentTo: 'a@b.cz', pdfUrl: 'https://x/1.pdf' });
+    const znovu = await r.orders.resend(o.id, jan, { sentTo: 'jiny@b.cz', pdfUrl: 'https://x/2.pdf' });
+    expect(znovu.status).toBe(OrderStatus.Odeslano);
+    expect(znovu.sentDate).toEqual(odeslana.sentDate);
+    expect(znovu.pdfUrl).toBe('https://x/2.pdf');
+    await expect(r.orders.resend(o.id, cizi)).rejects.toThrow();
+  });
+
+  it('neodeslanou objednávku znovu odeslat nejde', async () => {
+    const r = await repos();
+    const o = await r.orders.create(vstup({ projectNumber: '25003' }), jan);
+    await expect(r.orders.resend(o.id, jan)).rejects.toThrow(/to nejde/);
+  });
+
+  it('objednávku smaže jen administrátor; ostatní ne', async () => {
+    const r = await repos();
+    const o = await r.orders.create(vstup({ projectNumber: '25003' }), jan);
+    await expect(r.orders.delete(o.id, jan)).rejects.toThrow(/administrátor/);
+    await expect(r.orders.delete(o.id, petr)).rejects.toThrow(/administrátor/);
+    await r.orders.delete(o.id, igor);
+    expect(await r.orders.getById(o.id)).toBeUndefined();
+  });
+
+  it('objednávka nad limit jednatele se schvaluje v aplikaci: PM → vedení → jednatel, až do schválení', async () => {
+    const r = await repos();
+    const o = await r.orders.create(
+      vstup({ projectNumber: '25003', lines: [{ description: 'Velký nákup', quantity: 1, unitPriceNet: 2000000 }] }),
+      jan
+    );
+    const odeslana = await r.orders.submit(o.id, jan);
+    expect(odeslana.status).toBe(OrderStatus.KeSchvaleni);
+    expect(odeslana.approvalChain.map((s) => s.level)).toEqual(['vedeni', 'jednatel']);
+    await r.orders.decide(o.id, 'approve', '', petr);
+    const hotovo = await r.orders.decide(o.id, 'approve', '', jednatel);
+    expect(hotovo.status).toBe(OrderStatus.Schvaleno);
+  });
+});

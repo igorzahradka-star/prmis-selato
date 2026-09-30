@@ -8,13 +8,17 @@ import * as React from 'react';
 import { SearchBox } from '@fluentui/react/lib/SearchBox';
 import { Dropdown, IDropdownOption } from '@fluentui/react/lib/Dropdown';
 import { Toggle } from '@fluentui/react/lib/Toggle';
-import { PrimaryButton } from '@fluentui/react/lib/Button';
+import { PrimaryButton, DefaultButton } from '@fluentui/react/lib/Button';
+import { DatePicker } from '@fluentui/react/lib/DatePicker';
 import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
 import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 
 import { useApp } from '../../ui/AppContext';
 import { RES } from '../../ui/theme';
 import { PageHeading } from '../../ui/components/PageHeading';
+import { CS_CALENDAR_STRINGS } from '../../ui/csCalendarStrings';
+import { useAutoRefresh } from '../../ui/useAutoRefresh';
+import { formatDate, parseCzechDate } from '../../core/format';
 import { navigate, RouteName } from '../../ui/router';
 import { ORDER_STATUS_ORDER, PurchaseOrder, filterOrders } from '../../core/orders';
 import { canIssueOrder, toActor, toWorkflowProject } from '../../core/orderWorkflow';
@@ -31,6 +35,8 @@ export const OrdersPage: React.FC<{ orderId?: number }> = ({ orderId }) => {
   const [search, setSearch] = React.useState('');
   const [statuses, setStatuses] = React.useState<string[]>([]);
   const [onlyMine, setOnlyMine] = React.useState(false);
+  const [issuedFrom, setIssuedFrom] = React.useState<Date | undefined>(undefined);
+  const [issuedTo, setIssuedTo] = React.useState<Date | undefined>(undefined);
   const [creating, setCreating] = React.useState(false);
   const [reloadKey, setReloadKey] = React.useState(0);
 
@@ -54,12 +60,15 @@ export const OrdersPage: React.FC<{ orderId?: number }> = ({ orderId }) => {
     };
   }, [repos, reloadKey]);
 
+  // Objednávku mezitím mohl schválit nebo zamítnout někdo jiný — seznam se sám obnoví.
+  useAutoRefresh(() => setReloadKey((k) => k + 1), creating || orderId !== undefined);
+
   const actor = React.useMemo(() => toActor(user), [user]);
   const mayIssue = projects.some((p) => canIssueOrder(toWorkflowProject(p), actor));
 
   const statusOptions: IDropdownOption[] = ORDER_STATUS_ORDER.map((s) => ({ key: s, text: s }));
   const me = normalizeLogin(user.loginName);
-  const shown = filterOrders(orders ?? [], { search, statuses }).filter(
+  const shown = filterOrders(orders ?? [], { search, statuses, issuedFrom, issuedTo }).filter(
     (o) => !onlyMine || normalizeLogin(o.requestedByLogin) === me
   );
 
@@ -95,8 +104,41 @@ export const OrdersPage: React.FC<{ orderId?: number }> = ({ orderId }) => {
           placeholder="Všechny stavy"
           styles={{ root: { minWidth: 200 } }}
         />
+        <DatePicker
+          label="Vystaveno od"
+          value={issuedFrom}
+          onSelectDate={(d) => setIssuedFrom(d ?? undefined)}
+          formatDate={(d) => (d ? formatDate(d) : '')}
+          strings={CS_CALENDAR_STRINGS}
+          parseDateFromString={(t) => parseCzechDate(t) ?? null}
+          allowTextInput
+          isRequired={false}
+          placeholder="kdykoli"
+          styles={{ root: { width: 140 } }}
+        />
+        <DatePicker
+          label="do"
+          value={issuedTo}
+          onSelectDate={(d) => setIssuedTo(d ?? undefined)}
+          formatDate={(d) => (d ? formatDate(d) : '')}
+          strings={CS_CALENDAR_STRINGS}
+          parseDateFromString={(t) => parseCzechDate(t) ?? null}
+          allowTextInput
+          placeholder="kdykoli"
+          styles={{ root: { width: 140 } }}
+        />
+        {(issuedFrom || issuedTo) && (
+          <DefaultButton
+            text="Zrušit datum"
+            onClick={() => {
+              setIssuedFrom(undefined);
+              setIssuedTo(undefined);
+            }}
+          />
+        )}
         <Toggle label="Jen moje" inlineLabel checked={onlyMine} onChange={(_, c) => setOnlyMine(!!c)} styles={{ root: { margin: 0 } }} />
         <div style={{ flex: '1 1 auto' }} />
+        <DefaultButton iconProps={{ iconName: 'Refresh' }} text="Obnovit" onClick={() => setReloadKey((k) => k + 1)} />
         {orders && (
           <span style={{ color: RES.gray, fontSize: 12 }}>
             {shown.length} z {orders.length}

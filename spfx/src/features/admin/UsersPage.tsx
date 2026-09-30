@@ -80,12 +80,14 @@ export const UsersPage: React.FC = () => {
 
   const refresh = (): void => setReloadKey((k) => k + 1);
 
-  const zalozitSkupiny = (): void => {
+  /** Založí chybějící skupiny; s `only` jen skupinu jedné role (tlačítko na kartě role). */
+  const zalozitSkupiny = (only?: Role): void => {
     setBusy(true);
     setError(undefined);
     setInfo(undefined);
+    const mapping = (only ? { [only]: settings.roles[only] } : settings.roles) as typeof settings.roles;
     repos.userAdmin
-      .ensureRoleGroups(settings.roles)
+      .ensureRoleGroups(mapping)
       .then((r) => {
         setBusy(false);
         const casti: string[] = [];
@@ -97,11 +99,20 @@ export const UsersPage: React.FC = () => {
             `Oprávnění na webu: ${r.granted.map((g) => `${g.groupName} → ${g.level}`).join(', ')}.`
           );
         }
-        setInfo(
-          casti.length === 0
-            ? 'Všechny skupiny už existovaly a mají oprávnění, nic se nemění.'
-            : `${casti.join(' ')} Oprávnění půjde kdykoli upravit v Nastavení webu.`
-        );
+        if (r.failed.length > 0) {
+          setError(
+            `Nepovedlo se: ${r.failed.map((f) => `„${f.groupName}“ — ${f.message}`).join(' | ')} ` +
+              'Skupinu jde založit i ručně: Nastavení webu → Oprávnění webu → Vytvořit skupinu (přesný název jako v Nastavení, úroveň oprávnění „Úpravy“), ' +
+              'pak tady stiskněte Načíst znovu.'
+          );
+        }
+        if (r.failed.length === 0 || casti.length > 0) {
+          setInfo(
+            casti.length === 0
+              ? 'Všechny skupiny už existovaly a mají oprávnění, nic se nemění.'
+              : `${casti.join(' ')} Oprávnění půjde kdykoli upravit v Nastavení webu.`
+          );
+        }
         refresh();
       })
       .catch((e: Error) => {
@@ -149,7 +160,7 @@ export const UsersPage: React.FC = () => {
             <DefaultButton
               iconProps={{ iconName: 'AddGroup' }}
               text="Založit chybějící skupiny"
-              onClick={zalozitSkupiny}
+              onClick={() => zalozitSkupiny()}
               disabled={busy}
             />
           </div>
@@ -201,6 +212,7 @@ export const UsersPage: React.FC = () => {
                   membership={m}
                   disabled={busy}
                   onAdd={() => setAddTo(m)}
+                  onCreateGroup={() => zalozitSkupiny(m.role)}
                   onRemove={(person) => setToRemove({ membership: m, person })}
                 />
               ))}
@@ -253,8 +265,9 @@ const RoleCard: React.FC<{
   membership: RoleMembership;
   disabled: boolean;
   onAdd: () => void;
+  onCreateGroup: () => void;
   onRemove: (person: Person) => void;
-}> = ({ membership, disabled, onAdd, onRemove }) => (
+}> = ({ membership, disabled, onAdd, onCreateGroup, onRemove }) => (
   <section
     style={{
       background: RES.white,
@@ -281,12 +294,11 @@ const RoleCard: React.FC<{
           )}
         </p>
       </div>
-      <DefaultButton
-        iconProps={{ iconName: 'AddFriend' }}
-        text="Přidat"
-        onClick={onAdd}
-        disabled={disabled || !membership.groupExists}
-      />
+      {membership.groupExists ? (
+        <DefaultButton iconProps={{ iconName: 'AddFriend' }} text="Přidat" onClick={onAdd} disabled={disabled} />
+      ) : (
+        <PrimaryButton iconProps={{ iconName: 'AddGroup' }} text="Založit skupinu" onClick={onCreateGroup} disabled={disabled} />
+      )}
     </div>
 
     {membership.members.length > 0 && (

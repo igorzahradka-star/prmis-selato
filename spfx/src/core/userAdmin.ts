@@ -138,7 +138,7 @@ export const ROLE_PURPOSE: Record<Role, string> = {
   [Role.Administrator]:
     'Nastavení, instalace, číselné řady, šablony složek, správa rolí. Jediný, kdo smí smazat projekt.',
   [Role.Vedeni]: 'Vidí všechny projekty, schvaluje objednávky nad limit PM a realizační rozpočty.',
-  [Role.Jednatel]: 'Schvaluje objednávky nad limit vedení. Nevidí víc než vedení, jen má poslední slovo u velkých objednávek.',
+  [Role.Jednatel]: 'Schvaluje objednávky nad limit vedení, včetně nadlimitních částek. Nevidí víc než vedení, jen má poslední slovo u velkých objednávek.',
   [Role.Finance]:
     'Firemní cashflow a důvěrné částky. Kromě role musí mít i přístup na web PRM-Finance — to se ověřuje zvlášť.',
   [Role.ProjektovyManazer]:

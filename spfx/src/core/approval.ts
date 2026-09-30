@@ -21,7 +21,7 @@ export function describeApprovalLadder(settings: ApprovalSettings): string[] {
     `do ${formatMoney(settings.pmLimit)} schvaluje projektový manažer`,
     `nad ${formatMoney(settings.pmLimit)} do ${formatMoney(settings.vedeniLimit)} schvaluje navíc vedení`,
     `nad ${formatMoney(settings.vedeniLimit)} do ${formatMoney(settings.jednatelLimit)} schvaluje navíc jednatel`,
-    `nad ${formatMoney(settings.jednatelLimit)} se objednávka schvaluje mimo aplikaci`
+    `nad ${formatMoney(settings.jednatelLimit)} se schvaluje stejně (projektový manažer, vedení, jednatel) — i takové objednávky schvaluje aplikace`
   ];
 
   rows.push(
@@ -38,8 +38,7 @@ export function describeApprovalLadder(settings: ApprovalSettings): string[] {
 
 /**
  * Do kterého pásma částka spadá (0 = do limitu PM, 3 = nad limit jednatele).
- * Používá se jen pro zvýraznění v Nastavení; rozhodování o schválení
- * přijde ve Fázi 2 s celým workflow.
+ * Řetěz schvalovatelů z pásma staví `buildApprovalChain` (pásmo 3 se schvaluje jako pásmo 2).
  */
 export function approvalTierIndex(amountNet: number, settings: ApprovalSettings): number {
   if (amountNet <= settings.pmLimit) {

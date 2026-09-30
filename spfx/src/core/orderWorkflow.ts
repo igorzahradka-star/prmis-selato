@@ -8,7 +8,8 @@
  *
  * Pravidla (zadání kap. 8.5 a rozhodnutí zadavatele z 30. 9. 2026):
  *  - do limitu PM schvaluje PM projektu, nad ním navíc vedení, nad limitem vedení navíc jednatel;
- *  - nad limit jednatele se objednávka schvaluje mimo aplikaci;
+ *  - nad limit jednatele se schvaluje stejně (PM → vedení → jednatel) — v aplikaci se schvaluje vše,
+ *    nic nezůstává viset "mimo aplikaci";
  *  - vlastní objednávku nesmí schválit nikdo, nikdy;
  *  - objednávku, kterou vystavil PM, schvaluje vedení (přepínač v Nastavení dovolí PM schválit si ji sám);
  *  - u Režie schvaluje vždy vedení.
@@ -18,7 +19,6 @@ import { ApprovalSettings } from './settings';
 import { approvalTierIndex } from './approval';
 import { hasAnyRole, normalizeLogin, canEditProject } from './roles';
 import { Role } from './types';
-import { formatMoney } from './format';
 import { RateTable } from './currency';
 import { RoleMembership } from './userAdmin';
 import {
@@ -65,6 +65,7 @@ export type OrderAction =
   | 'reject'
   | 'reassign'
   | 'send'
+  | 'resend'
   | 'deliver'
   | 'close'
   | 'cancel';
@@ -192,12 +193,43 @@ export function isWaitingFor(order: PurchaseOrder, project: WorkflowProject, act
   return i !== -1 && mayApproveStep(order.approvalChain[i], order, project, actor);
 }
 
-/** Jde objednávku upravovat? Jen koncept nebo vrácenou a jen těm, kdo s ní smějí nakládat. */
+/** Stavy, ve kterých jde objednávku upravit. Schválená a zamítnutá se po úpravě schvaluje znovu od začátku. */
+const EDITABLE_STATUSES: OrderStatus[] = [
+  OrderStatus.Koncept,
+  OrderStatus.VracenoKUprave,
+  OrderStatus.Zamitnuto,
+  OrderStatus.Schvaleno
+];
+
+/**
+ * Jde objednávku upravovat? Koncept, vrácenou, zamítnutou a ještě neodeslanou schválenou — a jen těm, kdo s ní
+ * smějí nakládat. Odeslanou dodavateli už ne (ta se stornuje a vystaví se znovu).
+ */
 export function canEditOrder(order: PurchaseOrder, project: WorkflowProject, actor: Actor): boolean {
-  return (
-    (order.status === OrderStatus.Koncept || order.status === OrderStatus.VracenoKUprave) &&
-    canManageOrder(order, project, actor)
-  );
+  return EDITABLE_STATUSES.indexOf(order.status) !== -1 && canManageOrder(order, project, actor);
+}
+
+/** Zruší úprava dosavadní schvalování? Ano u schválené a zamítnuté objednávky — schválení platí pro konkrétní znění. */
+export function editResetsApproval(order: PurchaseOrder): boolean {
+  return order.status === OrderStatus.Schvaleno || order.status === OrderStatus.Zamitnuto;
+}
+
+/** Co se má zapsat při uložení úpravy objednávky: u schválené/zamítnuté zpět koncept bez schvalovacího řetězce. */
+export function orderEditChange(order: PurchaseOrder): OrderChange {
+  if (editResetsApproval(order)) {
+    return {
+      status: OrderStatus.Koncept,
+      approvalChain: [],
+      currentApprovalLevel: undefined,
+      auditAction: `Upraveno po ${order.status === OrderStatus.Schvaleno ? 'schválení' : 'zamítnutí'} — schvalování zrušeno, nutno znovu odeslat ke schválení`
+    };
+  }
+  return { status: order.status, approvalChain: order.approvalChain, currentApprovalLevel: order.currentApprovalLevel, auditAction: 'Upraveno' };
+}
+
+/** Smaže objednávku jen administrátor (Jednorázové akce); běžně se objednávky nemažou, ale stornují. */
+export function canDeleteOrder(actor: Actor): boolean {
+  return hasAnyRole(actor.roles, Role.Administrator);
 }
 
 /** Akce, které má uživatel u objednávky nabídnout (tlačítka). Rozhodnutí se znovu ověřuje při zápisu. */
@@ -206,7 +238,11 @@ export function availableActions(order: PurchaseOrder, project: WorkflowProject,
   const manage = canManageOrder(order, project, actor);
 
   if (canEditOrder(order, project, actor)) {
-    actions.push('edit', 'submit');
+    actions.push('edit');
+    // Schválená a zamítnutá se po úpravě vrací na koncept a odesílá se znovu; přímo odeslat jde jen koncept a vrácená.
+    if (order.status === OrderStatus.Koncept || order.status === OrderStatus.VracenoKUprave) {
+      actions.push('submit');
+    }
   }
   if (isWaitingFor(order, project, actor)) {
     actions.push('approve', 'return', 'reject');
@@ -218,10 +254,10 @@ export function availableActions(order: PurchaseOrder, project: WorkflowProject,
     actions.push('send');
   }
   if (manage && order.status === OrderStatus.Odeslano) {
-    actions.push('deliver');
+    actions.push('resend', 'deliver');
   }
   if (manage && order.status === OrderStatus.Dodano) {
-    actions.push('close');
+    actions.push('resend', 'close');
   }
   if (manage && FINAL_ORDER_STATUSES.indexOf(order.status) === -1) {
     actions.push('cancel');
@@ -246,12 +282,10 @@ export interface ChainInput {
  * Kroky jdou v pořadí PM → vedení → jednatel; kroky, které by schvalovala sama osoba
  * vystavitele, se buď vyřídí automaticky (PM si smí schválit sám), nebo vypadnou.
  */
-export function buildApprovalChain(input: ChainInput): { steps: ApprovalStep[]; outsideApp: boolean } {
+export function buildApprovalChain(input: ChainInput): { steps: ApprovalStep[] } {
   const { settings } = input;
-  const tier = approvalTierIndex(input.amountNetCzk, settings);
-  if (tier === 3) {
-    return { steps: [], outsideApp: true };
-  }
+  // Nad limit jednatele (pásmo 3) se schvaluje stejně jako v pásmu jednatele — všechno řeší aplikace.
+  const tier = Math.min(approvalTierIndex(input.amountNetCzk, settings), 2);
 
   let levels: ApprovalLevel[] = tier === 0 ? ['pm'] : tier === 1 ? ['pm', 'vedeni'] : ['pm', 'vedeni', 'jednatel'];
 
@@ -281,7 +315,7 @@ export function buildApprovalChain(input: ChainInput): { steps: ApprovalStep[]; 
   if (steps.length === 0) {
     steps.push(pendingStep('vedeni', input.assignees));
   }
-  return { steps, outsideApp: false };
+  return { steps };
 }
 
 function pendingStep(level: ApprovalLevel, assignees: ChainInput['assignees']): ApprovalStep {
@@ -376,7 +410,7 @@ export function submitOrder(
   });
 
   const amountCzk = amountNetInCzk(order.amountNet, order.currency, ctx.rates);
-  const { steps, outsideApp } = buildApprovalChain({
+  const { steps } = buildApprovalChain({
     amountNetCzk: amountCzk,
     issuerLogin: order.requestedByLogin,
     projectManagerLogin: ctx.project.projectManagerLogin,
@@ -384,13 +418,6 @@ export function submitOrder(
     settings: ctx.settings,
     assignees
   });
-  if (outsideApp) {
-    throw new WorkflowError(
-      `Objednávka má ${formatMoney(amountCzk)} bez DPH a překračuje limit jednatele ${formatMoney(ctx.settings.jednatelLimit)}. ` +
-        'Takové objednávky se schvalují mimo aplikaci — obraťte se na vedení.'
-    );
-  }
-
   const next = afterChain(steps);
   return {
     status: next.status,
@@ -491,6 +518,28 @@ export function sendOrder(
     sentDate: ctx.now,
     pdfUrl: options && options.pdfUrl ? options.pdfUrl : undefined,
     auditAction: sentTo ? `Odesláno dodavateli (${sentTo})` : 'Odesláno dodavateli'
+  };
+}
+
+/**
+ * Opakované odeslání dodavateli (nedorazilo, nebo jde na jinou adresu). Stav se nemění, jen se zapíše do audit logu,
+ * komu a kdy to odešlo znovu; odkaz na PDF se obnoví, kdyby se PDF ukládalo znovu.
+ */
+export function resendOrder(
+  order: PurchaseOrder,
+  ctx: WorkflowContext,
+  options?: { sentTo?: string; pdfUrl?: string }
+): OrderChange {
+  requireStatus(order, [OrderStatus.Odeslano, OrderStatus.Dodano], 'Odeslat znovu');
+  requireManage(order, ctx, 'Odeslat znovu');
+  const sentTo = options && options.sentTo ? options.sentTo.trim() : '';
+  return {
+    status: order.status,
+    approvalChain: order.approvalChain,
+    currentApprovalLevel: order.currentApprovalLevel,
+    sentDate: order.sentDate,
+    pdfUrl: options && options.pdfUrl ? options.pdfUrl : undefined,
+    auditAction: sentTo ? `Odesláno dodavateli znovu (${sentTo})` : 'Odesláno dodavateli znovu'
   };
 }
 
@@ -621,7 +670,10 @@ export function canAddAttachment(order: PurchaseOrder, project: WorkflowProject,
  * se přílohy neodebírají — schvalovatel rozhodoval nad konkrétním podkladem.
  */
 export function canRemoveAttachment(order: PurchaseOrder, project: WorkflowProject, actor: Actor): boolean {
-  return canEditOrder(order, project, actor);
+  return (
+    (order.status === OrderStatus.Koncept || order.status === OrderStatus.VracenoKUprave) &&
+    canManageOrder(order, project, actor)
+  );
 }
 
 /**

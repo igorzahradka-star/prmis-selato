@@ -5,8 +5,10 @@ import {
   PurchaseOrder,
   filterOrders,
   sortOrdersNewestFirst,
+  sortOrders,
   amountNetInCzk,
   ATTACHMENT_MAX_BYTES,
+  attachmentKind,
   chainFromJson,
   chainToJson,
   linesFromJson,
@@ -243,5 +245,93 @@ describe('validateAttachment', () => {
 
   it('bez názvu odmítne', () => {
     expect(validateAttachment('  ', 100)).toContain('název');
+  });
+});
+
+describe('attachmentKind', () => {
+  it('pozná obrázky, PDF a kancelářské dokumenty bez ohledu na velikost písmen', () => {
+    expect(attachmentKind('Foto.JPG')).toBe('image');
+    expect(attachmentKind('nabidka.pdf')).toBe('pdf');
+    expect(attachmentKind('rozpocet.xlsx')).toBe('excel');
+    expect(attachmentKind('smlouva.docx')).toBe('word');
+    expect(attachmentKind('prezentace.pptx')).toBe('powerpoint');
+    expect(attachmentKind('podklady.zip')).toBe('archive');
+  });
+  it('neznámá přípona nebo žádná přípona je other', () => {
+    expect(attachmentKind('poznamka.xyz')).toBe('other');
+    expect(attachmentKind('README')).toBe('other');
+  });
+});
+
+describe('filterOrders — datum vystavení', () => {
+  const o = (id: number, created: Date | undefined): PurchaseOrder =>
+    ({
+      id,
+      orderNumber: `OBJ-2026-${id}`,
+      projectNumber: '25001',
+      subject: 'x',
+      lines: [],
+      amountNet: 0,
+      vatRate: 21,
+      currency: 'CZK',
+      status: OrderStatus.Koncept,
+      requestedByName: '',
+      requestedByLogin: '',
+      approvalChain: [],
+      created
+    }) as PurchaseOrder;
+  const list = [o(1, new Date(2026, 8, 1, 23, 59)), o(2, new Date(2026, 8, 15, 8, 0)), o(3, new Date(2026, 9, 1, 0, 0)), o(4, undefined)];
+
+  it('od a do platí včetně krajních dnů, bez ohledu na hodinu', () => {
+    const r = filterOrders(list, { issuedFrom: new Date(2026, 8, 1), issuedTo: new Date(2026, 8, 15) });
+    expect(r.map((x) => x.id)).toEqual([1, 2]);
+  });
+  it('jen od', () => {
+    expect(filterOrders(list, { issuedFrom: new Date(2026, 8, 16) }).map((x) => x.id)).toEqual([3]);
+  });
+  it('objednávka bez data se při filtru podle data nezobrazí, bez filtru ano', () => {
+    expect(filterOrders(list, {}).length).toBe(4);
+    expect(filterOrders(list, { issuedTo: new Date(2030, 0, 1) }).map((x) => x.id)).toEqual([1, 2, 3]);
+  });
+});
+
+describe('sortOrders', () => {
+  const mk = (id: number, extra: Partial<PurchaseOrder>): PurchaseOrder =>
+    ({
+      id,
+      orderNumber: `OBJ-2026-000${id}`,
+      projectNumber: '25001',
+      subject: '',
+      lines: [],
+      amountNet: 0,
+      vatRate: 21,
+      currency: 'CZK',
+      status: OrderStatus.Koncept,
+      requestedByName: '',
+      requestedByLogin: '',
+      approvalChain: [],
+      ...extra
+    }) as PurchaseOrder;
+  const list = [
+    mk(1, { created: new Date(2026, 8, 20), supplierName: 'Čeněk' }),
+    mk(2, { created: new Date(2026, 8, 1), supplierName: 'Adam' }),
+    mk(3, { created: undefined, supplierName: 'Boris' })
+  ];
+
+  it('podle data vystavení vzestupně a sestupně; bez data vždy na konec při vzestupném řazení', () => {
+    expect(sortOrders(list, 'created', false).map((o) => o.id)).toEqual([2, 1, 3]);
+    expect(sortOrders(list, 'created', true).map((o) => o.id)).toEqual([3, 1, 2]);
+  });
+  it('podle dodavatele česky', () => {
+    expect(sortOrders(list, 'supplier', false).map((o) => o.supplierName)).toEqual(['Adam', 'Boris', 'Čeněk']);
+  });
+  it('podle čísla číselně a původní seznam nemění', () => {
+    const before = list.map((o) => o.id);
+    expect(sortOrders(list, 'number', true).map((o) => o.id)).toEqual([3, 2, 1]);
+    expect(list.map((o) => o.id)).toEqual(before);
+  });
+  it('podle stavu v pořadí životního cyklu', () => {
+    const s = [mk(1, { status: OrderStatus.Uzavreno }), mk(2, { status: OrderStatus.Koncept }), mk(3, { status: OrderStatus.Schvaleno })];
+    expect(sortOrders(s, 'status', false).map((o) => o.id)).toEqual([2, 3, 1]);
   });
 });
