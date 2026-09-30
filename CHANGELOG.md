@@ -5,6 +5,17 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.5.3 — 30. 9. 2026 — Aplikace na celé okno
+
+**Nové**
+
+- **Tlačítko „Celé okno" v hlavičce aplikace** (vpravo nahoře, vedle jména). Schová horní lištu
+  SharePointu, záhlaví webu i jeho navigaci, takže aplikace má celé okno prohlížeče. Stránku
+  znovu otevře se zapnutým `env=WebView` a zůstane na stejné obrazovce; druhým kliknutím se
+  lišta vrátí. Řeší to, že odkaz z úvodní stránky webu parametr ztrácel.
+
+---
+
 ## 0.5.2 — 30. 9. 2026 — Oprava odkazů na složky projektů
 
 **Opraveno**

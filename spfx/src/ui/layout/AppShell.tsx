@@ -15,6 +15,7 @@ import { RES, LAYOUT, RES_FONT_FAMILY } from '../theme';
 import { Route, RouteName, buildHash } from '../router';
 import { ROLE_LABELS } from '../../core/types';
 import { canOpenAdmin, canOpenBenchmark, canOpenFinance } from '../../core/roles';
+import { isWebViewMode, toggleWebViewUrl } from '../fullscreen';
 
 import logoUrl from '../../webparts/prm/assets/res-logo-header.svg';
 
@@ -162,7 +163,7 @@ const NavLink: React.FC<{ item: NavItem; active: boolean; collapsed: boolean }> 
 };
 
 const Header: React.FC<{ onToggleNav: () => void }> = ({ onToggleNav }) => {
-  const { user } = useApp();
+  const { user, dataSource } = useApp();
   return (
     <header
       style={{
@@ -195,6 +196,7 @@ const Header: React.FC<{ onToggleNav: () => void }> = ({ onToggleNav }) => {
       <span style={{ fontSize: 17, fontWeight: 600, letterSpacing: 0.2 }}>PRM Revoltum</span>
 
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 18 }}>
+        {dataSource !== 'mock' && <FullScreenButton />}
         <HeaderTools />
         <Persona
           text={user.displayName}
@@ -207,6 +209,38 @@ const Header: React.FC<{ onToggleNav: () => void }> = ({ onToggleNav }) => {
         />
       </div>
     </header>
+  );
+};
+
+/**
+ * Přepínač „celé okno": schová lištu a záhlaví SharePointu, aby aplikace měla celé okno
+ * prohlížeče. Stránku znovu otevře se zapnutým (nebo vypnutým) `env=WebView`; člověk zůstane
+ * na stejné obrazovce aplikace, protože se zachová i část adresy za `#`.
+ */
+const FullScreenButton: React.FC = () => {
+  const active = isWebViewMode(window.location.href);
+  const label = active ? 'Zobrazit lištu SharePointu' : 'Aplikace na celé okno (skryje lištu SharePointu)';
+  return (
+    <TooltipHost content={label}>
+      <button
+        type="button"
+        onClick={() => {
+          window.location.href = toggleWebViewUrl(window.location.href);
+        }}
+        aria-label={label}
+        style={{
+          background: 'transparent',
+          border: 'none',
+          color: RES.white,
+          cursor: 'pointer',
+          fontSize: 16,
+          padding: 6,
+          borderRadius: 4
+        }}
+      >
+        <Icon iconName={active ? 'BackToWindow' : 'FullScreen'} />
+      </button>
+    </TooltipHost>
   );
 };
 
