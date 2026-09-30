@@ -515,6 +515,11 @@ export interface IOrderRepository {
    * V SharePointu jde položka do koše, do audit logu se zapíše, kdo a kdy.
    */
   delete(id: number, actor: CurrentUser): Promise<void>;
+  /**
+   * Opraví objednávky, které mají stejné číslo (chyba číslování z dřívějška): nejstarší si číslo ponechá, ostatním se
+   * přidělí další volná čísla. Jen administrátor; každá změna jde do historie. Vrací, co se změnilo.
+   */
+  renumberDuplicates(actor: CurrentUser): Promise<{ id: number; from: string; to: string }[]>;
   deliver(id: number, actor: CurrentUser): Promise<PurchaseOrder>;
   close(id: number, actor: CurrentUser): Promise<PurchaseOrder>;
   cancel(id: number, reason: string, actor: CurrentUser): Promise<PurchaseOrder>;

@@ -3,7 +3,8 @@ import {
   nextSequence,
   counterScopeKey,
   renderProjectTitle,
-  sanitizeFolderName
+  sanitizeFolderName,
+  pickCounterRow
 } from './numbering';
 
 describe('renderDocumentNumber', () => {
@@ -116,5 +117,24 @@ describe('sanitizeFolderName', () => {
   it('omezí délku', () => {
     const dlouhy = 'A'.repeat(200);
     expect(sanitizeFolderName(dlouhy, 10).length).toBe(10);
+  });
+});
+
+describe('pickCounterRow', () => {
+  it('prázdný klíč rozsahu najde řádek, kde je klíč null, undefined i prázdný text', () => {
+    expect(pickCounterRow([{ LastValue: 3, ScopeKey: null }], '')?.LastValue).toBe(3);
+    expect(pickCounterRow([{ LastValue: 4 }], '')?.LastValue).toBe(4);
+    expect(pickCounterRow([{ LastValue: 5, ScopeKey: '' }], '')?.LastValue).toBe(5);
+  });
+  it('řádek jiného rozsahu nevybere', () => {
+    expect(pickCounterRow([{ LastValue: 3, ScopeKey: '26001' }], '')).toBeUndefined();
+    expect(pickCounterRow([{ LastValue: 3, ScopeKey: '26001' }], '26001')?.LastValue).toBe(3);
+  });
+  it('při více řádcích téhož rozsahu vezme nejvyšší hodnotu', () => {
+    const rows = [{ LastValue: 1, ScopeKey: null }, { LastValue: 7, ScopeKey: '' }, { LastValue: 2 }];
+    expect(pickCounterRow(rows, '')?.LastValue).toBe(7);
+  });
+  it('bez řádků vrátí undefined', () => {
+    expect(pickCounterRow([], '')).toBeUndefined();
   });
 });

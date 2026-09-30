@@ -27,7 +27,7 @@ import {
   stackSlots,
   statusStyle
 } from '../../core/geo';
-import { DEFAULT_CENTER, DEFAULT_ZOOM, LeafletLib, MAP_ATTRIBUTION, TILE_URL, loadLeaflet, pinIcon } from './leaflet';
+import { DEFAULT_CENTER, DEFAULT_ZOOM, LeafletLib, addBaseLayers, loadLeaflet, pinIcon } from './leaflet';
 import type * as LeafletTypes from 'leaflet';
 
 export const ProjectsMapPage: React.FC = () => {
@@ -85,7 +85,7 @@ export const ProjectsMapPage: React.FC = () => {
         }
         libRef.current = L;
         const map = L.map(containerRef.current, { scrollWheelZoom: true }).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
-        L.tileLayer(TILE_URL, { maxZoom: 19, attribution: MAP_ATTRIBUTION }).addTo(map);
+        addBaseLayers(L, map);
         layerRef.current = L.layerGroup().addTo(map);
         mapRef.current = map;
         setMapReady(true);

@@ -85,65 +85,86 @@ export const OrdersPage: React.FC<{ orderId?: number }> = ({ orderId }) => {
       />
 
       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 12 }}>
-        <SearchBox
-          placeholder="Hledat číslo, předmět, dodavatele, projekt…"
-          value={search}
-          onChange={(_, v) => setSearch(v ?? '')}
-          onClear={() => setSearch('')}
-          styles={{ root: { width: 320 } }}
-        />
-        <Dropdown
-          label="Stav"
-          multiSelect
-          options={statusOptions}
-          selectedKeys={statuses}
-          onChange={(_, o) =>
-            o &&
-            setStatuses((cur) => (o.selected ? [...cur, String(o.key)] : cur.filter((k) => k !== String(o.key))))
-          }
-          placeholder="Všechny stavy"
-          styles={{ root: { minWidth: 200 } }}
-        />
-        <DatePicker
-          label="Vystaveno od"
-          value={issuedFrom}
-          onSelectDate={(d) => setIssuedFrom(d ?? undefined)}
-          formatDate={(d) => (d ? formatDate(d) : '')}
-          strings={CS_CALENDAR_STRINGS}
-          parseDateFromString={(t) => parseCzechDate(t) ?? null}
-          allowTextInput
-          isRequired={false}
-          placeholder="kdykoli"
-          styles={{ root: { width: 140 } }}
-        />
-        <DatePicker
-          label="do"
-          value={issuedTo}
-          onSelectDate={(d) => setIssuedTo(d ?? undefined)}
-          formatDate={(d) => (d ? formatDate(d) : '')}
-          strings={CS_CALENDAR_STRINGS}
-          parseDateFromString={(t) => parseCzechDate(t) ?? null}
-          allowTextInput
-          placeholder="kdykoli"
-          styles={{ root: { width: 140 } }}
-        />
-        {(issuedFrom || issuedTo) && (
-          <DefaultButton
-            text="Zrušit datum"
-            onClick={() => {
-              setIssuedFrom(undefined);
-              setIssuedTo(undefined);
-            }}
+        <Field label="Hledat">
+          <SearchBox
+            placeholder="Číslo, předmět, dodavatel, projekt…"
+            ariaLabel="Hledat v objednávkách"
+            value={search}
+            onChange={(_, v) => setSearch(v ?? '')}
+            onClear={() => setSearch('')}
+            styles={{ root: { width: 280, height: CONTROL_HEIGHT } }}
           />
+        </Field>
+        <Field label="Stav">
+          <Dropdown
+            ariaLabel="Stav objednávky"
+            multiSelect
+            options={statusOptions}
+            selectedKeys={statuses}
+            onChange={(_, o) =>
+              o &&
+              setStatuses((cur) => (o.selected ? [...cur, String(o.key)] : cur.filter((k) => k !== String(o.key))))
+            }
+            placeholder="Všechny stavy"
+            styles={{ root: { width: 190 } }}
+          />
+        </Field>
+        <Field label="Vystaveno od">
+          <DatePicker
+            ariaLabel="Vystaveno od"
+            value={issuedFrom}
+            onSelectDate={(d) => setIssuedFrom(d ?? undefined)}
+            formatDate={(d) => (d ? formatDate(d) : '')}
+            strings={CS_CALENDAR_STRINGS}
+            parseDateFromString={(t) => parseCzechDate(t) ?? null}
+            allowTextInput
+            placeholder="kdykoli"
+            styles={{ root: { width: 150 } }}
+          />
+        </Field>
+        <Field label="Vystaveno do">
+          <DatePicker
+            ariaLabel="Vystaveno do"
+            value={issuedTo}
+            onSelectDate={(d) => setIssuedTo(d ?? undefined)}
+            formatDate={(d) => (d ? formatDate(d) : '')}
+            strings={CS_CALENDAR_STRINGS}
+            parseDateFromString={(t) => parseCzechDate(t) ?? null}
+            allowTextInput
+            placeholder="kdykoli"
+            styles={{ root: { width: 150 } }}
+          />
+        </Field>
+        {(issuedFrom || issuedTo) && (
+          <Field label="">
+            <DefaultButton
+              text="Zrušit datum"
+              onClick={() => {
+                setIssuedFrom(undefined);
+                setIssuedTo(undefined);
+              }}
+            />
+          </Field>
         )}
-        <Toggle label="Jen moje" inlineLabel checked={onlyMine} onChange={(_, c) => setOnlyMine(!!c)} styles={{ root: { margin: 0 } }} />
+        <Field label="Jen moje">
+          <div style={{ height: CONTROL_HEIGHT, display: 'flex', alignItems: 'center' }}>
+            <Toggle
+              ariaLabel="Jen moje objednávky"
+              checked={onlyMine}
+              onChange={(_, c) => setOnlyMine(!!c)}
+              styles={{ root: { margin: 0 } }}
+            />
+          </div>
+        </Field>
         <div style={{ flex: '1 1 auto' }} />
-        <DefaultButton iconProps={{ iconName: 'Refresh' }} text="Obnovit" onClick={() => setReloadKey((k) => k + 1)} />
-        {orders && (
-          <span style={{ color: RES.gray, fontSize: 12 }}>
-            {shown.length} z {orders.length}
-          </span>
-        )}
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', height: CONTROL_HEIGHT }}>
+          {orders && (
+            <span style={{ color: RES.gray, fontSize: 12 }}>
+              {shown.length} z {orders.length}
+            </span>
+          )}
+          <DefaultButton iconProps={{ iconName: 'Refresh' }} text="Obnovit" onClick={() => setReloadKey((k) => k + 1)} />
+        </div>
       </div>
 
       {error && (
@@ -181,3 +202,14 @@ export const OrdersPage: React.FC<{ orderId?: number }> = ({ orderId }) => {
     </>
   );
 };
+
+/** Výška všech ovládacích prvků ve filtru — bez ní se políčka různých typů nezarovnají na jednu linii. */
+const CONTROL_HEIGHT = 32;
+
+/** Ovládací prvek filtru s popiskem nad ním; prázdný popisek drží místo, aby tlačítka seděla na stejné linii. */
+const Field: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
+  <div style={{ display: 'flex', flexDirection: 'column' }}>
+    <div style={{ fontSize: 14, fontWeight: 600, lineHeight: '22px', height: 22, color: RES.text }}>{label}</div>
+    {children}
+  </div>
+);

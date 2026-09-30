@@ -6,6 +6,8 @@ import {
   filterOrders,
   sortOrdersNewestFirst,
   sortOrders,
+  ordersToRenumber,
+  highestOrderSequence,
   amountNetInCzk,
   ATTACHMENT_MAX_BYTES,
   attachmentKind,
@@ -333,5 +335,22 @@ describe('sortOrders', () => {
   it('podle stavu v pořadí životního cyklu', () => {
     const s = [mk(1, { status: OrderStatus.Uzavreno }), mk(2, { status: OrderStatus.Koncept }), mk(3, { status: OrderStatus.Schvaleno })];
     expect(sortOrders(s, 'status', false).map((o) => o.id)).toEqual([2, 3, 1]);
+  });
+});
+
+describe('ordersToRenumber a highestOrderSequence', () => {
+  const mk = (id: number, orderNumber: string): PurchaseOrder =>
+    ({ id, orderNumber, projectNumber: 'x', subject: '', lines: [], amountNet: 0, vatRate: 21, currency: 'CZK', status: OrderStatus.Koncept, requestedByName: '', requestedByLogin: '', approvalChain: [] }) as PurchaseOrder;
+
+  it('v každé skupině shodných čísel nechá nejstarší, ostatní vrátí', () => {
+    const list = [mk(5, 'OBJ-2026-0001'), mk(2, 'OBJ-2026-0001'), mk(9, 'OBJ-2026-0002'), mk(7, 'obj-2026-0001 ')];
+    expect(ordersToRenumber(list).map((o) => o.id)).toEqual([5, 7]);
+  });
+  it('bez duplicit nevrátí nic', () => {
+    expect(ordersToRenumber([mk(1, 'OBJ-2026-0001'), mk(2, 'OBJ-2026-0002')])).toEqual([]);
+  });
+  it('nejvyšší pořadí bere jen z daného roku a jen ze správného tvaru', () => {
+    expect(highestOrderSequence(['OBJ-2026-0003', 'OBJ-2026-0011', 'OBJ-2025-0099', 'xyz'], 2026)).toBe(11);
+    expect(highestOrderSequence([], 2026)).toBe(0);
   });
 });

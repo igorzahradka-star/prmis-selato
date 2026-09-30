@@ -16,7 +16,7 @@
 import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { DocTypeConfig, INumberingRepository } from '../repositories';
 import { findDefaultDocType } from '../defaultDocTypes';
-import { renderDocumentNumber, nextSequence, counterScopeKey } from '../../core/numbering';
+import { renderDocumentNumber, nextSequence, counterScopeKey, pickCounterRow } from '../../core/numbering';
 import { getSp, describeSpError, extractStatus } from './spContext';
 import { escapeODataString } from './spSettingsRepository';
 
@@ -38,6 +38,7 @@ interface DocTypeItem {
 interface CounterItem {
   Id: number;
   LastValue: number;
+  ScopeKey?: string | null;
   'odata.etag'?: string;
 }
 
@@ -73,14 +74,7 @@ export class SpNumberingRepository implements INumberingRepository {
 
     try {
       const sp = getSp(this.context);
-      const rows: CounterItem[] = await sp.web.lists
-        .getByTitle(COUNTERS_LIST)
-        .items.select('LastValue')
-        .filter(
-          `DocTypeCode eq '${escapeODataString(docType.code)}' and Year eq ${year} and ScopeKey eq '${escapeODataString(scopeKey)}'`
-        )
-        .top(1)();
-      const existing = rows[0];
+      const existing = await this.findCounter(sp.web.lists.getByTitle(COUNTERS_LIST), docType.code, year, scopeKey);
       const sequence = nextSequence(existing ? { year, lastValue: existing.LastValue } : undefined, docType, year);
       return renderDocumentNumber(docType, {
         prefix: docType.code,
@@ -174,13 +168,9 @@ export class SpNumberingRepository implements INumberingRepository {
     const sp = getSp(this.context);
     const list = sp.web.lists.getByTitle(COUNTERS_LIST);
     const scopeKey = '';
-    const filter =
-      `DocTypeCode eq '${escapeODataString(docTypeCode)}' and ` +
-      `Year eq ${year} and ScopeKey eq '${escapeODataString(scopeKey)}'`;
 
     try {
-      const rows: CounterItem[] = await list.items.select('Id', 'LastValue').filter(filter).top(1)();
-      const existing = rows[0];
+      const existing = await this.findCounter(list, docTypeCode, year, scopeKey);
 
       if (!existing) {
         await list.items.add({
@@ -203,11 +193,9 @@ export class SpNumberingRepository implements INumberingRepository {
       if (extractStatus(error) === 412) {
         // Čítač mezitím posunul někdo jiný. Zkus to jednou znovu s čerstvým
         // čtením — podruhé už bude nejspíš dost vysoko a neudělá se nic.
-        const rows: CounterItem[] = await list.items.select('Id', 'LastValue').filter(filter).top(1)();
-        if (rows[0] && rows[0].LastValue < lastValue) {
-          await list.items
-            .getById(rows[0].Id)
-            .update({ LastValue: lastValue }, rows[0]['odata.etag'] ?? '*');
+        const again = await this.findCounter(list, docTypeCode, year, scopeKey);
+        if (again && again.LastValue < lastValue) {
+          await list.items.getById(again.Id).update({ LastValue: lastValue }, again['odata.etag'] ?? '*');
         }
         return;
       }
@@ -215,6 +203,30 @@ export class SpNumberingRepository implements INumberingRepository {
         describeSpError(error, `Nepodařilo se nastavit čítač řady ${docTypeCode} pro rok ${year}`)
       );
     }
+  }
+
+  /**
+   * Všechny řádky čítače dané řady a roku (všech rozsahů). Rozsah se vybírá až v aplikaci (`pickCounterRow`) —
+   * filtr na prázdný klíč rozsahu SharePoint nespolehlivě vyhodnocuje a čítač by se pak zakládal pořád znovu.
+   */
+  private async readCounters(
+    list: ReturnType<ReturnType<typeof getSp>['web']['lists']['getByTitle']>,
+    code: string,
+    year: number
+  ): Promise<CounterItem[]> {
+    return list.items
+      .select('Id', 'LastValue', 'ScopeKey')
+      .filter(`DocTypeCode eq '${escapeODataString(code)}' and Year eq ${year}`)
+      .top(500)();
+  }
+
+  private async findCounter(
+    list: ReturnType<ReturnType<typeof getSp>['web']['lists']['getByTitle']>,
+    code: string,
+    year: number,
+    scopeKey: string
+  ): Promise<CounterItem | undefined> {
+    return pickCounterRow(await this.readCounters(list, code, year), scopeKey);
   }
 
   /** Jeden pokus o přidělení čísla. Při souběhu vyhodí `NumberingConflictError`. */
@@ -226,12 +238,7 @@ export class SpNumberingRepository implements INumberingRepository {
   ): Promise<string> {
     const sp = getSp(this.context);
     const list = sp.web.lists.getByTitle(COUNTERS_LIST);
-    const filter =
-      `DocTypeCode eq '${escapeODataString(docType.code)}' and ` +
-      `Year eq ${year} and ScopeKey eq '${escapeODataString(scopeKey)}'`;
-
-    const rows: CounterItem[] = await list.items.select('Id', 'LastValue').filter(filter).top(1)();
-    const existing = rows[0];
+    const existing = await this.findCounter(list, docType.code, year, scopeKey);
     const sequence = nextSequence(existing ? { year, lastValue: existing.LastValue } : undefined, docType, year);
 
     if (existing) {
@@ -255,7 +262,9 @@ export class SpNumberingRepository implements INumberingRepository {
 
       // Nikdo tu ještě řádek neměl (žádný ETag k ochraně) — ověř, že mezitím
       // nevznikl souběžně duplicitní řádek se stejným klíčem.
-      const rivals: { Id: number }[] = await list.items.select('Id').filter(filter).orderBy('Id').top(5)();
+      const rivals = (await this.readCounters(list, docType.code, year))
+        .filter((r) => (r.ScopeKey || '') === scopeKey)
+        .sort((a, b) => a.Id - b.Id);
       if (rivals.length > 1 && newId !== undefined && rivals[0].Id !== newId) {
         // Prohrál jsi — někdo jiný založil řádek dřív. Smaž svůj duplicit
         // a zkus to znovu; tentokrát už řádek existuje a půjde bezpečně

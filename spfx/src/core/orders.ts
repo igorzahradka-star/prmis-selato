@@ -413,7 +413,7 @@ export function attachmentKind(fileName: string): AttachmentKind {
 
 // --- řazení podle sloupce ---------------------------------------------------------
 
-export type OrderSortKey = 'number' | 'project' | 'supplier' | 'subject' | 'status' | 'by' | 'created' | 'delivery';
+export type OrderSortKey = 'number' | 'project' | 'supplier' | 'subject' | 'amount' | 'status' | 'by' | 'created' | 'delivery';
 
 function compareText(a: string | undefined, b: string | undefined): number {
   return (a || '').localeCompare(b || '', 'cs-CZ', { numeric: true });
@@ -433,8 +433,16 @@ function compareDate(a: Date | undefined, b: Date | undefined): number {
   return a.getTime() - b.getTime();
 }
 
-/** Seřadí objednávky podle sloupce. Stabilní: při shodě zůstane dosavadní pořadí. Vrací kopii. */
-export function sortOrders(orders: PurchaseOrder[], key: OrderSortKey, descending: boolean): PurchaseOrder[] {
+/**
+ * Seřadí objednávky podle sloupce. Stabilní: při shodě zůstane dosavadní pořadí. Vrací kopii.
+ * Podle částky se řadí v korunách — `amountInCzk` přepočte objednávku (bez něj se porovnávají částky tak, jak jsou).
+ */
+export function sortOrders(
+  orders: PurchaseOrder[],
+  key: OrderSortKey,
+  descending: boolean,
+  amountInCzk?: (o: PurchaseOrder) => number
+): PurchaseOrder[] {
   const compare = (a: PurchaseOrder, b: PurchaseOrder): number => {
     switch (key) {
       case 'number':
@@ -445,6 +453,8 @@ export function sortOrders(orders: PurchaseOrder[], key: OrderSortKey, descendin
         return compareText(a.supplierName, b.supplierName);
       case 'subject':
         return compareText(a.subject, b.subject);
+      case 'amount':
+        return (amountInCzk ? amountInCzk(a) : a.amountNet) - (amountInCzk ? amountInCzk(b) : b.amountNet);
       case 'status':
         return ORDER_STATUS_ORDER.indexOf(a.status) - ORDER_STATUS_ORDER.indexOf(b.status);
       case 'by':
@@ -462,4 +472,41 @@ export function sortOrders(orders: PurchaseOrder[], key: OrderSortKey, descendin
       return c !== 0 ? (descending ? -c : c) : x.i - y.i;
     })
     .map((x) => x.o);
+}
+
+// --- duplicitní čísla ---------------------------------------------------------------
+
+/**
+ * Objednávky, které mají číslo shodné s jinou objednávkou a je potřeba je přečíslovat: v každé skupině se shodným
+ * číslem zůstane ta nejstarší (nejnižší ID), ostatní se vrátí. Číslo se neporovnává podle velikosti písmen ani mezer.
+ */
+export function ordersToRenumber(orders: PurchaseOrder[]): PurchaseOrder[] {
+  const groups = new Map<string, PurchaseOrder[]>();
+  orders.forEach((o) => {
+    const key = (o.orderNumber || '').trim().toUpperCase();
+    groups.set(key, [...(groups.get(key) || []), o]);
+  });
+  const result: PurchaseOrder[] = [];
+  groups.forEach((group) => {
+    if (group.length > 1) {
+      group
+        .slice()
+        .sort((a, b) => a.id - b.id)
+        .slice(1)
+        .forEach((o) => result.push(o));
+    }
+  });
+  return result.sort((a, b) => a.id - b.id);
+}
+
+/** Nejvyšší pořadové číslo objednávek daného roku (`OBJ-2026-0012` → 12); 0, když žádná není. */
+export function highestOrderSequence(orderNumbers: string[], year: number): number {
+  let max = 0;
+  orderNumbers.forEach((n) => {
+    const m = /^OBJ-(\d{4})-(\d+)$/i.exec((n || '').trim());
+    if (m && Number(m[1]) === year) {
+      max = Math.max(max, Number(m[2]));
+    }
+  });
+  return max;
 }

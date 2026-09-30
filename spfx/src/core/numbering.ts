@@ -148,3 +148,31 @@ export function sanitizeFolderName(name: string, maxLength = 128): string {
   result = result.replace(/^\.+/, '').replace(/\.+$/, '').trim();
   return result.slice(0, maxLength).trim();
 }
+
+// --- Čítače v SharePointu -------------------------------------------------
+
+/** Řádek čítače (PRM_Counters) v rozsahu potřebném pro výběr. */
+export interface CounterRowLike {
+  LastValue: number;
+  /** Prázdný rozsah SharePoint ukládá jako prázdnou hodnotu (null), ne jako prázdný text. */
+  ScopeKey?: string | null;
+}
+
+/**
+ * Vybere řádek čítače pro daný rozsah. Řádky se porovnávají v aplikaci, ne filtrem na serveru:
+ * prázdný klíč rozsahu je v SharePointu uložený jako „nic" a filtr `ScopeKey eq ''` ho nemusí najít,
+ * takže by se pro každé číslo založil nový čítač a všechny doklady by dostaly stejné číslo.
+ * Kdyby řádků bylo víc (po takové chybě), platí ten s nejvyšší hodnotou.
+ */
+export function pickCounterRow<T extends CounterRowLike>(rows: T[], scopeKey: string): T | undefined {
+  let best: T | undefined;
+  rows.forEach((r) => {
+    if ((r.ScopeKey || '') !== scopeKey) {
+      return;
+    }
+    if (!best || (r.LastValue || 0) > (best.LastValue || 0)) {
+      best = r;
+    }
+  });
+  return best;
+}

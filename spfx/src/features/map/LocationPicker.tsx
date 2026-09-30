@@ -20,7 +20,7 @@ import type * as LeafletTypes from 'leaflet';
 import { RES } from '../../ui/theme';
 import { isValidCoordinates } from '../../core/geo';
 import { PlaceResult, searchPlaces } from '../../data/geocode';
-import { DEFAULT_CENTER, DEFAULT_ZOOM, LeafletLib, MAP_ATTRIBUTION, TILE_URL, loadLeaflet, pinIcon } from './leaflet';
+import { DEFAULT_CENTER, DEFAULT_ZOOM, LeafletLib, addBaseLayers, loadLeaflet, pinIcon } from './leaflet';
 
 export interface LocationValue {
   location: string;
@@ -172,7 +172,7 @@ const PickerMap: React.FC<{
           ? [latitude as number, longitude as number]
           : DEFAULT_CENTER;
         map.setView(start, isValidCoordinates(latitude, longitude) ? 13 : DEFAULT_ZOOM);
-        L.tileLayer(TILE_URL, { maxZoom: 19, attribution: MAP_ATTRIBUTION }).addTo(map);
+        addBaseLayers(L, map);
         map.on('click', (e: LeafletTypes.LeafletMouseEvent) => onPickRef.current(e.latlng.lat, e.latlng.lng));
         mapRef.current = map;
         setReady(true);

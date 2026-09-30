@@ -19,6 +19,34 @@ export const TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 export const MAP_ATTRIBUTION =
   '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a>';
 
+/** Pod tímto klíčem si prohlížeč pamatuje zvolený podklad mapy. */
+const BASE_LAYER_KEY = 'prm-map-base';
+
+/**
+ * Podkladová mapa: výchozí **šedá** (stejné dlaždice OpenStreetMap bez barev), aby barevné špendlíky — zelené zvlášť —
+ * nesplývaly s lesy a poli; druhá volba je původní barevná. Volba se pamatuje v prohlížeči.
+ */
+export function addBaseLayers(L: LeafletLib, map: LeafletTypes.Map): void {
+  const options = { maxZoom: 19, attribution: MAP_ATTRIBUTION };
+  const gray = L.tileLayer(TILE_URL, { ...options, className: 'prm-tiles-gray' });
+  const color = L.tileLayer(TILE_URL, options);
+  let useColor = false;
+  try {
+    useColor = window.localStorage.getItem(BASE_LAYER_KEY) === 'color';
+  } catch {
+    // Úložiště nemusí být dostupné (soukromé okno) — platí výchozí šedá.
+  }
+  (useColor ? color : gray).addTo(map);
+  L.control.layers({ 'Šedá (kontrastní)': gray, Barevná: color }, undefined, { collapsed: false, position: 'bottomright' }).addTo(map);
+  map.on('baselayerchange', (e: LeafletTypes.LayersControlEvent) => {
+    try {
+      window.localStorage.setItem(BASE_LAYER_KEY, e.layer === color ? 'color' : 'gray');
+    } catch {
+      // Bez úložiště se volba jen nezapamatuje.
+    }
+  });
+}
+
 /** Střed a přiblížení, když ještě není žádný špendlík — Česko. */
 export const DEFAULT_CENTER: [number, number] = [49.8, 15.5];
 export const DEFAULT_ZOOM = 7;
@@ -31,6 +59,8 @@ const EXTRA_CSS = `
 .prm-pin { background: none; border: none; }
 .prm-pin svg { display: block; filter: drop-shadow(0 1px 2px rgba(0,0,0,.35)); }
 .leaflet-container { font-family: inherit; }
+.prm-tiles-gray { filter: grayscale(1) contrast(0.88) brightness(1.1); }
+.leaflet-control-layers-expanded { font-size: 12px; }
 `;
 
 let loading: Promise<LeafletLib> | undefined;

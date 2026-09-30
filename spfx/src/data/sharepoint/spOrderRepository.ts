@@ -13,11 +13,12 @@
 
 import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { CurrentUser, Project } from '../../core/types';
-import { OrderAttachment, validateAttachment } from '../../core/orders';
+import { OrderAttachment, highestOrderSequence, ordersToRenumber, validateAttachment } from '../../core/orders';
 import { toDate } from '../../core/format';
 import { fallbackRatesOf } from '../../core/settings';
 import { effectiveRates } from '../../core/currency';
 import { isOverheadNumber } from '../../core/overhead';
+import { escapeODataString } from './spSettingsRepository';
 import {
   ApprovalLevel,
   OrderStatus,
@@ -174,7 +175,7 @@ export class SpOrderRepository implements IOrderRepository {
     assertValid(input);
 
     // Číslo se přiděluje až po kontrole: nezdařené uložení by jinak spotřebovalo číslo a v řadě by byla díra.
-    const orderNumber = await this.numbering.allocateNumber('OBJ');
+    const orderNumber = await this.allocateUniqueNumber();
     let newId: number | undefined;
     try {
       const sp = getSp(this.context);
@@ -222,6 +223,82 @@ export class SpOrderRepository implements IOrderRepository {
     await this.write(id, fields, etag, `Nepodařilo se uložit objednávku ${order.orderNumber}`);
     await this.writeAudit(id, order.orderNumber, actor, change.auditAction, order.status, change.status);
     return (await this.requireOrder(id)).order;
+  }
+
+  /**
+   * Přidělí číslo, které žádná objednávka ještě nemá. Čítač je hlavní pojistka; tahle kontrola je druhá:
+   * kdyby čítač zaostával (např. po chybě v číslování), číslo by se jinak přidělilo podruhé. Při shodě se čítač
+   * dorovná podle skutečně nejvyššího čísla (jen nahoru) a zkusí se to znovu.
+   */
+  private async allocateUniqueNumber(): Promise<string> {
+    const sp = getSp(this.context);
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const orderNumber = await this.numbering.allocateNumber('OBJ');
+      let taken = false;
+      try {
+        const same: { Id: number }[] = await sp.web.lists
+          .getByTitle(ORDERS_LIST)
+          .items.select('Id')
+          .filter(`PONumber eq '${escapeODataString(orderNumber)}'`)
+          .top(1)();
+        taken = same.length > 0;
+      } catch (error) {
+        throw new Error(explain(error, 'Nepodařilo se ověřit, že číslo objednávky je volné'));
+      }
+      if (!taken) {
+        return orderNumber;
+      }
+      await this.syncCounterWithOrders();
+    }
+    throw new Error(
+      'Nepodařilo se přidělit volné číslo objednávky — čítač objednávek zaostává za existujícími čísly. Dejte to vědět správci.'
+    );
+  }
+
+  /** Posune čítač OBJ na nejvyšší číslo, které mezi objednávkami letos existuje (nikdy dolů). */
+  private async syncCounterWithOrders(): Promise<void> {
+    const sp = getSp(this.context);
+    const year = new Date().getFullYear();
+    const rows: { PONumber?: string; Title?: string }[] = await sp.web.lists
+      .getByTitle(ORDERS_LIST)
+      .items.select('PONumber', 'Title')
+      .top(5000)();
+    const highest = highestOrderSequence(
+      rows.map((r) => r.PONumber || r.Title || ''),
+      year
+    );
+    if (highest > 0) {
+      await this.numbering.setCounterAtLeast('OBJ', year, highest);
+    }
+  }
+
+  public async renumberDuplicates(actor: CurrentUser): Promise<{ id: number; from: string; to: string }[]> {
+    if (!canDeleteOrder(toActor(actor))) {
+      throw new WorkflowError('Čísla objednávek smí opravovat jen administrátor PRM.');
+    }
+    const all = await this.list();
+    const targets = ordersToRenumber(all);
+    if (targets.length === 0) {
+      return [];
+    }
+    // Čítač se nejdřív dorovná na nejvyšší existující číslo, aby nová čísla nekolidovala.
+    await this.syncCounterWithOrders();
+    const changed: { id: number; from: string; to: string }[] = [];
+    for (const order of targets) {
+      const { etag } = await this.requireOrder(order.id);
+      const next = await this.allocateUniqueNumber();
+      await this.write(order.id, { Title: next, PONumber: next }, etag, `Nepodařilo se přečíslovat objednávku ${order.orderNumber}`);
+      await this.writeAudit(
+        order.id,
+        next,
+        actor,
+        `Přečíslováno: bylo ${order.orderNumber} (duplicitní číslo), nově ${next}`,
+        order.status,
+        order.status
+      );
+      changed.push({ id: order.id, from: order.orderNumber, to: next });
+    }
+    return changed;
   }
 
   public async delete(id: number, actor: CurrentUser): Promise<void> {

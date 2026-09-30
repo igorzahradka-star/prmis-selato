@@ -5,6 +5,31 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.8.1 — 30. 9. 2026 — Číslování objednávek, částky v Kč, vzhled filtrů, šedá mapa
+
+**Opraveno**
+
+- **Všechny objednávky měly stejné číslo (OBJ-2026-0001).** Čítač se hledal filtrem na prázdný klíč rozsahu, který SharePoint
+  nespolehlivě vyhodnocuje, takže se pro každé číslo založil nový čítač. Teď se řádek čítače vybírá v aplikaci
+  (a při více řádcích platí ten s nejvyšší hodnotou). Navíc se před uložením objednávky ověří, že číslo nemá jiná objednávka;
+  kdyby čítač zaostával, sám se dorovná podle nejvyššího existujícího čísla (jen nahoru) a číslo se přidělí znovu.
+- **Sloupec Bez DPH ukazuje vždy koruny.** Objednávky v EUR a USD se přepočtou kurzem ČNB z Nastavení → Kurzy (před částkou je ≈,
+  původní částka je v bublině). Podle sloupce jde i řadit.
+- **Filtry v přehledu objednávek jsou zarovnané** na jednu linii (každý prvek má popisek nad sebou, tlačítko Obnovit a počet vpravo).
+- **Mapa projektů: šedý podklad** (výchozí), aby zelené špendlíky nesplývaly s lesy a poli. Vpravo dole jde přepnout na původní
+  barevnou mapu; volba se pamatuje. Platí i pro výběr polohy v projektu.
+
+**Nové**
+
+- **Mazání objednávek (Nastavení → Jednorázové akce) rozliší objednávky se stejným číslem**: ukáže je všechny s datem, projektem,
+  předmětem, částkou a ID a smaže se jen ta vybraná.
+- **Opravit duplicitní čísla objednávek** (Jednorázové akce): nejstarší objednávka si číslo ponechá, ostatním se přidělí další volná.
+  Nic se nemaže, každá změna jde do historie objednávky.
+
+**Bez změny schématu dat** (zůstává 7).
+
+---
+
 ## 0.8.0 — 30. 9. 2026 — Objednávky: zpětná vazba z ostrého zkoušení
 
 **Opraveno**

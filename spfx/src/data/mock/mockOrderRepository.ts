@@ -6,7 +6,7 @@
  */
 
 import { CurrentUser, Project } from '../../core/types';
-import { ApprovalLevel, OrderAttachment, validateAttachment } from '../../core/orders';
+import { ApprovalLevel, OrderAttachment, ordersToRenumber, validateAttachment } from '../../core/orders';
 import { ApprovalSettings, fallbackRatesOf } from '../../core/settings';
 import { effectiveRates } from '../../core/currency';
 import {
@@ -221,6 +221,19 @@ export class MockOrderRepository implements IOrderRepository {
     };
     this.replace(updated);
     return delay(updated);
+  }
+
+  public async renumberDuplicates(actor: CurrentUser): Promise<{ id: number; from: string; to: string }[]> {
+    if (!canDeleteOrder(toActor(actor))) {
+      throw new WorkflowError('Čísla objednávek smí opravovat jen administrátor PRM.');
+    }
+    const changed: { id: number; from: string; to: string }[] = [];
+    for (const order of ordersToRenumber(this.orders)) {
+      const next = await this.numbering.allocateNumber('OBJ');
+      this.replace({ ...order, orderNumber: next, modified: new Date() });
+      changed.push({ id: order.id, from: order.orderNumber, to: next });
+    }
+    return delay(changed);
   }
 
   public async delete(id: number, actor: CurrentUser): Promise<void> {

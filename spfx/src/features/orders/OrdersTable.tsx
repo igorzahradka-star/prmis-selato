@@ -9,7 +9,9 @@ import { Link } from '@fluentui/react/lib/Link';
 
 import { buildHash, RouteName } from '../../ui/router';
 import { formatDate, formatMoney } from '../../core/format';
-import { APPROVAL_LEVEL_LABELS, OrderSortKey, OrderStatus, PurchaseOrder, sortOrders } from '../../core/orders';
+import { APPROVAL_LEVEL_LABELS, OrderSortKey, OrderStatus, PurchaseOrder, amountNetInCzk, sortOrders } from '../../core/orders';
+import { RateTable } from '../../core/currency';
+import { useOrderRates } from './useOrderRates';
 import { OrderStatusBadge } from './OrderStatusBadge';
 
 export interface OrdersTableProps {
@@ -23,7 +25,10 @@ export interface OrdersTableProps {
 export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, onOpen, hideProject, ariaLabel }) => {
   // Bez zvoleného sloupce zůstává pořadí, v jakém seznam přišel (nejnovější nahoře).
   const [sort, setSort] = React.useState<{ key: OrderSortKey; descending: boolean } | undefined>(undefined);
-  const items = sort ? sortOrders(orders, sort.key, sort.descending) : orders;
+  // Částky se ukazují a řadí vždy v Kč; cizí měna se přepočítá kurzem ČNB (původní částka je v bublině).
+  const rates: RateTable = useOrderRates();
+  const inCzk = (o: PurchaseOrder): number => amountNetInCzk(o.amountNet, o.currency, rates);
+  const items = sort ? sortOrders(orders, sort.key, sort.descending, inCzk) : orders;
 
   /** Společné vlastnosti sloupce, který jde řadit. */
   const sortable = (key: OrderSortKey): Partial<IColumn> => ({
@@ -90,14 +95,22 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, onOpen, hidePr
       onRender: (o: PurchaseOrder) => <span title={o.subject}>{o.subject}</span>
     },
     {
-      // Částky jsou v různých měnách, řazení podle nich by bylo zavádějící — proto bez řazení.
       key: 'amount',
-      name: 'Bez DPH',
+      name: 'Bez DPH (Kč)',
       minWidth: 100,
       maxWidth: 130,
       isResizable: true,
+      ...sortable('amount'),
       styles: { cellTitle: { justifyContent: 'flex-end' } },
-      onRender: (o: PurchaseOrder) => <div style={{ textAlign: 'right' }}>{formatMoney(o.amountNet, o.currency)}</div>
+      onRender: (o: PurchaseOrder) => (
+        <div
+          style={{ textAlign: 'right' }}
+          title={o.currency === 'CZK' ? undefined : `Původně ${formatMoney(o.amountNet, o.currency)}, přepočteno kurzem ČNB`}
+        >
+          {o.currency === 'CZK' ? '' : '≈ '}
+          {formatMoney(inCzk(o), 'CZK')}
+        </div>
+      )
     },
     {
       key: 'status',
