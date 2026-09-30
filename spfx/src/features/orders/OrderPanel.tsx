@@ -1153,7 +1153,7 @@ function lastComment(approvals: ApprovalRecord[]): string {
 }
 
 /** U objednávky v cizí měně: kolik to je v korunách a z jakého kurzu. U korun nic. */
-const CzkNote: React.FC<{ net: number; currency: string; rates: ReturnType<typeof effectiveRates> }> = ({ net, currency, rates }) => {
+export const CzkNote: React.FC<{ net: number; currency: string; rates: ReturnType<typeof effectiveRates> }> = ({ net, currency, rates }) => {
   if (currency === 'CZK') {
     return null;
   }
@@ -1166,7 +1166,7 @@ const CzkNote: React.FC<{ net: number; currency: string; rates: ReturnType<typeo
   );
 };
 
-const TotalsBox: React.FC<{ net: number; vat: number; gross: number; currency: string; vatRate: number }> = ({
+export const TotalsBox: React.FC<{ net: number; vat: number; gross: number; currency: string; vatRate: number }> = ({
   net,
   vat,
   gross,
@@ -1190,7 +1190,7 @@ const TotalsBox: React.FC<{ net: number; vat: number; gross: number; currency: s
   </div>
 );
 
-const Row: React.FC<{ label: string; value: React.ReactNode; bold?: boolean }> = ({ label, value, bold }) => (
+export const Row: React.FC<{ label: string; value: React.ReactNode; bold?: boolean }> = ({ label, value, bold }) => (
   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, padding: '2px 0', fontWeight: bold ? 600 : 400 }}>
     <span style={{ color: bold ? RES.text : RES.gray }}>{label}</span>
     <span>{value}</span>
@@ -1328,7 +1328,7 @@ const OrderDetail: React.FC<{
   );
 };
 
-const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
+export const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
   <section
     style={{
       background: RES.white,

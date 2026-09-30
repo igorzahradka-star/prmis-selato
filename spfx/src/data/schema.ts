@@ -18,7 +18,7 @@
  * Verze schématu. Ukládá se do PRM_Settings pod klíčem `schemaVersion`.
  * Průvodce porovná uloženou verzi s touto a nabídne doplnění rozdílu.
  */
-export const SCHEMA_VERSION = 7;
+export const SCHEMA_VERSION = 8;
 
 /** Typ sloupce v SharePointu. */
 export type FieldType =
@@ -368,7 +368,13 @@ const PRM_INVOICE_BASES: ListDef = {
     { name: 'BasisStatus', title: 'Stav', type: 'Choice', choices: INVOICE_BASIS_STATUS_CHOICES, defaultValue: 'Koncept', indexed: true },
     { name: 'AccountingInvoiceNo', title: 'Číslo faktury z účetnictví', type: 'Text' },
     { name: 'PaidDate', title: 'Uhrazeno dne', type: 'DateTime' },
-    { name: 'PdfUrl', title: 'PDF', type: 'Url' }
+    { name: 'PdfUrl', title: 'PDF', type: 'Url' },
+    // Doplněno ve schématu 8 (jen přidání sloupců): měna, kdo podklad vystavil, poznámka, důvod storna, kdy byl předán účtárně.
+    { name: 'Currency', title: 'Měna', type: 'Choice', choices: ['CZK', 'EUR', 'USD'], defaultValue: 'CZK' },
+    { name: 'RequestedBy', title: 'Vystavil', type: 'User', indexed: true },
+    { name: 'Note', title: 'Poznámka', type: 'Note' },
+    { name: 'CancelReason', title: 'Důvod storna', type: 'Note' },
+    { name: 'HandoverDate', title: 'Předáno účtárně dne', type: 'DateTime' }
   ]
 };
 

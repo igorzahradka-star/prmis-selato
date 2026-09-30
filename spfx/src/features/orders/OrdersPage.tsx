@@ -16,6 +16,7 @@ import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 import { useApp } from '../../ui/AppContext';
 import { RES } from '../../ui/theme';
 import { PageHeading } from '../../ui/components/PageHeading';
+import { CONTROL_HEIGHT, FilterField as Field } from '../../ui/components/FilterField';
 import { CS_CALENDAR_STRINGS } from '../../ui/csCalendarStrings';
 import { useAutoRefresh } from '../../ui/useAutoRefresh';
 import { formatDate, parseCzechDate } from '../../core/format';
@@ -203,13 +204,3 @@ export const OrdersPage: React.FC<{ orderId?: number }> = ({ orderId }) => {
   );
 };
 
-/** Výška všech ovládacích prvků ve filtru — bez ní se políčka různých typů nezarovnají na jednu linii. */
-const CONTROL_HEIGHT = 32;
-
-/** Ovládací prvek filtru s popiskem nad ním; prázdný popisek drží místo, aby tlačítka seděla na stejné linii. */
-const Field: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
-  <div style={{ display: 'flex', flexDirection: 'column' }}>
-    <div style={{ fontSize: 14, fontWeight: 600, lineHeight: '22px', height: 22, color: RES.text }}>{label}</div>
-    {children}
-  </div>
-);

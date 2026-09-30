@@ -5,6 +5,33 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.9.0 — 30. 9. 2026 — Fáze 2, krok 2: podklady pro fakturaci
+
+**Nové**
+
+- **Fakturace** (nová položka v nabídce a záložka Fakturace v detailu projektu): seznam podkladů pro fakturaci napříč projekty s filtrem
+  (hledání, stav, datum vystavení od–do, jen moje), řazením podle záhlaví a částkami v Kč; automaticky se obnovuje.
+- **Podklad pro fakturaci:** číslo z řady **FP** (společná řada, reset každý rok, např. FP26004), odběratel = zákazník projektu
+  (adresa, IČO a DIČ z Partnerů), položky, sazba DPH, měna, datum vystavení, DUZP a splatnost ve dnech (předvyplní se ze splatnosti
+  zákazníka). Na projekt Režie se nefakturuje.
+- **Cesta podkladu:** Koncept → Ke kontrole → Předáno účtárně → Vyfakturováno (číslo faktury z účetnictví) → Uhrazeno (datum úhrady),
+  kdykoli před úhradou Storno s důvodem. Podklad vystavený asistentem nejdřív zkontroluje projektový manažer projektu (upozorní ho
+  e-mail s odkazem); PM, vedení a administrátor mohou předat účtárně rovnou. Kontrolor může podklad vrátit s komentářem (vystavitel
+  dostane e-mail), vystavitel ho může stáhnout zpět. Číslo faktury a úhradu zapisuje vystavitel, PM, vedení, administrátor nebo finance.
+- **PDF podkladu v grafice RES** (hlavička firmy, odběratel, položky, DPH, termíny, místo pro číslo faktury z účetnictví), náhled
+  před předáním a vodoznak, dokud podklad nebyl předán. Při předání se uloží do složky projektu `04_Fakturace`.
+- **Předání účtárně e-mailem** (adresa z *Nastavení → Údaje firmy → E-mail účtárny*, upravitelná): e-mail s PDF odchází ze schránky
+  přihlášeného uživatele; jde i „Jen uložit PDF a označit jako předáno". Podklad jde **poslat účtárně znovu**.
+- **Historie podkladu** (kdo, kdy, co) z auditního logu, zobrazená v detailu.
+- **Čeká na mě** ukazuje i podklady ke kontrole.
+- **Smazání podkladu** (jen administrátor, Nastavení → Jednorázové akce) stejným postupem jako u objednávek: opsání čísla, koš webu, audit.
+- Společné části PDF (hlavička, patička, tabulky) jsou ve sdíleném souboru, objednávky se chovají beze změny.
+
+**Vyžaduje po nahrání:** *Instalace a diagnostika → Doplnit chybějící části* (schéma 8: do seznamu PRM – Podklady pro fakturaci přibude
+Měna, Vystavil, Poznámka, Důvod storna, Předáno účtárně dne; nic se nemaže). V *Nastavení → Údaje firmy* vyplnit **E-mail účtárny**.
+
+---
+
 ## 0.8.3 — 30. 9. 2026 — Opakované odeslání objednávky
 
 - **Opakované odeslání objednávky končilo chybou „Soubor nebo složka … 03_Nákup již existuje“.** Při ukládání PDF do složky projektu se složka zakládala i tehdy, když už existovala. Teď se zakládá jen chybějící (platí i pro zakládání složek nového projektu).

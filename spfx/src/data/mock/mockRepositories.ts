@@ -65,6 +65,7 @@ import {
 } from '../repositories';
 import { LISTS, ListDef, SCHEMA_VERSION, creationOrder } from '../schema';
 import { MockOrderRepository } from './mockOrderRepository';
+import { MockInvoiceRepository } from './mockInvoiceRepository';
 import { MockRatesRepository } from './mockRatesRepository';
 import { MockMailRepository } from './mockMailRepository';
 import {
@@ -865,6 +866,8 @@ export function createMockRepositories(): RepositorySet {
   numbering.seedCounter('PRJ', seedProjectCounter());
   // Ukázkové objednávky mají čísla OBJ-2026-0001 až 0004 — další nová naváže za nimi.
   numbering.seedCounter('OBJ', { year: 2026, lastValue: 4 });
+  // Ukázkové podklady pro fakturaci mají čísla FP26001 až FP26003.
+  numbering.seedCounter('FP', { year: 2026, lastValue: 3 });
   const projects = new MockProjectRepository(numbering, settings);
   const partners = new MockPartnerRepository();
   const rates = new MockRatesRepository();
@@ -875,6 +878,7 @@ export function createMockRepositories(): RepositorySet {
     projects,
     partners,
     orders: new MockOrderRepository(numbering, projects, settings, partners, rates),
+    invoices: new MockInvoiceRepository(numbering, projects),
     rates,
     mail: new MockMailRepository(),
     tasks: new MockTaskRepository((projectNumber, next) => projects.setNextDeadline(projectNumber, next)),

@@ -21,13 +21,7 @@ import {
   lineTotalNet,
   orderTotals
 } from '../../core/orders';
-import { PDF_LOGO_DATA_URL, PDF_LOGO_RATIO } from './pdfLogo';
-
-/** Barvy značky RES (brand/BARVY.md). */
-const NAVY = '#0E2841';
-const BLUE = '#0268A6';
-const GRAY = '#5A6472';
-const LINE = '#C7D4DD';
+import { GRAY, LINE, NAVY, companyLinesOf, documentFooter, documentHeader, pdfFileName, party, renderPdfDefinition, td, th } from './pdfCommon';
 
 export interface OrderPdfData {
   /** Číslo objednávky; u nezaložené objednávky „NÁVRH". */
@@ -102,36 +96,13 @@ export function orderPdfData(
   };
 }
 
-const th = (text: string, alignment: 'left' | 'right' | 'center' = 'left'): TableCell => ({
-  text,
-  bold: true,
-  color: '#FFFFFF',
-  fillColor: NAVY,
-  fontSize: 9,
-  alignment,
-  margin: [4, 4, 4, 4]
-});
-
-const td = (text: string, alignment: 'left' | 'right' | 'center' = 'left', bold = false): TableCell => ({
-  text,
-  alignment,
-  bold,
-  fontSize: 9,
-  margin: [4, 3, 4, 3]
-});
-
 /** Sestaví definici dokumentu pro pdfmake. */
 export function buildOrderDocument(data: OrderPdfData): TDocumentDefinitions {
   const totals = orderTotals(data.lines, data.vatRate);
   const company = data.company;
   const money = (v: number): string => formatMoneyExact(v, data.currency);
 
-  const companyLines: string[] = [
-    company.name,
-    company.street,
-    `${company.zip} ${company.city}`.trim(),
-    [company.ico ? `IČO: ${company.ico}` : '', company.dic ? `DIČ: ${company.dic}` : ''].filter((x) => x).join('   ')
-  ].filter((x) => x && x.trim() !== '');
+  const companyLines = companyLinesOf(company);
 
   const supplierLines: string[] = [
     data.supplier.name,
@@ -141,13 +112,6 @@ export function buildOrderDocument(data: OrderPdfData): TDocumentDefinitions {
       .join('   '),
     data.supplier.email || ''
   ].filter((x) => x && x.trim() !== '');
-
-  const party = (title: string, lines: string[]): Content => ({
-    stack: [
-      { text: title, fontSize: 8, color: GRAY, bold: true, margin: [0, 0, 0, 3] },
-      ...lines.map((l, i) => ({ text: l, fontSize: i === 0 ? 11 : 9, bold: i === 0, margin: [0, 0, 0, 1] as [number, number, number, number] }))
-    ]
-  });
 
   const itemRows: TableCell[][] = data.lines.map((l, i) => [
     td(String(i + 1), 'center'),
@@ -159,14 +123,7 @@ export function buildOrderDocument(data: OrderPdfData): TDocumentDefinitions {
   ]);
 
   const content: Content[] = [
-    {
-      columns: [
-        { image: PDF_LOGO_DATA_URL, width: 150, height: Math.round(150 / PDF_LOGO_RATIO) },
-        { stack: companyLines.map((l, i) => ({ text: l, fontSize: 9, bold: i === 0, alignment: 'right' as const })), width: '*' }
-      ],
-      margin: [0, 0, 0, 14]
-    },
-    { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1.5, lineColor: BLUE }], margin: [0, 0, 0, 10] },
+    ...documentHeader(company),
     { text: `OBJEDNÁVKA č. ${data.orderNumber}`, fontSize: 18, bold: true, color: NAVY },
     {
       text: `Projekt ${data.projectNumber}${data.projectTitle ? ` · ${data.projectTitle}` : ''}`,
@@ -267,43 +224,16 @@ export function buildOrderDocument(data: OrderPdfData): TDocumentDefinitions {
       ? { text: data.watermark, color: '#8A94A0', opacity: 0.16, bold: true, angle: -30, fontSize: 52 }
       : undefined,
     content,
-    footer: (currentPage: number, pageCount: number): Content => ({
-      columns: [
-        { text: company.claim || company.name, fontSize: 8, color: GRAY, margin: [40, 0, 0, 0] },
-        { text: `Strana ${currentPage} z ${pageCount}`, fontSize: 8, color: GRAY, alignment: 'right', margin: [0, 0, 40, 0] }
-      ],
-      margin: [0, 14, 0, 0]
-    })
+    footer: documentFooter(company)
   };
 }
 
-/** Vykreslí PDF. Knihovna pdfmake s písmem Roboto (pokrývá češtinu) se načte až teď. */
-export async function renderOrderPdf(data: OrderPdfData): Promise<Blob> {
-  const [pdfMakeModule, fontsModule] = await Promise.all([
-    import(/* webpackChunkName: 'pdfmake' */ 'pdfmake/build/pdfmake'),
-    import(/* webpackChunkName: 'pdfmake' */ 'pdfmake/build/vfs_fonts')
-  ]);
-  const pdfMake = ((pdfMakeModule as unknown as { default?: unknown }).default ?? pdfMakeModule) as {
-    vfs: unknown;
-    createPdf: (def: TDocumentDefinitions) => { getBlob: (cb: (blob: Blob) => void) => void };
-  };
-  const fonts = fontsModule as unknown as {
-    pdfMake?: { vfs: unknown };
-    default?: { pdfMake?: { vfs: unknown } };
-    vfs?: unknown;
-  };
-  pdfMake.vfs = (fonts.pdfMake && fonts.pdfMake.vfs) || (fonts.default && fonts.default.pdfMake && fonts.default.pdfMake.vfs) || fonts.vfs;
-
-  return new Promise<Blob>((resolve, reject) => {
-    try {
-      pdfMake.createPdf(buildOrderDocument(data)).getBlob(resolve);
-    } catch (error) {
-      reject(error);
-    }
-  });
+/** Vykreslí PDF objednávky. */
+export function renderOrderPdf(data: OrderPdfData): Promise<Blob> {
+  return renderPdfDefinition(buildOrderDocument(data));
 }
 
 /** Název souboru PDF: `OBJ-2026-0005.pdf`. Nepovolené znaky se vynechají. */
 export function orderPdfFileName(orderNumber: string): string {
-  return `${orderNumber.replace(/[^A-Za-z0-9._-]/g, '_')}.pdf`;
+  return pdfFileName(orderNumber);
 }

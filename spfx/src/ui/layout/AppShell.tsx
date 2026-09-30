@@ -92,7 +92,7 @@ function useNavItems(): NavItem[] {
     { route: RouteName.Partners, label: 'Partneři', icon: 'ContactCard' },
     { route: RouteName.WaitingForMe, label: 'Čeká na mě', icon: 'Inbox' },
     { route: RouteName.Orders, label: 'Objednávky', icon: 'ShoppingCart' },
-    { route: RouteName.Invoicing, label: 'Fakturace', icon: 'M365InvoicingLogo', comingSoon: true }
+    { route: RouteName.Invoicing, label: 'Fakturace', icon: 'M365InvoicingLogo' }
   ];
 
   if (canOpenBenchmark(user.roles)) {

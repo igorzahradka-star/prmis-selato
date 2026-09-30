@@ -14,6 +14,7 @@ import { AccessGroup, ProjectAccessState } from '../core/projectAccess';
 import { StatusChange } from '../core/projectStatus';
 import { ApprovalLevel, OrderAttachment, OrderLine, PurchaseOrder } from '../core/orders';
 import { Assignee } from '../core/orderWorkflow';
+import { InvoiceBasis } from '../core/invoiceBases';
 import { StoredRate, StoredRates } from '../core/currency';
 import { ListDef } from './schema';
 
@@ -468,6 +469,67 @@ export interface OrderInput {
   note?: string;
 }
 
+/** Údaje z formuláře podkladu pro fakturaci. */
+export interface InvoiceInput {
+  projectNumber: string;
+  customerId?: number;
+  customerName?: string;
+  lines: OrderLine[];
+  vatRate: number;
+  currency: Currency;
+  issueDate?: Date;
+  taxableDate?: Date;
+  dueDate?: Date;
+  note?: string;
+}
+
+/** Filtr seznamu podkladů. */
+export interface InvoiceFilter {
+  projectNumber?: string;
+  statuses?: string[];
+  search?: string;
+  issuedFrom?: Date;
+  issuedTo?: Date;
+}
+
+/**
+ * Podklady pro fakturaci (PRM_InvoiceBases). Stejně jako u objednávek se pravidla (kdo smí co) berou z `core/invoiceWorkflow`
+ * a datová vrstva je znovu ověřuje těsně před zápisem; každá změna stavu jde do audit logu PRM_AuditLog.
+ * Číslo podkladu se přiděluje z řady FP (společná napříč projekty, reset každý rok).
+ */
+export interface IInvoiceRepository {
+  list(filter?: InvoiceFilter): Promise<InvoiceBasis[]>;
+  getById(id: number): Promise<InvoiceBasis | undefined>;
+  /** Založí koncept a přidělí mu číslo z řady FP. */
+  create(input: InvoiceInput, actor: CurrentUser): Promise<InvoiceBasis>;
+  /** Upraví koncept. */
+  update(id: number, input: InvoiceInput, actor: CurrentUser): Promise<InvoiceBasis>;
+  /** Koncept → Ke kontrole. */
+  submit(id: number, actor: CurrentUser): Promise<InvoiceBasis>;
+  /** Předá účtárně (z konceptu nebo po kontrole); `sentTo` a `pdfUrl` se zapíšou k podkladu a do historie. */
+  handOver(id: number, actor: CurrentUser, options?: { sentTo?: string; pdfUrl?: string }): Promise<InvoiceBasis>;
+  /** Vrátí do konceptu (kontrolor s komentářem; vystavitel může stáhnout zpět i bez něj). */
+  returnToDraft(id: number, comment: string, actor: CurrentUser): Promise<InvoiceBasis>;
+  /** Předáno účtárně → Vyfakturováno, s číslem faktury z účetnictví. */
+  markInvoiced(id: number, invoiceNo: string, actor: CurrentUser): Promise<InvoiceBasis>;
+  /** Vyfakturováno → Uhrazeno, s datem úhrady. */
+  markPaid(id: number, paidDate: Date, actor: CurrentUser): Promise<InvoiceBasis>;
+  cancel(id: number, reason: string, actor: CurrentUser): Promise<InvoiceBasis>;
+  /** Opakované předání účtárně; stav se nemění, zapíše se do audit logu. */
+  resend(id: number, actor: CurrentUser, options?: { sentTo?: string; pdfUrl?: string }): Promise<InvoiceBasis>;
+  /** Smaže podklad — jen administrátor (Jednorázové akce); v SharePointu do koše webu, s auditem. */
+  delete(id: number, actor: CurrentUser): Promise<void>;
+  /** Historie změn podkladu (kdo, kdy, co) z auditního logu, od nejstarší. */
+  history(id: number): Promise<InvoiceHistoryEntry[]>;
+}
+
+/** Jeden záznam historie podkladu. */
+export interface InvoiceHistoryEntry {
+  action: string;
+  byName: string;
+  at?: Date;
+}
+
 /** Jedno rozhodnutí schvalovatele z historie. */
 export interface ApprovalRecord {
   stepNo: number;
@@ -585,6 +647,7 @@ export interface RepositorySet {
   tasks: ITaskRepository;
   documents: IDocumentRepository;
   orders: IOrderRepository;
+  invoices: IInvoiceRepository;
   rates: IRatesRepository;
   mail: IMailRepository;
   numbering: INumberingRepository;

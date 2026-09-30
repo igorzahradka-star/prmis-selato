@@ -22,6 +22,7 @@ import { ProjectDetailPage } from '../../../features/projects/ProjectDetailPage'
 import { PartnersPage } from '../../../features/partners/PartnersPage';
 import { ProjectsMapPage } from '../../../features/map/ProjectsMapPage';
 import { OrdersPage } from '../../../features/orders/OrdersPage';
+import { InvoicesPage } from '../../../features/invoicing/InvoicesPage';
 import { WaitingForMePage } from '../../../features/orders/WaitingForMePage';
 import { InstallPage } from '../../../features/admin/InstallPage';
 import { SettingsPage } from '../../../features/settings/SettingsPage';
@@ -135,13 +136,7 @@ function renderRoute(route: Route): React.ReactNode {
     case RouteName.Orders:
       return <OrdersPage orderId={orderIdFrom(route.param)} />;
     case RouteName.Invoicing:
-      return (
-        <ComingSoonPage
-          title="Fakturace"
-          phase="Fáze 2"
-          description="Podklady pro fakturaci s ročním resetem číselné řady a plán fakturačních milníků."
-        />
-      );
+      return <InvoicesPage invoiceId={orderIdFrom(route.param)} />;
     case RouteName.Benchmark:
       return (
         <ComingSoonPage

@@ -96,6 +96,11 @@ export function approvalRecipients(order: PurchaseOrder, project: WorkflowProjec
   });
 }
 
+/** Adresát podle přihlašovacího jména: nejdřív e-mail ze členství v rolích, jinak z přihlašovacího jména. */
+export function personRecipient(login: string | undefined, name: string | undefined, memberships: RoleMembership[]): Recipient | undefined {
+  return findRecipient(login, name, memberships);
+}
+
 /** Vystavitel jako adresát zprávy o rozhodnutí. */
 export function requesterRecipient(order: PurchaseOrder, memberships: RoleMembership[]): Recipient | undefined {
   return findRecipient(order.requestedByLogin, order.requestedByName, memberships);
@@ -181,5 +186,77 @@ export function decisionMail(input: DecisionMailInput): { subject: string; body:
   return {
     subject: `Objednávka ${input.orderNumber} ${t.subject}`,
     body: lines.filter((l, i) => !(l === '' && lines[i - 1] === '' )).join('\n').replace(/\n{3,}/g, '\n\n')
+  };
+}
+
+// --- podklady pro fakturaci ---------------------------------------------------------
+
+/** Komu poslat upozornění, že podklad čeká na kontrolu: PM projektu (vystavitel se neupozorňuje sám). */
+export function invoiceCheckRecipients(
+  issuerLogin: string,
+  project: WorkflowProject,
+  memberships: RoleMembership[]
+): Recipient[] {
+  const pm = findRecipient(project.projectManagerLogin, project.projectManagerName, memberships);
+  const issuer = emailFromLogin(issuerLogin);
+  return pm && !(issuer && pm.email.toLowerCase() === issuer.toLowerCase()) ? [pm] : [];
+}
+
+export interface InvoiceMailInput {
+  number: string;
+  projectNumber: string;
+  projectName?: string;
+  customerName?: string;
+  /** Částka bez DPH jako text včetně měny. */
+  amountText: string;
+  requesterName: string;
+  link: string;
+  companyName: string;
+}
+
+/** E-mail PM: podklad čeká na kontrolu a předání účtárně. */
+export function invoiceCheckMail(input: InvoiceMailInput): { subject: string; body: string } {
+  const lines = [
+    'Dobrý den,',
+    '',
+    `čeká na vás ke kontrole podklad pro fakturaci ${input.number}.`,
+    '',
+    `Projekt: ${input.projectNumber}${input.projectName ? ' ' + input.projectName : ''}`,
+    `Odběratel: ${input.customerName || '—'}`,
+    `Částka bez DPH: ${input.amountText}`,
+    `Vystavil: ${input.requesterName}`,
+    '',
+    'Podklad otevřete, zkontrolujete a předáte účtárně (nebo vrátíte) tady:',
+    input.link,
+    '',
+    'Tento e-mail odeslala aplikace PRM Revoltum jménem vystavitele.',
+    input.companyName
+  ];
+  return { subject: `Ke kontrole: podklad pro fakturaci ${input.number} – ${input.customerName || input.projectNumber}`, body: lines.join('\n') };
+}
+
+/** E-mail vystaviteli: podklad byl vrácen k úpravě. */
+export function invoiceReturnedMail(input: {
+  number: string;
+  decidedBy: string;
+  comment?: string;
+  link: string;
+  companyName: string;
+}): { subject: string; body: string } {
+  const lines = [
+    'Dobrý den,',
+    '',
+    `váš podklad pro fakturaci ${input.number} byl vrácen k úpravě.`,
+    `Vrátil(a): ${input.decidedBy}`,
+    input.comment ? `Co opravit: ${input.comment}` : '',
+    '',
+    'Podklad otevřete tady:',
+    input.link,
+    '',
+    input.companyName
+  ];
+  return {
+    subject: `Podklad ${input.number} vrácen k úpravě`,
+    body: lines.filter((l, i) => !(l === '' && lines[i - 1] === '')).join('\n')
   };
 }

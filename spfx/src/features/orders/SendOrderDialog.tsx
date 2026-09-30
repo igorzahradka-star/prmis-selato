@@ -32,6 +32,15 @@ export interface SendOrderDialogProps {
   attachmentCount: number;
   /** Opakované odeslání už odeslané objednávky (nedorazila, nebo jde na jinou adresu). */
   resend?: boolean;
+  /** Jiný druh dokumentu než objednávka dodavateli (např. podklad pro fakturaci účtárně). */
+  texts?: {
+    title: string;
+    toLabel: string;
+    pdfLabel: string;
+    hint: string;
+    markOnly: string;
+    sendButton: string;
+  };
   busy: boolean;
   error?: string;
   onSendMail: (payload: SendPayload) => void;
@@ -47,6 +56,7 @@ export const SendOrderDialog: React.FC<SendOrderDialogProps> = ({
   initialBody,
   attachmentCount,
   resend,
+  texts,
   busy,
   error,
   onSendMail,
@@ -84,7 +94,7 @@ export const SendOrderDialog: React.FC<SendOrderDialogProps> = ({
     <Dialog
       hidden={false}
       onDismiss={busy ? undefined : onDismiss}
-      dialogContentProps={{ type: DialogType.normal, title: resend ? `Odeslat objednávku ${orderNumber} dodavateli znovu` : `Odeslat objednávku ${orderNumber} dodavateli` }}
+      dialogContentProps={{ type: DialogType.normal, title: texts ? texts.title : resend ? `Odeslat objednávku ${orderNumber} dodavateli znovu` : `Odeslat objednávku ${orderNumber} dodavateli` }}
       modalProps={{ isBlocking: true }}
       minWidth={560}
     >
@@ -94,12 +104,12 @@ export const SendOrderDialog: React.FC<SendOrderDialogProps> = ({
             {problem || error}
           </MessageBar>
         )}
-        <TextField label="Komu" required value={to} onChange={(_, v) => setTo(v ?? '')} description="Více adres oddělte čárkou nebo středníkem." />
+        <TextField label={texts ? texts.toLabel : 'Komu'} required value={to} onChange={(_, v) => setTo(v ?? '')} description="Více adres oddělte čárkou nebo středníkem." />
         <TextField label="Kopie" value={cc} onChange={(_, v) => setCc(v ?? '')} />
         <TextField label="Předmět" required value={subject} onChange={(_, v) => setSubject(v ?? '')} />
         <TextField label="Text e-mailu" multiline rows={8} value={body} onChange={(_, v) => setBody(v ?? '')} />
         <div style={{ fontSize: 13 }}>
-          Přiloží se <strong>PDF objednávky</strong>.
+          Přiloží se <strong>{texts ? texts.pdfLabel : 'PDF objednávky'}</strong>.
         </div>
         {attachmentCount > 0 && (
           <Checkbox
@@ -109,14 +119,16 @@ export const SendOrderDialog: React.FC<SendOrderDialogProps> = ({
           />
         )}
         <div style={{ fontSize: 12, color: '#5A6472' }}>
-          {resend
+          {texts
+            ? texts.hint
+            : resend
             ? 'PDF se znovu uloží do složky projektu (03_Nákup/Objednávky) a v historii objednávky bude zapsáno, komu a kdy šla znovu. Stav objednávky se nemění. E-mail odejde z vaší schránky.'
             : 'PDF se zároveň uloží do složky projektu (03_Nákup/Objednávky) a objednávka se označí jako odeslaná dodavateli. E-mail odejde z vaší schránky a bude i ve vaší poště Odeslané.'}
         </div>
       </div>
       <DialogFooter>
-        <PrimaryButton text={busy ? 'Odesílám…' : 'Odeslat e-mailem'} disabled={busy} onClick={send} />
-        <DefaultButton text={resend ? 'Jen uložit PDF a zapsat odeslání' : 'Jen uložit PDF a označit jako odesláno'} disabled={busy} onClick={onMarkOnly} />
+        <PrimaryButton text={busy ? 'Odesílám…' : texts ? texts.sendButton : 'Odeslat e-mailem'} disabled={busy} onClick={send} />
+        <DefaultButton text={texts ? texts.markOnly : resend ? 'Jen uložit PDF a zapsat odeslání' : 'Jen uložit PDF a označit jako odesláno'} disabled={busy} onClick={onMarkOnly} />
         <DefaultButton text="Zpět" disabled={busy} onClick={onDismiss} />
       </DialogFooter>
     </Dialog>

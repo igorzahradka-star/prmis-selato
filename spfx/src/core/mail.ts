@@ -77,3 +77,35 @@ export function defaultOrderMail(input: {
     .replace(/\n+$/, '');
   return { subject: `Objednávka ${input.orderNumber} – ${input.companyName}`, body };
 }
+
+/** Výchozí předmět a text e-mailu účtárně s podkladem pro fakturaci. Uživatel je před odesláním může upravit. */
+export function defaultInvoiceMail(input: {
+  number: string;
+  projectNumber: string;
+  projectName?: string;
+  customerName?: string;
+  amountText: string;
+  dueDate?: string;
+  senderName: string;
+  senderEmail?: string;
+  companyName: string;
+}): { subject: string; body: string } {
+  const lines = [
+    'Dobrý den,',
+    '',
+    `v příloze zasíláme podklad pro fakturaci č. ${input.number}.`,
+    `Projekt: ${input.projectNumber}${input.projectName ? ' ' + input.projectName : ''}`,
+    `Odběratel: ${input.customerName || '—'}`,
+    `Částka bez DPH: ${input.amountText}`,
+    input.dueDate ? `Splatnost: ${input.dueDate}` : '',
+    '',
+    'Prosíme o vystavení faktury a sdělení jejího čísla.',
+    '',
+    'S pozdravem',
+    input.senderName,
+    input.companyName,
+    input.senderEmail || ''
+  ];
+  const body = lines.filter((l, i) => !(l === '' && i === 6)).join('\n').replace(/\n{3,}/g, '\n\n').replace(/\n+$/, '');
+  return { subject: `Podklad pro fakturaci ${input.number} – ${input.customerName || input.projectNumber}`, body };
+}

@@ -28,6 +28,7 @@ import { DocumentsTab } from './DocumentsTab';
 import { AccessBar } from './AccessBar';
 import { EXTERNAL_LINK_PROPS } from '../../ui/components/ExternalLink';
 import { ProjectOrdersTab } from '../orders/ProjectOrdersTab';
+import { ProjectInvoicesTab } from '../invoicing/ProjectInvoicesTab';
 
 export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projectNumber }) => {
   const { repos, user } = useApp();
@@ -170,11 +171,7 @@ export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projec
           <ProjectOrdersTab project={project} />
         </PivotItem>
         <PivotItem headerText="Fakturace" itemIcon="M365InvoicingLogo">
-          <ComingSoonPage
-            title="Fakturace"
-            phase="Fáze 2"
-            description="Podklady pro fakturaci a plán fakturačních milníků."
-          />
+          <ProjectInvoicesTab project={project} />
         </PivotItem>
         <PivotItem headerText="Dokumenty" itemIcon="DocumentSet">
           <DocumentsTab project={project} />
