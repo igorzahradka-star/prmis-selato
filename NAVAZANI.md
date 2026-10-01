@@ -166,6 +166,16 @@ od projektů).
 
 ## 4. Co je další na řadě
 
+### Požadavky od Igora čekající na zpracování (zapsáno 1. 10. 2026, **zatím neimplementovat** — Igor zkouší verzi 0.14.0.0 a pošle další)
+
+Zadavatel řekl: nic nedělat, jen uložit. Další body doplní po vyzkoušení poslední verze; teprve pak se do toho jde.
+
+1. **Zálohová faktura.** U faktury (podkladu pro fakturaci) musí jít vystavit **zálohovou fakturu** (nový druh dokladu; dořešit řadu čísel, stavy, vazbu na pozdější konečnou fakturu).
+2. **Výstup podkladu pro fakturaci pro účtárnu.** Účtárna používá **ABRA FLEXI**. PDF zůstane (a uloží se do složky projektu), ale účtárně by se mělo posílat i něco **strojově načitelného**, aby nepřepisovala z PDF. Ověřit s Igorem/účtárnou, co ABRA Flexi umí načíst (import faktur z CSV/XML/ISDOC, nebo REST API) a podle toho zvolit formát (např. ISDOC, CSV/Excel šablona).
+3. **Termíny → pole „Odpovídá“.** Při zadání milníku nabízí výběr jen „Havlíčkův Brod“; mají se nabízet **všichni uživatelé tenantu Revoltum** (výběr osob z Entra ID). Chyba/nedodělek ve výběru osoby v záložce Termíny (`DeadlinesTab`).
+4. **Ukládání dokumentů už ve fázi Konceptu.** Objednávky, faktury (podklady), zápisy se mají ukládat do složky projektu **už jako koncept** s označením **KO** za číslem — tvar `FPNNN… (KO).pdf` (stejně pro objednávky a zápisy); **ostrý dokument je stejný název bez KO**. PM tak může s dokumentem pracovat dřív. Dořešit: přepis/smazání KO verze po vystavení, vícenásobné uložení konceptu (přepis téhož souboru), co s KO verzí při stornu.
+5. **Digitální podpis do PDF — dotaz.** Igor se ptal, zda lze do PDF dávat digitální podpisy a zda by byl v ostrém dokumentu (urychlilo by to práci). Odpověď viz konverzace: podpis obrázkem/razítkem a přehledem schválení jde udělat v aplikaci; **kryptografický (certifikátový) podpis** vyžaduje certifikát a serverovou část, rozhodnutí na Igorovi.
+
 **Nasazení na tenant.** Postup: [`docs/NASAZENI.md`](docs/NASAZENI.md).
 Balíček `spfx/sharepoint/solution/prm-revoltum.sppkg` verze 0.2.0.0 je hotový.
 
