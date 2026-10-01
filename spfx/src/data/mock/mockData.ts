@@ -278,49 +278,49 @@ export const MOCK_TASKS: ProjectTask[] = [
 export const MOCK_FILES: Omit<ProjectFile, 'url' | 'modified'>[] = [
   {
     name: 'OBJ-26014 Trafostanice.pdf',
-    relativeFolder: '03_Nákup/Objednávky',
+    relativeFolder: '03-Nákup/Objednávky',
     sizeBytes: 184320,
     modifiedByName: 'Igor Zahrádka'
   },
   {
     name: 'Realizační rozpočet v3.xlsx',
-    relativeFolder: '02_Rozpočet',
+    relativeFolder: '03-Rozpočet projektu',
     sizeBytes: 96256,
     modifiedByName: 'Jan Novák'
   },
   {
     name: 'Smlouva o dílo – podepsaná.pdf',
-    relativeFolder: '01_Smlouvy',
+    relativeFolder: '05-Smlouvy',
     sizeBytes: 2458624,
     modifiedByName: 'Igor Zahrádka'
   },
   {
     name: 'Fotodokumentace montáže.zip',
-    relativeFolder: '05_Realizace',
+    relativeFolder: '07-Dokumentace a podklady',
     sizeBytes: 48234496,
     modifiedByName: 'Eva Malá'
   },
   {
     name: 'PP-26014-01 Předávací protokol.pdf',
-    relativeFolder: '06_Předání a revize',
+    relativeFolder: '07-Dokumentace a podklady',
     sizeBytes: 137216,
     modifiedByName: 'Jan Novák'
   },
   {
     name: 'Zápis z kontrolního dne 12.docx',
-    relativeFolder: '05_Realizace',
+    relativeFolder: '07-Dokumentace a podklady',
     sizeBytes: 45056,
     modifiedByName: 'Igor Zahrádka'
   },
   {
     name: 'Revizní zpráva NN.pdf',
-    relativeFolder: '06_Předání a revize',
+    relativeFolder: '07-Dokumentace a podklady',
     sizeBytes: 312320,
     modifiedByName: 'Eva Malá'
   },
   {
     name: 'Podklad pro fakturaci 26014-02.pdf',
-    relativeFolder: '04_Fakturace',
+    relativeFolder: '03-Rozpočet projektu/Fakturace',
     sizeBytes: 118784,
     modifiedByName: 'Jan Novák'
   },

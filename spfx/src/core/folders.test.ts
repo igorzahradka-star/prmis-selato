@@ -1,4 +1,4 @@
-import { buildProjectFolderPlan, findMatchingFolder, normalizeFolderName } from './folders';
+import { buildProjectFolderPlan, findMatchingFolder, folderNameWithoutNumber, normalizeFolderName } from './folders';
 import { DEFAULT_FOLDER_TEMPLATE, FolderSettings } from './settings';
 
 const BASE_SETTINGS: Pick<FolderSettings, 'rootFolder' | 'subfolderByYear' | 'template'> = {
@@ -40,15 +40,16 @@ describe('buildProjectFolderPlan', () => {
     expect(plan[1]).toBe('Projekty/26-014 Firma X  Y');
   });
 
-  it('s výchozí šablonou ze zadání založí i vnořené podsložky', () => {
+  it('výchozí šablona je skutečná struktura projektů RES (dvojčíslí-pomlčka) a zakládá i vnořené podsložky', () => {
     const plan = buildProjectFolderPlan(
       { rootFolder: 'Projekty', subfolderByYear: false, template: DEFAULT_FOLDER_TEMPLATE },
       '26-014 X'
     );
-    expect(plan).toContain('Projekty/26-014 X/03_Nákup');
-    expect(plan).toContain('Projekty/26-014 X/03_Nákup/Objednávky');
-    expect(plan).toContain('Projekty/26-014 X/03_Nákup/Nabídky dodavatelů');
-    expect(plan).toContain('Projekty/26-014 X/05_Realizace/Stavební deník');
+    expect(plan).toContain('Projekty/26-014 X/04-Zápisy');
+    expect(plan).toContain('Projekty/26-014 X/03-Nákup/Objednávky');
+    expect(plan).toContain('Projekty/26-014 X/03-Rozpočet projektu/Fakturace');
+    expect(plan).toContain('Projekty/26-014 X/07-Dokumentace a podklady');
+    expect(plan.filter((p) => p.indexOf('_') !== -1 && p.indexOf('Projekty/26-014 X/') === 0)).toEqual([]);
   });
 });
 
@@ -71,5 +72,19 @@ describe('normalizeFolderName a findMatchingFolder', () => {
     expect(findMatchingFolder(existing, 'FOTO')).toBeUndefined();
     expect(findMatchingFolder(['foto', 'FOTO'], 'FOTO')).toBe('FOTO');
     expect(findMatchingFolder([], 'x')).toBeUndefined();
+  });
+
+  it('složku najde i bez číselné předpony: „Zápisy“ použije existující „04-Zápisy“', () => {
+    const existing = ['03-Rozpočet projektu', '04-Zápisy', '07-Dokumentace a podklady'];
+    expect(findMatchingFolder(existing, 'Zápisy')).toBe('04-Zápisy');
+    expect(findMatchingFolder(existing, '04_Zapisy')).toBe('04-Zápisy');
+    expect(findMatchingFolder(existing, '03-Nákup')).toBeUndefined();
+    expect(findMatchingFolder(['2026-10-01', '2026-10-02'], '10-01')).toBeUndefined();
+  });
+
+  it('číselná předpona nemění datum ani názvy bez předpony', () => {
+    expect(folderNameWithoutNumber('04-Zápisy')).toBe('zapisy');
+    expect(folderNameWithoutNumber('2026-10-01_KD')).toBe('2026 10 01 kd');
+    expect(folderNameWithoutNumber('12')).toBe('12');
   });
 });

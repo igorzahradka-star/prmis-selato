@@ -36,7 +36,7 @@ const item = (route: RouteName, label: string, icon: string, comingSoon?: boolea
 
 /**
  * Navigace podle oprávnění uživatele (co nesmí, nevidí). Projektové moduly jsou ve skupině Projekty, správa ve skupině
- * Nastavení. Skupinu Servis (02_SERVIS) přidáme, až bude modul hotový.
+ * Nastavení. Skupinu Servis (10-Servis) přidáme, až bude modul hotový.
  */
 export function buildNavigation(flags: NavFlags): NavEntry[] {
   const entries: NavEntry[] = [

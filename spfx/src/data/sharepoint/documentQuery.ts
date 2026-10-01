@@ -10,7 +10,7 @@
  * CAML dotaz: rekurzivně přes podsložky, seřazeno od poslední změny.
  *
  * `Scope="RecursiveAll"` je tu podstatný — bez něj se vrátí jen jedna úroveň
- * a strom `01_Smlouvy`, `03_Nákup/Objednávky`… by znamenal desítky dotazů.
+ * a strom `05-Smlouvy`, `03-Nákup/Objednávky`… by znamenal desítky dotazů.
  * `RowLimit` se uplatní až po seřazení, takže vrátí opravdu ty nejnovější.
  */
 export function viewXml(limit: number): string {
@@ -42,7 +42,7 @@ export function serverRelativePath(absoluteUrl: string): string {
 }
 
 /**
- * Cesta souboru vůči složce projektu — `03_Nákup/Objednávky`.
+ * Cesta souboru vůči složce projektu — `03-Nákup/Objednávky`.
  * Prázdný řetězec znamená, že leží přímo v kořeni složky projektu.
  */
 export function folderRelativeTo(fileDirRef: string, projectFolderPath: string): string {

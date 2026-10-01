@@ -446,7 +446,7 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
       stage = 'Uložení PDF do složky projektu';
       let pdfUrl: string | undefined;
       try {
-        pdfUrl = await repos.documents.saveProjectFile(project, '04_Fakturace', fileName, blob);
+        pdfUrl = await repos.documents.saveProjectFile(project, settings.folders.invoiceFolder, fileName, blob);
       } catch (e) {
         if (!again) {
           throw e;
@@ -820,8 +820,8 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
               pdfLabel: 'PDF podkladu',
               hint:
                 sendOpen === 'resend'
-                  ? 'PDF se znovu uloží do složky projektu (04_Fakturace) a v historii bude zapsáno, komu a kdy šlo znovu. Stav podkladu se nemění. E-mail odejde z vaší schránky.'
-                  : 'PDF se zároveň uloží do složky projektu (04_Fakturace) a podklad se označí jako předaný účtárně. E-mail odejde z vaší schránky a bude i ve vaší poště Odeslané.',
+                  ? `PDF se znovu uloží do složky projektu (${settings.folders.invoiceFolder}) a v historii bude zapsáno, komu a kdy šlo znovu. Stav podkladu se nemění. E-mail odejde z vaší schránky.`
+                  : `PDF se zároveň uloží do složky projektu (${settings.folders.invoiceFolder}) a podklad se označí jako předaný účtárně. E-mail odejde z vaší schránky a bude i ve vaší poště Odeslané.`,
               markOnly: sendOpen === 'resend' ? 'Jen uložit PDF a zapsat předání' : 'Jen uložit PDF a označit jako předáno',
               sendButton: 'Odeslat účtárně'
             }}

@@ -279,7 +279,7 @@ export interface ITaskRepository {
 /** Soubor ve složce projektu. */
 export interface ProjectFile {
   name: string;
-  /** Cesta uvnitř složky projektu, např. `03_Nákup/Objednávky`. */
+  /** Cesta uvnitř složky projektu, např. `03-Nákup/Objednávky`. */
   relativeFolder: string;
   /** Odkaz, kterým se soubor otevře v prohlížeči. */
   url: string;
@@ -307,7 +307,7 @@ export interface IDocumentRepository {
    */
   listProjectFolderNames(): Promise<string[]>;
   /**
-   * Uloží soubor do podsložky složky projektu (např. PDF objednávky do `03_Nákup/Objednávky`).
+   * Uloží soubor do podsložky složky projektu (např. PDF objednávky do `03-Nákup/Objednávky`).
    * Chybějící podsložky vytvoří, existující soubor stejného názvu přepíše (nová verze téhož dokladu).
    * Vrací odkaz na uložený soubor.
    */

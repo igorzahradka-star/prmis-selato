@@ -32,6 +32,8 @@ export interface SendOrderDialogProps {
   attachmentCount: number;
   /** Opakované odeslání už odeslané objednávky (nedorazila, nebo jde na jinou adresu). */
   resend?: boolean;
+  /** Složka projektu, kam se PDF uloží (jen do popisu). */
+  folderLabel?: string;
   /** Jiný druh dokumentu než objednávka dodavateli (např. podklad pro fakturaci účtárně). */
   texts?: {
     title: string;
@@ -56,6 +58,7 @@ export const SendOrderDialog: React.FC<SendOrderDialogProps> = ({
   initialBody,
   attachmentCount,
   resend,
+  folderLabel,
   texts,
   busy,
   error,
@@ -122,8 +125,8 @@ export const SendOrderDialog: React.FC<SendOrderDialogProps> = ({
           {texts
             ? texts.hint
             : resend
-            ? 'PDF se znovu uloží do složky projektu (03_Nákup/Objednávky) a v historii objednávky bude zapsáno, komu a kdy šla znovu. Stav objednávky se nemění. E-mail odejde z vaší schránky.'
-            : 'PDF se zároveň uloží do složky projektu (03_Nákup/Objednávky) a objednávka se označí jako odeslaná dodavateli. E-mail odejde z vaší schránky a bude i ve vaší poště Odeslané.'}
+            ? `PDF se znovu uloží do složky projektu (${folderLabel || 'složka objednávek'}) a v historii objednávky bude zapsáno, komu a kdy šla znovu. Stav objednávky se nemění. E-mail odejde z vaší schránky.`
+            : `PDF se zároveň uloží do složky projektu (${folderLabel || 'složka objednávek'}) a objednávka se označí jako odeslaná dodavateli. E-mail odejde z vaší schránky a bude i ve vaší poště Odeslané.`}
         </div>
       </div>
       <DialogFooter>

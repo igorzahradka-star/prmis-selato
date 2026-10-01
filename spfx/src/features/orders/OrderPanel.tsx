@@ -551,7 +551,7 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
       stage = 'Uložení PDF do složky projektu';
       let pdfUrl: string | undefined;
       try {
-        pdfUrl = await repos.documents.saveProjectFile(project, '03_Nákup/Objednávky', fileName, blob);
+        pdfUrl = await repos.documents.saveProjectFile(project, settings.folders.orderFolder, fileName, blob);
       } catch (e) {
         // U opakovaného odeslání PDF ve složce už je; jeho neúspěšné přepsání nesmí bránit odeslání e-mailu.
         if (!again) {
@@ -1082,6 +1082,7 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
       {sendOpen && order && (
         <SendOrderDialog
           resend={sendOpen === 'resend'}
+          folderLabel={settings.folders.orderFolder}
           orderNumber={order.orderNumber}
           initialTo={(supplierOf(order.supplierId) || { email: '' }).email || ''}
           initialCc={user.email || ''}

@@ -5,6 +5,29 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.12.1 — 1. 10. 2026 — Jedna konvence složek podle skutečných projektů
+
+**Opraveno**
+
+- Aplikace zakládala ve složce projektu vlastní složky (`Zápisy`, `03_Nákup`), i když projekty mají `04-Zápisy` a podobně. Všechny výchozí názvy složek
+  jsou teď **přesně podle skutečného projektu 26001** — dvojčíslí, pomlčka, název:
+  - zápisy a stavební deníky → `04-Zápisy`,
+  - fotodokumentace → `07-Dokumentace a podklady/FOTO`,
+  - PDF objednávek → `03-Nákup/Objednávky` (složku `03-Nákup` zadavatel schválil),
+  - PDF podkladů pro fakturaci → `03-Rozpočet projektu/Fakturace`.
+- Názvy složek už nejsou v kódu napevno: **Nastavení → Složky projektů** má pole pro zápisy, fotky, objednávky i podklady pro fakturaci.
+- **Šablona složek nového projektu** je shodná se skutečnou strukturou: 01-Nabídky, 02-Harmonogram, 03-Nákup (Objednávky), 03-Rozpočet projektu (Fakturace),
+  04-Zápisy, 05-Smlouvy, 06-Dodavatelé, 07-Dokumentace a podklady, 09-Projektová dokumentace, 10-Servis.
+- Hledání existující složky umí navíc **ignorovat číselnou předponu**: požadavek na `Zápisy` použije existující `04-Zápisy` (a naopak), takže ani
+  starší uložená nastavení bez předpony nezaloží druhou složku. Datum `2026-10-01` se tím nezkrátí.
+
+**Ručně:** v nastavení, které už někdo uložil, zůstávají staré hodnoty (např. `Zápisy`) — díky tolerantnímu hledání nevadí, ale doporučujeme je přepsat.
+Zbylé složky `Zápisy` a `03_Nákup` v projektech (vznikly při zkoušení) je potřeba ručně přesunout/smazat; aplikace nic nemaže.
+
+**Bez změny schématu dat** (zůstává 9).
+
+---
+
 ## 0.12.0 — 1. 10. 2026 — Dávky fotek, jedna konvence složek, skupiny v nabídce, oprava kreslení
 
 **Opraveno**

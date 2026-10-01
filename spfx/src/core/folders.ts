@@ -74,8 +74,18 @@ export function normalizeFolderName(name: string): string {
 }
 
 /**
+ * Název složky bez číselné předpony (`04-Zápisy` → `zapisy`). Předpona je jedno- nebo dvojčíslí následované oddělovačem;
+ * datum `2026-10-01` se tak nezkrátí.
+ */
+export function folderNameWithoutNumber(name: string): string {
+  const key = normalizeFolderName(name);
+  const stripped = key.replace(/^\d{1,2} /, '');
+  return stripped === '' ? key : stripped;
+}
+
+/**
  * Vybere z existujících názvů ten, který odpovídá požadovanému: nejdřív přesná shoda (bez ohledu na velikost písmen),
- * potom shoda ve srovnávací podobě (`normalizeFolderName`). Vrací skutečný název složky, nebo `undefined`.
+ * potom shoda ve srovnávací podobě (`normalizeFolderName`) a nakonec shoda bez číselné předpony (`Zápisy` najde `04-Zápisy`). Vrací skutečný název složky, nebo `undefined`.
  */
 export function findMatchingFolder(existing: string[], wanted: string): string | undefined {
   const lower = (wanted || '').toLowerCase();
@@ -91,5 +101,10 @@ export function findMatchingFolder(existing: string[], wanted: string): string |
   if (key === '') {
     return undefined;
   }
-  return existing.filter((n) => normalizeFolderName(n) === key)[0];
+  const normalized = existing.filter((n) => normalizeFolderName(n) === key)[0];
+  if (normalized !== undefined) {
+    return normalized;
+  }
+  const bare = folderNameWithoutNumber(wanted);
+  return existing.filter((n) => folderNameWithoutNumber(n) === bare)[0];
 }

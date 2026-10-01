@@ -42,6 +42,10 @@ export interface FolderSettings {
   diaryFolder: string;
   /** Kam se ukládá fotodokumentace (cesta uvnitř složky projektu; uvnitř vznikají složky podle roku a dne). */
   photoFolder: string;
+  /** Kam se ukládají PDF objednávek (cesta uvnitř složky projektu). */
+  orderFolder: string;
+  /** Kam se ukládají PDF podkladů pro fakturaci (cesta uvnitř složky projektu). */
+  invoiceFolder: string;
 }
 
 /** Nastavení generování názvu projektu. */
@@ -131,24 +135,20 @@ export interface AppSettings {
 }
 
 /**
- * Výchozí struktura složek projektu podle zadání (kap. 8.3).
- * Zadavatel ji ve Fázi 1 upřesní — proto je editovatelná v Nastavení.
+ * Výchozí struktura složek nového projektu — **stejná jako ve skutečných projektech RES** (ověřeno 1. 10. 2026 na projektu 26001).
+ * Konvence: dvojčíslí, pomlčka, název (`04-Zápisy`). Je editovatelná v Nastavení.
  */
 export const DEFAULT_FOLDER_TEMPLATE: FolderTemplateNode[] = [
-  { name: '01_Smlouvy a objednávky zákazníka' },
-  { name: '02_Projektová dokumentace' },
-  {
-    name: '03_Nákup',
-    children: [{ name: 'Objednávky' }, { name: 'Nabídky dodavatelů' }]
-  },
-  { name: '04_Fakturace' },
-  {
-    name: '05_Realizace',
-    children: [{ name: 'Fotodokumentace' }, { name: 'Stavební deník' }]
-  },
-  { name: '06_Předání a revize' },
-  { name: '07_Korespondence' },
-  { name: '08_Rozpočet a harmonogram' }
+  { name: '01-Nabídky' },
+  { name: '02-Harmonogram' },
+  { name: '03-Nákup', children: [{ name: 'Objednávky' }] },
+  { name: '03-Rozpočet projektu', children: [{ name: 'Fakturace' }] },
+  { name: '04-Zápisy' },
+  { name: '05-Smlouvy' },
+  { name: '06-Dodavatelé' },
+  { name: '07-Dokumentace a podklady' },
+  { name: '09-Projektová dokumentace' },
+  { name: '10-Servis' }
 ];
 
 /**
@@ -167,9 +167,11 @@ export const DEFAULT_SETTINGS: AppSettings = {
     // Ověřeno na skutečné složce 23. 9. 2026.
     subfolderByYear: false,
     template: DEFAULT_FOLDER_TEMPLATE,
-    // Rozhodnuto 1. 10. 2026 podle zadavatele: zápisy ve složce Zápisy, fotky v 07 Dokumentace a podklady / FOTO.
-    diaryFolder: 'Zápisy',
-    photoFolder: '07-Dokumentace a podklady/FOTO'
+    // Rozhodnuto 1. 10. 2026 podle zadavatele a skutečné struktury projektů (jedna konvence: dvojčíslí-pomlčka-název).
+    diaryFolder: '04-Zápisy',
+    photoFolder: '07-Dokumentace a podklady/FOTO',
+    orderFolder: '03-Nákup/Objednávky',
+    invoiceFolder: '03-Rozpočet projektu/Fakturace'
   },
   numbering: {},
   projects: {
@@ -261,6 +263,12 @@ export function validateSettings(settings: AppSettings): string[] {
   }
   if (!settings.folders.photoFolder.trim()) {
     problems.push('Není vyplněna složka fotodokumentace.');
+  }
+  if (!settings.folders.orderFolder.trim()) {
+    problems.push('Není vyplněna složka objednávek.');
+  }
+  if (!settings.folders.invoiceFolder.trim()) {
+    problems.push('Není vyplněna složka podkladů pro fakturaci.');
   }
   if (!settings.projects.titlePattern.includes('{CISLO}')) {
     problems.push('Vzor názvu projektu musí obsahovat token {CISLO}, jinak by názvy nebyly jednoznačné.');

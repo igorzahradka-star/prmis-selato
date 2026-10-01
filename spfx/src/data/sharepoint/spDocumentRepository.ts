@@ -3,8 +3,8 @@
  *
  * Čte knihovnu SharePointu přes CAML dotaz se `Scope="RecursiveAll"` —
  * jen tak se dostaneme na soubory ve všech podsložkách najednou. REST
- * `folder.files` vrací obsah jedné úrovně a pro strom `01_Smlouvy`,
- * `03_Nákup/Objednávky`… by znamenal desítky dotazů.
+ * `folder.files` vrací obsah jedné úrovně a pro strom `05-Smlouvy`,
+ * `03-Nákup/Objednávky`… by znamenal desítky dotazů.
  */
 
 import { WebPartContext } from '@microsoft/sp-webpart-base';

@@ -164,7 +164,7 @@ export const SettingsPage: React.FC = () => {
             />
             <TextField
               label="Složka zápisů a stavebních deníků"
-              description="Cesta uvnitř složky projektu, např. „Zápisy“. Chybějící složky vzniknou při prvním uložení zápisu."
+              description="Cesta uvnitř složky projektu, např. „04-Zápisy“ (stejně jako ve skutečných projektech). Chybějící podsložky vzniknou při prvním uložení zápisu."
               value={draft.folders.diaryFolder}
               onChange={(_, v) => patch('folders', { diaryFolder: v || '' })}
             />
@@ -173,6 +173,18 @@ export const SettingsPage: React.FC = () => {
               description="Cesta uvnitř složky projektu, např. „07-Dokumentace a podklady/FOTO“. Uvnitř vznikají složky podle roku a dne dávky (např. 2026/2026-10-01_KD). Existující složka se najde i při trochu jiném psaní názvu (07_ a 07-)."
               value={draft.folders.photoFolder}
               onChange={(_, v) => patch('folders', { photoFolder: v || '' })}
+            />
+            <TextField
+              label="Složka objednávek"
+              description="Cesta uvnitř složky projektu, kam se ukládají PDF odeslaných objednávek, např. „03-Nákup/Objednávky“."
+              value={draft.folders.orderFolder}
+              onChange={(_, v) => patch('folders', { orderFolder: v || '' })}
+            />
+            <TextField
+              label="Složka podkladů pro fakturaci"
+              description="Cesta uvnitř složky projektu, kam se ukládají PDF podkladů předaných účtárně, např. „03-Rozpočet projektu/Fakturace“."
+              value={draft.folders.invoiceFolder}
+              onChange={(_, v) => patch('folders', { invoiceFolder: v || '' })}
             />
             <FolderTemplateEditor
               template={draft.folders.template}

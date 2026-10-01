@@ -57,7 +57,7 @@ export interface InvoiceBasis {
   /** Číslo faktury z účetnictví — doplní se po vyfakturování. */
   accountingInvoiceNo?: string;
   paidDate?: Date;
-  /** Odkaz na PDF uložené ve složce projektu (04_Fakturace). */
+  /** Odkaz na PDF uložené ve složce projektu (03-Rozpočet projektu/Fakturace). */
   pdfUrl?: string;
   created?: Date;
   modified?: Date;

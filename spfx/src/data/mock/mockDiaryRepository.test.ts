@@ -45,11 +45,11 @@ describe('MockDiaryRepository — zápisy', () => {
     const r = createMockRepositories();
     const a = await r.diary.createEntry(vstup(), martin);
     expect(a.entryNo).toBe(2); // v deníku č. 2 už je ukázkový zápis č. 1
-    expect(a.folderPath).toBe('Zápisy/Hlavní deník/Z002');
+    expect(a.folderPath).toBe('04-Zápisy/Hlavní deník/Z002');
     expect(a.status).toBe(EntryStatus.Koncept);
     const b = await r.diary.createEntry(vstup({ diaryId: 3 }), martin);
     expect(b.entryNo).toBe(1);
-    expect(b.folderPath).toBe('Zápisy/Elektro – hala B/Z001');
+    expect(b.folderPath).toBe('04-Zápisy/Elektro – hala B/Z001');
   });
 
   it('cizí PM zápis nezaloží; vypnutý deník nejde použít', async () => {
