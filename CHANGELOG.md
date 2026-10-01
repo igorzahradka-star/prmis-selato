@@ -5,6 +5,28 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.16.0 — 1. 10. 2026 — Měna přehledů, Náklady a Vyčerpáno, záložky projektu, nástroje v náčrtu, mapa se skupinami
+
+**Nové**
+
+- **Výchozí měna přehledů** (Nastavení → Rozpočet a semafor; zatím CZK). Přehledy — seznam projektů, objednávek, podkladů pro fakturaci, dlaždice KPI — ukazují částky vždy
+  v této měně; částky v jiné měně se přepočítají kurzem ČNB (původní částka je v bublince). **Doklady samotné** (objednávka, podklad) zůstávají v měně dokladu (CZK, EUR, USD).
+  Stejné pravidlo bude platit pro budoucí grafy a přehledy (výchozí měna vždy z Nastavení; šlo by si ji v přehledu přepnout).
+- **Přehled projektů: sloupce Náklady a Vyčerpáno** za Celkovou cenou. *Náklady* zatím ukazují „—“ (doplní se z realizačního rozpočtu ve Fázi 3). *Vyčerpáno* je součet vystavených
+  objednávek projektu bez DPH (stavy Ke schválení, Schváleno, Odesláno dodavateli, Dodáno, Uzavřeno; ne koncepty, vrácené, zamítnuté ani stornované) ve výchozí měně. Celková cena se řadí podle přepočtené částky.
+- **Detail projektu: záložky jsou menší a zalamují se do druhé řady**, nic se neschovává do nabídky „…“. Pořadí: Přehled, Objednávky, Fakturace, Stavební deník, Fotodokumentace, Dokumenty, Termíny, Realizační rozpočet, Cashflow, Harmonogram.
+- **Náčrt k zápisu: nástroje** Pero, Čára, Obdélník (se Shiftem čtverec), Kolečko a Text (písmo Arial, velikost Malý / Střední / Velký). Tvary se táhnou s náhledem; Zpět vrátí poslední krok. Text: klik do obrázku, napsat, Enter.
+- **Mapa projektů: skupiny špendlíků.** Projekty, které by se při aktuálním přiblížení překrývaly, se sloučí do kruhu s počtem. Po najetí se vypíší, po kliknutí se mapa přiblíží, aby byly vidět všechny;
+  projekty na jednom místě (které přiblížení nerozdělí) se po kliknutí vypíšou v okně s odkazy na detail.
+
+**Odstraněno**
+
+- **Export přehledu projektů do Excelu** (tlačítko i funkce) a s ním knihovna ExcelJS — Excel export už se nebude potřebovat.
+
+**Bez změny schématu dat** (zůstává 10).
+
+---
+
 ## 0.15.0 — 1. 10. 2026 — Opravy složek, mazání projektu, koncepty (KO), zálohová faktura, výběr osob
 
 **Opraveno**

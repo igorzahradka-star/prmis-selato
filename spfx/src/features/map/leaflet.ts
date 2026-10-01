@@ -58,6 +58,9 @@ const EXTRA_CSS = `
 .prm-tooltip { padding: 8px 10px; border-radius: 4px; box-shadow: 0 2px 10px rgba(0,0,0,.25); white-space: normal; }
 .prm-pin { background: none; border: none; }
 .prm-pin svg { display: block; filter: drop-shadow(0 1px 2px rgba(0,0,0,.35)); }
+.prm-cluster { background: none; border: none; }
+.prm-cluster div { width: 42px; height: 42px; border-radius: 50%; background: #0B3A6B; color: #fff; border: 3px solid rgba(255,255,255,.95); box-shadow: 0 1px 6px rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 15px; cursor: pointer; }
+.prm-cluster:hover div { background: #0268A6; }
 .leaflet-container { font-family: inherit; }
 .prm-tiles-gray { filter: grayscale(1) contrast(0.88) brightness(1.1); }
 .leaflet-control-layers-expanded { font-size: 12px; }
@@ -84,6 +87,17 @@ export function loadLeaflet(): Promise<LeafletLib> {
     });
   }
   return loading;
+}
+
+/** Ikona skupiny špendlíků: kruh s počtem projektů (klik = přiblížit, nebo seznam, když leží na jednom místě). */
+export function clusterIcon(L: LeafletLib, count: number): LeafletTypes.DivIcon {
+  return L.divIcon({
+    className: 'prm-cluster',
+    html: `<div>${count}</div>`,
+    iconSize: [42, 42],
+    iconAnchor: [21, 21],
+    tooltipAnchor: [0, -22]
+  });
 }
 
 /** Ikona špendlíku: výplň, obrys a barva tečky uprostřed (světlé špendlíky potřebují tmavý obrys i tečku). */

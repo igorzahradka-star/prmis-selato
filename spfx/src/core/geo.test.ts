@@ -1,7 +1,11 @@
 import {
   buildLegend,
+  PinInfo,
   buildPinInfo,
   budgetSignal,
+  clusterListHtml,
+  clusterPoints,
+  sameLocation,
   deadlineSignal,
   escapeHtml,
   isValidCoordinates,
@@ -339,5 +343,51 @@ describe('stackOffsetPx', () => {
     expect(dalsi).toBe(posledniViditelny);
     const sirka = stackOffsetPx({ index: MAX_STACK_SPREAD - 1, count }, 10) - stackOffsetPx({ index: 0, count }, 10);
     expect(sirka).toBe((MAX_STACK_SPREAD - 1) * 10);
+  });
+});
+
+describe('slučování špendlíků do skupin', () => {
+  it('body blíž než dosah se sloučí, vzdálené zůstanou samostatné', () => {
+    const r = clusterPoints(
+      [
+        { id: 'A', x: 100, y: 100 },
+        { id: 'B', x: 110, y: 105 },
+        { id: 'C', x: 400, y: 400 }
+      ],
+      40
+    );
+    expect(r.map((c) => c.ids)).toEqual([['A', 'B'], ['C']]);
+    expect(r[0].x).toBe(105);
+    expect(r[0].y).toBe(102.5);
+  });
+
+  it('body na stejném místě jsou jedna skupina, bez bodů nic', () => {
+    const r = clusterPoints([{ id: 'A', x: 5, y: 5 }, { id: 'B', x: 5, y: 5 }, { id: 'C', x: 5, y: 5 }], 10);
+    expect(r).toHaveLength(1);
+    expect(r[0].ids).toEqual(['A', 'B', 'C']);
+    expect(clusterPoints([], 10)).toEqual([]);
+  });
+
+  it('bod jde do nejbližší skupiny v dosahu', () => {
+    const r = clusterPoints([{ id: 'A', x: 0, y: 0 }, { id: 'B', x: 50, y: 0 }, { id: 'C', x: 40, y: 0 }], 20);
+    // C je blíž k B (10) než k A (40, mimo dosah) → C patří k B.
+    expect(r.map((c) => c.ids)).toEqual([['A'], ['B', 'C']]);
+  });
+
+  it('stejné místo se pozná i s drobnou odchylkou', () => {
+    expect(sameLocation([{ latitude: 49.1, longitude: 15.2 }, { latitude: 49.100001, longitude: 15.200001 }])).toBe(true);
+    expect(sameLocation([{ latitude: 49.1, longitude: 15.2 }, { latitude: 49.2, longitude: 15.2 }])).toBe(false);
+    expect(sameLocation([{ latitude: 49.1, longitude: 15.2 }])).toBe(true);
+  });
+
+  it('seznam projektů ve skupině: odkazy jen když se chtějí, text se ošetří a dlouhý seznam se zkrátí', () => {
+    const info = (n: string): PinInfo => buildPinInfo(projekt(n, { title: `${n} <b>Název</b>` }));
+    const items = ['26001', '26002', '26003'].map(info);
+    const html = clusterListHtml(items, true, (n) => `#/projekt/${n}`, 2);
+    expect(html).toContain('3 projektů na tomto místě');
+    expect(html).toContain('href="#/projekt/26001"');
+    expect(html).toContain('…a dalších 1');
+    expect(html).not.toContain('<b>Název</b>');
+    expect(clusterListHtml(items, false, (n) => n)).not.toContain('href=');
   });
 });

@@ -291,3 +291,84 @@ export function escapeHtml(text: string): string {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 }
+
+// --- slučování špendlíků do skupin ----------------------------------------------------
+
+/** Špendlík v pixelech mapy při aktuálním přiblížení (`map.project(souřadnice, zoom)`). */
+export interface PixelPoint {
+  id: string;
+  x: number;
+  y: number;
+}
+
+/** Skupina špendlíků, které by se při daném přiblížení překrývaly; `x`, `y` je střed skupiny. */
+export interface PointCluster {
+  ids: string[];
+  x: number;
+  y: number;
+}
+
+/**
+ * Sloučí špendlíky blíž k sobě než `radius` pixelů do skupin. Každý špendlík jde do nejbližší skupiny v dosahu, jinak založí novou;
+ * střed skupiny je průměr jejích bodů. Samotný špendlík je skupina o jednom prvku. Pořadí skupin odpovídá pořadí prvního bodu.
+ */
+export function clusterPoints(points: PixelPoint[], radius: number): PointCluster[] {
+  const clusters: { ids: string[]; sumX: number; sumY: number }[] = [];
+  points.forEach((p) => {
+    let best: { ids: string[]; sumX: number; sumY: number } | undefined;
+    let bestDistance = radius;
+    clusters.forEach((c) => {
+      const dx = c.sumX / c.ids.length - p.x;
+      const dy = c.sumY / c.ids.length - p.y;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      if (d <= bestDistance) {
+        best = c;
+        bestDistance = d;
+      }
+    });
+    if (best) {
+      best.ids.push(p.id);
+      best.sumX += p.x;
+      best.sumY += p.y;
+    } else {
+      clusters.push({ ids: [p.id], sumX: p.x, sumY: p.y });
+    }
+  });
+  return clusters.map((c) => ({ ids: c.ids, x: c.sumX / c.ids.length, y: c.sumY / c.ids.length }));
+}
+
+/** Leží všechny body prakticky na jednom místě (rozdíl menší než ~1 m)? Takovou skupinu přiblížením nerozdělíš. */
+export function sameLocation(points: { latitude: number; longitude: number }[], tolerance: number = 0.00001): boolean {
+  if (points.length < 2) {
+    return true;
+  }
+  const a = points[0];
+  return points.every((p) => Math.abs(p.latitude - a.latitude) <= tolerance && Math.abs(p.longitude - a.longitude) <= tolerance);
+}
+
+/**
+ * Seznam projektů ve skupině — do bubliny po najetí (bez odkazů) a do vyskakovacího okna po kliknutí (s odkazy na detail).
+ * Dlouhý seznam se zkrátí na `max` řádků a řekne, kolik jich ještě je.
+ */
+export function clusterListHtml(items: PinInfo[], links: boolean, hrefOf: (projectNumber: string) => string, max: number = 12): string {
+  const rows = items.slice(0, max).map((info) => {
+    const label = `${escapeHtml(info.projectNumber)} · ${escapeHtml(info.name)}`;
+    const name = links
+      ? `<a href="${escapeHtml(hrefOf(info.projectNumber))}" style="font-weight:600;color:#0268A6">${label}</a>`
+      : `<span style="font-weight:600">${label}</span>`;
+    return (
+      `<div style="margin-top:4px"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${info.statusStyle.fill};` +
+      `border:1px solid ${info.statusStyle.stroke};margin-right:6px;vertical-align:middle"></span>${name}` +
+      `<div style="margin-left:16px;color:#5A6472">${escapeHtml(info.status)} · ${escapeHtml(info.manager)}</div></div>`
+    );
+  });
+  const more = items.length > max ? `<div style="margin-top:6px;color:#5A6472">…a dalších ${items.length - max}</div>` : '';
+  return (
+    `<div style="min-width:240px;max-width:340px;font-size:12px;line-height:1.35;color:#1B1F2A">` +
+    `<div style="font-size:13px;font-weight:700;margin-bottom:2px">${items.length} projektů na tomto místě</div>` +
+    rows.join('') +
+    more +
+    (links ? '' : `<div style="margin-top:6px;color:#5A6472">Kliknutím se mapa přiblíží, nebo se otevře seznam s odkazy.</div>`) +
+    `</div>`
+  );
+}

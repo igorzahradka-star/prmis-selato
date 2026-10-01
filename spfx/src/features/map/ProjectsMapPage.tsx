@@ -1,8 +1,10 @@
 /**
  * Mapa projektů — přehled, kde firma právě pracuje.
  *
- * Špendlík má barvu podle typu projektu; po najetí ukáže bublinu (název, typ,
+ * Špendlík má barvu podle stavu projektu; po najetí ukáže bublinu (název, typ,
  * semafor rozpočtu, semafor termínů, projektový manažer), po kliknutí otevře detail.
+ * Projekty, které by se při aktuálním přiblížení překrývaly, se sloučí do **kruhu s počtem**: po najetí se vypíšou, po kliknutí se mapa
+ * přiblíží tak, aby byly vidět všechny; projekty na jednom místě (které přiblížení nerozdělí) se po kliknutí vypíšou v okně s odkazy.
  * Na mapě jsou jen projekty, kterým někdo zadal polohu; ostatní se vypíšou
  * pod mapou, aby bylo vidět, co chybí.
  */
@@ -20,14 +22,15 @@ import { Project } from '../../core/types';
 import {
   buildLegend,
   buildPinInfo,
+  clusterListHtml,
+  clusterPoints,
   pinTooltipHtml,
   projectCoordinates,
+  sameLocation,
   splitByLocation,
-  stackOffsetPx,
-  stackSlots,
   statusStyle
 } from '../../core/geo';
-import { DEFAULT_CENTER, DEFAULT_ZOOM, LeafletLib, addBaseLayers, loadLeaflet, pinIcon } from './leaflet';
+import { DEFAULT_CENTER, DEFAULT_ZOOM, LeafletLib, addBaseLayers, clusterIcon, loadLeaflet, pinIcon } from './leaflet';
 import type * as LeafletTypes from 'leaflet';
 
 export const ProjectsMapPage: React.FC = () => {
@@ -112,51 +115,107 @@ export const ProjectsMapPage: React.FC = () => {
     []
   );
 
-  // Špendlíky — překreslí se při změně filtrů.
+  // Špendlíky — překreslí se při změně filtrů i při každém přiblížení (skupiny se podle přiblížení mění).
   React.useEffect(() => {
     const L = libRef.current;
     const layer = layerRef.current;
     const map = mapRef.current;
     if (!mapReady || !L || !layer || !map) {
-      return;
+      return undefined;
     }
-    layer.clearLayers();
-    const points: [number, number][] = [];
-    // Projekty na stejném místě se rozestoupí do hromádky — jinak by byl vidět jen jeden.
-    const slots = stackSlots(shown);
+
+    const byNumber: Record<string, Project> = {};
     shown.forEach((p) => {
-      const c = projectCoordinates(p);
-      if (!c) {
-        return;
-      }
-      const marker = L.marker([c.latitude, c.longitude], {
-        icon: pinIcon(
-          L,
-          statusStyle(p.status).fill,
-          statusStyle(p.status).stroke,
-          statusStyle(p.status).text,
-          slots[p.projectNumber] ? stackOffsetPx(slots[p.projectNumber]) : 0
-        ),
-        // Ve hromádce je nejvýš první špendlík a další jsou za ním; najetí myší vysune ten pod kurzorem.
-        zIndexOffset: slots[p.projectNumber] ? -slots[p.projectNumber].index * 10 : 0,
-        riseOnHover: true,
-        title: p.projectNumber,
-        keyboard: true
-      });
-      marker.bindTooltip(pinTooltipHtml(buildPinInfo(p)), {
-        className: 'prm-tooltip',
-        direction: 'top',
-        opacity: 1
-      });
-      marker.on('click', () => navigate(RouteName.ProjectDetail, p.projectNumber));
-      marker.addTo(layer);
-      points.push([c.latitude, c.longitude]);
+      byNumber[p.projectNumber] = p;
     });
+
+    const render = (): void => {
+      layer.clearLayers();
+      const zoom = map.getZoom();
+      const pixels = shown
+        .map((p) => {
+          const c = projectCoordinates(p);
+          if (!c) {
+            return undefined;
+          }
+          const px = map.project([c.latitude, c.longitude], zoom);
+          return { id: p.projectNumber, x: px.x, y: px.y };
+        })
+        .filter((x): x is { id: string; x: number; y: number } => !!x);
+
+      clusterPoints(pixels, 44).forEach((cluster) => {
+        const members = cluster.ids.map((id) => byNumber[id]);
+        const coords = members.map((p) => projectCoordinates(p)).filter((c): c is NonNullable<typeof c> => !!c);
+        if (coords.length === 0) {
+          return;
+        }
+
+        if (members.length === 1) {
+          const p = members[0];
+          const c = coords[0];
+          const marker = L.marker([c.latitude, c.longitude], {
+            icon: pinIcon(L, statusStyle(p.status).fill, statusStyle(p.status).stroke, statusStyle(p.status).text),
+            riseOnHover: true,
+            title: p.projectNumber,
+            keyboard: true
+          });
+          marker.bindTooltip(pinTooltipHtml(buildPinInfo(p)), { className: 'prm-tooltip', direction: 'top', opacity: 1 });
+          marker.on('click', () => navigate(RouteName.ProjectDetail, p.projectNumber));
+          marker.addTo(layer);
+          return;
+        }
+
+        // Skupina: střed z průměru souřadnic; po najetí seznam, po kliknutí přiblížení nebo seznam s odkazy.
+        const lat = coords.reduce((s, c) => s + c.latitude, 0) / coords.length;
+        const lng = coords.reduce((s, c) => s + c.longitude, 0) / coords.length;
+        const infos = members.map((p) => buildPinInfo(p));
+        const marker = L.marker([lat, lng], {
+          icon: clusterIcon(L, members.length),
+          riseOnHover: true,
+          title: `${members.length} projektů`,
+          keyboard: true
+        });
+        marker.bindTooltip(clusterListHtml(infos, false, (n) => buildHash(RouteName.ProjectDetail, n)), {
+          className: 'prm-tooltip',
+          direction: 'top',
+          opacity: 1
+        });
+        marker.on('click', () => {
+          const unsplittable = sameLocation(coords) || map.getZoom() >= (map.getMaxZoom() || 19);
+          if (unsplittable) {
+            marker.unbindTooltip();
+            L.popup({ maxWidth: 360, closeButton: true })
+              .setLatLng([lat, lng])
+              .setContent(clusterListHtml(infos, true, (n) => buildHash(RouteName.ProjectDetail, n), 30))
+              .openOn(map);
+          } else {
+            map.fitBounds(L.latLngBounds(coords.map((c): [number, number] => [c.latitude, c.longitude])).pad(0.3), { maxZoom: 18 });
+          }
+        });
+        marker.addTo(layer);
+      });
+    };
+
+    render();
+    map.on('zoomend', render);
+
     // Přiblížení na špendlíky jen poprvé — pozdější přepnutí filtru nesmí mapu člověku „ukrást".
-    if (!fittedRef.current && points.length > 0) {
-      map.fitBounds(L.latLngBounds(points).pad(0.25), { maxZoom: 11 });
-      fittedRef.current = true;
+    if (!fittedRef.current) {
+      const points: [number, number][] = [];
+      shown.forEach((p) => {
+        const c = projectCoordinates(p);
+        if (c) {
+          points.push([c.latitude, c.longitude]);
+        }
+      });
+      if (points.length > 0) {
+        map.fitBounds(L.latLngBounds(points).pad(0.25), { maxZoom: 11, animate: false });
+        fittedRef.current = true;
+      }
     }
+    return () => {
+      map.off('zoomend', render);
+    };
   }, [mapReady, shown]);
 
   const toggleStatus = (status: string): void =>

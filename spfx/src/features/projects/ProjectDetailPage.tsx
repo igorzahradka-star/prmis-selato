@@ -209,9 +209,33 @@ export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projec
         />
       )}
 
-      <Pivot overflowBehavior="menu" overflowAriaLabel="Další záložky">
+      {/* Záložky jsou menší a při nedostatku místa se zalomí do druhé řady (nic se neschovává do nabídky „…“); nejdůležitější jsou první. */}
+      <Pivot
+        aria-label="Části projektu"
+        styles={{
+          root: { display: 'flex', flexWrap: 'wrap', rowGap: 0, whiteSpace: 'normal' },
+          link: { fontSize: 13, height: 34, lineHeight: '34px', padding: '0 8px', marginRight: 2 },
+          linkIsSelected: { fontSize: 13, height: 34, lineHeight: '34px', padding: '0 8px', marginRight: 2 },
+          icon: { fontSize: 13, marginRight: 4 }
+        }}
+      >
         <PivotItem headerText="Přehled" itemIcon="Info">
           <Overview project={project} />
+        </PivotItem>
+        <PivotItem headerText="Objednávky" itemIcon="ShoppingCart">
+          <ProjectOrdersTab project={project} />
+        </PivotItem>
+        <PivotItem headerText="Fakturace" itemIcon="M365InvoicingLogo">
+          <ProjectInvoicesTab project={project} />
+        </PivotItem>
+        <PivotItem headerText="Stavební deník" itemIcon="Dictionary">
+          <ProjectDiaryTab project={project} />
+        </PivotItem>
+        <PivotItem headerText="Fotodokumentace" itemIcon="Camera">
+          <ProjectPhotos project={project} />
+        </PivotItem>
+        <PivotItem headerText="Dokumenty" itemIcon="DocumentSet">
+          <DocumentsTab project={project} />
         </PivotItem>
         <PivotItem headerText="Termíny" itemIcon="Clock">
           <DeadlinesTab
@@ -248,21 +272,6 @@ export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projec
             phase="Fáze 4"
             description="Gantt se závislostmi, kritickou cestou a baseline. Posun dodávky posune platby v cashflow."
           />
-        </PivotItem>
-        <PivotItem headerText="Objednávky" itemIcon="ShoppingCart">
-          <ProjectOrdersTab project={project} />
-        </PivotItem>
-        <PivotItem headerText="Fakturace" itemIcon="M365InvoicingLogo">
-          <ProjectInvoicesTab project={project} />
-        </PivotItem>
-        <PivotItem headerText="Stavební deník" itemIcon="Dictionary">
-          <ProjectDiaryTab project={project} />
-        </PivotItem>
-        <PivotItem headerText="Fotodokumentace" itemIcon="Camera">
-          <ProjectPhotos project={project} />
-        </PivotItem>
-        <PivotItem headerText="Dokumenty" itemIcon="DocumentSet">
-          <DocumentsTab project={project} />
         </PivotItem>
       </Pivot>
     </>
