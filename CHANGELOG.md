@@ -5,6 +5,30 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.17.0 — 1. 10. 2026 — Mapa složek projektu (změna šablony nerozbije staré projekty), konec tlačítka Opravit složky
+
+**Proč:** šablona složek (Nastavení) se používala i pro hledání složek u už založených projektů. Po její úpravě (přečíslování) se staré projekty „rozešly“ se šablonou a tlačítko
+„Opravit složky“ zakládalo duplicitní složky. Teď jsou šablona a existující projekty **oddělené**.
+
+**Nové**
+
+- **Každý projekt má vlastní mapu složek** — kde má složku objednávek, podkladů pro fakturaci, zápisů ze stavby a fotek. Ukládá se při založení projektu podle Nastavení;
+  pozdější změna šablony nebo cest v Nastavení se u už založených projektů **neprojeví**. Projekt bez uložené mapy (založený dřív) používá výchozí cesty z Nastavení a složku
+  hledá tolerantně (číslo na začátku, pomlčka/podtržítko, diakritika a velikost písmen nerozhodují) — takže přečíslování složek aplikace nerozhodí.
+- **Tlačítko „Složky projektu“** v detailu projektu (PM, asistent, administrátor): ukáže skutečné složky v projektu a cestu, kterou aplikace u každého druhu dokumentů používá, s poznámkou, jestli
+  složka existuje. **Navrhnout podle skutečných složek** doplní správná jména (i při jiném čísle), jde také vrátit výchozí z Nastavení. Nic se nemaže ani nepřesouvá.
+- **Zakládání složek je bezpečné proti duplicitám:** podsložky šablony se hledají tolerantně a zakládají se jen ty, které opravdu chybí.
+- **Nastavení → Složky projektů** upozorní, když mají dvě složky šablony stejné číslo (např. dvě „03-“) nebo když cesta objednávek / fakturace / zápisů / fotek nepatří do žádné složky šablony,
+  a vysvětluje, že šablona platí jen pro nové projekty.
+
+**Odstraněno**
+
+- Tlačítko **Opravit složky** v detailu projektu (zakládalo duplicity). Nahrazuje ho „Složky projektu“.
+
+**Schéma dat: 11** (PRM_Projects → Mapa složek). **Po nahrání balíčku spusťte Instalaci a diagnostiku.** Do té doby aplikace funguje jako dřív (výchozí cesty z Nastavení).
+
+---
+
 ## 0.16.0 — 1. 10. 2026 — Měna přehledů, Náklady a Vyčerpáno, záložky projektu, nástroje v náčrtu, mapa se skupinami
 
 **Nové**

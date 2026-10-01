@@ -9,6 +9,7 @@
  * Okna (náhled, náčrt, komentář) jsou uvnitř panelu — jinak by klik v nich panel považoval za klik „ven" a zavřel se.
  */
 
+import { folderFor } from '../../core/projectFolders';
 import * as React from 'react';
 import { Panel, PanelType } from '@fluentui/react/lib/Panel';
 import { TextField } from '@fluentui/react/lib/TextField';
@@ -865,7 +866,7 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
         closeButtonAriaLabel="Zavřít"
         onRenderNavigationContent={(props, defaultRender) => (
           <>
-            <DocumentFolderButton project={project} relativeFolder={entry ? entry.folderPath : settings.folders.diaryFolder} />
+            <DocumentFolderButton project={project} relativeFolder={entry ? entry.folderPath : folderFor(project, 'diary', settings.folders)} />
             {defaultRender ? defaultRender(props) : null}
           </>
         )}

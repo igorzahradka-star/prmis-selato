@@ -20,6 +20,7 @@ import {
   canManageProjectAccess
 } from '../../core/projectAccess';
 import { buildProjectFolderPlan, projectFolderName, projectFolderRoot } from '../../core/folders';
+import { FolderMap, defaultFolderMap, folderMapFromJson, folderMapToJson } from '../../core/projectFolders';
 import { ProjectRemovalPreview, ProjectRemovalResult, RemovalCount, projectFolderRemovalTarget } from '../../core/projectDeletion';
 import {
   overheadProjectNumber,
@@ -42,7 +43,7 @@ import {
 } from '../repositories';
 import { getSp, getSpForSite, describeSpError, extractStatus } from './spContext';
 import { resolveLibrary } from './spLibrary';
-import { ensureFolder } from './spFolders';
+import { ensureFolder, resolveFolderPath } from './spFolders';
 import { roleDefinitionId } from './spPermissions';
 import { buildFolderUrl, repairFolderUrl, serverRelativePath } from './documentQuery';
 import { escapeODataString } from './spSettingsRepository';
@@ -89,7 +90,17 @@ const EXPAND_FIELDS = ['Customer', 'ProjectManager'];
  */
 const GEO_FIELDS = ['Latitude', 'Longitude'];
 
+/** Sloupec s mapou složek přibyl ve schématu 11 — stejný postup: dokud ho web nezná, načte se seznam bez něj. */
+const FOLDER_MAP_FIELDS = ['FolderMap'];
+
 async function withOptionalGeoFields<T>(run: (fields: string[]) => Promise<T>): Promise<T> {
+  try {
+    return await run([...SELECT_FIELDS, ...GEO_FIELDS, ...FOLDER_MAP_FIELDS]);
+  } catch (error) {
+    if (extractStatus(error) !== 400) {
+      throw error;
+    }
+  }
   try {
     return await run([...SELECT_FIELDS, ...GEO_FIELDS]);
   } catch (error) {
@@ -120,6 +131,7 @@ interface ProjectItem {
   EndDateActual?: string;
   NextDeadline?: string;
   FolderUrl?: { Url: string };
+  FolderMap?: string;
   IsOverhead?: boolean;
   BudgetStatus?: string;
   BudgetBaselineTotal?: number;
@@ -989,16 +1001,56 @@ export class SpProjectRepository implements IProjectRepository {
     const overheadYear = project.isOverhead ? yearFromProjectNumber(project.projectNumber) : undefined;
     const folderName = projectFolderName(project.projectNumber, project.title);
     const plan = buildProjectFolderPlan(folders, folderName, new Date(), overheadYear);
+    const rootRelative = projectFolderRoot(folders, folderName, new Date(), overheadYear);
+    const rootCount = rootRelative.split('/').length;
 
-    for (const relativePath of plan) {
-      const fullPath = `${libraryRoot}/${relativePath}`;
-      await ensureFolder(foldersSp, fullPath);
+    // Kořenová složka projektu (a složky nad ní) se zakládá přesně. Podsložky šablony se **hledají tolerantně** (číslo na začátku,
+    // pomlčka/podtržítko, diakritika) a zakládají se jen ty, které opravdu chybí — opakované zakládání tak nevyrobí duplicity.
+    for (const relativePath of plan.slice(0, rootCount)) {
+      await ensureFolder(foldersSp, `${libraryRoot}/${relativePath}`);
+    }
+    const rootPath = `${libraryRoot}/${rootRelative}`;
+    for (const relativePath of plan.slice(rootCount)) {
+      await resolveFolderPath(foldersSp, rootPath, relativePath.slice(rootRelative.length + 1).split('/'), true);
     }
 
-    const projectFolderPath = `${libraryRoot}/${projectFolderRoot(folders, folderName, new Date(), overheadYear)}`;
+    // Mapa složek projektu: kde má projekt složky objednávek, fakturace, zápisů a fotek. Ukládá se při založení, aby pozdější změna
+    // šablony nebo Nastavení u tohoto projektu nic nerozbila. Selhání (sloupec ještě není v schématu) projekt nezastaví.
+    if (!project.folderMap) {
+      try {
+        await getSp(this.context).web.lists.getByTitle(PROJECTS_LIST).items.getById(project.id).update({ FolderMap: folderMapToJson(defaultFolderMap(folders)) });
+      } catch {
+        // Bez uložené mapy platí výchozí cesty z Nastavení; mapu jde doplnit v detailu projektu (Složky projektu).
+      }
+    }
+
+    const projectFolderPath = rootPath;
     const siteAbsoluteUrl = folders.siteUrl || this.context.pageContext.web.absoluteUrl;
     const origin = new URL(siteAbsoluteUrl).origin;
     return `${origin}${projectFolderPath}`;
+  }
+
+  /**
+   * Uloží mapu složek projektu (kde má složky objednávek, fakturace, zápisů a fotek). Smí PM, asistent a administrátor.
+   * Nic nemaže ani nepřesouvá — mění jen to, kam aplikace dál ukládá a kde hledá.
+   */
+  public async saveFolderMap(projectNumber: string, map: FolderMap, actor: CurrentUser): Promise<Project> {
+    const project = await this.getByNumber(projectNumber);
+    if (!project) {
+      throw new Error(`Projekt ${projectNumber} nebyl nalezen.`);
+    }
+    if (!canEditProject(actor.roles, actor.loginName, { projectManagerLogin: project.projectManagerLogin, assistantLogins: project.assistantLogins })) {
+      throw new Error('Složky projektu smí měnit jen jeho projektový manažer, asistent a administrátor.');
+    }
+    try {
+      await getSp(this.context).web.lists.getByTitle(PROJECTS_LIST).items.getById(project.id).update({ FolderMap: folderMapToJson(map) });
+    } catch (error) {
+      if (extractStatus(error) === 400) {
+        throw new Error('Mapu složek se nepodařilo uložit — v seznamu projektů chybí sloupec „Mapa složek“. Spusťte Instalaci a diagnostiku (Nastavení) a zkuste to znovu.');
+      }
+      throw new Error(describeSpError(error, `Nepodařilo se uložit složky projektu ${projectNumber}`));
+    }
+    return (await this.getByNumber(projectNumber)) ?? { ...project, folderMap: map };
   }
 
   /** Server-relativní cesta ke kořeni knihovny — spolehlivější než skládání textu z názvu. */
@@ -1086,6 +1138,7 @@ export function mapProject(item: ProjectItem): Project {
     endDateActual: toDate(item.EndDateActual),
     nextDeadline: toDate(item.NextDeadline),
     folderUrl: item.FolderUrl?.Url,
+    folderMap: item.FolderMap ? nonEmptyMap(folderMapFromJson(item.FolderMap)) : undefined,
     isOverhead: item.IsOverhead === true,
     budgetStatus: (item.BudgetStatus as BudgetStatus) ?? BudgetStatus.Bez,
     budgetBaselineTotal: item.BudgetBaselineTotal,
@@ -1105,6 +1158,11 @@ export function mapStatus(value: string | undefined): ProjectStatus {
 function yearFromProjectNumber(projectNumber: string): number {
   const match = /^(\d{2})\d{3,}$/.exec(projectNumber.trim());
   return match ? 2000 + parseInt(match[1], 10) : new Date().getFullYear();
+}
+
+/** Prázdná mapa znamená „projekt ji nemá“ (platí výchozí cesty z Nastavení). */
+function nonEmptyMap(map: FolderMap): FolderMap | undefined {
+  return Object.keys(map).length > 0 ? map : undefined;
 }
 
 function extractAddedId(added: unknown): number | undefined {

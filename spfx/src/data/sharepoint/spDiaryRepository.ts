@@ -7,6 +7,7 @@
  * Soubory zápisu (fotky, náčrty, PDF, Word) se neukládají sem, ale do složky projektu (řeší je `IDocumentRepository`).
  */
 
+import { folderFor } from '../../core/projectFolders';
 import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { CurrentUser, Project } from '../../core/types';
 import { toDate } from '../../core/format';
@@ -261,7 +262,7 @@ export class SpDiaryRepository implements IDiaryRepository {
         EntryDate: input.date.toISOString(),
         EntryStatus: EntryStatus.Koncept,
         Content: contentToJson(input),
-        FolderPath: entryFolderPath(settings.folders.diaryFolder, diary.title, firstNo),
+        FolderPath: entryFolderPath(folderFor(project, 'diary', settings.folders), diary.title, firstNo),
         EntryAuthorId: actor.id
       });
       newId = extractAddedId(added);
@@ -280,7 +281,7 @@ export class SpDiaryRepository implements IDiaryRepository {
       finalNo = nextEntryNumber((await this.listEntries({ diaryId: diary.id })).map((e) => e.entryNo));
       await this.write(
         createdId,
-        { Title: `Zápis č. ${finalNo}`, EntryNo: finalNo, FolderPath: entryFolderPath(settings.folders.diaryFolder, diary.title, finalNo) },
+        { Title: `Zápis č. ${finalNo}`, EntryNo: finalNo, FolderPath: entryFolderPath(folderFor(project, 'diary', settings.folders), diary.title, finalNo) },
         undefined,
         'Nepodařilo se přečíslovat zápis'
       );

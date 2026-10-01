@@ -12,6 +12,7 @@
  * psaní názvu. Když nahrávání selže (slabý signál), fotka zůstane ve frontě a jde ji poslat znovu — stránku je ale potřeba nechat otevřenou.
  */
 
+import { folderFor } from '../../core/projectFolders';
 import * as React from 'react';
 import { PrimaryButton, DefaultButton, IconButton } from '@fluentui/react/lib/Button';
 import { TextField } from '@fluentui/react/lib/TextField';
@@ -93,7 +94,7 @@ export const PhotoUploader: React.FC<PhotoUploaderProps> = ({ project, presetBat
   const onUploadedRef = React.useRef(onUploaded);
   onUploadedRef.current = onUploaded;
 
-  const base = settings.folders.photoFolder;
+  const base = folderFor(project, 'photos', settings.folders);
 
   const reloadBatches = React.useCallback((): void => {
     loadBatches(repos.documents, projectRef.current, base)

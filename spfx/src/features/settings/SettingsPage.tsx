@@ -32,6 +32,7 @@ import {
 import { describeApprovalLadder } from '../../core/approval';
 import { CurrencyCode } from '../../core/currency';
 import { Dropdown } from '@fluentui/react/lib/Dropdown';
+import { folderSettingsWarnings } from '../../core/projectFolders';
 import { overheadProjectNumber } from '../../core/overhead';
 import { OVERHEAD_ACCESS_ROLES, accessGroupsForRoles } from '../../core/projectAccess';
 import { parseListText, sameList } from '../../core/listText';
@@ -192,6 +193,16 @@ export const SettingsPage: React.FC = () => {
               template={draft.folders.template}
               onChange={(template) => patch('folders', { template })}
             />
+            {folderSettingsWarnings(draft.folders).map((w) => (
+              <MessageBar key={w} messageBarType={MessageBarType.warning} isMultiline>
+                {w}
+              </MessageBar>
+            ))}
+            <Hint>
+              Šablona a tyto cesty platí jen pro <strong>nově zakládané projekty</strong>. U už založených projektů se nic nemění — každý projekt má v detailu
+              (<strong>Složky projektu</strong>) vlastní mapu, kde má složky objednávek, fakturace, zápisů a fotek, takže pozdější změna šablony stará data nerozbije.
+              Složky se hledají tolerantně (číslo na začátku, pomlčka/podtržítko a diakritika nerozhodují); aplikace žádné složky nemaže ani nepřejmenovává.
+            </Hint>
           </Panel>
         </PivotItem>
 

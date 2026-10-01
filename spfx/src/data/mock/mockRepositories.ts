@@ -8,6 +8,7 @@
  * jiná logika než do ostré implementace, UI by se chovalo jinak na ostro.
  */
 
+import type { FolderMap } from '../../core/projectFolders';
 import { BudgetStatus, CurrentUser, Partner, Project, ProjectStatus, ProjectTask, ACTIVE_PROJECT_STATUSES } from '../../core/types';
 import { AppSettings, DEFAULT_SETTINGS, withDefaults } from '../../core/settings';
 import { canDeleteProject, canEditProject, normalizeLogin, RoleGroupMapping } from '../../core/roles';
@@ -332,6 +333,19 @@ export class MockProjectRepository implements IProjectRepository {
     this.projects = this.projects.map((p) =>
       p.projectNumber === projectNumber ? { ...p, nextDeadline: next } : p
     );
+  }
+
+  public async saveFolderMap(projectNumber: string, map: FolderMap, actor: CurrentUser): Promise<Project> {
+    const project = this.projects.filter((p) => p.projectNumber === projectNumber)[0];
+    if (!project) {
+      throw new Error(`Projekt ${projectNumber} nebyl nalezen.`);
+    }
+    if (!canEditProject(actor.roles, actor.loginName, { projectManagerLogin: project.projectManagerLogin, assistantLogins: project.assistantLogins })) {
+      throw new Error('Složky projektu smí měnit jen jeho projektový manažer, asistent a administrátor.');
+    }
+    const updated: Project = { ...project, folderMap: Object.keys(map).length > 0 ? map : undefined };
+    this.projects = this.projects.map((p) => (p.projectNumber === projectNumber ? updated : p));
+    return delay(updated);
   }
 
   public async describeRemoval(projectNumber: string): Promise<ProjectRemovalPreview> {

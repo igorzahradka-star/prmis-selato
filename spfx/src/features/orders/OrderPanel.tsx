@@ -5,6 +5,7 @@
  * skutečná kontrola oprávnění znovu probíhá v datové vrstvě při zápisu.
  */
 
+import { folderFor } from '../../core/projectFolders';
 import * as React from 'react';
 import { Panel, PanelType } from '@fluentui/react/lib/Panel';
 import { TextField } from '@fluentui/react/lib/TextField';
@@ -333,7 +334,7 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
       settings.company
     );
     renderOrderPdf(data)
-      .then((blob) => saveConceptCopy(repos.documents, proj, settings.folders.orderFolder, orderPdfFileName(saved.orderNumber), blob))
+      .then((blob) => saveConceptCopy(repos.documents, proj, folderFor(proj, 'orders', settings.folders), orderPdfFileName(saved.orderNumber), blob))
       .catch((e: unknown) =>
         setNotice({
           text: `Objednávka je uložená, ale koncept PDF (KO) se do složky projektu nepodařilo uložit: ${e instanceof Error ? e.message : String(e)}`,
@@ -586,7 +587,7 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
       stage = 'Uložení PDF do složky projektu';
       let pdfUrl: string | undefined;
       try {
-        pdfUrl = await repos.documents.saveProjectFile(project, settings.folders.orderFolder, fileName, blob);
+        pdfUrl = await repos.documents.saveProjectFile(project, folderFor(project, 'orders', settings.folders), fileName, blob);
       } catch (e) {
         // U opakovaného odeslání PDF ve složce už je; jeho neúspěšné přepsání nesmí bránit odeslání e-mailu.
         if (!again) {
@@ -610,7 +611,7 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
       const options = { sentTo: payload ? payload.to.join(', ') : undefined, pdfUrl };
       const updated = again ? await repos.orders.resend(order.id, user, options) : await repos.orders.send(order.id, user, options);
       // Ostrá verze je uložená — koncept (KO) už není potřeba (maže se do koše SharePointu).
-      await removeConceptCopy(repos.documents, project, settings.folders.orderFolder, fileName);
+      await removeConceptCopy(repos.documents, project, folderFor(project, 'orders', settings.folders), fileName);
       setSendOpen(undefined);
       afterChange(updated);
     } catch (e) {
@@ -881,7 +882,7 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
         closeButtonAriaLabel="Zavřít"
         onRenderNavigationContent={(props, defaultRender) => (
           <>
-            <DocumentFolderButton project={projects.filter((p) => p.projectNumber === (order ? order.projectNumber : fProject))[0]} relativeFolder={settings.folders.orderFolder} />
+            <DocumentFolderButton project={projects.filter((p) => p.projectNumber === (order ? order.projectNumber : fProject))[0]} relativeFolder={folderFor(projects.filter((p) => p.projectNumber === (order ? order.projectNumber : fProject))[0], 'orders', settings.folders)} />
             {defaultRender ? defaultRender(props) : null}
           </>
         )}
@@ -1125,7 +1126,7 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
       {sendOpen && order && (
         <SendOrderDialog
           resend={sendOpen === 'resend'}
-          folderLabel={settings.folders.orderFolder}
+          folderLabel={folderFor(projects.filter((p) => p.projectNumber === order.projectNumber)[0], 'orders', settings.folders)}
           orderNumber={order.orderNumber}
           initialTo={(supplierOf(order.supplierId) || { email: '' }).email || ''}
           initialCc={user.email || ''}

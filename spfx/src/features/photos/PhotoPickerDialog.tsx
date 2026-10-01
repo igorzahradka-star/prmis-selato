@@ -5,6 +5,7 @@
  * Dialog se musí vykreslovat **uvnitř panelu zápisu** (viz EntryPanel), jinak by klik v něm zavřel celý panel.
  */
 
+import { folderFor } from '../../core/projectFolders';
 import * as React from 'react';
 import { PrimaryButton, DefaultButton, IconButton } from '@fluentui/react/lib/Button';
 import { Checkbox } from '@fluentui/react/lib/Checkbox';
@@ -64,7 +65,7 @@ export const PhotoPickerDialog: React.FC<{ project: Project; onPick: (photos: Pi
   onClose
 }) => {
   const { repos, settings } = useApp();
-  const base = settings.folders.photoFolder;
+  const base = folderFor(project, 'photos', settings.folders);
   const [batches, setBatches] = React.useState<PhotoBatch[] | undefined>(undefined);
   const [error, setError] = React.useState<string | undefined>(undefined);
   const [open, setOpen] = React.useState<Record<string, boolean>>({});

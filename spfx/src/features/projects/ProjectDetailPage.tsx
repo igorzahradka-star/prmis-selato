@@ -10,7 +10,6 @@ import { Pivot, PivotItem } from '@fluentui/react/lib/Pivot';
 import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
 import { ActionButton, DefaultButton, PrimaryButton } from '@fluentui/react/lib/Button';
-import { Dialog, DialogFooter, DialogType } from '@fluentui/react/lib/Dialog';
 import { Link } from '@fluentui/react/lib/Link';
 
 import { useApp } from '../../ui/AppContext';
@@ -28,6 +27,7 @@ import { DeadlinesTab } from './DeadlinesTab';
 import { DocumentsTab } from './DocumentsTab';
 import { AccessBar } from './AccessBar';
 import { DeleteProjectDialog } from './DeleteProjectDialog';
+import { ProjectFoldersDialog } from './ProjectFoldersDialog';
 import { EXTERNAL_LINK_PROPS } from '../../ui/components/ExternalLink';
 import { ProjectOrdersTab } from '../orders/ProjectOrdersTab';
 import { ProjectInvoicesTab } from '../invoicing/ProjectInvoicesTab';
@@ -41,7 +41,6 @@ export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projec
   const [editOpen, setEditOpen] = React.useState(false);
   const [deleteOpen, setDeleteOpen] = React.useState(false);
   const [foldersDialog, setFoldersDialog] = React.useState(false);
-  const [foldersBusy, setFoldersBusy] = React.useState(false);
   const [foldersMessage, setFoldersMessage] = React.useState<{ ok: boolean; text: string } | undefined>(undefined);
 
   React.useEffect(() => {
@@ -92,28 +91,6 @@ export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projec
     assistantLogins: project.assistantLogins
   });
 
-  /** Založí chybějící složky podle šablony na správném místě a přepíše odkaz na složku projektu (oprava špatně založených složek). */
-  const fixFolders = (): void => {
-    setFoldersBusy(true);
-    setFoldersMessage(undefined);
-    repos.projects
-      .retryCreateFolders(project.projectNumber)
-      .then(() => repos.projects.getByNumber(project.projectNumber))
-      .then((p) => {
-        if (p) {
-          setProject(p);
-        }
-        setFoldersBusy(false);
-        setFoldersDialog(false);
-        setFoldersMessage({ ok: true, text: 'Složky projektu jsou založené a odkaz na složku projektu je opravený.' });
-      })
-      .catch((e: Error) => {
-        setFoldersBusy(false);
-        setFoldersDialog(false);
-        setFoldersMessage({ ok: false, text: e.message });
-      });
-  };
-
   return (
     <>
       <ActionButton
@@ -144,9 +121,9 @@ export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projec
             )}
             {mayEdit && (
               <DefaultButton
-                iconProps={{ iconName: 'Repair' }}
-                text="Opravit složky"
-                title="Založí chybějící složky podle šablony na správném místě a opraví odkaz na složku projektu"
+                iconProps={{ iconName: 'FabricFolderConfirm' }}
+                text="Složky projektu"
+                title="Kde má projekt složky objednávek, fakturace, zápisů a fotek (nic se nemaže ani nepřesouvá)"
                 onClick={() => setFoldersDialog(true)}
               />
             )}
@@ -169,22 +146,15 @@ export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projec
       )}
 
       {foldersDialog && (
-        <Dialog
-          hidden={false}
-          onDismiss={foldersBusy ? undefined : () => setFoldersDialog(false)}
-          dialogContentProps={{
-            type: DialogType.normal,
-            title: 'Opravit složky projektu',
-            subText:
-              'Aplikace založí chybějící složky podle šablony v kořenové složce projektů (z Nastavení) a přepíše odkaz „Otevřít složku projektu“ tak, aby mířil na složku projektu. Nic nemaže ani nepřesouvá — složky založené dřív na jiném místě zůstanou a smaže je člověk.'
+        <ProjectFoldersDialog
+          project={project}
+          onClose={() => setFoldersDialog(false)}
+          onSaved={(p) => {
+            setProject(p);
+            setFoldersDialog(false);
+            setFoldersMessage({ ok: true, text: 'Složky projektu jsou uložené.' });
           }}
-          modalProps={{ isBlocking: true }}
-        >
-          <DialogFooter>
-            <PrimaryButton text={foldersBusy ? 'Zakládám…' : 'Opravit složky'} disabled={foldersBusy} onClick={fixFolders} />
-            <DefaultButton text="Zrušit" disabled={foldersBusy} onClick={() => setFoldersDialog(false)} />
-          </DialogFooter>
-        </Dialog>
+        />
       )}
 
       {deleteOpen && (

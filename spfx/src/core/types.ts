@@ -1,3 +1,4 @@
+import type { FolderMap } from './projectFolders';
 /**
  * Doménové typy PRM Revoltum.
  *
@@ -118,6 +119,8 @@ export interface Project {
   /** Nejbližší smluvní termín plnění — cache, počítá se z PRM_Tasks. */
   nextDeadline?: Date;
   folderUrl?: string;
+  /** Kde má projekt složky objednávek, fakturace, zápisů a fotek (viz `core/projectFolders.ts`); bez ní platí výchozí cesty z Nastavení. */
+  folderMap?: FolderMap;
   /** Projekt „Režie" sbírá režijní objednávky a náklady. */
   isOverhead: boolean;
   budgetStatus: BudgetStatus;

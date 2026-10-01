@@ -6,6 +6,7 @@
  * „Přidat fotky“ u dávky přidá fotky do ní.
  */
 
+import { folderFor } from '../../core/projectFolders';
 import * as React from 'react';
 import { PrimaryButton, DefaultButton, IconButton } from '@fluentui/react/lib/Button';
 import { TextField } from '@fluentui/react/lib/TextField';
@@ -135,7 +136,7 @@ export const ProjectPhotos: React.FC<{ project: Project }> = ({ project }) => {
   const [uploader, setUploader] = React.useState<{ preset?: PhotoBatch } | undefined>(undefined);
   const [reloadKey, setReloadKey] = React.useState(0);
 
-  const base = settings.folders.photoFolder;
+  const base = folderFor(project, 'photos', settings.folders);
   const mayWrite = canWriteDiary(toWorkflowProject(project), toActor(user));
 
   const load = React.useCallback((): void => {

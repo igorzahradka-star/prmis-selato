@@ -389,3 +389,30 @@ describe('MockUserAdminRepository.ensureRoleGroups', () => {
     expect(uroven('PRM Čtenáři')).toBe('Čtení');
   });
 });
+
+describe('MockProjectRepository.saveFolderMap', () => {
+  const repo = (): MockProjectRepository => createMockRepositories().projects as MockProjectRepository;
+  const admin: CurrentUser = { ...MOCK_USER, roles: [Role.Administrator] };
+  const ctenar: CurrentUser = { ...MOCK_USER, loginName: 'cizi@revoltum.cz', roles: [Role.Ctenar] };
+  const cislo = MOCK_PROJECTS[0].projectNumber;
+
+  it('uloží mapu složek projektu a projekt si ji nese', async () => {
+    const r = repo();
+    const p = await r.saveFolderMap(cislo, { orders: '04-Nákup/Objednávky', diary: '05-Zápisy' }, admin);
+    expect(p.folderMap).toEqual({ orders: '04-Nákup/Objednávky', diary: '05-Zápisy' });
+    expect((await r.getByNumber(cislo))?.folderMap?.diary).toBe('05-Zápisy');
+  });
+
+  it('prázdná mapa znamená „projekt ji nemá“ (platí výchozí z Nastavení)', async () => {
+    const r = repo();
+    await r.saveFolderMap(cislo, { orders: 'x' }, admin);
+    const p = await r.saveFolderMap(cislo, {}, admin);
+    expect(p.folderMap).toBeUndefined();
+  });
+
+  it('cizí čtenář složky projektu měnit nesmí; neexistující projekt chyba', async () => {
+    const r = repo();
+    await expect(r.saveFolderMap(cislo, { orders: 'x' }, ctenar)).rejects.toThrow(/smí měnit/);
+    await expect(r.saveFolderMap('99999', {}, admin)).rejects.toThrow(/nebyl nalezen/);
+  });
+});

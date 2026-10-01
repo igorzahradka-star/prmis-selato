@@ -6,6 +6,7 @@
  * a UI se dá vyvíjet proti mock implementaci (viz `data/mock/`).
  */
 
+import type { FolderMap } from '../core/projectFolders';
 import { ProjectRemovalPreview, ProjectRemovalResult } from '../core/projectDeletion';
 import { CurrentUser, Currency, Partner, Project, ProjectStatus, ProjectTask, TaskType } from '../core/types';
 import { AppSettings } from '../core/settings';
@@ -222,6 +223,11 @@ export interface IProjectRepository {
    * poznatelně tohoto tvaru; ostatní (správné i jinam mířící) nechává být. Dá se pustit opakovaně.
    */
   repairFolderLinks(): Promise<FolderLinkRepairResult>;
+  /**
+   * Uloží mapu složek projektu (kde má složky objednávek, fakturace, zápisů a fotek). Nic nemaže ani nepřesouvá.
+   * Smí PM, asistent a administrátor; ověřuje se i v datové vrstvě.
+   */
+  saveFolderMap(projectNumber: string, map: FolderMap, actor: CurrentUser): Promise<Project>;
   /** Znovu založí složky u už uloženého projektu — pro tlačítko „Zkusit znovu založit složky". */
   retryCreateFolders(projectNumber: string): Promise<void>;
   /**

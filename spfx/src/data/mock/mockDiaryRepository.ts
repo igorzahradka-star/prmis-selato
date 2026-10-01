@@ -4,6 +4,7 @@
  * Používá **stejná pravidla** (`core/siteDiary`) jako ostrá implementace, takže ukázkový režim ukazuje skutečné chování.
  */
 
+import { folderFor } from '../../core/projectFolders';
 import { CurrentUser, Project } from '../../core/types';
 import { AppSettings } from '../../core/settings';
 import {
@@ -220,7 +221,7 @@ export class MockDiaryRepository implements IDiaryRepository {
       id: this.nextEntryId++,
       diaryTitle: diary.title,
       entryNo,
-      folderPath: entryFolderPath(settings.folders.diaryFolder, diary.title, entryNo),
+      folderPath: entryFolderPath(folderFor(project, 'diary', settings.folders), diary.title, entryNo),
       status: EntryStatus.Koncept,
       createdByName: actor.displayName,
       createdByLogin: actor.loginName,

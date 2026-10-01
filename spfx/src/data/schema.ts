@@ -18,7 +18,7 @@
  * Verze schématu. Ukládá se do PRM_Settings pod klíčem `schemaVersion`.
  * Průvodce porovná uloženou verzi s touto a nabídne doplnění rozdílu.
  */
-export const SCHEMA_VERSION = 10;
+export const SCHEMA_VERSION = 11;
 
 /** Typ sloupce v SharePointu. */
 export type FieldType =
@@ -223,7 +223,8 @@ const PRM_PROJECTS: ListDef = {
     { name: 'BudgetBaselineTotal', title: 'Baseline rozpočtu', type: 'Currency', decimals: 2 },
     { name: 'CostForecastTotal', title: 'Prognóza nákladů', type: 'Currency', decimals: 2 },
     { name: 'NextDeadline', title: 'Nejbližší termín plnění', type: 'DateTime', indexed: true },
-    { name: 'ProjectDescription', title: 'Popis', type: 'Note' }
+    { name: 'ProjectDescription', title: 'Popis', type: 'Note' },
+    { name: 'FolderMap', title: 'Mapa složek', type: 'Note', description: 'Kde má projekt složky objednávek, fakturace, zápisů a fotek (JSON). Nastavuje aplikace při založení projektu a v detailu projektu (Složky projektu).' }
   ]
 };
 

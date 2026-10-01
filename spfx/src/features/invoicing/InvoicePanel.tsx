@@ -8,6 +8,7 @@
  * Okna (náhled, odeslání, komentář) jsou uvnitř panelu — jinak by klik v nich panel považoval za klik „ven" a zavřel se.
  */
 
+import { folderFor } from '../../core/projectFolders';
 import * as React from 'react';
 import { Panel, PanelType } from '@fluentui/react/lib/Panel';
 import { TextField } from '@fluentui/react/lib/TextField';
@@ -376,7 +377,7 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
       settings.company
     );
     renderInvoicePdf(data)
-      .then((blob) => saveConceptCopy(repos.documents, proj, settings.folders.invoiceFolder, invoicePdfFileName(saved.number), blob))
+      .then((blob) => saveConceptCopy(repos.documents, proj, folderFor(proj, 'invoices', settings.folders), invoicePdfFileName(saved.number), blob))
       .catch((e: unknown) =>
         setNotice({
           text: `Podklad je uložený, ale koncept PDF (KO) se do složky projektu nepodařilo uložit: ${why(e)}`,
@@ -487,7 +488,7 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
       stage = 'Uložení PDF do složky projektu';
       let pdfUrl: string | undefined;
       try {
-        pdfUrl = await repos.documents.saveProjectFile(project, settings.folders.invoiceFolder, fileName, blob);
+        pdfUrl = await repos.documents.saveProjectFile(project, folderFor(project, 'invoices', settings.folders), fileName, blob);
       } catch (e) {
         if (!again) {
           throw e;
@@ -504,7 +505,7 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
       const options = { sentTo: payload ? payload.to.join(', ') : undefined, pdfUrl };
       const updated = again ? await repos.invoices.resend(invoice.id, user, options) : await repos.invoices.handOver(invoice.id, user, options);
       // Ostrá verze je uložená — koncept (KO) už není potřeba (maže se do koše SharePointu).
-      await removeConceptCopy(repos.documents, project, settings.folders.invoiceFolder, fileName);
+      await removeConceptCopy(repos.documents, project, folderFor(project, 'invoices', settings.folders), fileName);
       setSendOpen(undefined);
       afterChange(updated);
     } catch (e) {
@@ -682,7 +683,7 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
         closeButtonAriaLabel="Zavřít"
         onRenderNavigationContent={(props, defaultRender) => (
           <>
-            <DocumentFolderButton project={project} relativeFolder={settings.folders.invoiceFolder} />
+            <DocumentFolderButton project={project} relativeFolder={folderFor(project, 'invoices', settings.folders)} />
             {defaultRender ? defaultRender(props) : null}
           </>
         )}
@@ -882,8 +883,8 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
               pdfLabel: 'PDF podkladu',
               hint:
                 sendOpen === 'resend'
-                  ? `PDF se znovu uloží do složky projektu (${settings.folders.invoiceFolder}) a v historii bude zapsáno, komu a kdy šlo znovu. Stav podkladu se nemění. E-mail odejde z vaší schránky.`
-                  : `PDF se zároveň uloží do složky projektu (${settings.folders.invoiceFolder}) a podklad se označí jako předaný účtárně. E-mail odejde z vaší schránky a bude i ve vaší poště Odeslané.`,
+                  ? `PDF se znovu uloží do složky projektu (${folderFor(project, 'invoices', settings.folders)}) a v historii bude zapsáno, komu a kdy šlo znovu. Stav podkladu se nemění. E-mail odejde z vaší schránky.`
+                  : `PDF se zároveň uloží do složky projektu (${folderFor(project, 'invoices', settings.folders)}) a podklad se označí jako předaný účtárně. E-mail odejde z vaší schránky a bude i ve vaší poště Odeslané.`,
               markOnly: sendOpen === 'resend' ? 'Jen uložit PDF a zapsat předání' : 'Jen uložit PDF a označit jako předáno',
               sendButton: 'Odeslat účtárně'
             }}
