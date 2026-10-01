@@ -5,6 +5,15 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.11.1 — 1. 10. 2026 — Odesílání e-mailů: technický detail chyby
+
+- Když se e-mail nepodaří odeslat, hláška teď **vždy obsahuje technický detail od Microsoftu** (stavový kód, kód chyby a jeho text).
+  Dřív se každá chyba typu 401/403 zobrazila jako „chybí oprávnění" bez dalších údajů, takže nešlo poznat, jestli chybí schválení správce,
+  prohlížeč drží starý přístupový token, nebo je problém se schránkou uživatele. Platí pro objednávky, podklady pro fakturaci,
+  upozornění schvalovatelům i odeslání účtárně.
+
+---
+
 ## 0.11.0 — 1. 10. 2026 — Fáze 2, krok 4: fotodokumentace z mobilu
 
 **Nové**

@@ -9,7 +9,7 @@
 
 import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { IMailRepository, OutgoingMail } from '../repositories';
-import { attachmentsFit } from '../../core/mail';
+import { GraphErrorInfo, attachmentsFit, describeGraphError } from '../../core/mail';
 
 const PERMISSION_HINT =
   'Odeslání e-mailem zatím nemá oprávnění. Správce musí v SharePoint admin centru (Zabezpečení → Přístup k rozhraní API) ' +
@@ -58,12 +58,8 @@ export class SpMailRepository implements IMailRepository {
         saveToSentItems: true
       });
     } catch (error) {
-      const e = error as { statusCode?: number; code?: string; message?: string };
-      const text = `${e.code || ''} ${e.message || ''}`;
-      if (e.statusCode === 403 || e.statusCode === 401 || /Authorization|Forbidden|consent|AccessDenied|permission/i.test(text)) {
-        throw new Error(PERMISSION_HINT);
-      }
-      throw new Error(`E-mail se nepodařilo odeslat: ${e.message || 'neznámá chyba'}`);
+      // Technický detail od Microsoftu se v hlášce ukáže vždy — podle něj se pozná skutečná příčina.
+      throw new Error(describeGraphError(error as GraphErrorInfo, PERMISSION_HINT).message);
     }
   }
 }

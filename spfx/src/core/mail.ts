@@ -109,3 +109,28 @@ export function defaultInvoiceMail(input: {
   const body = lines.filter((l, i) => !(l === '' && i === 6)).join('\n').replace(/\n{3,}/g, '\n\n').replace(/\n+$/, '');
   return { subject: `Podklad pro fakturaci ${input.number} – ${input.customerName || input.projectNumber}`, body };
 }
+
+/** Co Microsoft Graph vrátil při odeslání — nejen text, ale i číselný kód, ze kterého jde poznat příčina. */
+export interface GraphErrorInfo {
+  statusCode?: number;
+  code?: string;
+  message?: string;
+}
+
+/**
+ * Převede chybu odeslání na větu pro člověka. Chyba oprávnění (403, 401, nesouhlas správce) dostane návod, co schválit,
+ * ale **vždy se připojí technický detail** (kód a text od Microsoftu) — bez něj se z hlášky nedá poznat, jestli chybí
+ * schválení, jestli prohlížeč drží starý přístupový token, nebo jde o schránku uživatele.
+ */
+export function describeGraphError(error: GraphErrorInfo, permissionHint: string): { permission: boolean; message: string } {
+  const parts = [error.statusCode ? `HTTP ${error.statusCode}` : '', error.code || '', error.message || ''].filter((p) => p && p.trim() !== '');
+  const detail = parts.length > 0 ? ` (Technický detail: ${parts.join(' – ')})` : '';
+  const text = `${error.code || ''} ${error.message || ''}`;
+  const permission =
+    error.statusCode === 403 ||
+    error.statusCode === 401 ||
+    /Authorization|Forbidden|consent|AccessDenied|permission|AADSTS65001|AADSTS500011/i.test(text);
+  return permission
+    ? { permission, message: `${permissionHint}${detail}` }
+    : { permission, message: `E-mail se nepodařilo odeslat.${detail || ' Neznámá chyba.'}` };
+}

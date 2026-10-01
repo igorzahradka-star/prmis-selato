@@ -1,4 +1,35 @@
-import { attachmentsFit, defaultOrderMail, isValidEmail, MAIL_MAX_ATTACHMENT_BYTES, parseRecipients } from './mail';
+import { attachmentsFit, defaultOrderMail, describeGraphError, isValidEmail, MAIL_MAX_ATTACHMENT_BYTES, parseRecipients } from './mail';
+
+describe('describeGraphError', () => {
+  const HINT = 'Chybí schválení.';
+
+  it('chyba oprávnění dostane návod a vždy i technický detail od Microsoftu', () => {
+    const r = describeGraphError({ statusCode: 403, code: 'ErrorAccessDenied', message: 'Access is denied.' }, HINT);
+    expect(r.permission).toBe(true);
+    expect(r.message).toContain(HINT);
+    expect(r.message).toContain('HTTP 403');
+    expect(r.message).toContain('ErrorAccessDenied');
+    expect(r.message).toContain('Access is denied.');
+  });
+
+  it('chybu získání přístupového tokenu (nesouhlas správce) pozná i bez stavového kódu', () => {
+    const r = describeGraphError({ message: 'AADSTS65001: The user or administrator has not consented to use the application' }, HINT);
+    expect(r.permission).toBe(true);
+    expect(r.message).toContain('AADSTS65001');
+  });
+
+  it('jiná chyba (schránka, nesmysl v žádosti) návod k oprávnění nedostane, ale detail ano', () => {
+    const r = describeGraphError({ statusCode: 404, code: 'MailboxNotEnabledForRESTAPI', message: 'The mailbox is either inactive.' }, HINT);
+    expect(r.permission).toBe(false);
+    expect(r.message).not.toContain(HINT);
+    expect(r.message).toContain('MailboxNotEnabledForRESTAPI');
+    expect(r.message).toContain('HTTP 404');
+  });
+
+  it('bez jakéhokoli detailu řekne, že chyba není známá', () => {
+    expect(describeGraphError({}, HINT).message).toContain('Neznámá chyba');
+  });
+});
 
 describe('isValidEmail', () => {
   it('běžné adresy projdou', () => {
