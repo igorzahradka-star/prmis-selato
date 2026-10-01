@@ -169,7 +169,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     template: DEFAULT_FOLDER_TEMPLATE,
     // Rozhodnuto 1. 10. 2026 podle zadavatele: zápisy ve složce Zápisy, fotky v 07 Dokumentace a podklady / FOTO.
     diaryFolder: 'Zápisy',
-    photoFolder: '07_Dokumentace a podklady/FOTO'
+    photoFolder: '07-Dokumentace a podklady/FOTO'
   },
   numbering: {},
   projects: {

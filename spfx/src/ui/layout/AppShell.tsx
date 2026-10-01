@@ -16,16 +16,9 @@ import { Route, RouteName, buildHash } from '../router';
 import { ROLE_LABELS } from '../../core/types';
 import { canOpenAdmin, canOpenBenchmark, canOpenFinance } from '../../core/roles';
 import { isWebViewMode, siteHomeUrl, toggleWebViewUrl } from '../fullscreen';
+import { NavEntry, NavGroup, NavItem, activeItemRoute, buildNavigation, flattenNavigation, groupKeyOf } from './navigation';
 
 import logoUrl from '../../webparts/prm/assets/res-logo-header.svg';
-
-interface NavItem {
-  route: RouteName;
-  label: string;
-  icon: string;
-  /** Modul ještě není hotový — zobrazí se jako připravovaný. */
-  comingSoon?: boolean;
-}
 
 export interface AppShellProps {
   route: Route;
@@ -36,7 +29,25 @@ export const AppShell: React.FC<AppShellProps> = ({ route, children }) => {
   const { user, dataSource } = useApp();
   const [navOpen, setNavOpen] = React.useState<boolean>(window.innerWidth >= LAYOUT.breakpointNarrow);
 
-  const items = useNavItems();
+  const entries = useNavEntries();
+  const [expanded, setExpanded] = React.useState<Record<string, boolean>>(readExpandedGroups());
+  const activeGroup = groupKeyOf(entries, route.name);
+
+  // Přejde-li se na obrazovku ve sbalené skupině, skupina se sama rozbalí.
+  React.useEffect(() => {
+    if (activeGroup && expanded[activeGroup] === false) {
+      setExpanded((cur) => ({ ...cur, [activeGroup]: true }));
+    }
+  }, [activeGroup, route.name]);
+
+  const toggleGroup = (key: string): void => {
+    setExpanded((cur) => {
+      const open = cur[key] ?? key === activeGroup;
+      const next = { ...cur, [key]: !open };
+      saveExpandedGroups(next);
+      return next;
+    });
+  };
 
   return (
     <div style={{ fontFamily: RES_FONT_FAMILY, background: RES.background, minHeight: 600 }}>
@@ -61,9 +72,23 @@ export const AppShell: React.FC<AppShellProps> = ({ route, children }) => {
             transition: 'width .15s ease'
           }}
         >
-          {items.map((item) => (
-            <NavLink key={item.route} item={item} active={route.name === item.route} collapsed={!navOpen} />
-          ))}
+          {navOpen
+            ? entries.map((entry) =>
+                entry.kind === 'item' ? (
+                  <NavLink key={entry.item.route} item={entry.item} active={activeItemRoute(route.name) === entry.item.route} collapsed={false} />
+                ) : (
+                  <NavGroupView
+                    key={entry.group.key}
+                    group={entry.group}
+                    open={expanded[entry.group.key] ?? entry.group.key === activeGroup}
+                    activeRoute={activeItemRoute(route.name)}
+                    onToggle={() => toggleGroup(entry.group.key)}
+                  />
+                )
+              )
+            : flattenNavigation(entries).map((item) => (
+                <NavLink key={item.route} item={item} active={activeItemRoute(route.name) === item.route} collapsed />
+              ))}
         </nav>
 
         <main
@@ -83,40 +108,75 @@ export const AppShell: React.FC<AppShellProps> = ({ route, children }) => {
   );
 };
 
-/** Které položky navigace uživatel uvidí. */
-function useNavItems(): NavItem[] {
+/** Navigace podle oprávnění přihlášeného uživatele. */
+function useNavEntries(): NavEntry[] {
   const { user, financeSiteUrl } = useApp();
-  const items: NavItem[] = [
-    { route: RouteName.Dashboard, label: 'Projekty', icon: 'ViewList' },
-    { route: RouteName.Map, label: 'Mapa projektů', icon: 'MapPin' },
-    { route: RouteName.Partners, label: 'Partneři', icon: 'ContactCard' },
-    { route: RouteName.WaitingForMe, label: 'Čeká na mě', icon: 'Inbox' },
-    { route: RouteName.Orders, label: 'Objednávky', icon: 'ShoppingCart' },
-    { route: RouteName.Invoicing, label: 'Fakturace', icon: 'M365InvoicingLogo' },
-    { route: RouteName.Diary, label: 'Stavební deník', icon: 'Dictionary' },
-    { route: RouteName.Photos, label: 'Fotodokumentace', icon: 'Camera' }
-  ];
-
-  if (canOpenBenchmark(user.roles)) {
-    items.push({ route: RouteName.Benchmark, label: 'Benchmark', icon: 'BarChartVertical', comingSoon: true });
-  }
-  if (canOpenFinance(user.roles, user.hasFinanceAccess && !!financeSiteUrl)) {
-    items.push({ route: RouteName.Finance, label: 'Firemní cashflow', icon: 'Money', comingSoon: true });
-  }
-  if (canOpenAdmin(user.roles)) {
-    items.push({ route: RouteName.Users, label: 'Uživatelé a role', icon: 'SecurityGroup' });
-    items.push({ route: RouteName.Settings, label: 'Nastavení', icon: 'Settings' });
-    items.push({ route: RouteName.Install, label: 'Instalace a diagnostika', icon: 'Health' });
-  }
-  items.push({ route: RouteName.Help, label: 'Nápověda', icon: 'Help' });
-
-  return items;
+  return buildNavigation({
+    benchmark: canOpenBenchmark(user.roles),
+    finance: canOpenFinance(user.roles, user.hasFinanceAccess && !!financeSiteUrl),
+    admin: canOpenAdmin(user.roles)
+  });
 }
 
-const NavLink: React.FC<{ item: NavItem; active: boolean; collapsed: boolean }> = ({
+const EXPANDED_KEY = 'prm-nav-groups';
+
+/** Které skupiny nabídky si uživatel sbalil nebo rozbalil (pamatuje si to prohlížeč). */
+function readExpandedGroups(): Record<string, boolean> {
+  try {
+    return JSON.parse(window.localStorage.getItem(EXPANDED_KEY) || '{}') as Record<string, boolean>;
+  } catch {
+    return {};
+  }
+}
+
+function saveExpandedGroups(value: Record<string, boolean>): void {
+  try {
+    window.localStorage.setItem(EXPANDED_KEY, JSON.stringify(value));
+  } catch {
+    // Bez úložiště se volba jen nezapamatuje.
+  }
+}
+
+/** Skupina položek nabídky, kterou jde sbalit a rozbalit. */
+const NavGroupView: React.FC<{ group: NavGroup; open: boolean; activeRoute: RouteName; onToggle: () => void }> = ({ group, open, activeRoute, onToggle }) => {
+  const containsActive = group.children.some((c) => c.route === activeRoute);
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          width: '100%',
+          padding: '10px 14px',
+          border: 'none',
+          borderLeft: '3px solid transparent',
+          background: 'transparent',
+          cursor: 'pointer',
+          fontFamily: 'inherit',
+          fontSize: 14,
+          fontWeight: containsActive && !open ? 600 : 500,
+          color: containsActive && !open ? RES.blue : RES.text,
+          textAlign: 'left'
+        }}
+      >
+        <Icon iconName={group.icon} style={{ fontSize: 16, flex: '0 0 auto' }} />
+        <span style={{ flex: '1 1 auto' }}>{group.label}</span>
+        <Icon iconName={open ? 'ChevronUp' : 'ChevronDown'} style={{ fontSize: 10, color: RES.gray }} />
+      </button>
+      {open && group.children.map((item) => <NavLink key={item.route} item={item} active={activeRoute === item.route} collapsed={false} indent />)}
+    </div>
+  );
+};
+
+const NavLink: React.FC<{ item: NavItem; active: boolean; collapsed: boolean; indent?: boolean }> = ({
   item,
   active,
-  collapsed
+  collapsed,
+  indent
 }) => {
   const content = (
     <a
@@ -126,7 +186,7 @@ const NavLink: React.FC<{ item: NavItem; active: boolean; collapsed: boolean }> 
         display: 'flex',
         alignItems: 'center',
         gap: 10,
-        padding: collapsed ? '10px 0' : '10px 14px',
+        padding: collapsed ? '10px 0' : indent ? '8px 14px 8px 38px' : '10px 14px',
         justifyContent: collapsed ? 'center' : 'flex-start',
         textDecoration: 'none',
         color: active ? RES.blue : RES.text,

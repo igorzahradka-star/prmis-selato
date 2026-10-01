@@ -5,6 +5,33 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.12.0 — 1. 10. 2026 — Dávky fotek, jedna konvence složek, skupiny v nabídce, oprava kreslení
+
+**Opraveno**
+
+- **Náčrt nešel kreslit.** Okno s plátnem se vykreslovalo až po prvním průchodu, takže plátno zpočátku neexistovalo a kreslení zůstalo
+  vypnuté. Plátno se teď sleduje správně; kreslení myší i prstem funguje a náčrt se vloží k bodu zápisu.
+- **Dvě téměř stejné složky** (`07_Dokumentace a podklady` a `07-Dokumentace a podklady`). Výchozí cesta fotodokumentace je teď
+  `07-Dokumentace a podklady/FOTO` (s pomlčkou, jak je ve vašich projektech). Navíc aplikace při ukládání souborů **hledá existující složku
+  tolerantně**: podtržítko, pomlčka a mezera jsou totéž, velikost písmen a diakritika nerozhodují. Existující složka se použije, nová vznikne
+  jen když opravdu chybí. Platí pro fotky, zápisy ze stavby, PDF objednávek a podkladů.
+
+**Nové**
+
+- **Fotky po dávkách.** 1. krok: *Nová dávka* — zvolíte, jestli se složka s datem určí **podle dne vložení** (výchozí), nebo **podle dne pořízení**
+  každé fotky, a zadáte nepovinný **jednoslovný přídomek** (např. KD = kontrolní den; písmena, číslice a pomlčka, nejvýš 12 znaků, bez mezer).
+  Složka dávky se jmenuje `rok-měsíc-den_PŘÍDOMEK`, např. `…/FOTO/2026/2026-10-01_KD`. 2. krok: do dávky se vkládají fotky (Vyfotit / Vybrat z galerie).
+  Když složka dávky už existuje, nové fotky se přidají k ostatním. Dávku ukončíte tlačítkem a začnete další.
+- **Nabídka vlevo ve skupinách.** Skupina **Projekty** (Přehled projektů, Mapa projektů, Objednávky, Fakturace, Stavební deník, Fotodokumentace)
+  a skupina **Nastavení** (Nastavení aplikace, Uživatelé a role, Instalace a diagnostika). Skupiny jdou sbalit a rozbalit (aplikace si to pamatuje),
+  skupina s otevřenou obrazovkou se rozbalí sama. Skupinu Servis přidáme, až bude modul hotový.
+- **Odeslání e-mailu: oprávnění v tokenu.** Při chybě oprávnění hláška navíc ukáže, **která oprávnění přihlašovací token skutečně obsahuje**,
+  a řekne, jestli v něm Mail.Send je (chyba je jinde) nebo chybí (odhlásit se a přihlásit znovu).
+
+**Bez změny schématu dat** (zůstává 9).
+
+---
+
 ## 0.11.1 — 1. 10. 2026 — Odesílání e-mailů: technický detail chyby
 
 - Když se e-mail nepodaří odeslat, hláška teď **vždy obsahuje technický detail od Microsoftu** (stavový kód, kód chyby a jeho text).

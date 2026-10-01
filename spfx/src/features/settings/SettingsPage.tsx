@@ -170,7 +170,7 @@ export const SettingsPage: React.FC = () => {
             />
             <TextField
               label="Složka fotodokumentace"
-              description="Cesta uvnitř složky projektu, např. „07_Dokumentace a podklady/FOTO“. Uvnitř vznikají složky podle roku a dne."
+              description="Cesta uvnitř složky projektu, např. „07-Dokumentace a podklady/FOTO“. Uvnitř vznikají složky podle roku a dne dávky (např. 2026/2026-10-01_KD). Existující složka se najde i při trochu jiném psaní názvu (07_ a 07-)."
               value={draft.folders.photoFolder}
               onChange={(_, v) => patch('folders', { photoFolder: v || '' })}
             />

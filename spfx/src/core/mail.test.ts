@@ -1,4 +1,29 @@
-import { attachmentsFit, defaultOrderMail, describeGraphError, isValidEmail, MAIL_MAX_ATTACHMENT_BYTES, parseRecipients } from './mail';
+import { attachmentsFit, defaultOrderMail, describeGraphError, isValidEmail, MAIL_MAX_ATTACHMENT_BYTES, parseRecipients, tokenScopes } from './mail';
+
+describe('tokenScopes', () => {
+  const jwt = (payload: object): string => {
+    const b64 = Buffer.from(JSON.stringify(payload)).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    return `eyJhbGciOiJSUzI1NiJ9.${b64}.podpis`;
+  };
+
+  beforeAll(() => {
+    // Testovací prostředí nemusí znát atob (prohlížeč ho má).
+    if (typeof atob === 'undefined') {
+      Object.assign(globalThis, { atob: (s: string): string => Buffer.from(s, 'base64').toString('binary') });
+    }
+  });
+
+  it('přečte oprávnění z tokenu, včetně diakritiky a chybějícího vyplnění base64', () => {
+    expect(tokenScopes(jwt({ scp: 'Mail.Send User.Read' }))).toEqual(['Mail.Send', 'User.Read']);
+    expect(tokenScopes(jwt({ scp: 'Mail.Send', name: 'Zahrádka Žluťoučký' }))).toEqual(['Mail.Send']);
+  });
+
+  it('token bez oprávnění nebo neplatný vrátí prázdný seznam', () => {
+    expect(tokenScopes(jwt({ name: 'x' }))).toEqual([]);
+    expect(tokenScopes('nesmysl')).toEqual([]);
+    expect(tokenScopes('')).toEqual([]);
+  });
+});
 
 describe('describeGraphError', () => {
   const HINT = 'Chybí schválení.';

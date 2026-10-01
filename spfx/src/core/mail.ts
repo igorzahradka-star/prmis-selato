@@ -118,6 +118,25 @@ export interface GraphErrorInfo {
 }
 
 /**
+ * Oprávnění (`scp`) z přihlašovacího tokenu Microsoft Graph. Token je JWT (tři části oddělené tečkou); prostřední část je
+ * JSON v kódování base64url. Podle výsledku se pozná, jestli token Mail.Send obsahuje (pak je chyba jinde),
+ * nebo ne (pak prohlížeč drží starý token, nebo schválení ještě nedoběhlo). Neplatný token vrátí prázdný seznam.
+ */
+export function tokenScopes(token: string): string[] {
+  try {
+    const part = (token || '').split('.')[1];
+    if (!part) {
+      return [];
+    }
+    const padded = part.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((part.length + 3) % 4);
+    const payload = JSON.parse(decodeURIComponent(escape(atob(padded)))) as { scp?: string };
+    return (payload.scp || '').split(' ').filter((s) => s !== '');
+  } catch {
+    return [];
+  }
+}
+
+/**
  * Převede chybu odeslání na větu pro člověka. Chyba oprávnění (403, 401, nesouhlas správce) dostane návod, co schválit,
  * ale **vždy se připojí technický detail** (kód a text od Microsoftu) — bez něj se z hlášky nedá poznat, jestli chybí
  * schválení, jestli prohlížeč drží starý přístupový token, nebo jde o schránku uživatele.

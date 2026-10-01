@@ -58,3 +58,38 @@ function flattenTemplate(nodes: FolderTemplateNode[], basePath: string): string[
   });
   return paths;
 }
+
+/**
+ * Název složky ve srovnávací podobě: bez velikosti písmen a diakritiky, s podtržítkem, pomlčkou a mezerou
+ * považovanými za totéž. `07_Dokumentace a podklady` a `07-Dokumentace a podklady` tak vyjdou stejně.
+ * Slouží k tomu, aby aplikace nezakládala druhou složku, když už se stejným názvem (jen psaným trochu jinak) existuje.
+ */
+export function normalizeFolderName(name: string): string {
+  return (name || '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[_\-–—\s]+/g, ' ')
+    .trim();
+}
+
+/**
+ * Vybere z existujících názvů ten, který odpovídá požadovanému: nejdřív přesná shoda (bez ohledu na velikost písmen),
+ * potom shoda ve srovnávací podobě (`normalizeFolderName`). Vrací skutečný název složky, nebo `undefined`.
+ */
+export function findMatchingFolder(existing: string[], wanted: string): string | undefined {
+  const lower = (wanted || '').toLowerCase();
+  const same = existing.filter((n) => n === wanted)[0];
+  if (same !== undefined) {
+    return same;
+  }
+  const exact = existing.filter((n) => n.toLowerCase() === lower)[0];
+  if (exact !== undefined) {
+    return exact;
+  }
+  const key = normalizeFolderName(wanted);
+  if (key === '') {
+    return undefined;
+  }
+  return existing.filter((n) => normalizeFolderName(n) === key)[0];
+}

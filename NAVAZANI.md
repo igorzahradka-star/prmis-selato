@@ -113,7 +113,7 @@ balíček 0.2.4.0). Nasazení odhalilo čtyři chyby, které se lokálně nedaly
 hledání lidí (HTTP 400), skupiny rolí bez oprávnění, knihovna „Dokumenty" se
 nenašla podle zobrazeného názvu, oříznuté záložky. Všechny opravené.
 
-**Aktuální balíček je 0.11.1.0** (30. 9. 2026; na ostrém webu běží 0.3.x nebo 0.4.0.0 — ověřit v katalogu). Přidává stavy projektů
+**Aktuální balíček je 0.12.0.0** (30. 9. 2026; na ostrém webu běží 0.3.x nebo 0.4.0.0 — ověřit v katalogu). Přidává stavy projektů
 (Uzavřeno zrušeno, nově Reklamace), barvy špendlíků podle stavu, legendu mapy. **Po nahrání znovu
 spustit Instalace a diagnostika** — doplní volbu „Reklamace" do sloupce Stav (schéma 5). Pokud
 by automatické doplnění selhalo, přidat volbu ručně: nastavení seznamu PRM – Projekty → sloupec Stav
@@ -121,6 +121,7 @@ by automatické doplnění selhalo, přidat volbu ručně: nastavení seznamu PR
 
 Starší poznámka k balíčku 0.3.0.0 (obsah je součástí všech novějších):
 Balíček 0.3.0.0 byl hotový (vytvořen 29. 9. 2026 večer).
+Verze 0.12.0.0: fotky po **dávkách** (složka `rok-měsíc-den_přídomek`, den vložení nebo pořízení), **tolerantní hledání složek** (`_`/`-`), výchozí složka fotek `07-Dokumentace a podklady/FOTO`, **nabídka ve skupinách** (Projekty, Nastavení), oprava kreslení náčrtů. **Otevřené:** srovnat šablonu složek a složku Zápisy se skutečnou strukturou projektů (čeká na výpis složek z reálného projektu); diagnostika odeslání e-mailu (403 ErrorAccessDenied — v tokenu chybí Mail.Send?).
 Verze 0.11.0.0: **fotodokumentace z mobilu** (Fáze 2, krok 4) — stránka Foto a záložka v projektu, foťák rovnou, fronta nahrávání s opakováním, složka `FOTO/rok/den`. Bez změny schématu. **Další nápady:** vložit fotky z FOTO do zápisu ze stavby jedním klikem, poloha fotky (GPS), samostatná mobilní aplikace s offline frontou, **předávací protokoly** (řada PP, složka 06_Předání a revize), Excel exporty objednávek a podkladů.
 Verze 0.10.0.0: **zápisy ze stavby a stavební deníky** (Fáze 2, krok 3) — víc deníků k projektu, zápis s upravitelnou hlavičkou, účastníky, body, fotkami, náčrty a úkoly, PDF + Word do složky zápisu, podpis v aplikaci (otisk SHA-256) nebo nahraný podepsaný sken. Schéma 9 (**spustit Instalaci a diagnostiku**). **Další krok: fotodokumentace z mobilu** (stránka Foto, složka 07_Dokumentace a podklady/FOTO — cesta je už v Nastavení → Složky), potom předávací protokoly a Excel exporty.
 Verze 0.9.0.0: **podklady pro fakturaci** (Fáze 2, krok 2) — seznam Fakturace, záložka v projektu, cesta Koncept → Ke kontrole → Předáno účtárně → Vyfakturováno → Uhrazeno, PDF do 04_Fakturace, e-mail účtárně, historie. Schéma 8 (**spustit Instalaci a diagnostiku**, vyplnit E-mail účtárny v Údajích firmy). **Dál ve Fázi 2:** předávací protokoly (řada PP, složka 06_Předání a revize), Excel export objednávek a podkladů, doladění PDF podle vzorů RES. Opravy 0.8.2–0.8.3: srozumitelné chyby odeslání objednávky, složka 03_Nákup se zakládá jen když chybí.

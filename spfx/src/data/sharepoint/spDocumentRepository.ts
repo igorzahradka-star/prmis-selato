@@ -13,7 +13,7 @@ import { toDate } from '../../core/format';
 import { IDocumentRepository, ISettingsRepository, ProjectFile } from '../repositories';
 import { getSp, getSpForSite, describeSpError, extractStatus } from './spContext';
 import { resolveLibrary } from './spLibrary';
-import { ensureFolder } from './spFolders';
+import { resolveFolderPath } from './spFolders';
 import { viewXml, serverRelativePath, folderRelativeTo } from './documentQuery';
 
 interface FileItem {
@@ -76,12 +76,8 @@ export class SpDocumentRepository implements IDocumentRepository {
     const base = serverRelativePath(project.folderUrl);
 
     try {
-      // Podsložky se zakládají po jedné od shora — SharePoint nevytvoří celou cestu najednou.
-      let path = base;
-      for (const part of relativeFolder.split('/').filter((p) => p.trim() !== '')) {
-        path = `${path}/${part}`;
-        await ensureFolder(sp, path);
-      }
+      // Podsložky se hledají (i když jsou psané trochu jinak, např. 07_… a 07-…) a zakládají se jen ty, které chybí.
+      const path = (await resolveFolderPath(sp, base, relativeFolder.split('/'), true)) as string;
       const added = (await sp.web
         .getFolderByServerRelativePath(path)
         .files.addUsingPath(fileName, content, { Overwrite: true })) as unknown as {
@@ -95,19 +91,29 @@ export class SpDocumentRepository implements IDocumentRepository {
     }
   }
 
-  /** Cesta podsložky projektu od kořene webu; chyba, když projekt nemá složku. */
-  private async folderPathOf(project: Project, relativeFolder: string): Promise<{ sp: ReturnType<typeof getSp>; path: string; origin: string }> {
+  /**
+   * Cesta podsložky projektu od kořene webu. Název se hledá tolerantně (viz `resolveFolderPath`); když složka ještě
+   * neexistuje, je `path` prázdná. Chyba, když projekt nemá složku.
+   */
+  private async folderPathOf(
+    project: Project,
+    relativeFolder: string
+  ): Promise<{ sp: ReturnType<typeof getSp>; path: string | undefined; origin: string }> {
     if (!project.folderUrl) {
       throw new Error(`Projekt ${project.projectNumber} nemá složku. Složku doplňte v detailu projektu.`);
     }
     const folders = (await this.settings.get()).folders;
     const sp = folders.siteUrl ? getSpForSite(this.context, folders.siteUrl) : getSp(this.context);
-    const parts = relativeFolder.split('/').filter((p) => p.trim() !== '');
-    return { sp, path: [serverRelativePath(project.folderUrl), ...parts].join('/'), origin: this.origin(folders.siteUrl) };
+    const path = await resolveFolderPath(sp, serverRelativePath(project.folderUrl), relativeFolder.split('/'), false);
+    return { sp, path, origin: this.origin(folders.siteUrl) };
   }
 
   public async listFolderFiles(project: Project, relativeFolder: string): Promise<ProjectFile[]> {
     const { sp, path, origin } = await this.folderPathOf(project, relativeFolder);
+    if (path === undefined) {
+      // Složka, která ještě nevznikla (nikdo do ní nic neuložil), není chyba — je prostě prázdná.
+      return [];
+    }
     try {
       const items: { Name: string; ServerRelativeUrl: string; Length: string; TimeLastModified: string }[] = await sp.web
         .getFolderByServerRelativePath(path)
@@ -131,6 +137,9 @@ export class SpDocumentRepository implements IDocumentRepository {
 
   public async readProjectFile(project: Project, relativeFolder: string, fileName: string): Promise<Blob> {
     const { sp, path } = await this.folderPathOf(project, relativeFolder);
+    if (path === undefined) {
+      throw new Error(`Složka „${relativeFolder}“ projektu ${project.projectNumber} neexistuje, soubor „${fileName}“ nelze načíst.`);
+    }
     try {
       return await sp.web.getFileByServerRelativePath(`${path}/${fileName}`).getBlob();
     } catch (error) {
@@ -140,6 +149,9 @@ export class SpDocumentRepository implements IDocumentRepository {
 
   public async deleteProjectFile(project: Project, relativeFolder: string, fileName: string): Promise<void> {
     const { sp, path } = await this.folderPathOf(project, relativeFolder);
+    if (path === undefined) {
+      return;
+    }
     try {
       await sp.web.getFileByServerRelativePath(`${path}/${fileName}`).recycle();
     } catch (error) {

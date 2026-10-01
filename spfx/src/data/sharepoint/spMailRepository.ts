@@ -9,7 +9,7 @@
 
 import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { IMailRepository, OutgoingMail } from '../repositories';
-import { GraphErrorInfo, attachmentsFit, describeGraphError } from '../../core/mail';
+import { GraphErrorInfo, attachmentsFit, describeGraphError, tokenScopes } from '../../core/mail';
 
 const PERMISSION_HINT =
   'Odeslání e-mailem zatím nemá oprávnění. Správce musí v SharePoint admin centru (Zabezpečení → Přístup k rozhraní API) ' +
@@ -59,7 +59,27 @@ export class SpMailRepository implements IMailRepository {
       });
     } catch (error) {
       // Technický detail od Microsoftu se v hlášce ukáže vždy — podle něj se pozná skutečná příčina.
-      throw new Error(describeGraphError(error as GraphErrorInfo, PERMISSION_HINT).message);
+      const described = describeGraphError(error as GraphErrorInfo, PERMISSION_HINT);
+      throw new Error(described.permission ? `${described.message}${await this.scopesNote()}` : described.message);
+    }
+  }
+
+  /**
+   * Při chybě oprávnění zjistí, která oprávnění má přihlašovací token skutečně v sobě. Chybí-li v něm Mail.Send, je to
+   * znamení, že prohlížeč drží starý token vydaný před schválením (nebo schválení ještě nedoběhlo); je-li tam, je chyba jinde.
+   */
+  private async scopesNote(): Promise<string> {
+    try {
+      const provider = await this.context.aadTokenProviderFactory.getTokenProvider();
+      const token = await provider.getToken('https://graph.microsoft.com');
+      const scopes = tokenScopes(token);
+      if (scopes.length === 0) {
+        return ' Přihlašovací token se nepodařilo přečíst.';
+      }
+      const has = scopes.some((s) => s.toLowerCase() === 'mail.send');
+      return ` Oprávnění v přihlašovacím tokenu: ${scopes.join(', ')}. Mail.Send ${has ? 'v tokenu JE — chyba je jinde (schránka uživatele, zásady tenantu)' : 'v tokenu CHYBÍ — odhlaste se z Microsoft 365 a přihlaste znovu (nebo otevřete aplikaci v anonymním okně)'}.`;
+    } catch {
+      return ' Oprávnění v tokenu se nepodařilo zjistit.';
     }
   }
 }

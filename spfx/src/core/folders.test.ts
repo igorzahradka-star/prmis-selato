@@ -1,4 +1,4 @@
-import { buildProjectFolderPlan } from './folders';
+import { buildProjectFolderPlan, findMatchingFolder, normalizeFolderName } from './folders';
 import { DEFAULT_FOLDER_TEMPLATE, FolderSettings } from './settings';
 
 const BASE_SETTINGS: Pick<FolderSettings, 'rootFolder' | 'subfolderByYear' | 'template'> = {
@@ -49,5 +49,27 @@ describe('buildProjectFolderPlan', () => {
     expect(plan).toContain('Projekty/26-014 X/03_Nákup/Objednávky');
     expect(plan).toContain('Projekty/26-014 X/03_Nákup/Nabídky dodavatelů');
     expect(plan).toContain('Projekty/26-014 X/05_Realizace/Stavební deník');
+  });
+});
+
+describe('normalizeFolderName a findMatchingFolder', () => {
+  it('podtržítko, pomlčka a mezera jsou totéž; velikost písmen a diakritika nerozhodují', () => {
+    expect(normalizeFolderName('07_Dokumentace a podklady')).toBe(normalizeFolderName('07-Dokumentace a podklady'));
+    expect(normalizeFolderName('06-Dodavatelé')).toBe(normalizeFolderName('06_DODAVATELE'));
+    expect(normalizeFolderName('Zápisy')).toBe('zapisy');
+  });
+
+  it('různé složky se nesplynou', () => {
+    expect(normalizeFolderName('07-Dokumentace')).not.toBe(normalizeFolderName('08-Dokumentace'));
+    expect(normalizeFolderName('FOTO')).not.toBe(normalizeFolderName('FOTO 2'));
+  });
+
+  it('najde skutečný název existující složky; přesná shoda má přednost', () => {
+    const existing = ['06-Dodavatelé', '07-Dokumentace a podklady', '09-Projektová dokumentace'];
+    expect(findMatchingFolder(existing, '07_Dokumentace a podklady')).toBe('07-Dokumentace a podklady');
+    expect(findMatchingFolder(existing, '06-DODAVATELE')).toBe('06-Dodavatelé');
+    expect(findMatchingFolder(existing, 'FOTO')).toBeUndefined();
+    expect(findMatchingFolder(['foto', 'FOTO'], 'FOTO')).toBe('FOTO');
+    expect(findMatchingFolder([], 'x')).toBeUndefined();
   });
 });

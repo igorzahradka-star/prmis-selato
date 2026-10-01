@@ -29,7 +29,13 @@ const BLANK = { width: 1200, height: 800 };
 const MAX_UNDO = 20;
 
 export const SketchDialog: React.FC<SketchDialogProps> = ({ background, title, onSave, onCancel }) => {
-  const canvasRef = React.useRef<HTMLCanvasElement>(null);
+  const canvasRef = React.useRef<HTMLCanvasElement | null>(null);
+  // Okno se vykresluje do samostatné vrstvy až po prvním průchodu, takže plátno zpočátku neexistuje — proto stav, ne jen odkaz.
+  const [canvasEl, setCanvasEl] = React.useState<HTMLCanvasElement | null>(null);
+  const setCanvas = (el: HTMLCanvasElement | null): void => {
+    canvasRef.current = el;
+    setCanvasEl(el);
+  };
   const drawing = React.useRef(false);
   const last = React.useRef<{ x: number; y: number } | undefined>(undefined);
   const undo = React.useRef<ImageData[]>([]);
@@ -42,7 +48,7 @@ export const SketchDialog: React.FC<SketchDialogProps> = ({ background, title, o
   // Podklad: fotka (zmenšená) nebo bílý list.
   React.useEffect(() => {
     let cancelled = false;
-    const canvas = canvasRef.current;
+    const canvas = canvasEl;
     if (!canvas) {
       return undefined;
     }
@@ -78,7 +84,7 @@ export const SketchDialog: React.FC<SketchDialogProps> = ({ background, title, o
     return () => {
       cancelled = true;
     };
-  }, [background]);
+  }, [background, canvasEl]);
 
   const point = (e: React.PointerEvent<HTMLCanvasElement>): { x: number; y: number } => {
     const canvas = e.currentTarget;
@@ -92,7 +98,11 @@ export const SketchDialog: React.FC<SketchDialogProps> = ({ background, title, o
     if (!ctx || !ready) {
       return;
     }
-    canvas.setPointerCapture(e.pointerId);
+    try {
+      canvas.setPointerCapture(e.pointerId);
+    } catch {
+      // Zachycení ukazatele není podmínkou kreslení (např. u některých pera a dotykových zařízení selže).
+    }
     undo.current.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
     if (undo.current.length > MAX_UNDO) {
       undo.current.shift();
@@ -220,7 +230,7 @@ export const SketchDialog: React.FC<SketchDialogProps> = ({ background, title, o
 
         <div style={{ overflow: 'auto', maxHeight: '65vh', background: '#EEE', borderRadius: 4, textAlign: 'center' }}>
           <canvas
-            ref={canvasRef}
+            ref={setCanvas}
             onPointerDown={onDown}
             onPointerMove={onMove}
             onPointerUp={onUp}
