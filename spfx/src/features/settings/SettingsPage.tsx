@@ -184,6 +184,12 @@ export const SettingsPage: React.FC = () => {
               onChange={(_, v) => patch('folders', { orderFolder: v || '' })}
             />
             <TextField
+              label="Složka reportů"
+              description="Cesta uvnitř složky projektu, kam se ukládají PDF reporty ze stavu projektu, např. „07-Dokumentace a podklady/Reporty“."
+              value={draft.folders.reportFolder}
+              onChange={(_, v) => patch('folders', { reportFolder: v || '' })}
+            />
+            <TextField
               label="Složka podkladů pro fakturaci"
               description="Cesta uvnitř složky projektu, kam se ukládají PDF podkladů předaných účtárně, např. „03-Rozpočet projektu/Fakturace“."
               value={draft.folders.invoiceFolder}

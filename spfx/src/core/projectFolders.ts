@@ -13,7 +13,7 @@
 import { findMatchingFolder } from './folders';
 import { FolderSettings } from './settings';
 
-export type FolderRole = 'orders' | 'invoices' | 'diary' | 'photos';
+export type FolderRole = 'orders' | 'invoices' | 'diary' | 'photos' | 'reports';
 
 export interface FolderRoleInfo {
   key: FolderRole;
@@ -21,14 +21,15 @@ export interface FolderRoleInfo {
   /** Co se do složky ukládá — pro vysvětlení v dialogu. */
   purpose: string;
   /** Klíč výchozí cesty v `FolderSettings`. */
-  settingKey: 'orderFolder' | 'invoiceFolder' | 'diaryFolder' | 'photoFolder';
+  settingKey: 'orderFolder' | 'invoiceFolder' | 'diaryFolder' | 'photoFolder' | 'reportFolder';
 }
 
 export const FOLDER_ROLES: FolderRoleInfo[] = [
   { key: 'orders', label: 'Objednávky', purpose: 'PDF objednávek (koncept i odeslané)', settingKey: 'orderFolder' },
   { key: 'invoices', label: 'Podklady pro fakturaci', purpose: 'PDF podkladů pro fakturaci a zálohových faktur', settingKey: 'invoiceFolder' },
   { key: 'diary', label: 'Zápisy ze stavby', purpose: 'zápisy a stavební deníky (PDF, Word, přílohy)', settingKey: 'diaryFolder' },
-  { key: 'photos', label: 'Fotodokumentace', purpose: 'dávky fotek (složky rok-měsíc-den Název)', settingKey: 'photoFolder' }
+  { key: 'photos', label: 'Fotodokumentace', purpose: 'dávky fotek (složky rok-měsíc-den Název)', settingKey: 'photoFolder' },
+  { key: 'reports', label: 'Reporty', purpose: 'PDF reporty ze stavu projektu', settingKey: 'reportFolder' }
 ];
 
 /** Uložená mapa: jen role, které se u projektu liší od výchozích, nebo všechny (při založení). */

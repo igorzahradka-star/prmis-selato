@@ -47,6 +47,8 @@ export interface FolderSettings {
   orderFolder: string;
   /** Kam se ukládají PDF podkladů pro fakturaci (cesta uvnitř složky projektu). */
   invoiceFolder: string;
+  /** Kam se ukládají PDF reporty ze stavu projektu (cesta uvnitř složky projektu). */
+  reportFolder: string;
   /**
    * Šablona složek **projektu Režie** — Režie má jinou strukturu než běžný projekt (nevede se u ní deník, fakturace ani fotky).
    * Složka Režie je `99900-Režie/<rok>`; tato šablona se zakládá uvnitř roku.
@@ -193,6 +195,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     photoFolder: '07-Dokumentace a podklady/FOTO',
     orderFolder: '03-Nákup/Objednávky',
     invoiceFolder: '03-Rozpočet projektu/Fakturace',
+    reportFolder: '07-Dokumentace a podklady/Reporty',
     overheadTemplate: DEFAULT_OVERHEAD_TEMPLATE,
     overheadOrderFolder: '01-Objednávky'
   },
@@ -293,6 +296,9 @@ export function validateSettings(settings: AppSettings): string[] {
   }
   if (!settings.folders.invoiceFolder.trim()) {
     problems.push('Není vyplněna složka podkladů pro fakturaci.');
+  }
+  if (!settings.folders.reportFolder.trim()) {
+    problems.push('Není vyplněna složka reportů.');
   }
   if (!settings.projects.titlePattern.includes('{CISLO}')) {
     problems.push('Vzor názvu projektu musí obsahovat token {CISLO}, jinak by názvy nebyly jednoznačné.');

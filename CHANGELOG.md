@@ -5,6 +5,18 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.20.0 — 1. 10. 2026 — Report projektu (PDF) ve stylu RES prezentace
+
+**Nové**
+
+- **Tlačítko „Report projektu“** v detailu projektu (ne u Režie). Vytvoří PDF o stavu projektu ve formátu **16:9 podle PowerPointové šablony RES**: úvodní strana (tmavý přechod, výboje, bílé logo), **Přehled projektu** (zákazník, lokalita, typ, projektový manažer, stav, rozpočet, termíny, ukazatele Celková cena / Vyčerpáno / Vyfakturováno / Uhrazeno a „Na co dát pozor“),
+  **Objednávky a vyčerpání**, **Fakturace**, **Termíny a úkoly**, **Stavební deník** (poslední zápisy), **Fotodokumentace** (až 6 fotek z nejnovější dávky s poznámkami) a závěrečná strana „Revoltujte s námi“.
+- V dialogu se dá zvolit, co report obsahuje (finance, termíny a úkoly, deník, fotky). Po vytvoření je **náhled**; projektový manažer, asistent a vedení ho mohou **uložit do složky projektu** (výchozí `07-Dokumentace a podklady/Reporty`, název `Report_<číslo projektu>_<datum>.pdf`).
+- Částky jsou ve výchozí měně přehledů, bez DPH. Report se tvoří **z dat aplikace, bez umělé inteligence** — texty jsou jasně dané. Textové shrnutí od AI je možná další etapa.
+- Nové nastavení **Složka reportů** (Nastavení → Složky) a nová role „Reporty“ v mapě složek projektu (Složky projektu). Bez změny schématu.
+
+---
+
 ## 0.19.0 — 1. 10. 2026 — Podpis jako obrázek v profilu a značka elektronického podpisu, bublina na mapě, složka u starších zápisů, měření rychlosti
 
 **Nové**

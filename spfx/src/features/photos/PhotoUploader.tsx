@@ -34,7 +34,6 @@ import {
   UploadState,
   batchTitle,
   buildPhotoName,
-  folderLink,
   photoFolderPath,
   uploadSummary
 } from '../../core/photos';

@@ -45,9 +45,9 @@ describe('mapa složek projektu', () => {
     expect(folderFor(undefined, 'invoices', folders)).toBe(folders.invoiceFolder);
   });
 
-  it('výchozí mapa pro nový projekt obsahuje všechny čtyři role podle Nastavení', () => {
+  it('výchozí mapa pro nový projekt obsahuje všech pět rolí podle Nastavení', () => {
     const m = defaultFolderMap(folders);
-    expect(Object.keys(m).sort()).toEqual(['diary', 'invoices', 'orders', 'photos']);
+    expect(Object.keys(m).sort()).toEqual(['diary', 'invoices', 'orders', 'photos', 'reports']);
     expect(m.diary).toBe(folders.diaryFolder);
   });
 
@@ -106,7 +106,7 @@ describe('Režie má vlastní strukturu složek', () => {
 
   it('výchozí mapa Režie obsahuje jen objednávky', () => {
     expect(defaultFolderMap(folders, true)).toEqual({ orders: folders.overheadOrderFolder });
-    expect(Object.keys(defaultFolderMap(folders, false)).length).toBe(4);
+    expect(Object.keys(defaultFolderMap(folders, false)).length).toBe(5);
   });
 
   it('šablona Režie je jiná než běžná a výchozí nastavení je v pořádku', () => {

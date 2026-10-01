@@ -29,6 +29,7 @@ import { DocumentsTab } from './DocumentsTab';
 import { AccessBar } from './AccessBar';
 import { DeleteProjectDialog } from './DeleteProjectDialog';
 import { ProjectFoldersDialog } from './ProjectFoldersDialog';
+import { ProjectReportDialog } from '../reports/ProjectReportDialog';
 import { EXTERNAL_LINK_PROPS } from '../../ui/components/ExternalLink';
 import { ProjectOrdersTab } from '../orders/ProjectOrdersTab';
 import { ProjectInvoicesTab } from '../invoicing/ProjectInvoicesTab';
@@ -41,6 +42,7 @@ export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projec
   const [error, setError] = React.useState<string | undefined>(undefined);
   const [editOpen, setEditOpen] = React.useState(false);
   const [deleteOpen, setDeleteOpen] = React.useState(false);
+  const [reportOpen, setReportOpen] = React.useState(false);
   const [foldersDialog, setFoldersDialog] = React.useState(false);
   const [overheadBusy, setOverheadBusy] = React.useState(false);
   const [foldersMessage, setFoldersMessage] = React.useState<{ ok: boolean; text: string } | undefined>(undefined);
@@ -165,6 +167,14 @@ export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projec
                 onClick={() => setEditOpen(true)}
               />
             )}
+            {!project.isOverhead && (
+              <DefaultButton
+                iconProps={{ iconName: 'PDF' }}
+                text="Report projektu"
+                title="PDF se stavem projektu ve stylu RES prezentace"
+                onClick={() => setReportOpen(true)}
+              />
+            )}
             {project.folderUrl && (
               <DefaultButton
                 iconProps={{ iconName: 'FolderHorizontal' }}
@@ -204,6 +214,8 @@ export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projec
           }}
         />
       )}
+
+      {reportOpen && <ProjectReportDialog project={project} onClose={() => setReportOpen(false)} />}
 
       {deleteOpen && (
         <DeleteProjectDialog
