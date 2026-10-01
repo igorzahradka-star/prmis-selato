@@ -1,19 +1,24 @@
 /**
- * Fotodokumentace projektu po **dávkách**.
+ * Nahrávání fotek do projektu po **dávkách**.
  *
- * 1. krok — nová dávka: zvolí se, do které složky podle data fotky půjdou (dnešní den vložení, nebo den pořízení každé fotky),
- *    a volitelný jednoslovný přídomek (např. KD = kontrolní den). Složka dávky se jmenuje `rok-měsíc-den_PŘÍDOMEK`.
- * 2. krok — do dávky se vkládají fotky: velká tlačítka Vyfotit / Vybrat z galerie, fronta nahrávání s opakováním.
+ * 1. Fotky se přidají do „odkládacího prostoru“: z počítače (Vybrat fotky) nebo rovnou z foťáku telefonu (Vyfotit).
+ *    Ke každé fotce jde napsat poznámku (např. „mělký výkop“, „křivé provedení“).
+ * 2. Označí se fotky, které k sobě patří (jeden nafocený problém, jedna část stavby), a uloží se do dávky. Dávka je buď nová —
+ *    název a datum, z nich vznikne složka `rok-měsíc-den Název` ve složce FOTO — nebo už existující (dodatečné doplnění).
+ *    Pak se stejně uloží další fotky do další dávky.
  *
- * Určeno hlavně pro mobil. Fotky se po jedné zmenší (delší strana nejvýš 2 000 bodů, JPEG), pojmenují podle času pořízení a uloží do
- * složky projektu `…/FOTO/rok/den_přídomek`; složky vznikají samy (a už existující složka se najde i při trochu jiném psaní názvu).
- * Když nahrávání selže (slabý signál), fotka zůstane ve frontě a jde ji poslat znovu — stránku je ale potřeba nechat otevřenou.
+ * Fotky se po jedné zmenší (delší strana nejvýš 2 000 bodů, JPEG), pojmenují podle času pořízení a nahrají do složky dávky; poznámka
+ * se uloží přímo k souboru (pole Název), takže s fotkou putuje. Složky vznikají samy a už existující se najde i při trochu jiném
+ * psaní názvu. Když nahrávání selže (slabý signál), fotka zůstane ve frontě a jde ji poslat znovu — stránku je ale potřeba nechat otevřenou.
  */
 
 import * as React from 'react';
 import { PrimaryButton, DefaultButton, IconButton } from '@fluentui/react/lib/Button';
 import { TextField } from '@fluentui/react/lib/TextField';
+import { Checkbox } from '@fluentui/react/lib/Checkbox';
 import { ChoiceGroup, IChoiceGroupOption } from '@fluentui/react/lib/ChoiceGroup';
+import { Dialog, DialogFooter, DialogType } from '@fluentui/react/lib/Dialog';
+import { Dropdown, IDropdownOption } from '@fluentui/react/lib/Dropdown';
 import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
 import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 import { Icon } from '@fluentui/react/lib/Icon';
@@ -24,137 +29,94 @@ import { RES } from '../../ui/theme';
 import { ExternalLink } from '../../ui/components/ExternalLink';
 import { Project } from '../../core/types';
 import {
-  BATCH_TAG_MAX,
-  PhotoDateMode,
+  BATCH_TITLE_MAX,
   UploadState,
-  batchFolderName,
-  batchTag,
+  batchTitle,
   buildPhotoName,
   folderLink,
-  parentUrl,
-  photoDay,
   photoFolderPath,
-  photoYearFolderPath,
   uploadSummary
 } from '../../core/photos';
-import { formatDate } from '../../core/format';
+import { isoDay, parseIsoDay } from '../../core/siteDiary';
 import { extensionForType, resizeImage } from '../diary/imageUtils';
-import { ProjectFile } from '../../data/repositories';
+import { PhotoBatch, batchFolderOf, loadBatches } from './photoBatches';
+
+type ItemState = 'novy' | UploadState;
 
 interface QueueItem {
   id: number;
   file: File;
   preview?: string;
-  state: UploadState;
+  note: string;
+  selected: boolean;
+  state: ItemState;
+  /** Složka dávky od složky projektu (po uložení do dávky). */
+  folder?: string;
+  /** Popisek dávky pro zobrazení. */
+  label?: string;
   error?: string;
+  noteWarning?: string;
 }
 
-interface Batch {
-  tag: string;
-  mode: PhotoDateMode;
-  /** Den, ve kterém se dávka založila (u režimu „den vložení" je to den složky). */
-  day: Date;
+export interface PhotoUploaderProps {
+  project: Project;
+  /** Dávka, do které se mají fotky přidat (tlačítko „Přidat fotky“ u dávky v galerii). */
+  presetBatch?: PhotoBatch;
+  /** Po každém dokončeném nahrávání — rodič obnoví galerii. */
+  onUploaded?: () => void;
+  onClose?: () => void;
 }
 
-export const PhotoUploader: React.FC<{ project: Project }> = ({ project }) => {
+interface SaveForm {
+  target: 'nova' | 'existujici';
+  title: string;
+  date: string;
+  existingPath: string;
+}
+
+export const PhotoUploader: React.FC<PhotoUploaderProps> = ({ project, presetBatch, onUploaded, onClose }) => {
   const { repos, settings } = useApp();
-  const [batch, setBatch] = React.useState<Batch | undefined>(undefined);
-  const [tagInput, setTagInput] = React.useState('');
-  const [mode, setMode] = React.useState<PhotoDateMode>('vlozeni');
   const [items, setItems] = React.useState<QueueItem[]>([]);
-  const [gallery, setGallery] = React.useState<ProjectFile[] | undefined>(undefined);
-  const [galleryError, setGalleryError] = React.useState<string | undefined>(undefined);
-  const [existingCount, setExistingCount] = React.useState<number | undefined>(undefined);
-  const [savedFolderUrl, setSavedFolderUrl] = React.useState<string | undefined>(undefined);
+  const [batches, setBatches] = React.useState<PhotoBatch[]>([]);
+  const [saveOpen, setSaveOpen] = React.useState(false);
+  const [form, setForm] = React.useState<SaveForm>({ target: 'nova', title: '', date: isoDay(new Date()), existingPath: '' });
+  const [formError, setFormError] = React.useState<string | undefined>(undefined);
 
   const cameraRef = React.useRef<HTMLInputElement>(null);
   const pickRef = React.useRef<HTMLInputElement>(null);
   const itemsRef = React.useRef<QueueItem[]>([]);
   const nextId = React.useRef(1);
   const running = React.useRef(false);
-  const batchRef = React.useRef<Batch | undefined>(undefined);
   const namesByFolder = React.useRef<Map<string, string[]>>(new Map());
   const projectRef = React.useRef(project);
   projectRef.current = project;
-  batchRef.current = batch;
+  const onUploadedRef = React.useRef(onUploaded);
+  onUploadedRef.current = onUploaded;
 
   const base = settings.folders.photoFolder;
-  const today = new Date();
-  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const tag = batchTag(tagInput);
-  /** Složka, do které by se uložilo, kdyby se dávka založila právě teď (náhled v 1. kroku). */
-  const previewFolder = photoFolderPath(base, todayStart, tag);
 
-  // Při změně projektu se dávka i fronta zahodí.
-  React.useEffect(() => {
-    setBatch(undefined);
-    setItems([]);
-    itemsRef.current = [];
-    setGallery(undefined);
-    setExistingCount(undefined);
-    setSavedFolderUrl(undefined);
-    namesByFolder.current = new Map();
-  }, [project.projectNumber]);
-
-  /** Fotky ve složce dávky (jen u dne vložení — u dne pořízení může jít jedna dávka do víc složek). */
-  const loadGallery = React.useCallback((): void => {
-    const b = batchRef.current;
-    if (!b || b.mode !== 'vlozeni' || !projectRef.current.folderUrl) {
-      return;
-    }
-    const folder = photoFolderPath(base, b.day, b.tag);
-    repos.documents
-      .listFolderFiles(projectRef.current, folder)
-      .then((list) => {
-        setGallery(list);
-        setGalleryError(undefined);
-        namesByFolder.current.set(
-          folder,
-          list.map((f) => f.name)
-        );
-      })
-      .catch((e: Error) => setGalleryError(e.message));
+  const reloadBatches = React.useCallback((): void => {
+    loadBatches(repos.documents, projectRef.current, base)
+      .then(setBatches)
+      .catch(() => setBatches([]));
   }, [repos, base]);
 
-  const startBatch = (): void => {
-    const b: Batch = { tag, mode, day: todayStart };
-    batchRef.current = b;
-    setBatch(b);
-    setItems([]);
-    itemsRef.current = [];
-    setGallery(undefined);
-    setSavedFolderUrl(undefined);
-    setExistingCount(undefined);
-    if (mode === 'vlozeni') {
-      const folder = photoFolderPath(base, b.day, b.tag);
-      repos.documents
-        .listFolderFiles(project, folder)
-        .then((list) => {
-          setExistingCount(list.length);
-          setGallery(list);
-          namesByFolder.current.set(
-            folder,
-            list.map((f) => f.name)
-          );
-        })
-        .catch((e: Error) => setGalleryError(e.message));
-    }
-  };
-
-  const finishBatch = (): void => {
+  // Při změně projektu se fronta zahodí.
+  React.useEffect(() => {
     itemsRef.current.forEach((i) => i.preview && URL.revokeObjectURL(i.preview));
     itemsRef.current = [];
     setItems([]);
-    setBatch(undefined);
-    setGallery(undefined);
-    setExistingCount(undefined);
-    setSavedFolderUrl(undefined);
-    setTagInput('');
+    namesByFolder.current = new Map();
+    reloadBatches();
+  }, [project.projectNumber, reloadBatches]);
+
+  const setAll = (next: QueueItem[]): void => {
+    itemsRef.current = next;
+    setItems(next);
   };
 
   const update = (id: number, patch: Partial<QueueItem>): void => {
-    itemsRef.current = itemsRef.current.map((i) => (i.id === id ? { ...i, ...patch } : i));
-    setItems(itemsRef.current);
+    setAll(itemsRef.current.map((i) => (i.id === id ? { ...i, ...patch } : i)));
   };
 
   const namesIn = async (folder: string): Promise<string[]> => {
@@ -178,21 +140,29 @@ export const PhotoUploader: React.FC<{ project: Project }> = ({ project }) => {
       return;
     }
     running.current = true;
+    let uploaded = false;
     try {
       let next = itemsRef.current.filter((i) => i.state === 'ceka')[0];
       while (next) {
-        update(next.id, { state: 'nahrava', error: undefined });
+        update(next.id, { state: 'nahrava', error: undefined, noteWarning: undefined });
         try {
-          const b = batchRef.current as Batch;
+          const folder = next.folder as string;
           const blob = await resizeImage(next.file);
           const taken = new Date(next.file.lastModified || Date.now());
-          const folder = photoFolderPath(base, photoDay(b.mode, taken, b.day), b.tag);
           const namesHere = await namesIn(folder);
           const name = buildPhotoName(taken, namesHere, extensionForType(blob.type) || '.jpg');
-          const url = await repos.documents.saveProjectFile(projectRef.current, folder, name, blob);
+          await repos.documents.saveProjectFile(projectRef.current, folder, name, blob);
           namesByFolder.current.set(folder, [...namesHere, name]);
-          setSavedFolderUrl(parentUrl(url));
-          update(next.id, { state: 'hotovo' });
+          uploaded = true;
+          let warning: string | undefined;
+          if (next.note.trim() !== '') {
+            try {
+              await repos.documents.setFileNote(projectRef.current, folder, name, next.note);
+            } catch (e) {
+              warning = `Fotka je nahraná, ale poznámku se nepodařilo uložit: ${e instanceof Error ? e.message : String(e)}`;
+            }
+          }
+          update(next.id, { state: 'hotovo', noteWarning: warning });
         } catch (e) {
           update(next.id, { state: 'chyba', error: e instanceof Error ? e.message : String(e) });
         }
@@ -200,7 +170,12 @@ export const PhotoUploader: React.FC<{ project: Project }> = ({ project }) => {
       }
     } finally {
       running.current = false;
-      loadGallery();
+      if (uploaded) {
+        reloadBatches();
+        if (onUploadedRef.current) {
+          onUploadedRef.current();
+        }
+      }
     }
   };
 
@@ -213,11 +188,19 @@ export const PhotoUploader: React.FC<{ project: Project }> = ({ project }) => {
       id: nextId.current++,
       file,
       preview: typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function' ? URL.createObjectURL(file) : undefined,
-      state: 'ceka'
+      note: '',
+      selected: true,
+      state: 'novy'
     }));
-    itemsRef.current = [...itemsRef.current, ...created];
-    setItems(itemsRef.current);
-    pump().catch(() => undefined);
+    setAll([...itemsRef.current, ...created]);
+  };
+
+  const remove = (id: number): void => {
+    const gone = itemsRef.current.filter((i) => i.id === id)[0];
+    if (gone && gone.preview && typeof URL !== 'undefined') {
+      URL.revokeObjectURL(gone.preview);
+    }
+    setAll(itemsRef.current.filter((i) => i.id !== id));
   };
 
   const retry = (id: number): void => {
@@ -226,24 +209,68 @@ export const PhotoUploader: React.FC<{ project: Project }> = ({ project }) => {
   };
 
   const retryAll = (): void => {
-    itemsRef.current = itemsRef.current.map((i) => (i.state === 'chyba' ? { ...i, state: 'ceka', error: undefined } : i));
-    setItems(itemsRef.current);
+    setAll(itemsRef.current.map((i) => (i.state === 'chyba' ? { ...i, state: 'ceka', error: undefined } : i)));
     pump().catch(() => undefined);
-  };
-
-  const remove = (id: number): void => {
-    const gone = itemsRef.current.filter((i) => i.id === id)[0];
-    if (gone && gone.preview && typeof URL !== 'undefined') {
-      URL.revokeObjectURL(gone.preview);
-    }
-    itemsRef.current = itemsRef.current.filter((i) => i.id !== id);
-    setItems(itemsRef.current);
   };
 
   const clearDone = (): void => {
     itemsRef.current.filter((i) => i.state === 'hotovo').forEach((i) => i.preview && URL.revokeObjectURL(i.preview));
-    itemsRef.current = itemsRef.current.filter((i) => i.state !== 'hotovo');
-    setItems(itemsRef.current);
+    setAll(itemsRef.current.filter((i) => i.state !== 'hotovo'));
+  };
+
+  const fresh = items.filter((i) => i.state === 'novy');
+  const selected = fresh.filter((i) => i.selected);
+
+  const toggleAll = (on: boolean): void => {
+    setAll(itemsRef.current.map((i) => (i.state === 'novy' ? { ...i, selected: on } : i)));
+  };
+
+  const removeSelected = (): void => {
+    selected.forEach((i) => i.preview && URL.revokeObjectURL(i.preview));
+    setAll(itemsRef.current.filter((i) => !(i.state === 'novy' && i.selected)));
+  };
+
+  const openSave = (): void => {
+    setFormError(undefined);
+    setForm({
+      target: presetBatch ? 'existujici' : 'nova',
+      title: '',
+      date: isoDay(new Date()),
+      existingPath: presetBatch ? presetBatch.path : ''
+    });
+    setSaveOpen(true);
+  };
+
+  const useTakenDate = (): void => {
+    const stamps = selected.map((i) => i.file.lastModified).filter((t) => t > 0);
+    if (stamps.length > 0) {
+      setForm((f) => ({ ...f, date: isoDay(new Date(Math.min(...stamps))) }));
+    }
+  };
+
+  const save = (): void => {
+    let folder: string;
+    let label: string;
+    if (form.target === 'existujici') {
+      const b = batches.filter((x) => x.path === form.existingPath)[0];
+      if (!b) {
+        setFormError('Vyberte dávku, do které se fotky přidají.');
+        return;
+      }
+      folder = batchFolderOf(base, b);
+      label = b.name;
+    } else {
+      const day = parseIsoDay(form.date);
+      if (!day) {
+        setFormError('Zadejte datum složky.');
+        return;
+      }
+      folder = photoFolderPath(base, day, form.title);
+      label = folder.slice(folder.lastIndexOf('/') + 1);
+    }
+    setSaveOpen(false);
+    setAll(itemsRef.current.map((i) => (i.state === 'novy' && i.selected ? { ...i, state: 'ceka', folder, label, selected: false } : i)));
+    pump().catch(() => undefined);
   };
 
   if (!project.folderUrl) {
@@ -254,63 +281,43 @@ export const PhotoUploader: React.FC<{ project: Project }> = ({ project }) => {
     );
   }
 
-  const modeOptions: IChoiceGroupOption[] = [
-    { key: 'vlozeni', text: `Podle dne vložení — dnes (${formatDate(todayStart)})` },
-    { key: 'porizeni', text: 'Podle dne pořízení každé fotky (podle údaje v souboru; fotky z různých dnů půjdou do různých složek)' }
+  const uploading = items.filter((i) => i.state !== 'novy');
+  const groups = new Map<string, QueueItem[]>();
+  uploading.forEach((i) => {
+    const key = i.folder as string;
+    groups.set(key, [...(groups.get(key) || []), i]);
+  });
+  const upStates = uploading.map((i) => i.state as UploadState);
+  const hasFailed = upStates.indexOf('chyba') !== -1;
+  const hasDone = upStates.indexOf('hotovo') !== -1;
+  const busy = upStates.indexOf('nahrava') !== -1 || upStates.indexOf('ceka') !== -1;
+  const bigButton = { root: { height: 56, fontSize: 17, flex: '1 1 220px' }, icon: { fontSize: 22 } };
+  const previewDay = parseIsoDay(form.date);
+  const previewFolder =
+    form.target === 'existujici'
+      ? (batches.filter((x) => x.path === form.existingPath)[0] || { name: '—' }).name
+      : previewDay
+      ? photoFolderPath(base, previewDay, form.title).slice(base.replace(/^\/+|\/+$/g, '').length + 1)
+      : '—';
+
+  const targetOptions: IChoiceGroupOption[] = [
+    { key: 'nova', text: 'Nová dávka' },
+    { key: 'existujici', text: 'Existující dávka (dodatečně přidat fotky)', disabled: batches.length === 0 }
   ];
-
-  // --- 1. krok: nová dávka ---
-  if (!batch) {
-    return (
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 14,
-          background: RES.white,
-          border: `1px solid ${RES.grayBlue}`,
-          borderRadius: 4,
-          padding: '14px 16px'
-        }}
-      >
-        <div style={{ fontWeight: 600, color: RES.navy, fontSize: 16 }}>Nová dávka fotek</div>
-        <div style={{ fontSize: 13, color: RES.gray }}>
-          Dávka je balík fotek, který patří k sobě (např. kontrolní den, kontrola kabeláže). Má vlastní složku a fotky se do ní ukládají samy.
-        </div>
-        <ChoiceGroup label="Do složky s datem" options={modeOptions} selectedKey={mode} onChange={(_, o) => o && setMode(o.key as PhotoDateMode)} />
-        <TextField
-          label="Přídomek složky (nepovinný, jedno slovo)"
-          placeholder="např. KD (kontrolní den)"
-          value={tagInput}
-          maxLength={BATCH_TAG_MAX + 8}
-          onChange={(_, v) => setTagInput(v ?? '')}
-          description={`Písmena, číslice a pomlčka, nejvýš ${BATCH_TAG_MAX} znaků, bez mezer.${
-            tagInput.trim() !== '' && tag !== tagInput.trim() ? ` Použije se: „${tag || '—'}“.` : ''
-          }`}
-        />
-        <div style={{ fontSize: 13 }}>
-          Složka dávky:{' '}
-          <strong>{mode === 'vlozeni' ? previewFolder : `${base}/${today.getFullYear()}/RRRR-MM-DD${tag ? '_' + tag : ''} (den podle každé fotky)`}</strong>
-        </div>
-        <div>
-          <PrimaryButton iconProps={{ iconName: 'Add' }} text="Začít dávku" onClick={startBatch} styles={{ root: { height: 48, fontSize: 16 } }} />
-        </div>
-      </div>
-    );
-  }
-
-  // --- 2. krok: vkládání fotek do dávky ---
-  const batchFolder = photoFolderPath(base, batch.day, batch.tag);
-  const batchName = batchFolderName(batch.day, batch.tag);
-  const states = items.map((i) => i.state);
-  const hasFailed = states.indexOf('chyba') !== -1;
-  const hasDone = states.indexOf('hotovo') !== -1;
-  const busy = states.indexOf('nahrava') !== -1 || states.indexOf('ceka') !== -1;
-  const bigButton = { root: { height: 64, fontSize: 18, flex: '1 1 220px' }, icon: { fontSize: 22 } };
-  const openFolder = savedFolderUrl || folderLink(project.folderUrl, photoYearFolderPath(base, today.getFullYear()));
+  const batchOptions: IDropdownOption[] = batches.map((b) => ({ key: b.path, text: `${b.name} (${b.itemCount})` }));
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 14,
+        background: RES.white,
+        border: `1px solid ${RES.grayBlue}`,
+        borderRadius: 4,
+        padding: '14px 16px'
+      }}
+    >
       <input
         ref={cameraRef}
         type="file"
@@ -337,133 +344,190 @@ export const PhotoUploader: React.FC<{ project: Project }> = ({ project }) => {
         }}
       />
 
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          flexWrap: 'wrap',
-          background: RES.bluePale,
-          border: `1px solid ${RES.grayBlue}`,
-          borderRadius: 4,
-          padding: '10px 14px'
-        }}
-      >
-        <div style={{ flex: '1 1 260px' }}>
-          <div style={{ fontSize: 12, color: RES.gray }}>Dávka</div>
-          <div style={{ fontWeight: 600, color: RES.navy, fontSize: 16 }}>
-            {batch.mode === 'vlozeni' ? batchName : `podle dne pořízení${batch.tag ? ` · ${batch.tag}` : ''}`}
-          </div>
-          <div style={{ fontSize: 12, color: RES.gray, wordBreak: 'break-all' }}>
-            {batch.mode === 'vlozeni' ? batchFolder : `${base}/${batch.day.getFullYear()}/RRRR-MM-DD${batch.tag ? '_' + batch.tag : ''}`}
-          </div>
-          {existingCount !== undefined && existingCount > 0 && (
-            <div style={{ fontSize: 12, color: RES.gray }}>Složka už existuje ({existingCount} fotek) — nové se přidají k nim.</div>
-          )}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ fontWeight: 600, color: RES.navy, fontSize: 16, flex: '1 1 auto' }}>
+          {presetBatch ? `Přidat fotky do dávky „${presetBatch.name}“` : 'Nahrát fotky'}
         </div>
-        <DefaultButton text="Ukončit dávku" disabled={busy} onClick={finishBatch} />
+        {onClose && <DefaultButton text="Zavřít" disabled={busy} onClick={onClose} />}
+      </div>
+      <div style={{ fontSize: 13, color: RES.gray }}>
+        1) Přidejte fotky (na telefonu Vyfotit, na počítači Vybrat fotky). 2) Označte ty, které k sobě patří (jeden problém, jedna část stavby),
+        a uložte je do dávky. Pak stejně další. Ke každé fotce můžete napsat poznámku.
       </div>
 
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
         <PrimaryButton iconProps={{ iconName: 'Camera' }} text="Vyfotit" onClick={() => cameraRef.current && cameraRef.current.click()} styles={bigButton} />
-        <DefaultButton iconProps={{ iconName: 'Photo2' }} text="Vybrat z galerie" onClick={() => pickRef.current && pickRef.current.click()} styles={bigButton} />
+        <DefaultButton iconProps={{ iconName: 'Photo2' }} text="Vybrat fotky" onClick={() => pickRef.current && pickRef.current.click()} styles={bigButton} />
       </div>
 
-      {items.length > 0 && (
-        <div style={{ background: RES.white, border: `1px solid ${RES.grayBlue}`, borderRadius: 4, padding: '10px 12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
-            <strong style={{ color: RES.navy }}>Nahrávání</strong>
-            <span style={{ fontSize: 13, color: RES.gray }}>{uploadSummary(states)}</span>
+      {fresh.length > 0 && (
+        <div style={{ border: `1px solid ${RES.grayBlue}`, borderRadius: 4, padding: '10px 12px', background: RES.bluePale }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+            <strong style={{ color: RES.navy }}>Připravené fotky ({fresh.length})</strong>
+            <span style={{ fontSize: 13, color: RES.gray }}>označeno {selected.length}</span>
             <span style={{ flex: '1 1 auto' }} />
-            {hasFailed && <DefaultButton text="Zkusit znovu vše" onClick={retryAll} />}
-            {hasDone && <DefaultButton text="Skrýt hotové" onClick={clearDone} />}
+            <Link onClick={() => toggleAll(true)}>Označit vše</Link>
+            <Link onClick={() => toggleAll(false)}>Zrušit označení</Link>
+            <DefaultButton text="Odebrat označené" disabled={selected.length === 0} onClick={removeSelected} />
+            <PrimaryButton iconProps={{ iconName: 'Save' }} text="Uložit označené do dávky…" disabled={selected.length === 0} onClick={openSave} />
           </div>
-          {busy && <div style={{ fontSize: 12, color: RES.gray, marginBottom: 6 }}>Nechte prosím stránku otevřenou, dokud se fotky nenahrají.</div>}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-            {items.map((i) => (
-              <div key={i.id} style={{ width: 104, position: 'relative' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+            {fresh.map((i) => (
+              <div key={i.id} style={{ width: 168, position: 'relative' }}>
                 <div
                   style={{
-                    height: 78,
+                    height: 120,
                     background: RES.background,
                     borderRadius: 3,
                     overflow: 'hidden',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    opacity: i.state === 'hotovo' ? 1 : 0.75
+                    outline: i.selected ? `3px solid ${RES.blue}` : 'none'
                   }}
+                  onClick={() => update(i.id, { selected: !i.selected })}
                 >
-                  {i.preview ? <img src={i.preview} alt="" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'cover' }} /> : <Icon iconName="Photo2" />}
+                  {i.preview ? <img src={i.preview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'pointer' }} /> : <Icon iconName="Photo2" />}
                 </div>
-                <div style={{ fontSize: 11, marginTop: 2, color: i.state === 'chyba' ? RES.red : i.state === 'hotovo' ? RES.greenDark : RES.gray }}>
-                  {i.state === 'ceka' && 'čeká'}
-                  {i.state === 'nahrava' && (
-                    <Spinner size={SpinnerSize.xSmall} label="nahrávám" labelPosition="right" styles={{ root: { justifyContent: 'flex-start' } }} />
-                  )}
-                  {i.state === 'hotovo' && '✓ nahráno'}
-                  {i.state === 'chyba' && (
-                    <span title={i.error}>
-                      nepovedlo se · <Link onClick={() => retry(i.id)}>znovu</Link>
-                    </span>
-                  )}
-                </div>
-                {i.state !== 'nahrava' && (
-                  <IconButton
-                    iconProps={{ iconName: 'Cancel' }}
-                    ariaLabel="Odebrat z fronty"
-                    title="Odebrat z fronty"
-                    onClick={() => remove(i.id)}
-                    styles={{
-                      root: { position: 'absolute', top: 2, right: 2, width: 22, height: 22, background: 'rgba(255,255,255,0.9)', borderRadius: 11 },
-                      icon: { fontSize: 10 }
-                    }}
-                  />
-                )}
+                <Checkbox
+                  ariaLabel="Označit fotku"
+                  checked={i.selected}
+                  onChange={(_, c) => update(i.id, { selected: !!c })}
+                  styles={{ root: { position: 'absolute', top: 4, left: 4, background: 'rgba(255,255,255,0.9)', borderRadius: 3, padding: 2 } }}
+                />
+                <IconButton
+                  iconProps={{ iconName: 'Cancel' }}
+                  ariaLabel="Odebrat fotku"
+                  title="Odebrat fotku"
+                  onClick={() => remove(i.id)}
+                  styles={{
+                    root: { position: 'absolute', top: 2, right: 2, width: 24, height: 24, background: 'rgba(255,255,255,0.9)', borderRadius: 12 },
+                    icon: { fontSize: 11 }
+                  }}
+                />
+                <TextField
+                  placeholder="Poznámka k fotce"
+                  value={i.note}
+                  maxLength={250}
+                  onChange={(_, v) => update(i.id, { note: v ?? '' })}
+                  styles={{ root: { marginTop: 4 } }}
+                />
               </div>
             ))}
           </div>
-          {hasFailed && <div style={{ fontSize: 12, color: RES.red, marginTop: 6 }}>{items.filter((i) => i.state === 'chyba')[0].error}</div>}
         </div>
       )}
 
-      <div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 6 }}>
-          <strong style={{ color: RES.navy }}>{batch.mode === 'vlozeni' ? `Fotky v dávce${gallery ? ` (${gallery.length})` : ''}` : 'Nahrané fotky'}</strong>
-          <span style={{ flex: '1 1 auto' }} />
-          <ExternalLink href={openFolder}>Otevřít složku {savedFolderUrl ? 'dávky' : 'FOTO'}</ExternalLink>
+      {uploading.length > 0 && (
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+            <strong style={{ color: RES.navy }}>Ukládání do dávek</strong>
+            <span style={{ fontSize: 13, color: RES.gray }}>{uploadSummary(upStates)}</span>
+            <span style={{ flex: '1 1 auto' }} />
+            {hasFailed && <DefaultButton text="Zkusit znovu vše" onClick={retryAll} />}
+            {hasDone && <DefaultButton text="Skrýt hotové" onClick={clearDone} />}
+          </div>
+          {busy && <div style={{ fontSize: 12, color: RES.gray, marginBottom: 6 }}>Nechte prosím stránku otevřenou, dokud se fotky nenahrají.</div>}
+          {Array.from(groups.entries()).map(([folder, list]) => (
+            <div key={folder} style={{ border: `1px solid ${RES.grayBlue}`, borderRadius: 4, padding: '8px 10px', marginBottom: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
+                <strong style={{ color: RES.navy }}>{list[0].label}</strong>
+                <span style={{ fontSize: 12, color: RES.gray }}>{uploadSummary(list.map((i) => i.state as UploadState))}</span>
+                <span style={{ flex: '1 1 auto' }} />
+                <ExternalLink href={folderLink(project.folderUrl as string, folder)}>Otevřít složku</ExternalLink>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                {list.map((i) => (
+                  <div key={i.id} style={{ width: 104 }}>
+                    <div
+                      style={{
+                        height: 78,
+                        background: RES.background,
+                        borderRadius: 3,
+                        overflow: 'hidden',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        opacity: i.state === 'hotovo' ? 1 : 0.75
+                      }}
+                    >
+                      {i.preview ? <img src={i.preview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Icon iconName="Photo2" />}
+                    </div>
+                    <div style={{ fontSize: 11, marginTop: 2, color: i.state === 'chyba' ? RES.red : i.state === 'hotovo' ? RES.greenDark : RES.gray }}>
+                      {i.state === 'ceka' && 'čeká'}
+                      {i.state === 'nahrava' && (
+                        <Spinner size={SpinnerSize.xSmall} label="nahrávám" labelPosition="right" styles={{ root: { justifyContent: 'flex-start' } }} />
+                      )}
+                      {i.state === 'hotovo' && (i.noteWarning ? <span title={i.noteWarning}>✓ nahráno, bez poznámky</span> : '✓ nahráno')}
+                      {i.state === 'chyba' && (
+                        <span title={i.error}>
+                          nepovedlo se · <Link onClick={() => retry(i.id)}>znovu</Link>
+                        </span>
+                      )}
+                    </div>
+                    {i.note.trim() !== '' && <div style={{ fontSize: 11, color: RES.text, wordBreak: 'break-word' }}>{i.note}</div>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+          {hasFailed && <div style={{ fontSize: 12, color: RES.red }}>{uploading.filter((i) => i.state === 'chyba')[0].error}</div>}
+          {uploading.filter((i) => i.noteWarning)[0] && (
+            <div style={{ fontSize: 12, color: RES.red }}>{(uploading.filter((i) => i.noteWarning)[0] as QueueItem).noteWarning}</div>
+          )}
         </div>
-        {galleryError && (
-          <MessageBar messageBarType={MessageBarType.warning} isMultiline>
-            {galleryError}
-          </MessageBar>
-        )}
-        {batch.mode === 'vlozeni' && !gallery && !galleryError && <Spinner size={SpinnerSize.small} label="Načítám…" />}
-        {batch.mode === 'vlozeni' && gallery && gallery.length === 0 && (
-          <div style={{ fontSize: 13, color: RES.gray }}>V dávce zatím nejsou žádné fotky. Složka vznikne při první nahrané fotce.</div>
-        )}
-        {batch.mode === 'porizeni' && (
-          <div style={{ fontSize: 13, color: RES.gray }}>
-            U dávky podle dne pořízení se seznam fotek neukazuje — fotky jsou rozdělené do složek podle dne.
+      )}
+
+      {saveOpen && (
+        <Dialog
+          hidden={false}
+          onDismiss={() => setSaveOpen(false)}
+          dialogContentProps={{
+            type: DialogType.normal,
+            title: `Uložit ${selected.length} ${selected.length === 1 ? 'fotku' : selected.length < 5 ? 'fotky' : 'fotek'} do dávky`
+          }}
+          modalProps={{ isBlocking: true }}
+          minWidth={460}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {formError && <MessageBar messageBarType={MessageBarType.error}>{formError}</MessageBar>}
+            <ChoiceGroup options={targetOptions} selectedKey={form.target} onChange={(_, o) => o && setForm((f) => ({ ...f, target: o.key as SaveForm['target'] }))} />
+            {form.target === 'nova' ? (
+              <>
+                <TextField
+                  label="Název dávky"
+                  placeholder="např. Mělký výkop, Problém č. 1, Kontrolní den"
+                  value={form.title}
+                  maxLength={BATCH_TITLE_MAX + 20}
+                  onChange={(_, v) => setForm((f) => ({ ...f, title: v ?? '' }))}
+                  description={`Nepovinný, nejvýš ${BATCH_TITLE_MAX} znaků. Znaky nepovolené v názvu složky se vynechají.${
+                    form.title.trim() !== '' && batchTitle(form.title) !== form.title.trim() ? ` Použije se: „${batchTitle(form.title) || '—'}“.` : ''
+                  }`}
+                />
+                <TextField label="Datum složky" type="date" value={form.date} onChange={(_, v) => setForm((f) => ({ ...f, date: v ?? '' }))} />
+                <div style={{ fontSize: 12 }}>
+                  <Link onClick={useTakenDate}>Použít datum pořízení nejstarší označené fotky</Link>
+                </div>
+              </>
+            ) : (
+              <Dropdown
+                label="Dávka"
+                options={batchOptions}
+                selectedKey={form.existingPath || null}
+                placeholder="Vyberte dávku"
+                onChange={(_, o) => o && setForm((f) => ({ ...f, existingPath: String(o.key) }))}
+              />
+            )}
+            <div style={{ fontSize: 13 }}>
+              Složka: <strong>{previewFolder}</strong>
+            </div>
           </div>
-        )}
-        {batch.mode === 'vlozeni' && gallery && gallery.length > 0 && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {gallery
-              .slice()
-              .reverse()
-              .map((f) => (
-                <ExternalLink key={f.name} href={f.url} title={f.name} styles={{ root: { display: 'block' } }}>
-                  <img
-                    src={f.url}
-                    alt={f.name}
-                    style={{ width: 96, height: 72, objectFit: 'cover', borderRadius: 3, background: RES.background, display: 'block' }}
-                  />
-                </ExternalLink>
-              ))}
-          </div>
-        )}
-      </div>
+          <DialogFooter>
+            <PrimaryButton text="Uložit" onClick={save} />
+            <DefaultButton text="Zrušit" onClick={() => setSaveOpen(false)} />
+          </DialogFooter>
+        </Dialog>
+      )}
     </div>
   );
 };

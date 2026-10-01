@@ -1,61 +1,83 @@
 import {
-  BATCH_TAG_MAX,
+  BATCH_TITLE_MAX,
   batchFolderName,
-  batchTag,
+  batchTitle,
   buildPhotoName,
   folderLink,
+  isYearFolder,
   parentUrl,
-  photoDay,
+  parseBatchFolder,
   photoFolderPath,
-  photoYearFolderPath,
+  photoThumbnailUrl,
+  sortBatchFolders,
   uploadSummary
 } from './photos';
 
-describe('přídomek dávky', () => {
-  it('jedno slovo: mezery a nepovolené znaky pryč, písmena s diakritikou a číslice zůstanou', () => {
-    expect(batchTag('KD')).toBe('KD');
-    expect(batchTag('  kontrolní den ')).toBe('kontrolníden');
-    expect(batchTag('Panely/jih: #2')).toBe('Panelyjih2');
-    expect(batchTag('Žluťoučký')).toBe('Žluťoučký');
-    expect(batchTag('KD-1')).toBe('KD-1');
+describe('název dávky', () => {
+  it('běžný text zůstane, včetně diakritiky a mezer', () => {
+    expect(batchTitle('Mělký výkop')).toBe('Mělký výkop');
+    expect(batchTitle('  Foto   problém  1 ')).toBe('Foto problém 1');
+    expect(batchTitle('KD-1')).toBe('KD-1');
   });
 
-  it('pomlčky jen uvnitř, bez opakování', () => {
-    expect(batchTag('--KD--')).toBe('KD');
-    expect(batchTag('a--b')).toBe('a-b');
+  it('znaky nepovolené ve složce SharePointu se vyhodí', () => {
+    expect(batchTitle('Panely/jih: #2 *test* <a>')).toBe('Panelyjih 2 test a');
+    expect(batchTitle('a\\b|c?d"e%f')).toBe('abcdef');
   });
 
-  it('zkrátí na nejvýš povolenou délku', () => {
-    expect(batchTag('a'.repeat(40)).length).toBe(BATCH_TAG_MAX);
-    expect(batchTag('abcdefghijk-lmn')).toBe('abcdefghijk');
+  it('tečky na okraji pryč a délka omezená', () => {
+    expect(batchTitle('..skryto..')).toBe('skryto');
+    expect(batchTitle('a'.repeat(100)).length).toBe(BATCH_TITLE_MAX);
+    expect(batchTitle('ab '.repeat(40)).length).toBeLessThanOrEqual(BATCH_TITLE_MAX);
   });
 
-  it('prázdný nebo samé nepovolené znaky dá prázdný přídomek', () => {
-    expect(batchTag('')).toBe('');
-    expect(batchTag(undefined)).toBe('');
-    expect(batchTag(' / * ')).toBe('');
+  it('prázdný nebo samé nepovolené znaky dá prázdný název', () => {
+    expect(batchTitle('')).toBe('');
+    expect(batchTitle(undefined)).toBe('');
+    expect(batchTitle(' / * ')).toBe('');
   });
 });
 
 describe('složky fotek', () => {
-  it('název složky dávky: datum a volitelný přídomek', () => {
-    expect(batchFolderName(new Date(2026, 9, 1))).toBe('2026-10-01');
-    expect(batchFolderName(new Date(2026, 9, 1), 'KD')).toBe('2026-10-01_KD');
-    expect(batchFolderName(new Date(2026, 9, 1), 'kontrolní den')).toBe('2026-10-01_kontrolníden');
+  it('název složky dávky: datum a volitelný název', () => {
+    expect(batchFolderName(new Date(2026, 2, 1))).toBe('2026-03-01');
+    expect(batchFolderName(new Date(2026, 2, 1), 'Mělký výkop')).toBe('2026-03-01 Mělký výkop');
+    expect(batchFolderName(new Date(2026, 2, 1), ' / ')).toBe('2026-03-01');
   });
 
-  it('cesta dávky v projektu', () => {
-    expect(photoFolderPath('07-Dokumentace a podklady/FOTO', new Date(2026, 9, 1), 'KD')).toBe('07-Dokumentace a podklady/FOTO/2026/2026-10-01_KD');
-    expect(photoFolderPath('/FOTO/', new Date(2026, 0, 5))).toBe('FOTO/2026/2026-01-05');
-    expect(photoFolderPath('', new Date(2026, 0, 5), 'x')).toBe('2026/2026-01-05_x');
-    expect(photoYearFolderPath('FOTO', 2026)).toBe('FOTO/2026');
+  it('cesta dávky v projektu: přímo ve složce FOTO, bez podsložky roku', () => {
+    expect(photoFolderPath('07-Dokumentace a podklady/FOTO', new Date(2026, 2, 1), 'Foto problem 1')).toBe(
+      '07-Dokumentace a podklady/FOTO/2026-03-01 Foto problem 1'
+    );
+    expect(photoFolderPath('/FOTO/', new Date(2026, 0, 5))).toBe('FOTO/2026-01-05');
+    expect(photoFolderPath('', new Date(2026, 0, 5), 'x')).toBe('2026-01-05 x');
   });
 
-  it('den složky: výchozí den vložení, nebo den pořízení', () => {
-    const vlozeni = new Date(2026, 9, 1);
-    const porizeno = new Date(2026, 8, 20);
-    expect(photoDay('vlozeni', porizeno, vlozeni)).toBe(vlozeni);
-    expect(photoDay('porizeni', porizeno, vlozeni)).toBe(porizeno);
+  it('rozbor názvu složky: nový tvar, starší s podtržítkem, cizí název', () => {
+    expect(parseBatchFolder('2026-03-01 Mělký výkop').title).toBe('Mělký výkop');
+    expect(parseBatchFolder('2026-03-01 Mělký výkop').date).toEqual(new Date(2026, 2, 1));
+    expect(parseBatchFolder('2026-10-01_KD')).toEqual({ date: new Date(2026, 9, 1), title: 'KD' });
+    expect(parseBatchFolder('2026-10-01').title).toBe('');
+    expect(parseBatchFolder('Staré fotky')).toEqual({ title: 'Staré fotky' });
+    expect(parseBatchFolder('2026-13-45 nesmysl').date).toBeUndefined();
+  });
+
+  it('složka s rokem se pozná', () => {
+    expect(isYearFolder('2026')).toBe(true);
+    expect(isYearFolder('2026-03-01 x')).toBe(false);
+    expect(isYearFolder('202')).toBe(false);
+  });
+
+  it('dávky od nejnovější, bez data na konec', () => {
+    const r = sortBatchFolders([{ name: 'Staré' }, { name: '2026-03-01 B' }, { name: '2026-05-02 A' }, { name: '2026-03-01 A' }]);
+    expect(r.map((x) => x.name)).toEqual(['2026-05-02 A', '2026-03-01 A', '2026-03-01 B', 'Staré']);
+  });
+
+  it('adresa miniatury obsahuje zakódovanou cestu k souboru', () => {
+    const u = photoThumbnailUrl('https://x.sharepoint.com/', '/sites/a/Shared Documents/FOTO/Foto 1.jpg', 300);
+    expect(u).toContain('https://x.sharepoint.com/_layouts/15/getpreview.ashx');
+    expect(u).toContain('width=300');
+    expect(u).toContain(encodeURIComponent('https://x.sharepoint.com/sites/a/Shared Documents/FOTO/Foto 1.jpg'));
   });
 
   it('odkaz na složku zakóduje jednotlivé části', () => {

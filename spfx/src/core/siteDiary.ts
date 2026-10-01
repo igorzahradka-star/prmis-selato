@@ -267,7 +267,8 @@ export function parseIsoDay(text: string | undefined): Date | undefined {
     return undefined;
   }
   const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-  return isNaN(d.getTime()) ? undefined : d;
+  // Neexistující den (2026-13-45) se nepřepočítá na jiné datum, ale odmítne.
+  return isNaN(d.getTime()) || d.getMonth() !== Number(m[2]) - 1 || d.getDate() !== Number(m[3]) ? undefined : d;
 }
 
 /** Další pořadové číslo zápisu v deníku (nejvyšší existující + 1). */

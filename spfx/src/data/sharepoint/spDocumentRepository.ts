@@ -10,7 +10,8 @@
 import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { Project } from '../../core/types';
 import { toDate } from '../../core/format';
-import { IDocumentRepository, ISettingsRepository, ProjectFile } from '../repositories';
+import { IDocumentRepository, ISettingsRepository, ProjectFile, ProjectFolder } from '../repositories';
+import { photoThumbnailUrl } from '../../core/photos';
 import { getSp, getSpForSite, describeSpError, extractStatus } from './spContext';
 import { resolveLibrary } from './spLibrary';
 import { resolveFolderPath } from './spFolders';
@@ -147,6 +148,80 @@ export class SpDocumentRepository implements IDocumentRepository {
     }
   }
 
+  public async listSubfolders(project: Project, relativeFolder: string): Promise<ProjectFolder[]> {
+    const { sp, path, origin } = await this.folderPathOf(project, relativeFolder);
+    if (path === undefined) {
+      return [];
+    }
+    try {
+      const items: { Name: string; ServerRelativeUrl: string; ItemCount: number; TimeLastModified: string }[] = await sp.web
+        .getFolderByServerRelativePath(path)
+        .folders.select('Name', 'ServerRelativeUrl', 'ItemCount', 'TimeLastModified')();
+      return items
+        .filter((f) => f.Name !== 'Forms')
+        .map((f) => ({
+          name: f.Name,
+          url: `${origin}${f.ServerRelativeUrl}`,
+          itemCount: Number(f.ItemCount) || 0,
+          modified: toDate(f.TimeLastModified)
+        }));
+    } catch (error) {
+      if (extractStatus(error) === 404) {
+        return [];
+      }
+      throw new Error(describeSpError(error, `Nepodařilo se načíst složky ze složky „${relativeFolder}“ projektu ${project.projectNumber}`));
+    }
+  }
+
+  public async listPhotos(project: Project, relativeFolder: string): Promise<ProjectFile[]> {
+    const { sp, path, origin } = await this.folderPathOf(project, relativeFolder);
+    if (path === undefined) {
+      return [];
+    }
+    try {
+      const items: {
+        Name: string;
+        ServerRelativeUrl: string;
+        Length: string;
+        TimeLastModified: string;
+        ListItemAllFields?: { Title?: string | null };
+      }[] = await sp.web
+        .getFolderByServerRelativePath(path)
+        .files.expand('ListItemAllFields')
+        .select('Name', 'ServerRelativeUrl', 'Length', 'TimeLastModified', 'ListItemAllFields/Title')
+        .orderBy('TimeCreated')();
+      return items
+        .filter((f) => isImageName(f.Name))
+        .map((f) => ({
+          name: f.Name,
+          relativeFolder,
+          url: `${origin}${f.ServerRelativeUrl}`,
+          sizeBytes: f.Length !== undefined ? parseInt(f.Length, 10) : undefined,
+          modified: toDate(f.TimeLastModified),
+          note: noteFromTitle(f.Name, f.ListItemAllFields && f.ListItemAllFields.Title),
+          thumbnailUrl: photoThumbnailUrl(origin, f.ServerRelativeUrl)
+        }));
+    } catch (error) {
+      if (extractStatus(error) === 404) {
+        return [];
+      }
+      throw new Error(describeSpError(error, `Nepodařilo se načíst fotky ze složky „${relativeFolder}“ projektu ${project.projectNumber}`));
+    }
+  }
+
+  public async setFileNote(project: Project, relativeFolder: string, fileName: string, note: string): Promise<void> {
+    const { sp, path } = await this.folderPathOf(project, relativeFolder);
+    if (path === undefined) {
+      throw new Error(`Složka „${relativeFolder}“ projektu ${project.projectNumber} neexistuje, poznámku k souboru „${fileName}“ nelze uložit.`);
+    }
+    try {
+      const item = await sp.web.getFileByServerRelativePath(`${path}/${fileName}`).getItem();
+      await item.update({ Title: note.trim() });
+    } catch (error) {
+      throw new Error(describeSpError(error, `Poznámku k souboru „${fileName}“ se nepodařilo uložit`));
+    }
+  }
+
   public async deleteProjectFile(project: Project, relativeFolder: string, fileName: string): Promise<void> {
     const { sp, path } = await this.folderPathOf(project, relativeFolder);
     if (path === undefined) {
@@ -196,6 +271,20 @@ export class SpDocumentRepository implements IDocumentRepository {
     const base = siteUrl || this.context.pageContext.web.absoluteUrl;
     return new URL(base).origin;
   }
+}
+
+const IMAGE_NAME = /\.(jpe?g|png|gif|webp|bmp|heic|heif)$/i;
+
+/** Je to obrázek (podle přípony)? */
+function isImageName(name: string): boolean {
+  return IMAGE_NAME.test(name);
+}
+
+/** Poznámka z pole Název souboru; název souboru bez přípony (to, co SharePoint někdy dosadí sám) poznámka není. */
+function noteFromTitle(fileName: string, title: string | null | undefined): string | undefined {
+  const t = (title || '').trim();
+  const bare = fileName.replace(/\.[^.]+$/, '');
+  return t === '' || t === fileName || t === bare ? undefined : t;
 }
 
 function toProjectFile(row: FileItem, projectFolderPath: string, origin: string): ProjectFile {

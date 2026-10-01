@@ -286,6 +286,20 @@ export interface ProjectFile {
   sizeBytes?: number;
   modified?: Date;
   modifiedByName?: string;
+  /** Poznámka k fotce (jen u `listPhotos`) — ukládá se přímo k souboru, takže s ním putuje. */
+  note?: string;
+  /** Adresa miniatury (jen u `listPhotos`); nenačte-li se, použije se `url`. */
+  thumbnailUrl?: string;
+}
+
+/** Podsložka ve složce projektu (např. dávka fotek). */
+export interface ProjectFolder {
+  name: string;
+  /** Odkaz, kterým se složka otevře v SharePointu. */
+  url: string;
+  /** Kolik položek v ní je (soubory i podsložky). */
+  itemCount: number;
+  modified?: Date;
 }
 
 /**
@@ -314,6 +328,15 @@ export interface IDocumentRepository {
   saveProjectFile(project: Project, relativeFolder: string, fileName: string, content: Blob): Promise<string>;
   /** Soubory přímo v podsložce projektu (bez podsložek), od nejstaršího. Složka, která ještě nevznikla, vrací prázdný seznam. */
   listFolderFiles(project: Project, relativeFolder: string): Promise<ProjectFile[]>;
+  /** Podsložky podsložky projektu (např. dávky fotek ve složce FOTO). Složka, která ještě nevznikla, vrací prázdný seznam. */
+  listSubfolders(project: Project, relativeFolder: string): Promise<ProjectFolder[]>;
+  /**
+   * Obrázky v podsložce projektu s poznámkou a miniaturou, od nejstaršího. Složka, která ještě nevznikla, vrací prázdný seznam.
+   * Fotky vložené do složky mimo aplikaci jsou v seznamu taky (bez poznámky).
+   */
+  listPhotos(project: Project, relativeFolder: string): Promise<ProjectFile[]>;
+  /** Uloží (nebo smaže, je-li prázdná) poznámku k souboru v podsložce projektu. */
+  setFileNote(project: Project, relativeFolder: string, fileName: string, note: string): Promise<void>;
   /** Obsah souboru z podsložky projektu (např. fotka pro PDF zápisu). */
   readProjectFile(project: Project, relativeFolder: string, fileName: string): Promise<Blob>;
   /** Smaže soubor z podsložky projektu (v SharePointu do koše webu). */

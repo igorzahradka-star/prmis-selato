@@ -41,6 +41,7 @@ import {
   IInstallRepository,
   IDocumentRepository,
   ProjectFile,
+  ProjectFolder,
   IPartnerRepository,
   IProjectRepository,
   ITaskRepository,
@@ -560,7 +561,7 @@ export class MockTaskRepository implements ITaskRepository {
  */
 class MockDocumentRepository implements IDocumentRepository {
   /** Soubory uložené v ukázkovém režimu — jen v paměti prohlížeče, do zavření stránky. */
-  private readonly stored = new Map<string, { name: string; folder: string; blob: Blob; url: string; modified: Date }>();
+  private readonly stored = new Map<string, { name: string; folder: string; blob: Blob; url: string; modified: Date; note?: string }>();
 
   private key(project: Project, folder: string, name: string): string {
     return `${project.projectNumber}/${folder}/${name}`;
@@ -574,6 +575,46 @@ class MockDocumentRepository implements IDocumentRepository {
       }
     });
     return delay(out.sort((a, b) => (a.modified as Date).getTime() - (b.modified as Date).getTime()));
+  }
+
+  public listSubfolders(project: Project, relativeFolder: string): Promise<ProjectFolder[]> {
+    const prefix = `${project.projectNumber}/${relativeFolder}/`;
+    const found = new Map<string, { count: number; modified: Date }>();
+    this.stored.forEach((f, k) => {
+      if (k.indexOf(prefix) !== 0) {
+        return;
+      }
+      const rest = k.slice(prefix.length);
+      const slash = rest.indexOf('/');
+      if (slash === -1) {
+        return;
+      }
+      const name = rest.slice(0, slash);
+      const current = found.get(name) || { count: 0, modified: f.modified };
+      found.set(name, { count: current.count + 1, modified: f.modified > current.modified ? f.modified : current.modified });
+    });
+    const out: ProjectFolder[] = [];
+    found.forEach((v, name) => out.push({ name, url: `#/ukazkovy-rezim/slozka/${encodeURIComponent(`${relativeFolder}/${name}`)}`, itemCount: v.count, modified: v.modified }));
+    return delay(out);
+  }
+
+  public async listPhotos(project: Project, relativeFolder: string): Promise<ProjectFile[]> {
+    const files = await this.listFolderFiles(project, relativeFolder);
+    return files
+      .filter((f) => /\.(jpe?g|png|gif|webp|bmp)$/i.test(f.name))
+      .map((f) => {
+        const s = this.stored.get(this.key(project, relativeFolder, f.name));
+        return { ...f, note: s && s.note ? s.note : undefined, thumbnailUrl: f.url };
+      });
+  }
+
+  public setFileNote(project: Project, relativeFolder: string, fileName: string, note: string): Promise<void> {
+    const f = this.stored.get(this.key(project, relativeFolder, fileName));
+    if (!f) {
+      return Promise.reject(new Error(`Soubor „${fileName}“ nebyl nalezen.`));
+    }
+    f.note = note.trim() === '' ? undefined : note.trim();
+    return delay(undefined);
   }
 
   public readProjectFile(project: Project, relativeFolder: string, fileName: string): Promise<Blob> {

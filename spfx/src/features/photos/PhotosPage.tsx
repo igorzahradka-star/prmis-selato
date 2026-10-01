@@ -1,6 +1,6 @@
 /**
- * Fotodokumentace — stránka určená hlavně pro mobil: vybrat projekt, vyfotit, hotovo. Fotky se samy uloží do složky
- * projektu `…/FOTO/rok/den`. Naposledy zvolený projekt si prohlížeč pamatuje, aby se na stavbě nemuselo vybírat pořád dokola.
+ * Fotodokumentace — zkratka určená hlavně pro mobil (adresa `#/foto`, dá se uložit jako záložka): vybrat projekt, vyfotit, uložit do dávky.
+ * Není v levé nabídce; běžně se fotky otevírají z detailu projektu. Naposledy zvolený projekt si prohlížeč pamatuje, aby se na stavbě nemuselo vybírat pořád dokola.
  */
 
 import * as React from 'react';
@@ -13,7 +13,7 @@ import { PageHeading } from '../../ui/components/PageHeading';
 import { Project } from '../../core/types';
 import { canWriteDiary } from '../../core/siteDiary';
 import { toActor, toWorkflowProject } from '../../core/orderWorkflow';
-import { PhotoUploader } from './PhotoUploader';
+import { ProjectPhotos } from './ProjectPhotos';
 
 const STORAGE_KEY = 'prm-photo-project';
 
@@ -62,7 +62,7 @@ export const PhotosPage: React.FC = () => {
     <>
       <PageHeading
         title="Fotodokumentace"
-        subtitle="Vyfoťte stavbu a fotky se samy uloží do složky projektu (FOTO / rok / den). Na mobilu otevřete aplikaci v SharePointu nebo v prohlížeči."
+        subtitle="Zkratka pro mobil: vyberte projekt, vyfoťte a uložte fotky do dávky. Stejné je i na záložce Fotodokumentace v detailu projektu."
       />
 
       {error && (
@@ -78,7 +78,7 @@ export const PhotosPage: React.FC = () => {
       )}
 
       {writable.length > 0 && (
-        <div style={{ maxWidth: 720, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <Dropdown
             label="Projekt"
             options={options}
@@ -91,7 +91,7 @@ export const PhotosPage: React.FC = () => {
               }
             }}
           />
-          {project && <PhotoUploader project={project} />}
+          {project && <ProjectPhotos project={project} />}
         </div>
       )}
     </>
