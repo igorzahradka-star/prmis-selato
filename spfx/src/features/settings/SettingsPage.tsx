@@ -30,6 +30,8 @@ import {
   withDefaults
 } from '../../core/settings';
 import { describeApprovalLadder } from '../../core/approval';
+import { CurrencyCode } from '../../core/currency';
+import { Dropdown } from '@fluentui/react/lib/Dropdown';
 import { overheadProjectNumber } from '../../core/overhead';
 import { OVERHEAD_ACCESS_ROLES, accessGroupsForRoles } from '../../core/projectAccess';
 import { parseListText, sameList } from '../../core/listText';
@@ -213,6 +215,21 @@ export const SettingsPage: React.FC = () => {
 
         <PivotItem headerText="Rozpočet a semafor" itemIcon="Financial">
           <Panel>
+            <Dropdown
+              label="Výchozí měna přehledů"
+              options={[
+                { key: 'CZK', text: 'CZK (koruny)' },
+                { key: 'EUR', text: 'EUR' },
+                { key: 'USD', text: 'USD' }
+              ]}
+              selectedKey={draft.budget.defaultCurrency}
+              onChange={(_, o) => o && patch('budget', { defaultCurrency: String(o.key) as CurrencyCode })}
+              styles={{ root: { maxWidth: 260 } }}
+            />
+            <Hint>
+              V této měně ukazují částky všechny <strong>přehledy</strong> (seznam projektů, objednávek, podkladů, dlaždice, grafy). Částky v jiné
+              měně se přepočítají kurzem ČNB (záložka Kurzy). <strong>Doklady samotné</strong> zůstávají v měně dokladu (CZK, EUR, USD).
+            </Hint>
             <ListEditor
               label="Kategorie rozpočtu"
               values={draft.budget.categories}

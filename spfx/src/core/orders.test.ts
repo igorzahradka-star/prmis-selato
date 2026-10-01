@@ -18,6 +18,7 @@ import {
   lineTotalNet,
   orderTotals,
   round2,
+  spentByProject,
   validateAttachment,
   validateOrderDraft
 } from './orders';
@@ -352,5 +353,42 @@ describe('ordersToRenumber a highestOrderSequence', () => {
   it('nejvyšší pořadí bere jen z daného roku a jen ze správného tvaru', () => {
     expect(highestOrderSequence(['OBJ-2026-0003', 'OBJ-2026-0011', 'OBJ-2025-0099', 'xyz'], 2026)).toBe(11);
     expect(highestOrderSequence([], 2026)).toBe(0);
+  });
+});
+
+describe('vyčerpáno podle projektu', () => {
+  const o = (projectNumber: string, status: OrderStatus, amountNet: number, currency = 'CZK'): { projectNumber: string; status: OrderStatus; amountNet: number; currency: string } => ({
+    projectNumber,
+    status,
+    amountNet,
+    currency
+  });
+  const convert = (amount: number, currency: string): number => (currency === 'EUR' ? amount * 25 : amount);
+
+  it('počítají se vystavené objednávky, ne koncepty, vrácené, zamítnuté ani storno', () => {
+    const r = spentByProject(
+      [
+        o('26001', OrderStatus.Koncept, 1000),
+        o('26001', OrderStatus.KeSchvaleni, 2000),
+        o('26001', OrderStatus.Schvaleno, 3000),
+        o('26001', OrderStatus.Odeslano, 4000),
+        o('26001', OrderStatus.Dodano, 500),
+        o('26001', OrderStatus.Uzavreno, 500),
+        o('26001', OrderStatus.VracenoKUprave, 9000),
+        o('26001', OrderStatus.Zamitnuto, 9000),
+        o('26001', OrderStatus.Storno, 9000)
+      ],
+      convert
+    );
+    expect(r['26001']).toBe(10000);
+  });
+
+  it('částky v cizí měně se přepočtou a sčítají se po projektech', () => {
+    const r = spentByProject([o('26001', OrderStatus.Schvaleno, 100, 'EUR'), o('26001', OrderStatus.Odeslano, 500), o('26002', OrderStatus.Odeslano, 700)], convert);
+    expect(r).toEqual({ '26001': 3000, '26002': 700 });
+  });
+
+  it('projekt bez vystavených objednávek v přehledu není', () => {
+    expect(spentByProject([o('26003', OrderStatus.Koncept, 1)], convert)).toEqual({});
   });
 });

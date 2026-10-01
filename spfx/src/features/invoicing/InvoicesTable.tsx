@@ -1,6 +1,6 @@
 /**
  * Tabulka podkladů pro fakturaci — společná pro seznam všech podkladů, záložku projektu a „Čeká na mě".
- * Dá se řadit kliknutím na záhlaví; částky jsou vždy v Kč (cizí měna se přepočítá kurzem ČNB).
+ * Dá se řadit kliknutím na záhlaví; částky jsou ve výchozí měně přehledů z Nastavení (jiná měna se přepočítá kurzem ČNB).
  */
 
 import * as React from 'react';
@@ -9,10 +9,8 @@ import { Link } from '@fluentui/react/lib/Link';
 
 import { buildHash, RouteName } from '../../ui/router';
 import { formatDate, formatMoney } from '../../core/format';
-import { amountNetInCzk } from '../../core/orders';
-import { RateTable } from '../../core/currency';
 import { InvoiceBasis, InvoiceKind, InvoiceSortKey, invoiceKindOf, isOverdue, sortInvoices } from '../../core/invoiceBases';
-import { useOrderRates } from '../orders/useOrderRates';
+import { useReportCurrency } from '../../ui/useReportCurrency';
 import { InvoiceStatusBadge } from './InvoiceStatusBadge';
 
 export interface InvoicesTableProps {
@@ -25,9 +23,9 @@ export interface InvoicesTableProps {
 
 export const InvoicesTable: React.FC<InvoicesTableProps> = ({ invoices, onOpen, hideProject, ariaLabel }) => {
   const [sort, setSort] = React.useState<{ key: InvoiceSortKey; descending: boolean } | undefined>(undefined);
-  const rates: RateTable = useOrderRates();
-  const inCzk = (i: InvoiceBasis): number => amountNetInCzk(i.amountNet, i.currency, rates);
-  const items = sort ? sortInvoices(invoices, sort.key, sort.descending, inCzk) : invoices;
+  const report = useReportCurrency();
+  const inReport = (i: InvoiceBasis): number => report.convert(i.amountNet, i.currency);
+  const items = sort ? sortInvoices(invoices, sort.key, sort.descending, inReport) : invoices;
 
   const sortable = (key: InvoiceSortKey): Partial<IColumn> => ({
     isSorted: !!sort && sort.key === key,
@@ -84,7 +82,7 @@ export const InvoicesTable: React.FC<InvoicesTableProps> = ({ invoices, onOpen, 
     },
     {
       key: 'amount',
-      name: 'Bez DPH (Kč)',
+      name: `Bez DPH (${report.label})`,
       minWidth: 100,
       maxWidth: 130,
       isResizable: true,
@@ -93,10 +91,10 @@ export const InvoicesTable: React.FC<InvoicesTableProps> = ({ invoices, onOpen, 
       onRender: (i: InvoiceBasis) => (
         <div
           style={{ textAlign: 'right' }}
-          title={i.currency === 'CZK' ? undefined : `Původně ${formatMoney(i.amountNet, i.currency)}, přepočteno kurzem ČNB`}
+          title={i.currency === report.currency ? undefined : `Původně ${formatMoney(i.amountNet, i.currency)}, přepočteno kurzem ČNB`}
         >
-          {i.currency === 'CZK' ? '' : '≈ '}
-          {formatMoney(inCzk(i), 'CZK')}
+          {i.currency === report.currency ? '' : '≈ '}
+          {formatMoney(inReport(i), report.currency)}
         </div>
       )
     },

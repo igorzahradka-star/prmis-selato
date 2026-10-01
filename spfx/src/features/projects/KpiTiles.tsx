@@ -12,7 +12,7 @@ import { Shimmer } from '@fluentui/react/lib/Shimmer';
 import { Icon } from '@fluentui/react/lib/Icon';
 import { Project, BudgetStatus, ACTIVE_PROJECT_STATUSES } from '../../core/types';
 import { formatMoney, daysBetween } from '../../core/format';
-import { CurrencyCode, RateTable, StoredRates, describeRates, effectiveRates, sumInCzk } from '../../core/currency';
+import { CurrencyCode, RateTable, StoredRates, asCurrencyCode, convertAmount, describeRates, effectiveRates } from '../../core/currency';
 import { fallbackRatesOf } from '../../core/settings';
 import { useApp } from '../../ui/AppContext';
 import { RES } from '../../ui/theme';
@@ -29,7 +29,7 @@ export interface KpiSummary {
 }
 
 /** Spočítá čísla do dlaždic. Vytaženo ven kvůli testovatelnosti. */
-export function computeKpi(projects: Project[], today: Date = new Date(), rates?: RateTable): KpiSummary {
+export function computeKpi(projects: Project[], today: Date = new Date(), rates?: RateTable, currency: CurrencyCode = 'CZK'): KpiSummary {
   const active = projects.filter(
     (p) => !p.isOverhead && ACTIVE_PROJECT_STATUSES.indexOf(p.status) !== -1
   );
@@ -48,10 +48,10 @@ export function computeKpi(projects: Project[], today: Date = new Date(), rates?
 
   return {
     activeCount: active.length,
-    // Projekty jsou v různých měnách (Kč, EUR, USD) — součet se dělá v Kč podle kurzu ČNB.
+    // Projekty jsou v různých měnách (Kč, EUR, USD) — součet se dělá ve výchozí měně přehledů podle kurzu ČNB.
     // Bez kurzů (jen v testech) se sečtou holá čísla.
     activeValue: rates
-      ? sumInCzk(active.map((p) => ({ amount: p.contractPriceNet, currency: p.currency })), rates)
+      ? Math.round(active.reduce((sum, p) => sum + convertAmount(p.contractPriceNet, p.currency, currency, rates), 0) * 100) / 100
       : active.reduce((sum, p) => sum + (p.contractPriceNet ?? 0), 0),
     redCount: active.filter((p) => p.budgetStatus === BudgetStatus.Cervena).length,
     upcomingDeadlines: upcoming.length,
@@ -83,9 +83,10 @@ export const KpiTiles: React.FC<{ projects: Project[] | undefined }> = ({ projec
   }
 
   const rates = effectiveRates(stored, fallbackRatesOf(settings.approvals));
-  const kpi = computeKpi(projects, new Date(), rates);
+  const reportCurrency = asCurrencyCode(settings.budget.defaultCurrency);
+  const kpi = computeKpi(projects, new Date(), rates, reportCurrency);
   const used = Array.from(new Set(projects.map((p) => p.currency))) as CurrencyCode[];
-  const rateNote = describeRates(rates, used);
+  const rateNote = describeRates(rates, Array.from(new Set([...used, reportCurrency])) as CurrencyCode[]);
 
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -97,8 +98,8 @@ export const KpiTiles: React.FC<{ projects: Project[] | undefined }> = ({ projec
       />
       <Tile
         icon="Money"
-        label="Hodnota aktivních (Kč)"
-        value={formatMoney(kpi.activeValue)}
+        label={`Hodnota aktivních (${reportCurrency === 'CZK' ? 'Kč' : reportCurrency})`}
+        value={formatMoney(kpi.activeValue, reportCurrency)}
         color={RES.green}
         hint={rateNote || 'Součet cen aktivních projektů bez DPH.'}
       />

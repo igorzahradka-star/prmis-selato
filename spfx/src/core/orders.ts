@@ -136,6 +136,27 @@ export function amountNetInCzk(amountNet: number, currency: string, rates: RateT
   return toCzk(amountNet, currency, rates);
 }
 
+/**
+ * Které objednávky se počítají do **vyčerpání** projektu: vystavené (už prošly nebo procházejí schvalováním), ne koncepty, vrácené,
+ * zamítnuté ani stornované.
+ */
+export const SPENT_ORDER_STATUSES: OrderStatus[] = [OrderStatus.KeSchvaleni, OrderStatus.Schvaleno, OrderStatus.Odeslano, OrderStatus.Dodano, OrderStatus.Uzavreno];
+
+/** Součet vystavených objednávek (bez DPH) podle projektu. `convert` přepočítá částku do měny přehledu. */
+export function spentByProject(
+  orders: { projectNumber: string; status: OrderStatus; amountNet: number; currency: string }[],
+  convert: (amount: number, currency: string) => number
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  orders.forEach((o) => {
+    if (SPENT_ORDER_STATUSES.indexOf(o.status) === -1) {
+      return;
+    }
+    out[o.projectNumber] = (out[o.projectNumber] ?? 0) + convert(o.amountNet, o.currency);
+  });
+  return out;
+}
+
 // --- kontrola zadání -------------------------------------------------------
 
 /** Údaje z formuláře objednávky. */

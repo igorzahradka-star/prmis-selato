@@ -1,4 +1,4 @@
-import { FallbackRates, StoredRates, describeRates, effectiveRates, isRateStale, sumInCzk, toCzk, validateRateEntry } from './currency';
+import { FallbackRates, StoredRates, asCurrencyCode, convertAmount, describeRates, effectiveRates, isRateStale, sumInCzk, toCzk, validateRateEntry } from './currency';
 
 const NOUZOVE: FallbackRates = { EUR: 25, USD: 23 };
 const zapsane: StoredRates = {
@@ -128,5 +128,32 @@ describe('validateRateEntry', () => {
   it('datum je povinné a nesmí být v budoucnosti', () => {
     expect(validateRateEntry({ currency: 'EUR', rate: 24, date: undefined }, dnes)).toHaveLength(1);
     expect(validateRateEntry({ currency: 'EUR', rate: 24, date: new Date(2026, 9, 10) }, dnes)[0]).toContain('budoucí');
+  });
+});
+
+describe('convertAmount (měna přehledů)', () => {
+  const rates = effectiveRates(zapsane, NOUZOVE);
+
+  it('do korun: totéž co toCzk', () => {
+    expect(convertAmount(100, 'EUR', 'CZK', rates)).toBe(toCzk(100, 'EUR', rates));
+    expect(convertAmount(1000, 'CZK', 'CZK', rates)).toBe(1000);
+  });
+
+  it('z korun do eur a dolarů přes kurz ČNB', () => {
+    expect(convertAmount(24415, 'CZK', 'EUR', rates)).toBe(1000);
+    expect(convertAmount(21501, 'CZK', 'USD', rates)).toBe(1000);
+  });
+
+  it('mezi cizími měnami přes koruny; stejná měna se nemění', () => {
+    expect(convertAmount(1000, 'EUR', 'USD', rates)).toBeCloseTo((1000 * 24.415) / 21.501, 1);
+    expect(convertAmount(1000, 'EUR', 'EUR', rates)).toBe(1000);
+  });
+
+  it('chybějící částka je nula, neznámá měna koruny', () => {
+    expect(convertAmount(undefined, 'EUR', 'CZK', rates)).toBe(0);
+    expect(convertAmount(500, 'XYZ', 'CZK', rates)).toBe(500);
+    expect(asCurrencyCode('EUR')).toBe('EUR');
+    expect(asCurrencyCode('xyz')).toBe('CZK');
+    expect(asCurrencyCode(undefined)).toBe('CZK');
   });
 });

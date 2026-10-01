@@ -26,7 +26,7 @@ export const DEFAULT_SORT: { key: ProjectSortKey; descending: boolean } = {
 
 type SortValue = string | number | undefined;
 
-function valueOf(p: Project, key: ProjectSortKey): SortValue {
+function valueOf(p: Project, key: ProjectSortKey, priceOf?: (p: Project) => number | undefined): SortValue {
   switch (key) {
     case 'number':
       return p.projectNumber;
@@ -35,7 +35,7 @@ function valueOf(p: Project, key: ProjectSortKey): SortValue {
     case 'pm':
       return p.projectManagerName;
     case 'price':
-      return p.contractPriceNet;
+      return priceOf ? priceOf(p) : p.contractPriceNet;
     case 'deadline':
       return p.nextDeadline ? p.nextDeadline.getTime() : undefined;
     case 'start':
@@ -64,9 +64,17 @@ function compareValues(a: string | number, b: string | number): number {
 }
 
 /** Seřadí kopii seznamu; původní pole se nemění. Při shodě zůstává původní pořadí. */
-export function sortProjects(projects: Project[], key: ProjectSortKey, descending: boolean): Project[] {
+/**
+ * `priceOf` je přepočet ceny do výchozí měny přehledů — bez něj by se EUR a Kč řadily jako stejná čísla.
+ */
+export function sortProjects(
+  projects: Project[],
+  key: ProjectSortKey,
+  descending: boolean,
+  priceOf?: (p: Project) => number | undefined
+): Project[] {
   return projects
-    .map((p, index) => ({ p, index, v: valueOf(p, key) }))
+    .map((p, index) => ({ p, index, v: valueOf(p, key, priceOf) }))
     .sort((x, y) => {
       const xe = isEmpty(x.v);
       const ye = isEmpty(y.v);

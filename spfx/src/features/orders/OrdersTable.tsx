@@ -9,9 +9,8 @@ import { Link } from '@fluentui/react/lib/Link';
 
 import { buildHash, RouteName } from '../../ui/router';
 import { formatDate, formatMoney } from '../../core/format';
-import { APPROVAL_LEVEL_LABELS, OrderSortKey, OrderStatus, PurchaseOrder, amountNetInCzk, sortOrders } from '../../core/orders';
-import { RateTable } from '../../core/currency';
-import { useOrderRates } from './useOrderRates';
+import { APPROVAL_LEVEL_LABELS, OrderSortKey, OrderStatus, PurchaseOrder, sortOrders } from '../../core/orders';
+import { useReportCurrency } from '../../ui/useReportCurrency';
 import { OrderStatusBadge } from './OrderStatusBadge';
 
 export interface OrdersTableProps {
@@ -25,10 +24,10 @@ export interface OrdersTableProps {
 export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, onOpen, hideProject, ariaLabel }) => {
   // Bez zvoleného sloupce zůstává pořadí, v jakém seznam přišel (nejnovější nahoře).
   const [sort, setSort] = React.useState<{ key: OrderSortKey; descending: boolean } | undefined>(undefined);
-  // Částky se ukazují a řadí vždy v Kč; cizí měna se přepočítá kurzem ČNB (původní částka je v bublině).
-  const rates: RateTable = useOrderRates();
-  const inCzk = (o: PurchaseOrder): number => amountNetInCzk(o.amountNet, o.currency, rates);
-  const items = sort ? sortOrders(orders, sort.key, sort.descending, inCzk) : orders;
+  // Částky se ukazují a řadí ve výchozí měně přehledů (Nastavení); jiná měna se přepočítá kurzem ČNB (původní částka je v bublině).
+  const report = useReportCurrency();
+  const inReport = (o: PurchaseOrder): number => report.convert(o.amountNet, o.currency);
+  const items = sort ? sortOrders(orders, sort.key, sort.descending, inReport) : orders;
 
   /** Společné vlastnosti sloupce, který jde řadit. */
   const sortable = (key: OrderSortKey): Partial<IColumn> => ({
@@ -96,7 +95,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, onOpen, hidePr
     },
     {
       key: 'amount',
-      name: 'Bez DPH (Kč)',
+      name: `Bez DPH (${report.label})`,
       minWidth: 100,
       maxWidth: 130,
       isResizable: true,
@@ -105,10 +104,10 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, onOpen, hidePr
       onRender: (o: PurchaseOrder) => (
         <div
           style={{ textAlign: 'right' }}
-          title={o.currency === 'CZK' ? undefined : `Původně ${formatMoney(o.amountNet, o.currency)}, přepočteno kurzem ČNB`}
+          title={o.currency === report.currency ? undefined : `Původně ${formatMoney(o.amountNet, o.currency)}, přepočteno kurzem ČNB`}
         >
-          {o.currency === 'CZK' ? '' : '≈ '}
-          {formatMoney(inCzk(o), 'CZK')}
+          {o.currency === report.currency ? '' : '≈ '}
+          {formatMoney(inReport(o), report.currency)}
         </div>
       )
     },

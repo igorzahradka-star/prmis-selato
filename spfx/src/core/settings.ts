@@ -7,6 +7,7 @@
  * Vrstva `core` — žádná závislost na SharePointu.
  */
 
+import { CURRENCY_CODES, CurrencyCode } from './currency';
 import { DEFAULT_ROLE_GROUPS, RoleGroupMapping } from './roles';
 
 /** Klíče v seznamu PRM_Settings. Jeden klíč = jedna položka seznamu. */
@@ -69,6 +70,11 @@ export interface BudgetSettings {
   yellowThresholdPercent: number;
   /** Minimální plánovaná marže v procentech. Pod ní je semafor červený bez ohledu na odchylku. */
   minimumMarginPercent: number;
+  /**
+   * Výchozí měna **přehledů** (seznam projektů, objednávek, podkladů, KPI, grafy). Částky v jiné měně se přepočítají kurzem ČNB.
+   * Doklady samotné zůstávají v měně dokladu (CZK, EUR, USD).
+   */
+  defaultCurrency: CurrencyCode;
 }
 
 /**
@@ -199,7 +205,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
       'Rezerva'
     ],
     yellowThresholdPercent: 5,
-    minimumMarginPercent: 10
+    minimumMarginPercent: 10,
+    defaultCurrency: 'CZK'
   },
   approvals: {
     // Zadáno zadavatelem 22. 9. 2026. Dají se kdykoli změnit v Nastavení.
@@ -278,6 +285,9 @@ export function validateSettings(settings: AppSettings): string[] {
   }
   if (settings.budget.categories.length === 0) {
     problems.push('Není zadána žádná kategorie rozpočtu.');
+  }
+  if (CURRENCY_CODES.indexOf(settings.budget.defaultCurrency) === -1) {
+    problems.push('Výchozí měna přehledů musí být CZK, EUR nebo USD.');
   }
   if (settings.budget.yellowThresholdPercent < 0) {
     problems.push('Práh žlutého semaforu nesmí být záporný.');

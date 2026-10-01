@@ -70,6 +70,26 @@ export function toCzk(amount: number | undefined | null, currency: string | unde
   return round2(value);
 }
 
+/** Neznámou nebo prázdnou měnu bere jako koruny. */
+export function asCurrencyCode(value: string | undefined | null): CurrencyCode {
+  return value === 'EUR' || value === 'USD' ? value : 'CZK';
+}
+
+/**
+ * Částka přepočtená z jedné měny do druhé (přes koruny, kurzem ČNB). Slouží přehledům, které ukazují vše v **výchozí měně**
+ * z Nastavení; doklady samotné zůstávají v měně dokladu.
+ */
+export function convertAmount(amount: number | undefined | null, from: string | undefined, to: CurrencyCode, rates: RateTable): number {
+  const czk = toCzk(amount, from, rates);
+  if (to === 'EUR') {
+    return round2(czk / rates.EUR);
+  }
+  if (to === 'USD') {
+    return round2(czk / rates.USD);
+  }
+  return czk;
+}
+
 /** Součet částek v různých měnách, v Kč. */
 export function sumInCzk(items: { amount: number | undefined | null; currency: string | undefined }[], rates: RateTable): number {
   return round2(items.reduce((sum, i) => sum + toCzk(i.amount, i.currency, rates), 0));

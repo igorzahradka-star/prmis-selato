@@ -1,16 +1,15 @@
 /**
  * Dashboard projektů — úvodní obrazovka aplikace.
  *
- * Fáze 0: KPI dlaždice, tabulka projektů, filtry a fulltext nad daty,
- * která už v seznamu jsou. Zakládání projektů, export do Excelu a uložené
- * filtry přijdou ve Fázi 1.
+ * KPI dlaždice, tabulka projektů, filtry a fulltext nad daty, která už v seznamu jsou.
+ * Částky v přehledu jsou ve **výchozí měně** z Nastavení (přepočet kurzem ČNB).
  */
 
 import * as React from 'react';
 import { DetailsList, DetailsListLayoutMode, IColumn, SelectionMode } from '@fluentui/react/lib/DetailsList';
 import { SearchBox } from '@fluentui/react/lib/SearchBox';
 import { Dropdown, IDropdownOption } from '@fluentui/react/lib/Dropdown';
-import { PrimaryButton, DefaultButton } from '@fluentui/react/lib/Button';
+import { PrimaryButton } from '@fluentui/react/lib/Button';
 import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
 import { Link } from '@fluentui/react/lib/Link';
@@ -27,6 +26,8 @@ import { KpiTiles } from './KpiTiles';
 import { NewProjectPanel } from './NewProjectPanel';
 import { BudgetStatus, Project, ProjectStatus, ACTIVE_PROJECT_STATUSES } from '../../core/types';
 import { formatDate, formatMoney, dueLabel } from '../../core/format';
+import { PurchaseOrder, SPENT_ORDER_STATUSES, spentByProject } from '../../core/orders';
+import { ReportCurrency, useReportCurrency } from '../../ui/useReportCurrency';
 import { canCreateProject, canEditProject } from '../../core/roles';
 import streakUrl from '../../webparts/prm/assets/res-kpi-streak.png';
 
@@ -95,30 +96,22 @@ export const DashboardPage: React.FC = () => {
   const [busyNumber, setBusyNumber] = React.useState<string | undefined>(undefined);
   const [statusError, setStatusError] = React.useState<string | undefined>(undefined);
   const [statusNote, setStatusNote] = React.useState<string | undefined>(undefined);
-  const [exporting, setExporting] = React.useState(false);
-  const [exportError, setExportError] = React.useState<string | undefined>(undefined);
+  const report = useReportCurrency();
+  /** Objednávky všech projektů — z nich se počítá sloupec Vyčerpáno. Dokud se nenačtou (nebo když se nenačtou), je sloupec prázdný. */
+  const [orders, setOrders] = React.useState<PurchaseOrder[] | undefined>(undefined);
 
-  /**
-   * Exportuje se to, co je právě na obrazovce — včetně filtrů. Kdyby se
-   * exportovalo vždycky všechno, člověk by si vyfiltroval svoje projekty,
-   * stáhl tabulku a divil se, co v ní dělá zbytek firmy.
-   */
-  const exportuj = (): void => {
-    if (!projects || projects.length === 0) {
-      return;
-    }
-    setExporting(true);
-    setExportError(undefined);
-    const filtrovano = statuses.length > 0 || pms.length > 0 || search.trim() !== '';
+  React.useEffect(() => {
+    let cancelled = false;
+    repos.orders
+      .list({})
+      .then((o) => !cancelled && setOrders(o))
+      .catch(() => !cancelled && setOrders(undefined));
+    return () => {
+      cancelled = true;
+    };
+  }, [repos, refreshKey]);
 
-    import(/* webpackChunkName: 'export-excel' */ './exportToExcel')
-      .then((m) => m.exportProjectsToExcel(sortProjects(projects, sort.key, sort.descending), filtrovano))
-      .then(() => setExporting(false))
-      .catch((e: Error) => {
-        setExporting(false);
-        setExportError(`Export se nepodařil: ${e.message}`);
-      });
-  };
+  const spent = React.useMemo(() => (orders ? spentByProject(orders, (amount, currency) => report.convert(amount, currency)) : undefined), [orders, report]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -191,7 +184,9 @@ export const DashboardPage: React.FC = () => {
             assistantLogins: p.assistantLogins
           }),
         busyNumber,
-        onStatus: changeStatus
+        onStatus: changeStatus,
+        report,
+        spent
       }),
       sort,
       (key) =>
@@ -285,25 +280,7 @@ export const DashboardPage: React.FC = () => {
           styles={{ root: { minWidth: 180 } }}
           placeholder="Všechny stavy"
         />
-        <div style={{ flex: '1 1 auto' }} />
-        <DefaultButton
-          iconProps={{ iconName: 'ExcelDocument' }}
-          text={exporting ? 'Připravuji…' : 'Export do Excelu'}
-          title="Stáhne tabulku tak, jak je právě vyfiltrovaná"
-          disabled={!projects || projects.length === 0 || exporting}
-          onClick={exportuj}
-        />
       </div>
-
-      {exportError && (
-        <MessageBar
-          messageBarType={MessageBarType.error}
-          isMultiline
-          onDismiss={() => setExportError(undefined)}
-        >
-          {exportError}
-        </MessageBar>
-      )}
 
       {error && (
         <MessageBar messageBarType={MessageBarType.error} isMultiline>
@@ -347,7 +324,7 @@ export const DashboardPage: React.FC = () => {
       {projects && projects.length > 0 && (
         <div style={{ background: RES.white, border: `1px solid ${RES.grayBlue}`, borderRadius: 4 }}>
           <DetailsList
-            items={sortProjects(projects, sort.key, sort.descending)}
+            items={sortProjects(projects, sort.key, sort.descending, (p) => (p.contractPriceNet === undefined ? undefined : report.convert(p.contractPriceNet, p.currency)))}
             columns={displayedColumns}
             columnReorderOptions={{
               // Přetažením záhlaví si každý uloží pořadí sloupců po svém.
@@ -406,6 +383,10 @@ interface ColumnContext {
   canEdit: (p: Project) => boolean;
   busyNumber?: string;
   onStatus: (p: Project, status: ProjectStatus) => void;
+  /** Výchozí měna přehledů a přepočet do ní. */
+  report: ReportCurrency;
+  /** Vyčerpáno podle projektu (ve výchozí měně přehledů); `undefined`, dokud se objednávky nenačtou. */
+  spent?: Record<string, number>;
 }
 
 function buildColumns(ctx: ColumnContext): IColumn[] {
@@ -466,7 +447,42 @@ function buildColumns(ctx: ColumnContext): IColumn[] {
       isResizable: true,
       styles: { cellTitle: { justifyContent: 'flex-end' } },
       onRender: (p: Project) => (
-        <div style={{ textAlign: 'right' }}>{formatMoney(p.contractPriceNet, p.currency)}</div>
+        <div
+          style={{ textAlign: 'right' }}
+          title={p.currency === ctx.report.currency || p.contractPriceNet === undefined ? undefined : `Původně ${formatMoney(p.contractPriceNet, p.currency)}, přepočteno kurzem ČNB`}
+        >
+          {p.currency !== ctx.report.currency && p.contractPriceNet !== undefined ? '≈ ' : ''}
+          {ctx.report.format(p.contractPriceNet, p.currency)}
+        </div>
+      )
+    },
+    {
+      key: 'cost',
+      name: 'Náklady',
+      minWidth: 100,
+      maxWidth: 120,
+      isResizable: true,
+      styles: { cellTitle: { justifyContent: 'flex-end' } },
+      onRender: () => (
+        <div style={{ textAlign: 'right', color: RES.gray }} title="Plánované náklady doplníme z realizačního rozpočtu (Fáze 3).">
+          —
+        </div>
+      )
+    },
+    {
+      key: 'spent',
+      name: 'Vyčerpáno',
+      minWidth: 100,
+      maxWidth: 120,
+      isResizable: true,
+      styles: { cellTitle: { justifyContent: 'flex-end' } },
+      onRender: (p: Project) => (
+        <div
+          style={{ textAlign: 'right' }}
+          title={`Součet vystavených objednávek projektu bez DPH (${SPENT_ORDER_STATUSES.join(', ')}) ve výchozí měně přehledů.`}
+        >
+          {ctx.spent ? formatMoney(ctx.spent[p.projectNumber] ?? 0, ctx.report.currency) : '…'}
+        </div>
       )
     },
     {
@@ -525,7 +541,7 @@ function buildColumns(ctx: ColumnContext): IColumn[] {
 }
 
 /** Výchozí pořadí sloupců: Stav hned za projektovým manažerem. */
-const DEFAULT_COLUMN_ORDER = ['number', 'title', 'pm', 'status', 'budget', 'price', 'deadline', 'start', 'end'];
+const DEFAULT_COLUMN_ORDER = ['number', 'title', 'pm', 'status', 'budget', 'price', 'cost', 'spent', 'deadline', 'start', 'end'];
 
 /** Pořadí sloupců si pamatuje prohlížeč, zvlášť pro každého přihlášeného uživatele. */
 function columnOrderKey(loginName: string): string {
