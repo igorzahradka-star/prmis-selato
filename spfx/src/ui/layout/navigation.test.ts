@@ -18,10 +18,12 @@ describe('buildNavigation', () => {
         RouteName.Dashboard,
         RouteName.Map,
         RouteName.Orders,
-        RouteName.Invoicing,
-        RouteName.Diary,
-        RouteName.Photos
+        RouteName.Invoicing
       ]);
+      // Deník a fotky se otevírají z detailu projektu, ne z nabídky.
+      const routes = flattenNavigation(buildNavigation(nic)).map((i) => i.route);
+      expect(routes).not.toContain(RouteName.Diary);
+      expect(routes).not.toContain(RouteName.Photos);
     }
   });
 
@@ -44,6 +46,8 @@ describe('buildNavigation', () => {
 describe('skupiny a zvýraznění', () => {
   const e = buildNavigation({ benchmark: false, finance: false, admin: true });
   it('obrazovka najde svoji skupinu', () => {
+    expect(groupKeyOf(e, RouteName.Orders)).toBe('projekty');
+    // Zápis otevřený odkazem patří pod Projekty, i když nemá vlastní položku.
     expect(groupKeyOf(e, RouteName.Diary)).toBe('projekty');
     expect(groupKeyOf(e, RouteName.Users)).toBe('nastaveni');
     expect(groupKeyOf(e, RouteName.Partners)).toBeUndefined();

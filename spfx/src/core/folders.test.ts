@@ -1,4 +1,4 @@
-import { buildProjectFolderPlan, findMatchingFolder, folderNameWithoutNumber, normalizeFolderName } from './folders';
+import { buildProjectFolderPlan, findMatchingFolder, folderNameWithoutNumber, normalizeFolderName, projectFolderRoot } from './folders';
 import { DEFAULT_FOLDER_TEMPLATE, FolderSettings } from './settings';
 
 const BASE_SETTINGS: Pick<FolderSettings, 'rootFolder' | 'subfolderByYear' | 'template'> = {
@@ -50,6 +50,44 @@ describe('buildProjectFolderPlan', () => {
     expect(plan).toContain('Projekty/26-014 X/03-Rozpočet projektu/Fakturace');
     expect(plan).toContain('Projekty/26-014 X/07-Dokumentace a podklady');
     expect(plan.filter((p) => p.indexOf('_') !== -1 && p.indexOf('Projekty/26-014 X/') === 0)).toEqual([]);
+  });
+});
+
+describe('vnořená kořenová složka a Režie', () => {
+  const nastaveni = { rootFolder: 'General/01_PROJEKTY', subfolderByYear: false, template: [{ name: '03-Nákup', children: [{ name: 'Objednávky' }] }] };
+
+  it('lomítko v kořenové složce se zachová (nevznikne „General01_PROJEKTY“)', () => {
+    const plan = buildProjectFolderPlan(nastaveni, '26006 ČEZ');
+    expect(plan).toEqual([
+      'General',
+      'General/01_PROJEKTY',
+      'General/01_PROJEKTY/26006 ČEZ',
+      'General/01_PROJEKTY/26006 ČEZ/03-Nákup',
+      'General/01_PROJEKTY/26006 ČEZ/03-Nákup/Objednávky'
+    ]);
+    expect(plan.join('|')).not.toContain('General01');
+  });
+
+  it('odkaz míří na kořen projektu, ne na poslední podsložku šablony', () => {
+    expect(projectFolderRoot(nastaveni, '26006 ČEZ')).toBe('General/01_PROJEKTY/26006 ČEZ');
+  });
+
+  it('Režie: společná složka 99900-Režie a pod ní rok, uvnitř struktura projektu', () => {
+    const plan = buildProjectFolderPlan(nastaveni, '26999 Režie RES 2026', new Date(2026, 0, 5), 2026);
+    expect(plan).toEqual([
+      'General',
+      'General/01_PROJEKTY',
+      'General/01_PROJEKTY/99900-Režie',
+      'General/01_PROJEKTY/99900-Režie/2026',
+      'General/01_PROJEKTY/99900-Režie/2026/03-Nákup',
+      'General/01_PROJEKTY/99900-Režie/2026/03-Nákup/Objednávky'
+    ]);
+    expect(projectFolderRoot(nastaveni, 'x', undefined, 2027)).toBe('General/01_PROJEKTY/99900-Režie/2027');
+  });
+
+  it('podsložka podle roku se u Režie nepřidává dvakrát', () => {
+    const plan = buildProjectFolderPlan({ ...nastaveni, subfolderByYear: true }, 'x', new Date(2026, 0, 1), 2026);
+    expect(plan.filter((p) => p.split('/').length === 5)).toEqual(['General/01_PROJEKTY/99900-Režie/2026/03-Nákup']);
   });
 });
 

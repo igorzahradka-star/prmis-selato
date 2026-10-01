@@ -19,7 +19,7 @@ import {
   accessGroupsForRoles,
   canManageProjectAccess
 } from '../../core/projectAccess';
-import { buildProjectFolderPlan } from '../../core/folders';
+import { buildProjectFolderPlan, projectFolderRoot } from '../../core/folders';
 import {
   overheadProjectNumber,
   overheadProjectTitle,
@@ -846,14 +846,16 @@ export class SpProjectRepository implements IProjectRepository {
     const libraryRoot = await this.getLibraryServerRelativeUrl(foldersSp, folders.libraryTitle);
     // Rok podsložky = rok založení (dnešek), ne plánované zahájení projektu —
     // odpovídá tak roku v přiděleném čísle, i při pozdějším opakovaném pokusu.
-    const plan = buildProjectFolderPlan(folders, project.title, new Date());
+    // Režie má výjimku: `99900-Režie/<rok>`, rok se bere z jejího čísla (`26999` → 2026).
+    const overheadYear = project.isOverhead ? yearFromProjectNumber(project.projectNumber) : undefined;
+    const plan = buildProjectFolderPlan(folders, project.title, new Date(), overheadYear);
 
     for (const relativePath of plan) {
       const fullPath = `${libraryRoot}/${relativePath}`;
       await ensureFolder(foldersSp, fullPath);
     }
 
-    const projectFolderPath = `${libraryRoot}/${plan[plan.length - 1]}`;
+    const projectFolderPath = `${libraryRoot}/${projectFolderRoot(folders, project.title, new Date(), overheadYear)}`;
     const siteAbsoluteUrl = folders.siteUrl || this.context.pageContext.web.absoluteUrl;
     const origin = new URL(siteAbsoluteUrl).origin;
     return `${origin}${projectFolderPath}`;

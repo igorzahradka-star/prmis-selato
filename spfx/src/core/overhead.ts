@@ -16,6 +16,15 @@
 /** Přípona čísla, podle které se Režie pozná i bez příznaku v databázi. */
 export const OVERHEAD_NUMBER_SUFFIX = '999';
 
+/**
+ * Složka Režie v seznamu projektů. Je to **výjimka z pravidla** „jedna složka = jeden projekt“: Režie má jednu společnou složku
+ * a teprve pod ní složky jednotlivých let (`99900-Režie/2026`), v každé z nich je běžná struktura složek projektu.
+ */
+export const OVERHEAD_FOLDER_NAME = '99900-Režie';
+
+/** Číslo ve jménu složky Režie (`99900`) — import projektů podle něj složku pozná a přeskočí. */
+export const OVERHEAD_FOLDER_NUMBER = '99900';
+
 /** Název projektu Režie. Nesestavuje se ze vzoru — Režie nemá zákazníka ani lokalitu. */
 export const OVERHEAD_TITLE = 'Režie RES';
 

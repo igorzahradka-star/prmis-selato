@@ -35,7 +35,8 @@ const item = (route: RouteName, label: string, icon: string, comingSoon?: boolea
 });
 
 /**
- * Navigace podle oprávnění uživatele (co nesmí, nevidí). Projektové moduly jsou ve skupině Projekty, správa ve skupině
+ * Navigace podle oprávnění uživatele (co nesmí, nevidí). Ve skupině Projekty jsou jen přehledy napříč projekty (přehled, mapa,
+ * objednávky, fakturace); stavební deník a fotodokumentace se otevírají až z detailu konkrétního projektu. Správa je ve skupině
  * Nastavení. Skupinu Servis (10-Servis) přidáme, až bude modul hotový.
  */
 export function buildNavigation(flags: NavFlags): NavEntry[] {
@@ -50,9 +51,7 @@ export function buildNavigation(flags: NavFlags): NavEntry[] {
           { route: RouteName.Dashboard, label: 'Přehled projektů', icon: 'ViewList' },
           { route: RouteName.Map, label: 'Mapa projektů', icon: 'MapPin' },
           { route: RouteName.Orders, label: 'Objednávky', icon: 'ShoppingCart' },
-          { route: RouteName.Invoicing, label: 'Fakturace', icon: 'M365InvoicingLogo' },
-          { route: RouteName.Diary, label: 'Stavební deník', icon: 'Dictionary' },
-          { route: RouteName.Photos, label: 'Fotodokumentace', icon: 'Camera' }
+          { route: RouteName.Invoicing, label: 'Fakturace', icon: 'M365InvoicingLogo' }
         ]
       }
     },
@@ -90,7 +89,9 @@ export function buildNavigation(flags: NavFlags): NavEntry[] {
  * stejně tak by se měly chovat další obrazovky, které s položkou nabídky souvisejí.
  */
 const ROUTE_ALIASES: Partial<Record<RouteName, RouteName>> = {
-  [RouteName.ProjectDetail]: RouteName.Dashboard
+  [RouteName.ProjectDetail]: RouteName.Dashboard,
+  [RouteName.Diary]: RouteName.Dashboard,
+  [RouteName.Photos]: RouteName.Dashboard
 };
 
 /** Která položka nabídky odpovídá aktuální obrazovce (kvůli zvýraznění). */

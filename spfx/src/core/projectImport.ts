@@ -12,7 +12,7 @@
  * jen k nim vznikne evidenční záznam v aplikaci.
  */
 
-import { isOverheadNumber } from './overhead';
+import { isOverheadNumber, OVERHEAD_FOLDER_NUMBER } from './overhead';
 
 /** Co jsme z názvu složky vyčetli. */
 export interface ImportCandidate {
@@ -70,6 +70,16 @@ export function parseFolderName(folderName: string): ImportCandidate {
 
   const projectNumber = match[1];
   const title = match[2].trim();
+
+  if (projectNumber === OVERHEAD_FOLDER_NUMBER) {
+    return {
+      folderName: name,
+      projectNumber,
+      action: 'skip',
+      reason: 'Společná složka Režie — Režii zakládá a spravuje aplikace, neimportuje se.',
+      isOverhead: false
+    };
+  }
 
   if (!title) {
     return {

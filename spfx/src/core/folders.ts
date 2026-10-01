@@ -7,6 +7,7 @@
 
 import { FolderSettings, FolderTemplateNode } from './settings';
 import { sanitizeFolderName } from './numbering';
+import { OVERHEAD_FOLDER_NAME } from './overhead';
 
 /**
  * Sestaví seznam relativních cest ke složkám, které se mají založit —
@@ -15,21 +16,18 @@ import { sanitizeFolderName } from './numbering';
  * Např. při `rootFolder="Projekty"`, `subfolderByYear=true`, roku 2026
  * a názvu projektu „26-014 ČEZ Distribuce" vrátí:
  * `["Projekty", "Projekty/2026", "Projekty/2026/26-014 ČEZ Distribuce",
- *   "Projekty/2026/26-014 ČEZ Distribuce/01_Smlouvy a objednávky zákazníka", …]`
+ *   "Projekty/2026/26-014 ČEZ Distribuce/01-Nabídky", …]`
+ *
+ * Kořenová složka může být vnořená (`General/01_PROJEKTY`) — každý díl cesty se čistí zvlášť, lomítko mezi díly zůstane.
+ * Pro **Režii** (`overheadYear`) je cesta `…/99900-Režie/2026`: společná složka Režie a pod ní rok; název projektu se nepoužije.
  */
 export function buildProjectFolderPlan(
   settings: Pick<FolderSettings, 'rootFolder' | 'subfolderByYear' | 'template'>,
   projectFolderName: string,
-  startDate?: Date
+  startDate?: Date,
+  overheadYear?: number
 ): string[] {
-  const segments: string[] = [];
-  if (settings.rootFolder.trim()) {
-    segments.push(sanitizeFolderName(settings.rootFolder));
-  }
-  if (settings.subfolderByYear && startDate) {
-    segments.push(String(startDate.getFullYear()));
-  }
-  segments.push(sanitizeFolderName(projectFolderName));
+  const segments = projectFolderSegments(settings, projectFolderName, startDate, overheadYear);
 
   const paths: string[] = [];
   let cumulative = '';
@@ -38,9 +36,41 @@ export function buildProjectFolderPlan(
     paths.push(cumulative);
   });
 
-  const projectRoot = cumulative;
-  paths.push(...flattenTemplate(settings.template, projectRoot));
+  paths.push(...flattenTemplate(settings.template, cumulative));
   return paths;
+}
+
+/** Cesta ke **kořenové složce projektu** (ne k poslední podsložce šablony) — z ní se dělá odkaz na projekt. */
+export function projectFolderRoot(
+  settings: Pick<FolderSettings, 'rootFolder' | 'subfolderByYear' | 'template'>,
+  projectFolderName: string,
+  startDate?: Date,
+  overheadYear?: number
+): string {
+  return projectFolderSegments(settings, projectFolderName, startDate, overheadYear).join('/');
+}
+
+function projectFolderSegments(
+  settings: Pick<FolderSettings, 'rootFolder' | 'subfolderByYear'>,
+  projectFolderName: string,
+  startDate?: Date,
+  overheadYear?: number
+): string[] {
+  const segments: string[] = [];
+  settings.rootFolder
+    .split('/')
+    .map((part) => sanitizeFolderName(part))
+    .filter((part) => part !== '')
+    .forEach((part) => segments.push(part));
+  if (overheadYear !== undefined) {
+    segments.push(OVERHEAD_FOLDER_NAME, String(overheadYear));
+  } else {
+    if (settings.subfolderByYear && startDate) {
+      segments.push(String(startDate.getFullYear()));
+    }
+    segments.push(sanitizeFolderName(projectFolderName));
+  }
+  return segments;
 }
 
 function flattenTemplate(nodes: FolderTemplateNode[], basePath: string): string[] {

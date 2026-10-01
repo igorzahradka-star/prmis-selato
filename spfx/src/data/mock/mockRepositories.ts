@@ -28,7 +28,7 @@ import {
   normalizeLoginKey
 } from '../../core/userAdmin';
 import { renderDocumentNumber, nextSequence, counterScopeKey, CounterState } from '../../core/numbering';
-import { buildProjectFolderPlan } from '../../core/folders';
+import { projectFolderRoot } from '../../core/folders';
 import {
   overheadProjectNumber,
   overheadProjectTitle,
@@ -495,8 +495,8 @@ export class MockProjectRepository implements IProjectRepository {
     const settings = await this.settings.get();
     // Rok podsložky = rok založení (dnešek), ne plánované zahájení projektu —
     // odpovídá tak roku v přiděleném čísle, i při pozdějším opakovaném pokusu.
-    const plan = buildProjectFolderPlan(settings.folders, project.title, new Date());
-    const folderUrl = `#/ukazkovy-rezim/slozka/${encodeURIComponent(plan[plan.length - 1] ?? project.title)}`;
+    const root = projectFolderRoot(settings.folders, project.title, new Date(), project.isOverhead ? new Date().getFullYear() : undefined);
+    const folderUrl = `#/ukazkovy-rezim/slozka/${encodeURIComponent(root || project.title)}`;
     this.projects = this.projects.map((p) => (p.id === project.id ? { ...p, folderUrl } : p));
     return undefined;
   }

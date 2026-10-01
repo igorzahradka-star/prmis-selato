@@ -63,7 +63,7 @@ export const ProjectDiaryTab: React.FC<{ project: Project }> = ({ project }) => 
         <div style={{ flex: '1 1 260px', color: RES.gray, fontSize: 13 }}>
           {project.isOverhead
             ? 'Na projekt Režie se stavební deník nevede.'
-            : `Zápisy ze stavby projektu ${project.projectNumber}. Všechny zápisy napříč projekty najdete v části Stavební deník.`}
+            : `Zápisy ze stavby projektu ${project.projectNumber}. Nový zápis se otevře s tímto projektem a jeho údaji; vše se dá ve formuláři změnit.`}
         </div>
         {diaries && diaries.length > 1 && (
           <Dropdown

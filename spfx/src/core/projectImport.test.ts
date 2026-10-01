@@ -16,6 +16,15 @@ const SKUTECNE_SLOZKY = [
   '26005-DOPLNENI STRIDACU MASTIROVICE 1'
 ];
 
+describe('složka Režie', () => {
+  it('společná složka 99900-Režie se při importu přeskočí (není to projekt)', () => {
+    const c = parseFolderName('99900-Režie');
+    expect(c.action).toBe('skip');
+    expect(c.reason).toContain('Režie');
+    expect(buildImportPlan(['99900-Režie', '26001-PRVNI']).candidates.filter((x) => x.action === 'import').map((x) => x.projectNumber)).toEqual(['26001']);
+  });
+});
+
 describe('parseFolderName', () => {
   it('rozebere skutečný název složky RES', () => {
     const c = parseFolderName('26001-MASTIROVICE 1 GENERALNI OPRAVA');

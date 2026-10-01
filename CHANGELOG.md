@@ -5,6 +5,29 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.13.0 — 1. 10. 2026 — Složka Režie, deník a fotky jen z detailu projektu
+
+**Opraveno**
+
+- **Paralelní složka `General01_PROJEKTY`.** Při zakládání složek se z kořenové složky `General/01_PROJEKTY` mazalo lomítko, takže vznikla složka
+  `General01_PROJEKTY` vedle skutečné. Teď se každý díl cesty čistí zvlášť a lomítko zůstane. Týkalo se i nově zakládaných projektů, nejen Režie.
+- **Odkaz na složku nového projektu** mířil na poslední podsložku šablony místo na složku projektu. Teď míří na složku projektu.
+
+**Nové**
+
+- **Složka Režie je výjimka:** `General/01_PROJEKTY/99900-Režie/<rok>/…` — společná složka Režie, pod ní složky jednotlivých let a v každé běžná struktura složek
+  projektu (03-Nákup, 04-Zápisy, …). Import projektů složku `99900-Režie` přeskočí. Číslo projektu Režie v aplikaci zůstává `26999`, `27999`…
+- **Nabídka vlevo:** ve skupině Projekty zůstává Přehled projektů, Mapa projektů, Objednávky a Fakturace. **Stavební deník a Fotodokumentace** se otevírají
+  až z detailu projektu (záložky). Nový zápis se tam otevře s předvyplněným projektem a jeho údaji; vše jde ve formuláři změnit.
+  Objednávku a podklad pro fakturaci jde vytvořit i v detailu projektu (záložky Objednávky a Fakturace).
+
+**Ručně:** složku `General01_PROJEKTY` (vznikla chybou) a případné projektové složky v ní přesuňte do skutečné `General/01_PROJEKTY` nebo smažte;
+u Režie pak v detailu projektu klikněte na založení složek znovu (vznikne `99900-Režie/2026`) a odkaz na složku se přepíše.
+
+**Bez změny schématu dat** (zůstává 9).
+
+---
+
 ## 0.12.1 — 1. 10. 2026 — Jedna konvence složek podle skutečných projektů
 
 **Opraveno**
