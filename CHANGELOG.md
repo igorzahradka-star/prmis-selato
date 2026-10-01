@@ -5,6 +5,30 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.14.0 — 1. 10. 2026 — Fotodokumentace jinak: dávky s názvem, poznámky, galerie, fotky do zápisu
+
+**Nové**
+
+- **Dávka fotek má název a datum** — složka `FOTO/2026-03-01 Mělký výkop` (přímo ve složce FOTO, bez podsložky roku). Název je libovolný text
+  (nejvýš 60 znaků; znaky nepovolené v názvu složky SharePointu se vynechají). Nahrazuje dřívější jednoslovný přídomek.
+- **Nahrávání fotek v detailu projektu → Fotodokumentace → Nahrát fotky.** Fotky se přidají (na počítači *Vybrat fotky*, na telefonu *Vyfotit*),
+  **ke každé jde napsat poznámku** (mělký výkop, křivé provedení…). Pak se **označí fotky, které k sobě patří, a uloží se do dávky** (nová dávka
+  s názvem a datem, nebo existující). Potom stejně další dávka. Datum složky je výchozí dnešek, jde změnit nebo vzít z data pořízení fotky.
+- **Dodatečné přidání do dávky:** tlačítko *Přidat fotky* u dávky v galerii; fotky se přidají k těm, které tam už jsou.
+- **Galerie tříděná podle složek:** záložka Fotodokumentace ukazuje dávky od nejnovější (název, datum, počet), rozbalení dává miniatury s poznámkami,
+  kliknutí otevře fotku. Poznámku jde dodatečně přidat nebo upravit. **Aktualizovat** načte složky znovu — objeví se i fotky vložené do FOTO mimo aplikaci
+  (aplikace nic nekopíruje, čte přímo SharePoint). Starší složky `FOTO/2026/2026-10-01_KD` se v galerii zobrazí taky.
+- **Fotka z galerie do zápisu:** v bodu zápisu nové tlačítko **Z galerie projektu** — vybere se jedna nebo víc fotek z dávek projektu a zkopírují se
+  do složky zápisu (zápis tak drží svou podobu a podpis/otisk platí dál).
+- Poznámka k fotce se ukládá **přímo k souboru** (pole Název souboru v knihovně), takže s fotkou putuje při přesunu nebo kopírování.
+- `#/foto` zůstává jako zkratka pro mobil (vybrat projekt a rovnou fotit); v levé nabídce není.
+
+**Opraveno:** kontrola data `RRRR-MM-DD` už nepřijme neexistující den (`2026-13-45`).
+
+**Bez změny schématu dat** (zůstává 9).
+
+---
+
 ## 0.13.0 — 1. 10. 2026 — Složka Režie, deník a fotky jen z detailu projektu
 
 **Opraveno**

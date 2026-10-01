@@ -63,6 +63,7 @@ import { EntryDocData, EntryImage, closureNote, companyForEntry, nonImageAttachm
 import { renderEntryDocx } from './entryDocx';
 import { extensionForType, photoFileName, readBlob, resizeImage, toDataUrl, uniqueFileName } from './imageUtils';
 import { SketchDialog } from './SketchDialog';
+import { PhotoPickerDialog, PickedPhoto } from '../photos/PhotoPickerDialog';
 import { EntryStatusBadge } from './EntryStatusBadge';
 
 export interface EntryPanelProps {
@@ -168,6 +169,7 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
   const [previewOpen, setPreviewOpen] = React.useState(false);
   const [previewBlob, setPreviewBlob] = React.useState<Blob | undefined>(undefined);
   const [sketch, setSketch] = React.useState<{ point: number; background?: Blob; base?: string } | undefined>(undefined);
+  const [gallery, setGallery] = React.useState<{ point: number } | undefined>(undefined);
   const [showCompany, setShowCompany] = React.useState(false);
 
   const [fProject, setFProject] = React.useState<string | undefined>(undefined);
@@ -390,6 +392,38 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
     } finally {
       setBusy(false);
       setProgress(undefined);
+    }
+    if (failed.length > 0) {
+      setError(failed.join(' | '));
+    }
+  };
+
+  /** Fotky z galerie projektu se zkopírují do složky zápisu (zápis tak drží svou podobu, i kdyby se fotky v galerii později změnily). */
+  const attachFromGallery = async (pointIndex: number, picked: PickedPhoto[]): Promise<void> => {
+    setGallery(undefined);
+    if (!project || picked.length === 0) {
+      return;
+    }
+    setError(undefined);
+    setBusy(true);
+    const failed: string[] = [];
+    const loaded: File[] = [];
+    try {
+      for (const p of picked) {
+        try {
+          setProgress(`Načítám fotku ${loaded.length + failed.length + 1} z ${picked.length}…`);
+          const blob = await repos.documents.readProjectFile(project, p.folder, p.name);
+          loaded.push(new File([blob], p.name, { type: blob.type || 'image/jpeg' }));
+        } catch (err) {
+          failed.push(`${p.name}: ${why(err)}`);
+        }
+      }
+    } finally {
+      setBusy(false);
+      setProgress(undefined);
+    }
+    if (loaded.length > 0) {
+      await addFiles(pointIndex, loaded, false);
     }
     if (failed.length > 0) {
       setError(failed.join(' | '));
@@ -693,7 +727,7 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
       })
       .catch(() => undefined);
   };
-  useAutoRefresh(refreshEntry, !isOpen || !entry || editing || busy || !!dialog || previewOpen || !!sketch);
+  useAutoRefresh(refreshEntry, !isOpen || !entry || editing || busy || !!dialog || previewOpen || !!sketch || !!gallery);
 
   // --- úpravy formuláře ---
 
@@ -1039,6 +1073,12 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
                         }}
                       />
                       <DefaultButton
+                        iconProps={{ iconName: 'Photo2' }}
+                        text="Z galerie projektu"
+                        disabled={busy || !project}
+                        onClick={() => setGallery({ point: i })}
+                      />
+                      <DefaultButton
                         iconProps={{ iconName: 'Edit' }}
                         text="Nakreslit náčrt"
                         disabled={busy}
@@ -1102,6 +1142,16 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
             fileName={entry ? entryFileName(entry.projectNumber, entry.entryNo, 'pdf') : 'Zapis_navrh.pdf'}
             title={entry ? `Náhled zápisu č. ${entry.entryNo}` : 'Náhled zápisu (návrh)'}
             onDismiss={() => setPreviewOpen(false)}
+          />
+        )}
+
+        {gallery && project && (
+          <PhotoPickerDialog
+            project={project}
+            onPick={(picked) => {
+              attachFromGallery(gallery.point, picked).catch(() => undefined);
+            }}
+            onClose={() => setGallery(undefined)}
           />
         )}
 
