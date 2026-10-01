@@ -358,6 +358,11 @@ export interface IDocumentRepository {
   saveProjectFile(project: Project, relativeFolder: string, fileName: string, content: Blob): Promise<string>;
   /** Soubory přímo v podsložce projektu (bez podsložek), od nejstaršího. Složka, která ještě nevznikla, vrací prázdný seznam. */
   listFolderFiles(project: Project, relativeFolder: string): Promise<ProjectFile[]>;
+  /**
+   * Skutečná adresa podsložky projektu (hledá se tolerantně — číslo na začátku, pomlčka/podtržítko a diakritika nerozhodují), nebo `undefined`,
+   * když složka neexistuje. Slouží k otevření složky z aplikace i u starších dokumentů, jejichž cesta se psala trochu jinak.
+   */
+  resolveFolderUrl(project: Project, relativeFolder: string): Promise<string | undefined>;
   /** Podsložky podsložky projektu (např. dávky fotek ve složce FOTO). Složka, která ještě nevznikla, vrací prázdný seznam. */
   listSubfolders(project: Project, relativeFolder: string): Promise<ProjectFolder[]>;
   /**

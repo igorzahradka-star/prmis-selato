@@ -6,7 +6,7 @@
  */
 
 import { BudgetStatus, Project, ProjectStatus } from './types';
-import { dueLabel, daysBetween } from './format';
+import { dueLabel, daysBetween, formatDate, formatMoney } from './format';
 
 /** Souřadnice ve stupních (WGS 84) — tak je vrací mapy i vyhledávání míst. */
 export interface Coordinates {
@@ -204,6 +204,10 @@ export interface PinInfo {
   deadlineLabel: string;
   deadlineSignal: Signal;
   manager: string;
+  /** Celková cena projektu (ve výchozí měně přehledů, když ji zná volající). */
+  priceLabel: string;
+  /** Předpokládaný termín dokončení (plánované ukončení). */
+  endLabel: string;
 }
 
 /** Název projektu bez čísla na začátku — číslo se ukazuje zvlášť. */
@@ -213,7 +217,8 @@ function nameWithoutNumber(p: Project): string {
   return base.indexOf(prefix) === 0 ? base.slice(prefix.length) : base;
 }
 
-export function buildPinInfo(p: Project, today: Date = new Date()): PinInfo {
+/** `priceText` je cena už přepočtená do výchozí měny přehledů; bez ní se ukáže cena v měně projektu. */
+export function buildPinInfo(p: Project, today: Date = new Date(), priceText?: string): PinInfo {
   return {
     projectNumber: p.projectNumber,
     name: nameWithoutNumber(p),
@@ -224,7 +229,9 @@ export function buildPinInfo(p: Project, today: Date = new Date()): PinInfo {
     budgetSignal: budgetSignal(p.budgetStatus),
     deadlineLabel: p.nextDeadline ? dueLabel(p.nextDeadline, today) : 'bez termínu',
     deadlineSignal: deadlineSignal(p.nextDeadline, today),
-    manager: p.projectManagerName || '—'
+    manager: p.projectManagerName || '—',
+    priceLabel: priceText ?? (p.contractPriceNet === undefined ? '—' : formatMoney(p.contractPriceNet, p.currency)),
+    endLabel: p.endDatePlanned ? formatDate(p.endDatePlanned) : 'neuvedeno'
   };
 }
 
@@ -252,8 +259,8 @@ function signalDot(signal: Signal): string {
 }
 
 /**
- * HTML bubliny, která vyskočí po najetí na špendlík: název, typ, semafor rozpočtu,
- * semafor termínů a projektový manažer. Všechny texty z dat jsou escapované.
+ * HTML bubliny, která vyskočí po najetí na špendlík: název, projektový manažer, celková cena, předpokládaný termín dokončení,
+ * stav a semafor rozpočtu. Všechny texty z dat jsou escapované.
  */
 export function pinTooltipHtml(info: PinInfo): string {
   const row = (label: string, value: string): string =>
@@ -263,21 +270,15 @@ export function pinTooltipHtml(info: PinInfo): string {
   return (
     `<div style="min-width:230px;font-size:12px;line-height:1.4;color:#1B1F2A">` +
     `<div style="font-size:13px;font-weight:600">${escapeHtml(info.projectNumber)} · ${escapeHtml(info.name)}</div>` +
+    row('Projektový manažer', escapeHtml(info.manager)) +
+    row('Celková cena', escapeHtml(info.priceLabel)) +
+    row('Dokončení (předpokládané)', escapeHtml(info.endLabel)) +
     row(
       'Stav',
       `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${info.statusStyle.fill};` +
         `border:1px solid ${info.statusStyle.stroke};margin-right:6px;vertical-align:middle"></span>${escapeHtml(info.status)}`
     ) +
-    row('Typ', escapeHtml(info.typeLabel)) +
-    row(
-      'Rozpočet',
-      `${signalDot(info.budgetSignal)}${escapeHtml(info.budgetLabel)}`
-    ) +
-    row(
-      'Termíny',
-      `${signalDot(info.deadlineSignal)}${escapeHtml(info.deadlineLabel)} (${SIGNAL_TEXT[info.deadlineSignal]})`
-    ) +
-    row('Projektový manažer', escapeHtml(info.manager)) +
+    row('Rozpočet', `${signalDot(info.budgetSignal)}${escapeHtml(info.budgetLabel)} (${SIGNAL_TEXT[info.budgetSignal]})`) +
     `</div>`
   );
 }

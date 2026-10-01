@@ -17,6 +17,7 @@ import { Link } from '@fluentui/react/lib/Link';
 import { useApp } from '../../ui/AppContext';
 import { RES } from '../../ui/theme';
 import { PageHeading } from '../../ui/components/PageHeading';
+import { useReportCurrency } from '../../ui/useReportCurrency';
 import { buildHash, navigate, RouteName } from '../../ui/router';
 import { Project } from '../../core/types';
 import {
@@ -35,6 +36,10 @@ import type * as LeafletTypes from 'leaflet';
 
 export const ProjectsMapPage: React.FC = () => {
   const { repos } = useApp();
+  const report = useReportCurrency();
+  /** Cena projektu v bublině: ve výchozí měně přehledů (jiná měna se přepočítá kurzem ČNB). */
+  const priceOf = (p: Project): string =>
+    p.contractPriceNet === undefined ? '—' : `${p.currency !== report.currency ? '≈ ' : ''}${report.format(p.contractPriceNet, p.currency)}`;
 
   const [projects, setProjects] = React.useState<Project[] | undefined>(undefined);
   const [error, setError] = React.useState<string | undefined>(undefined);
@@ -159,7 +164,7 @@ export const ProjectsMapPage: React.FC = () => {
             title: p.projectNumber,
             keyboard: true
           });
-          marker.bindTooltip(pinTooltipHtml(buildPinInfo(p)), { className: 'prm-tooltip', direction: 'top', opacity: 1 });
+          marker.bindTooltip(pinTooltipHtml(buildPinInfo(p, new Date(), priceOf(p))), { className: 'prm-tooltip', direction: 'top', opacity: 1 });
           marker.on('click', () => navigate(RouteName.ProjectDetail, p.projectNumber));
           marker.addTo(layer);
           return;
@@ -168,7 +173,7 @@ export const ProjectsMapPage: React.FC = () => {
         // Skupina: střed z průměru souřadnic; po najetí seznam, po kliknutí přiblížení nebo seznam s odkazy.
         const lat = coords.reduce((s, c) => s + c.latitude, 0) / coords.length;
         const lng = coords.reduce((s, c) => s + c.longitude, 0) / coords.length;
-        const infos = members.map((p) => buildPinInfo(p));
+        const infos = members.map((p) => buildPinInfo(p, new Date(), priceOf(p)));
         const marker = L.marker([lat, lng], {
           icon: clusterIcon(L, members.length),
           riseOnHover: true,
@@ -216,7 +221,7 @@ export const ProjectsMapPage: React.FC = () => {
     return () => {
       map.off('zoomend', render);
     };
-  }, [mapReady, shown]);
+  }, [mapReady, shown, report]);
 
   const toggleStatus = (status: string): void =>
     setHiddenStatuses((cur) => (cur.indexOf(status) === -1 ? [...cur, status] : cur.filter((t) => t !== status)));

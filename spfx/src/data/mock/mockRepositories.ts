@@ -620,6 +620,10 @@ class MockDocumentRepository implements IDocumentRepository {
     return delay(out.sort((a, b) => (a.modified as Date).getTime() - (b.modified as Date).getTime()));
   }
 
+  public resolveFolderUrl(project: Project, relativeFolder: string): Promise<string | undefined> {
+    return delay(project.folderUrl ? `#/ukazkovy-rezim/slozka/${encodeURIComponent(`${project.projectNumber}/${relativeFolder}`)}` : undefined);
+  }
+
   public listSubfolders(project: Project, relativeFolder: string): Promise<ProjectFolder[]> {
     const prefix = `${project.projectNumber}/${relativeFolder}/`;
     const found = new Map<string, { count: number; modified: Date }>();

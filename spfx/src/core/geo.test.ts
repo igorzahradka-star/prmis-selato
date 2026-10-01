@@ -210,7 +210,9 @@ describe('buildPinInfo', () => {
       budgetSignal: 'yellow',
       deadlineLabel: 'za 3 dny',
       deadlineSignal: 'yellow',
-      manager: 'Igor Zahrádka'
+      manager: 'Igor Zahrádka',
+      priceLabel: '—',
+      endLabel: 'neuvedeno'
     });
   });
 
@@ -251,16 +253,31 @@ describe('pinTooltipHtml', () => {
     )
   );
 
-  it('obsahuje název, typ, rozpočet, termíny i projektového manažera', () => {
+  it('obsahuje název, projektového manažera, cenu, předpokládané dokončení, stav a rozpočet — v tomto pořadí', () => {
     expect(html).toContain('26003 · BORSOV');
-    expect(html).toContain('FVE');
+    expect(html).toContain('Igor Zahrádka');
     expect(html).toContain('Realizace');
     expect(html).toContain('Červená');
-    expect(html).toContain('po termínu o 9 dní');
-    expect(html).toContain('Igor Zahrádka');
+    const poradi = ['26003 · BORSOV', 'Projektový manažer', 'Celková cena', 'Dokončení (předpokládané)', 'Stav', 'Rozpočet'].map((t) => html.indexOf(t));
+    expect(poradi.every((i) => i >= 0)).toBe(true);
+    expect(poradi).toEqual(poradi.slice().sort((a, b) => a - b));
   });
 
-  it('semafor má vedle barvy i slovo — barva nestojí sama', () => {
+  it('typ projektu a termíny se v bublině nezobrazují', () => {
+    expect(html).not.toContain('Typ');
+    expect(html).not.toContain('FVE');
+    expect(html).not.toContain('po termínu');
+    expect(html).not.toContain('Termíny');
+  });
+
+  it('cena a termín dokončení se ukážou, cena může být už přepočtená do výchozí měny', () => {
+    const p = projekt('26006', { contractPriceNet: 1500000, currency: 'CZK', endDatePlanned: new Date(2027, 2, 15) });
+    expect(pinTooltipHtml(buildPinInfo(p, dnes))).toContain('15. 3. 2027');
+    expect(pinTooltipHtml(buildPinInfo(p, dnes))).toMatch(/1\s500\s000/);
+    expect(pinTooltipHtml(buildPinInfo(p, dnes, '≈ 61 000 €'))).toContain('≈ 61 000 €');
+  });
+
+  it('semafor rozpočtu má vedle barvy i slovo — barva nestojí sama', () => {
     expect(html).toContain(SIGNAL_COLORS.red);
     expect(html).toContain('problém');
   });

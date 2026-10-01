@@ -148,6 +148,17 @@ export class SpDocumentRepository implements IDocumentRepository {
     }
   }
 
+  public async resolveFolderUrl(project: Project, relativeFolder: string): Promise<string | undefined> {
+    const { path, origin } = await this.folderPathOf(project, relativeFolder);
+    if (path === undefined) {
+      return undefined;
+    }
+    return `${origin}${path
+      .split('/')
+      .map((part) => encodeURIComponent(part))
+      .join('/')}`;
+  }
+
   public async listSubfolders(project: Project, relativeFolder: string): Promise<ProjectFolder[]> {
     const { sp, path, origin } = await this.folderPathOf(project, relativeFolder);
     if (path === undefined) {

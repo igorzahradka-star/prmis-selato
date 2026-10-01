@@ -20,7 +20,7 @@ import { RES } from '../../ui/theme';
 import { ExternalLink } from '../../ui/components/ExternalLink';
 import { Project } from '../../core/types';
 import { formatDate } from '../../core/format';
-import { folderLink, parentUrl } from '../../core/photos';
+import { OpenFolderLink } from '../../ui/components/OpenFolderLink';
 import { canWriteDiary } from '../../core/siteDiary';
 import { toActor, toWorkflowProject } from '../../core/orderWorkflow';
 import { ProjectFile } from '../../data/repositories';
@@ -171,8 +171,6 @@ export const ProjectPhotos: React.FC<{ project: Project }> = ({ project }) => {
     (batches || []).forEach((b) => (next[b.path] = !allOpen));
     setOpen(next);
   };
-  const fotoFolderUrl =
-    batches && batches.length > 0 && batches[0].path.indexOf('/') === -1 ? parentUrl(batches[0].url) : folderLink(project.folderUrl, base);
 
   return (
     <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -183,7 +181,7 @@ export const ProjectPhotos: React.FC<{ project: Project }> = ({ project }) => {
         </div>
         <DefaultButton iconProps={{ iconName: 'Refresh' }} text="Aktualizovat" onClick={refresh} />
         {batches && batches.length > 0 && <DefaultButton text={allOpen ? 'Sbalit vše' : 'Rozbalit vše'} onClick={toggleAll} />}
-        <ExternalLink href={fotoFolderUrl}>Otevřít složku FOTO</ExternalLink>
+        <OpenFolderLink project={project} relativeFolder={base} text="Otevřít složku FOTO" />
         {mayWrite && !uploader && (
           <PrimaryButton iconProps={{ iconName: 'Camera' }} text="Nahrát fotky" onClick={() => setUploader({})} />
         )}

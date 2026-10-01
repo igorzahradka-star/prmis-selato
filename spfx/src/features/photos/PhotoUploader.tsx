@@ -27,7 +27,7 @@ import { Link } from '@fluentui/react/lib/Link';
 
 import { useApp } from '../../ui/AppContext';
 import { RES } from '../../ui/theme';
-import { ExternalLink } from '../../ui/components/ExternalLink';
+import { OpenFolderLink } from '../../ui/components/OpenFolderLink';
 import { Project } from '../../core/types';
 import {
   BATCH_TITLE_MAX,
@@ -435,7 +435,7 @@ export const PhotoUploader: React.FC<PhotoUploaderProps> = ({ project, presetBat
                 <strong style={{ color: RES.navy }}>{list[0].label}</strong>
                 <span style={{ fontSize: 12, color: RES.gray }}>{uploadSummary(list.map((i) => i.state as UploadState))}</span>
                 <span style={{ flex: '1 1 auto' }} />
-                <ExternalLink href={folderLink(project.folderUrl as string, folder)}>Otevřít složku</ExternalLink>
+                <OpenFolderLink project={project} relativeFolder={folder} text="Otevřít složku" />
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
                 {list.map((i) => (
