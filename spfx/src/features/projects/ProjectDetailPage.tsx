@@ -9,7 +9,8 @@ import * as React from 'react';
 import { Pivot, PivotItem } from '@fluentui/react/lib/Pivot';
 import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
-import { ActionButton, DefaultButton, PrimaryButton } from '@fluentui/react/lib/Button';
+import { ActionButton, DefaultButton, IconButton, PrimaryButton } from '@fluentui/react/lib/Button';
+import { IContextualMenuItem } from '@fluentui/react/lib/ContextualMenu';
 import { Link } from '@fluentui/react/lib/Link';
 
 import { useApp } from '../../ui/AppContext';
@@ -41,6 +42,7 @@ export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projec
   const [editOpen, setEditOpen] = React.useState(false);
   const [deleteOpen, setDeleteOpen] = React.useState(false);
   const [foldersDialog, setFoldersDialog] = React.useState(false);
+  const [overheadBusy, setOverheadBusy] = React.useState(false);
   const [foldersMessage, setFoldersMessage] = React.useState<{ ok: boolean; text: string } | undefined>(undefined);
 
   React.useEffect(() => {
@@ -91,6 +93,58 @@ export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projec
     assistantLogins: project.assistantLogins
   });
 
+  /** Režie: založí složku `99900-Režie/<rok>` se šablonou Režie a nastaví odkaz na ni. Hledá tolerantně, zakládá jen to, co chybí. */
+  const createOverheadFolders = (): void => {
+    setOverheadBusy(true);
+    setFoldersMessage(undefined);
+    repos.projects
+      .retryCreateFolders(project.projectNumber)
+      .then(() => repos.projects.getByNumber(project.projectNumber))
+      .then((p) => {
+        if (p) {
+          setProject(p);
+        }
+        setOverheadBusy(false);
+        setFoldersMessage({ ok: true, text: 'Složky Režie jsou založené a odkaz „Otevřít složku projektu“ míří na složku Režie.' });
+      })
+      .catch((e: Error) => {
+        setOverheadBusy(false);
+        setFoldersMessage({ ok: false, text: e.message });
+      });
+  };
+
+  /** Nastavení projektu (ozubené kolečko): sem patří to, co projektový manažer nepotřebuje denně. */
+  const settingsItems: IContextualMenuItem[] = [];
+  if (mayEdit) {
+    settingsItems.push({
+      key: 'folders',
+      text: 'Složky projektu…',
+      title: 'Kde má projekt složky objednávek, fakturace, zápisů a fotek; kontrola odkazu na složku (nic se nemaže ani nepřesouvá)',
+      iconProps: { iconName: 'FabricFolderConfirm' },
+      onClick: () => setFoldersDialog(true)
+    });
+  }
+  if (project.isOverhead && canManageProjectAccess(user.roles)) {
+    settingsItems.push({
+      key: 'overheadFolders',
+      text: overheadBusy ? 'Zakládám složky Režie…' : 'Založit složky Režie',
+      title: 'Založí složku Režie (99900-Režie/rok) podle šablony Režie z Nastavení a nastaví odkaz na ni. Nic nemaže.',
+      iconProps: { iconName: 'NewFolder' },
+      disabled: overheadBusy,
+      onClick: createOverheadFolders
+    });
+  }
+  if (canDeleteProject(user.roles) && !project.isOverhead) {
+    settingsItems.push({ key: 'divider', itemType: 1 }); // oddělovač
+    settingsItems.push({
+      key: 'delete',
+      text: 'Smazat projekt…',
+      iconProps: { iconName: 'Delete', style: { color: RES.red } },
+      style: { color: RES.red },
+      onClick: () => setDeleteOpen(true)
+    });
+  }
+
   return (
     <>
       <ActionButton
@@ -119,20 +173,13 @@ export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projec
                 {...EXTERNAL_LINK_PROPS}
               />
             )}
-            {mayEdit && (
-              <DefaultButton
-                iconProps={{ iconName: 'FabricFolderConfirm' }}
-                text="Složky projektu"
-                title="Kde má projekt složky objednávek, fakturace, zápisů a fotek (nic se nemaže ani nepřesouvá)"
-                onClick={() => setFoldersDialog(true)}
-              />
-            )}
-            {canDeleteProject(user.roles) && !project.isOverhead && (
-              <DefaultButton
-                iconProps={{ iconName: 'Delete' }}
-                text="Smazat projekt"
-                onClick={() => setDeleteOpen(true)}
-                styles={{ root: { color: RES.red, borderColor: RES.red }, icon: { color: RES.red } }}
+            {settingsItems.length > 0 && (
+              <IconButton
+                iconProps={{ iconName: 'Settings' }}
+                title="Nastavení projektu"
+                ariaLabel="Nastavení projektu"
+                menuProps={{ items: settingsItems }}
+                styles={{ root: { height: 32, width: 32, border: `1px solid ${RES.grayBlue}`, borderRadius: 2 } }}
               />
             )}
           </div>
@@ -149,6 +196,7 @@ export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projec
         <ProjectFoldersDialog
           project={project}
           onClose={() => setFoldersDialog(false)}
+          onProjectUpdated={(p) => setProject(p)}
           onSaved={(p) => {
             setProject(p);
             setFoldersDialog(false);

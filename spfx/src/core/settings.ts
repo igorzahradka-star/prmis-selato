@@ -47,6 +47,13 @@ export interface FolderSettings {
   orderFolder: string;
   /** Kam se ukládají PDF podkladů pro fakturaci (cesta uvnitř složky projektu). */
   invoiceFolder: string;
+  /**
+   * Šablona složek **projektu Režie** — Režie má jinou strukturu než běžný projekt (nevede se u ní deník, fakturace ani fotky).
+   * Složka Režie je `99900-Režie/<rok>`; tato šablona se zakládá uvnitř roku.
+   */
+  overheadTemplate: FolderTemplateNode[];
+  /** Kam se u Režie ukládají PDF objednávek (cesta uvnitř složky Režie; má patřit do šablony Režie). */
+  overheadOrderFolder: string;
 }
 
 /** Nastavení generování názvu projektu. */
@@ -157,6 +164,14 @@ export const DEFAULT_FOLDER_TEMPLATE: FolderTemplateNode[] = [
   { name: '10-Servis' }
 ];
 
+/** Výchozí struktura složek Režie (návrh — upraví zadavatel v Nastavení). Jiná než u běžného projektu. */
+export const DEFAULT_OVERHEAD_TEMPLATE: FolderTemplateNode[] = [
+  { name: '01-Objednávky' },
+  { name: '02-Smlouvy a pojištění' },
+  { name: '03-Faktury přijaté' },
+  { name: '04-Ostatní' }
+];
+
 /**
  * Výchozí nastavení. Použije se, dokud administrátor nastavení neuloží.
  * Hodnoty označené „upřesní zadavatel" jsou návrh, ne závazek.
@@ -177,7 +192,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
     diaryFolder: '04-Zápisy',
     photoFolder: '07-Dokumentace a podklady/FOTO',
     orderFolder: '03-Nákup/Objednávky',
-    invoiceFolder: '03-Rozpočet projektu/Fakturace'
+    invoiceFolder: '03-Rozpočet projektu/Fakturace',
+    overheadTemplate: DEFAULT_OVERHEAD_TEMPLATE,
+    overheadOrderFolder: '01-Objednávky'
   },
   numbering: {},
   projects: {

@@ -193,6 +193,19 @@ export const SettingsPage: React.FC = () => {
               template={draft.folders.template}
               onChange={(template) => patch('folders', { template })}
             />
+            <FolderTemplateEditor
+              label="Šablona složek projektu Režie"
+              description="Režie má jinou strukturu než běžný projekt. Složka Režie je 99900-Režie/rok; tato šablona se zakládá uvnitř roku. Jedna složka na řádek, podsložku odsaďte dvěma mezerami."
+              rows={6}
+              template={draft.folders.overheadTemplate}
+              onChange={(overheadTemplate) => patch('folders', { overheadTemplate })}
+            />
+            <TextField
+              label="Složka objednávek Režie"
+              description="Cesta uvnitř složky Režie, kam se ukládají PDF objednávek Režie, např. „01-Objednávky“. Má patřit do šablony Režie."
+              value={draft.folders.overheadOrderFolder}
+              onChange={(_, v) => patch('folders', { overheadOrderFolder: v || '' })}
+            />
             {folderSettingsWarnings(draft.folders).map((w) => (
               <MessageBar key={w} messageBarType={MessageBarType.warning} isMultiline>
                 {w}
@@ -722,7 +735,10 @@ const ListEditor: React.FC<{
 const FolderTemplateEditor: React.FC<{
   template: FolderTemplateNode[];
   onChange: (template: FolderTemplateNode[]) => void;
-}> = ({ template, onChange }) => {
+  label?: string;
+  description?: string;
+  rows?: number;
+}> = ({ template, onChange, label, description, rows }) => {
   // Stejný důvod jako u ListEditor: odsazení a prázdné řádky se při psaní
   // nesmí přepisovat přepočítaným stromem.
   const [text, setText] = React.useState(templateToText(template));
@@ -735,10 +751,10 @@ const FolderTemplateEditor: React.FC<{
 
   return (
     <TextField
-      label="Šablona složek projektu"
-      description="Jedna složka na řádek. Podsložku odsaďte dvěma mezerami."
+      label={label || 'Šablona složek projektu'}
+      description={description || 'Jedna složka na řádek. Podsložku odsaďte dvěma mezerami.'}
       multiline
-      rows={12}
+      rows={rows || 12}
       value={text}
       onChange={(_, v) => {
         setText(v || '');

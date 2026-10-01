@@ -17,13 +17,22 @@ import { Link } from '@fluentui/react/lib/Link';
 import { useApp } from '../../ui/AppContext';
 import { RES } from '../../ui/theme';
 import { Project } from '../../core/types';
+import { FolderLinkCheck } from '../../data/repositories';
 import { FOLDER_ROLES, FolderMap, FolderRole, cleanRelativePath, folderFor, suggestPath } from '../../core/projectFolders';
 
-export const ProjectFoldersDialog: React.FC<{ project: Project; onClose: () => void; onSaved: (project: Project) => void }> = ({ project, onClose, onSaved }) => {
+export const ProjectFoldersDialog: React.FC<{
+  project: Project;
+  onClose: () => void;
+  onSaved: (project: Project) => void;
+  /** Projekt se změnil (opravený odkaz) a dialog zůstává otevřený. */
+  onProjectUpdated: (project: Project) => void;
+}> = ({ project, onClose, onSaved, onProjectUpdated }) => {
   const { repos, settings, user } = useApp();
+  // U Režie má smysl jen složka objednávek (deník, fakturace ani fotky se na Režii nevedou).
+  const roles = project.isOverhead ? FOLDER_ROLES.filter((r) => r.key === 'orders') : FOLDER_ROLES;
   const initial = (): Record<FolderRole, string> => {
     const out = {} as Record<FolderRole, string>;
-    FOLDER_ROLES.forEach((r) => {
+    roles.forEach((r) => {
       out[r.key] = folderFor(project, r.key, settings.folders);
     });
     return out;
@@ -32,6 +41,18 @@ export const ProjectFoldersDialog: React.FC<{ project: Project; onClose: () => v
   const [existing, setExisting] = React.useState<string[] | undefined>(undefined);
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | undefined>(undefined);
+  const [link, setLink] = React.useState<FolderLinkCheck | undefined>(undefined);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    repos.projects
+      .checkFolderLink(project.projectNumber)
+      .then((l) => !cancelled && setLink(l))
+      .catch(() => !cancelled && setLink(undefined));
+    return () => {
+      cancelled = true;
+    };
+  }, [repos, project.projectNumber, project.folderUrl]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -58,7 +79,7 @@ export const ProjectFoldersDialog: React.FC<{ project: Project; onClose: () => v
     }
     setValues((cur) => {
       const next = { ...cur };
-      FOLDER_ROLES.forEach((r) => {
+      roles.forEach((r) => {
         const s = suggestPath(existing, cur[r.key]);
         if (s.found) {
           next[r.key] = s.path;
@@ -70,15 +91,31 @@ export const ProjectFoldersDialog: React.FC<{ project: Project; onClose: () => v
 
   const resetToDefaults = (): void => {
     const out = {} as Record<FolderRole, string>;
-    FOLDER_ROLES.forEach((r) => {
-      out[r.key] = cleanRelativePath(settings.folders[r.settingKey]);
+    roles.forEach((r) => {
+      out[r.key] = folderFor({ isOverhead: project.isOverhead }, r.key, settings.folders);
     });
     setValues(out);
   };
 
+  /** Opraví jen odkaz „Otevřít složku projektu“ (zkrátí ho z podsložky na složku projektu). Žádné složky nezakládá ani nemaže. */
+  const repairLink = (): void => {
+    setBusy(true);
+    setError(undefined);
+    repos.projects
+      .repairFolderLink(project.projectNumber, user)
+      .then((p) => {
+        setBusy(false);
+        onProjectUpdated(p);
+      })
+      .catch((e: Error) => {
+        setBusy(false);
+        setError(e.message);
+      });
+  };
+
   const save = (): void => {
-    const map: FolderMap = {};
-    FOLDER_ROLES.forEach((r) => {
+    const map: FolderMap = { ...(project.folderMap || {}) };
+    roles.forEach((r) => {
       const clean = cleanRelativePath(values[r.key]);
       if (clean !== '') {
         map[r.key] = clean;
@@ -121,6 +158,19 @@ export const ProjectFoldersDialog: React.FC<{ project: Project; onClose: () => v
         <div style={{ fontSize: 12, color: RES.gray }}>
           {project.folderMap ? 'Cesty jsou uložené u tohoto projektu.' : 'Projekt zatím nemá uložené vlastní cesty — používají se výchozí z Nastavení. Uložením se zafixují.'}
         </div>
+        {link && link.state !== 'missing' && (
+          <MessageBar messageBarType={link.state === 'ok' ? MessageBarType.success : MessageBarType.warning} isMultiline>
+            {link.message}
+            {link.state === 'deeper' && (
+              <>
+                {' '}
+                <Link disabled={busy} onClick={repairLink}>
+                  Opravit odkaz
+                </Link>
+              </>
+            )}
+          </MessageBar>
+        )}
         {!existing && <Spinner size={SpinnerSize.small} label="Čtu složky projektu…" labelPosition="right" styles={{ root: { justifyContent: 'flex-start' } }} />}
         {existing && (
           <div style={{ fontSize: 12 }}>
@@ -128,7 +178,7 @@ export const ProjectFoldersDialog: React.FC<{ project: Project; onClose: () => v
           </div>
         )}
 
-        {FOLDER_ROLES.map((r) => {
+        {roles.map((r) => {
           const value = values[r.key];
           const s = existing ? suggestPath(existing, value) : undefined;
           const exact = s && s.found && s.path === cleanRelativePath(value);

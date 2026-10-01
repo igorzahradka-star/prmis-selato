@@ -1,5 +1,6 @@
 import {
   FolderMap,
+  analyzeFolderLink,
   cleanRelativePath,
   defaultFolderMap,
   firstSegment,
@@ -92,5 +93,60 @@ describe('upozornění k Nastavení složek', () => {
     const w = folderSettingsWarnings({ ...folders, template: t, orderFolder: '03-Nákup/Objednávky', diaryFolder: '99-Neznama', invoiceFolder: '04-Nákup/Fakturace', photoFolder: '06-Dokumentace/FOTO' });
     expect(w.some((x) => x.indexOf('99-Neznama') !== -1)).toBe(true);
     expect(w.some((x) => x.indexOf('03-Nákup/Objednávky') !== -1)).toBe(false);
+  });
+});
+
+describe('Režie má vlastní strukturu složek', () => {
+  it('objednávky Režie jdou do složky z šablony Režie, ne do složky běžných projektů', () => {
+    expect(folderFor({ isOverhead: true }, 'orders', folders)).toBe(folders.overheadOrderFolder);
+    expect(folderFor({ isOverhead: false }, 'orders', folders)).toBe(folders.orderFolder);
+    // uložená mapa projektu má přednost i u Režie
+    expect(folderFor({ isOverhead: true, folderMap: { orders: 'X/Obj' } }, 'orders', folders)).toBe('X/Obj');
+  });
+
+  it('výchozí mapa Režie obsahuje jen objednávky', () => {
+    expect(defaultFolderMap(folders, true)).toEqual({ orders: folders.overheadOrderFolder });
+    expect(Object.keys(defaultFolderMap(folders, false)).length).toBe(4);
+  });
+
+  it('šablona Režie je jiná než běžná a výchozí nastavení je v pořádku', () => {
+    expect(folders.overheadTemplate.map((n) => n.name)).not.toEqual(folders.template.map((n) => n.name));
+    expect(folderSettingsWarnings(folders).filter((w) => w.indexOf('Režie') !== -1)).toEqual([]);
+  });
+
+  it('cesta objednávek Režie mimo šablonu Režie se ohlásí', () => {
+    const w = folderSettingsWarnings({ ...folders, overheadOrderFolder: '99-Neznama/Obj' });
+    expect(w.some((x) => x.indexOf('objednávky Režie') !== -1 && x.indexOf('99-Neznama') !== -1)).toBe(true);
+  });
+});
+
+describe('odkaz na složku projektu', () => {
+  const LIB = '/sites/RES/Shared Documents';
+  const ROOT = 'General/01_PROJEKTY';
+
+  it('odkaz na složku projektu je v pořádku', () => {
+    expect(analyzeFolderLink(`${LIB}/General/01_PROJEKTY/26001-X`, LIB, ROOT, false)).toEqual({ state: 'ok' });
+  });
+
+  it('odkaz do podsložky se zkrátí na složku projektu', () => {
+    expect(analyzeFolderLink(`${LIB}/General/01_PROJEKTY/26001-X/10-Servis`, LIB, ROOT, false)).toEqual({
+      state: 'deeper',
+      rootPath: `${LIB}/General/01_PROJEKTY/26001-X`
+    });
+  });
+
+  it('Režie: složka projektu je 99900-Režie/rok; odkaz do podsložky roku se zkrátí, odkaz jen na 99900-Režie je příliš vysoko', () => {
+    expect(analyzeFolderLink(`${LIB}/General/01_PROJEKTY/99900-Režie/2026`, LIB, ROOT, true)).toEqual({ state: 'ok' });
+    expect(analyzeFolderLink(`${LIB}/General/01_PROJEKTY/99900-Režie/2026/01-Objednávky`, LIB, ROOT, true)).toEqual({
+      state: 'deeper',
+      rootPath: `${LIB}/General/01_PROJEKTY/99900-Režie/2026`
+    });
+    expect(analyzeFolderLink(`${LIB}/General/01_PROJEKTY/99900-Režie`, LIB, ROOT, true).state).toBe('shallow');
+  });
+
+  it('mimo kořen projektů (chybně slepená složka) a prázdný odkaz se neopravují', () => {
+    expect(analyzeFolderLink(`${LIB}/General01_PROJEKTY/26999 Režie RES 2026/08_Rozpočet`, LIB, ROOT, true).state).toBe('outside');
+    expect(analyzeFolderLink(undefined, LIB, ROOT, false).state).toBe('missing');
+    expect(analyzeFolderLink(`${LIB}/General/01_PROJEKTY`, LIB, ROOT, false).state).toBe('outside');
   });
 });

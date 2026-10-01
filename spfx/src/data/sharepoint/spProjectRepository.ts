@@ -20,7 +20,7 @@ import {
   canManageProjectAccess
 } from '../../core/projectAccess';
 import { buildProjectFolderPlan, projectFolderName, projectFolderRoot } from '../../core/folders';
-import { FolderMap, defaultFolderMap, folderMapFromJson, folderMapToJson } from '../../core/projectFolders';
+import { FolderMap, analyzeFolderLink, defaultFolderMap, folderMapFromJson, folderMapToJson } from '../../core/projectFolders';
 import { ProjectRemovalPreview, ProjectRemovalResult, RemovalCount, projectFolderRemovalTarget } from '../../core/projectDeletion';
 import {
   overheadProjectNumber,
@@ -39,7 +39,8 @@ import {
   ProjectEditInput,
   ImportProjectInput,
   ImportResult,
-  FolderLinkRepairResult
+  FolderLinkRepairResult,
+  FolderLinkCheck
 } from '../repositories';
 import { getSp, getSpForSite, describeSpError, extractStatus } from './spContext';
 import { resolveLibrary } from './spLibrary';
@@ -1000,7 +1001,13 @@ export class SpProjectRepository implements IProjectRepository {
     // Režie má výjimku: `99900-Režie/<rok>`, rok se bere z jejího čísla (`26999` → 2026).
     const overheadYear = project.isOverhead ? yearFromProjectNumber(project.projectNumber) : undefined;
     const folderName = projectFolderName(project.projectNumber, project.title);
-    const plan = buildProjectFolderPlan(folders, folderName, new Date(), overheadYear);
+    // Režie má vlastní šablonu složek (jiná než u běžného projektu).
+    const plan = buildProjectFolderPlan(
+      { ...folders, template: project.isOverhead ? folders.overheadTemplate : folders.template },
+      folderName,
+      new Date(),
+      overheadYear
+    );
     const rootRelative = projectFolderRoot(folders, folderName, new Date(), overheadYear);
     const rootCount = rootRelative.split('/').length;
 
@@ -1018,7 +1025,7 @@ export class SpProjectRepository implements IProjectRepository {
     // šablony nebo Nastavení u tohoto projektu nic nerozbila. Selhání (sloupec ještě není v schématu) projekt nezastaví.
     if (!project.folderMap) {
       try {
-        await getSp(this.context).web.lists.getByTitle(PROJECTS_LIST).items.getById(project.id).update({ FolderMap: folderMapToJson(defaultFolderMap(folders)) });
+        await getSp(this.context).web.lists.getByTitle(PROJECTS_LIST).items.getById(project.id).update({ FolderMap: folderMapToJson(defaultFolderMap(folders, project.isOverhead)) });
       } catch {
         // Bez uložené mapy platí výchozí cesty z Nastavení; mapu jde doplnit v detailu projektu (Složky projektu).
       }
@@ -1051,6 +1058,74 @@ export class SpProjectRepository implements IProjectRepository {
       throw new Error(describeSpError(error, `Nepodařilo se uložit složky projektu ${projectNumber}`));
     }
     return (await this.getByNumber(projectNumber)) ?? { ...project, folderMap: map };
+  }
+
+  public async checkFolderLink(projectNumber: string): Promise<FolderLinkCheck> {
+    const project = await this.getByNumber(projectNumber);
+    if (!project) {
+      throw new Error(`Projekt ${projectNumber} nebyl nalezen.`);
+    }
+    if (!project.folderUrl) {
+      return { state: 'missing', message: 'Projekt nemá odkaz na složku.' };
+    }
+    const folders = (await this.settings.get()).folders;
+    try {
+      const foldersSp = await this.foldersSp();
+      const libraryRoot = (await resolveLibrary(foldersSp, folders.libraryTitle)).serverRelativeUrl;
+      const analysis = analyzeFolderLink(serverRelativePath(project.folderUrl), libraryRoot, folders.rootFolder, project.isOverhead);
+      if (analysis.state === 'ok') {
+        return { state: 'ok', currentUrl: project.folderUrl, message: 'Odkaz míří na složku projektu.' };
+      }
+      if (analysis.state === 'deeper' && analysis.rootPath) {
+        let exists = false;
+        try {
+          const info: { Exists?: boolean } = await foldersSp.web.getFolderByServerRelativePath(analysis.rootPath).select('Exists')();
+          exists = info.Exists === true;
+        } catch {
+          exists = false;
+        }
+        if (!exists) {
+          return { state: 'outside', currentUrl: project.folderUrl, message: 'Odkaz míří do podsložky, ale složka projektu nad ní neexistuje. Zkontrolujte složky ručně.' };
+        }
+        const origin = new URL(folders.siteUrl || this.context.pageContext.web.absoluteUrl).origin;
+        return {
+          state: 'deeper',
+          currentUrl: project.folderUrl,
+          suggestedUrl: `${origin}${analysis.rootPath}`,
+          message: 'Odkaz „Otevřít složku projektu“ míří do podsložky, ne na složku projektu. Jde opravit — změní se jen odkaz, žádné složky se nezakládají ani nepřesouvají.'
+        };
+      }
+      return {
+        state: analysis.state,
+        currentUrl: project.folderUrl,
+        message:
+          analysis.state === 'shallow'
+            ? 'Odkaz míří na složku výš než na složku projektu. Opravte ho ručně v úpravě projektu, nebo (u Režie) založte složky Režie z nabídky Nastavení projektu.'
+            : 'Odkaz míří mimo kořenovou složku projektů z Nastavení — automaticky se neopravuje. Zkontrolujte ho ručně.'
+      };
+    } catch (error) {
+      throw new Error(describeSpError(error, 'Odkaz na složku projektu se nepodařilo zkontrolovat'));
+    }
+  }
+
+  public async repairFolderLink(projectNumber: string, actor: CurrentUser): Promise<Project> {
+    const project = await this.getByNumber(projectNumber);
+    if (!project) {
+      throw new Error(`Projekt ${projectNumber} nebyl nalezen.`);
+    }
+    if (!canEditProject(actor.roles, actor.loginName, { projectManagerLogin: project.projectManagerLogin, assistantLogins: project.assistantLogins })) {
+      throw new Error('Odkaz na složku smí opravit jen projektový manažer, asistent a administrátor.');
+    }
+    const check = await this.checkFolderLink(projectNumber);
+    if (check.state !== 'deeper' || !check.suggestedUrl) {
+      throw new Error(check.state === 'ok' ? 'Odkaz je v pořádku, není co opravovat.' : check.message);
+    }
+    try {
+      await getSp(this.context).web.lists.getByTitle(PROJECTS_LIST).items.getById(project.id).update({ FolderUrl: { Url: check.suggestedUrl, Description: project.title } });
+    } catch (error) {
+      throw new Error(describeSpError(error, `Nepodařilo se opravit odkaz na složku projektu ${projectNumber}`));
+    }
+    return (await this.getByNumber(projectNumber)) ?? { ...project, folderUrl: check.suggestedUrl };
   }
 
   /** Server-relativní cesta ke kořeni knihovny — spolehlivější než skládání textu z názvu. */

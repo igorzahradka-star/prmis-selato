@@ -153,6 +153,16 @@ export interface ProjectEditInput {
   endDateActual?: Date;
 }
 
+/** Výsledek kontroly odkazu na složku projektu. */
+export interface FolderLinkCheck {
+  /** `ok` míří na kořen složky projektu; `deeper` do podsložky (jde opravit); ostatní vyžadují rozhodnutí člověka. */
+  state: 'ok' | 'deeper' | 'shallow' | 'outside' | 'missing';
+  currentUrl?: string;
+  /** Odkaz, na který se dá opravit (jen u `deeper`, a jen když tam složka opravdu je). */
+  suggestedUrl?: string;
+  message: string;
+}
+
 /** Projekty. Ve Fázi 0 jen čtení — zakládání a úpravy přišly ve Fázi 1. */
 export interface IProjectRepository {
   list(filter?: ProjectFilter): Promise<Project[]>;
@@ -228,6 +238,13 @@ export interface IProjectRepository {
    * Smí PM, asistent a administrátor; ověřuje se i v datové vrstvě.
    */
   saveFolderMap(projectNumber: string, map: FolderMap, actor: CurrentUser): Promise<Project>;
+  /** Zkontroluje, jestli odkaz „Otevřít složku projektu“ míří na kořen složky projektu (a ne do podsložky). Nic nemění. */
+  checkFolderLink(projectNumber: string): Promise<FolderLinkCheck>;
+  /**
+   * Opraví odkaz na složku projektu, který míří do podsložky (po chybě starší verze), zkrácením na kořen složky projektu. Mění **jen odkaz**;
+   * žádné složky nezakládá, nemaže ani nepřesouvá. Smí PM, asistent a administrátor.
+   */
+  repairFolderLink(projectNumber: string, actor: CurrentUser): Promise<Project>;
   /** Znovu založí složky u už uloženého projektu — pro tlačítko „Zkusit znovu založit složky". */
   retryCreateFolders(projectNumber: string): Promise<void>;
   /**

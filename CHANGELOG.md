@@ -5,6 +5,25 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.18.0 — 1. 10. 2026 — Režie má vlastní strukturu složek, oprava odkazu na složku, Nastavení projektu (ozubené kolečko)
+
+**Nové**
+
+- **Nastavení projektu (ozubené kolečko)** v hlavičce detailu projektu: sem se schovaly věci, které projektový manažer nepotřebuje denně. Teď: **Složky projektu…**, u Režie **Založit složky Režie**
+  a (jen administrátor, jen u běžných projektů) **Smazat projekt…**. Další položky nastavení projektu přibudou sem.
+- **Režie má vlastní strukturu složek**, oddělenou od běžných projektů: složka `99900-Režie/<rok>` a v ní **šablona Režie** (Nastavení → Složky projektů; návrh: 01-Objednávky, 02-Smlouvy a pojištění,
+  03-Faktury přijaté, 04-Ostatní) a vlastní **složka objednávek Režie**. U Režie se nepoužívají složky pro fakturaci, zápisy ani fotky. **Založit složky Režie** (kolečko) založí složku a nastaví odkaz;
+  hledá tolerantně, zakládá jen to, co chybí, nic nemaže.
+- **Oprava odkazu „Otevřít složku projektu“**: dialog Složky projektu teď kontroluje, jestli odkaz míří na **kořen složky projektu**. Když míří do podsložky (po chybě starší verze), nabídne **Opravit odkaz** —
+  změní se jen odkaz, žádné složky se nezakládají ani nepřesouvají. Odkaz mimo kořenovou složku projektů se automaticky neopravuje (jen se ohlásí).
+- Nastavení upozorní i na cestu objednávek Režie, která nepatří do šablony Režie.
+
+**Poznámka:** Režie založená starší verzí (složka `General01_PROJEKTY/…` s podsložkami šablony) má odkaz mimo kořen projektů — použijte **Založit složky Režie** a starou složku smažte ručně.
+
+**Bez změny schématu dat** (zůstává 11).
+
+---
+
 ## 0.17.0 — 1. 10. 2026 — Mapa složek projektu (změna šablony nerozbije staré projekty), konec tlačítka Opravit složky
 
 **Proč:** šablona složek (Nastavení) se používala i pro hledání složek u už založených projektů. Po její úpravě (přečíslování) se staré projekty „rozešly“ se šablonou a tlačítko

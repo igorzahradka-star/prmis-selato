@@ -94,14 +94,25 @@ export function folderMapToJson(map: FolderMap): string {
 }
 
 /** Cesta role u projektu: uložená v mapě projektu, jinak výchozí z Nastavení. */
-export function folderFor(project: { folderMap?: FolderMap } | undefined, role: FolderRole, folders: FolderSettings): string {
+export function folderFor(project: { folderMap?: FolderMap; isOverhead?: boolean } | undefined, role: FolderRole, folders: FolderSettings): string {
   const info = FOLDER_ROLES.filter((r) => r.key === role)[0];
   const own = project && project.folderMap ? cleanRelativePath(project.folderMap[role]) : '';
-  return own !== '' ? own : cleanRelativePath(folders[info.settingKey]);
+  if (own !== '') {
+    return own;
+  }
+  // Režie má vlastní strukturu: objednávky jdou do složky z šablony Režie (ostatní role se u Režie nepoužívají).
+  if (project && project.isOverhead && role === 'orders') {
+    return cleanRelativePath(folders.overheadOrderFolder);
+  }
+  return cleanRelativePath(folders[info.settingKey]);
 }
 
-/** Výchozí mapa podle Nastavení — ukládá se projektu při založení. */
-export function defaultFolderMap(folders: FolderSettings): FolderMap {
+/** Výchozí mapa podle Nastavení — ukládá se projektu při založení. U Režie jen složka objednávek podle šablony Režie. */
+export function defaultFolderMap(folders: FolderSettings, isOverhead: boolean = false): FolderMap {
+  if (isOverhead) {
+    const orders = cleanRelativePath(folders.overheadOrderFolder);
+    return orders !== '' ? { orders } : {};
+  }
   const out: FolderMap = {};
   FOLDER_ROLES.forEach((r) => {
     const clean = cleanRelativePath(folders[r.settingKey]);
@@ -165,5 +176,53 @@ export function folderSettingsWarnings(folders: FolderSettings): string[] {
       warnings.push(`Cesta „${path}“ (${r.label}) nepatří do žádné složky šablony — u nového projektu by vznikla složka „${firstSegment(path)}“ navíc.`);
     }
   });
+  // Režie: vlastní šablona a vlastní složka objednávek.
+  const overheadTop = (folders.overheadTemplate || []).map((n) => n.name.trim()).filter((n) => n !== '');
+  const overheadOrders = cleanRelativePath(folders.overheadOrderFolder);
+  if (overheadOrders !== '' && findMatchingFolder(overheadTop, firstSegment(overheadOrders)) === undefined) {
+    warnings.push(`Cesta „${overheadOrders}“ (objednávky Režie) nepatří do žádné složky šablony Režie — u Režie by vznikla složka „${firstSegment(overheadOrders)}“ navíc.`);
+  }
   return warnings;
+}
+
+/** Kde leží složka projektu podle odkazu, vůči kořenové složce projektů. */
+export type FolderLinkState = 'ok' | 'deeper' | 'shallow' | 'outside' | 'missing';
+
+export interface FolderLinkAnalysis {
+  state: FolderLinkState;
+  /** Cesta (od kořene webu, s úvodním lomítkem) složky, na kterou má odkaz mířit; jen u `deeper`. */
+  rootPath?: string;
+}
+
+function pathParts(path: string): string[] {
+  return (path || '')
+    .split('/')
+    .map((s) => s.trim())
+    .filter((s) => s !== '');
+}
+
+/**
+ * Míří odkaz na složku projektu na **kořen** složky projektu? Běžný projekt leží v `<kořen projektů>/<složka projektu>`, Režie v
+ * `<kořen projektů>/99900-Režie/<rok>`. Odkaz do podsložky (po chybě starší verze) se pozná (`deeper`) a jde opravit zkrácením,
+ * odkaz na vyšší složku (`shallow`) nebo mimo kořen projektů (`outside`) ne — tam je potřeba rozhodnutí člověka.
+ */
+export function analyzeFolderLink(folderPath: string | undefined, libraryRoot: string, rootFolder: string, isOverhead: boolean): FolderLinkAnalysis {
+  const parts = pathParts(folderPath || '');
+  if (parts.length === 0) {
+    return { state: 'missing' };
+  }
+  const base = [...pathParts(libraryRoot), ...pathParts(rootFolder)];
+  const under = base.length > 0 && parts.length > base.length && base.every((b, i) => parts[i].toLowerCase() === b.toLowerCase());
+  if (!under) {
+    return { state: 'outside' };
+  }
+  const need = isOverhead ? 2 : 1;
+  const rest = parts.length - base.length;
+  if (rest === need) {
+    return { state: 'ok' };
+  }
+  if (rest < need) {
+    return { state: 'shallow' };
+  }
+  return { state: 'deeper', rootPath: '/' + parts.slice(0, base.length + need).join('/') };
 }

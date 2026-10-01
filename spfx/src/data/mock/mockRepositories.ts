@@ -61,6 +61,7 @@ import {
   ImportProjectInput,
   ImportResult,
   FolderLinkRepairResult,
+  FolderLinkCheck,
   DocTypeConfig,
   DiagnosticReport,
   InstallProgress,
@@ -346,6 +347,25 @@ export class MockProjectRepository implements IProjectRepository {
     const updated: Project = { ...project, folderMap: Object.keys(map).length > 0 ? map : undefined };
     this.projects = this.projects.map((p) => (p.projectNumber === projectNumber ? updated : p));
     return delay(updated);
+  }
+
+  public async checkFolderLink(projectNumber: string): Promise<FolderLinkCheck> {
+    const project = this.projects.filter((p) => p.projectNumber === projectNumber)[0];
+    if (!project) {
+      throw new Error(`Projekt ${projectNumber} nebyl nalezen.`);
+    }
+    return delay(project.folderUrl ? { state: 'ok', currentUrl: project.folderUrl, message: 'V ukázkovém režimu není co opravovat.' } : { state: 'missing', message: 'Projekt nemá odkaz na složku.' });
+  }
+
+  public async repairFolderLink(projectNumber: string, actor: CurrentUser): Promise<Project> {
+    const project = this.projects.filter((p) => p.projectNumber === projectNumber)[0];
+    if (!project) {
+      throw new Error(`Projekt ${projectNumber} nebyl nalezen.`);
+    }
+    if (!canEditProject(actor.roles, actor.loginName, { projectManagerLogin: project.projectManagerLogin, assistantLogins: project.assistantLogins })) {
+      throw new Error('Odkaz na složku smí opravit jen projektový manažer, asistent a administrátor.');
+    }
+    throw new Error('V ukázkovém režimu není co opravovat.');
   }
 
   public async describeRemoval(projectNumber: string): Promise<ProjectRemovalPreview> {
