@@ -5,6 +5,8 @@
  * Běží jen v prohlížeči (canvas), proto není v jednotkových testech; čistá logika výpočtu rozměrů je v `fitSize`.
  */
 
+import { SIGNATURE_MAX_CHARS, signatureAlpha } from '../../core/signatures';
+
 /** Rozměry po zmenšení tak, aby delší strana nepřekročila `maxSide`; menší obrázek se nezvětšuje. */
 export function fitSize(width: number, height: number, maxSide: number): { width: number; height: number } {
   const longest = Math.max(width, height);
@@ -172,4 +174,40 @@ export function extensionForType(type: string): string {
     default:
       return '';
   }
+}
+
+/**
+ * Obrázek podpisu: naskenovaný nebo nafocený podpis se zmenší (nejvýš 600 × 220 bodů) a uloží jako PNG. S `removeBackground` se
+ * bílý papír zprůhlední (viz `signatureAlpha`), takže podpis v dokumentu nemá bílý obdélník. Když je výsledek příliš velký,
+ * zmenší se ještě víc.
+ */
+export async function prepareSignatureImage(blob: Blob, removeBackground: boolean): Promise<string> {
+  const img = await loadImage(blob);
+  for (const maxWidth of [600, 450, 320]) {
+    const maxHeight = Math.round(maxWidth * 0.37);
+    const k = Math.min(1, maxWidth / img.naturalWidth, maxHeight / img.naturalHeight);
+    const width = Math.max(1, Math.round(img.naturalWidth * k));
+    const height = Math.max(1, Math.round(img.naturalHeight * k));
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      throw new Error('Prohlížeč neumí obrázek zpracovat.');
+    }
+    ctx.drawImage(img, 0, 0, width, height);
+    if (removeBackground) {
+      const data = ctx.getImageData(0, 0, width, height);
+      for (let i = 0; i < data.data.length; i += 4) {
+        const a = signatureAlpha(data.data[i], data.data[i + 1], data.data[i + 2]);
+        data.data[i + 3] = Math.round((data.data[i + 3] * a) / 255);
+      }
+      ctx.putImageData(data, 0, 0);
+    }
+    const url = canvas.toDataURL('image/png');
+    if (url.length <= SIGNATURE_MAX_CHARS) {
+      return url;
+    }
+  }
+  throw new Error('Obrázek podpisu je příliš velký. Použijte menší nebo jednodušší obrázek, nebo podpis nakreslete.');
 }

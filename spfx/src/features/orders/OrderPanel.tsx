@@ -5,6 +5,7 @@
  * skutečná kontrola oprávnění znovu probíhá v datové vrstvě při zápisu.
  */
 
+import { UserSignature, signatureOf } from '../../core/signatures';
 import { folderFor } from '../../core/projectFolders';
 import * as React from 'react';
 import { Panel, PanelType } from '@fluentui/react/lib/Panel';
@@ -333,7 +334,8 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
       },
       settings.company
     );
-    renderOrderPdf(data)
+    withSignatures(data)
+      .then(renderOrderPdf)
       .then((blob) => saveConceptCopy(repos.documents, proj, folderFor(proj, 'orders', settings.folders), orderPdfFileName(saved.orderNumber), blob))
       .catch((e: unknown) =>
         setNotice({
@@ -550,11 +552,29 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
     };
   };
 
+  /**
+   * Doplní do PDF obrázky podpisů z profilů (vystavitel a schvalovatelé). Bez obrázku nebo když se podpisy nepodaří načíst zůstane v poli jen jméno
+   * se značkou elektronického podpisu — doklad se nikdy kvůli podpisu nezastaví.
+   */
+  const withSignatures = async (data: ReturnType<typeof orderPdfData>): Promise<ReturnType<typeof orderPdfData>> => {
+    const logins = [data.issuer ? data.issuer.login : '', ...data.approvals.map((a) => a.login || '')].filter((l) => l !== '');
+    if (logins.length === 0) {
+      return data;
+    }
+    const sigs = await repos.profiles.getSignatures(logins).catch((): Record<string, UserSignature> => ({}));
+    return {
+      ...data,
+      issuer: data.issuer ? { ...data.issuer, image: signatureOf(sigs, data.issuer.login) } : undefined,
+      approvals: data.approvals.map((a) => ({ ...a, image: signatureOf(sigs, a.login) }))
+    };
+  };
+
   const openPreview = (): void => {
     setError(undefined);
     setPreviewBlob(undefined);
     setPreviewOpen(true);
-    renderOrderPdf(pdfSource().data)
+    withSignatures(pdfSource().data)
+      .then(renderOrderPdf)
       .then(setPreviewBlob)
       .catch((e: Error) => {
         setPreviewOpen(false);
@@ -582,7 +602,7 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
     let mailSent = false;
     const why = (e: unknown): string => (e instanceof Error ? e.message : String(e));
     try {
-      const blob = await renderOrderPdf(data);
+      const blob = await renderOrderPdf(await withSignatures(data));
       const fileName = orderPdfFileName(order.orderNumber);
       stage = 'Uložení PDF do složky projektu';
       let pdfUrl: string | undefined;

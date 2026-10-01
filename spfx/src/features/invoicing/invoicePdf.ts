@@ -12,7 +12,8 @@ import { CompanySettings } from '../../core/settings';
 import { formatDate, formatMoneyExact } from '../../core/format';
 import { lineTotalNet } from '../../core/orders';
 import { InvoiceBasis, InvoiceKind, InvoiceStatus, invoiceDocumentTitle, invoiceKindOf, invoiceTotals } from '../../core/invoiceBases';
-import { GRAY, LINE, NAVY, companyLinesOf, documentFooter, documentHeader, party, pdfFileName, renderPdfDefinition, td, th } from '../orders/pdfCommon';
+import { GRAY, LINE, NAVY, companyLinesOf, documentFooter, documentHeader, party, pdfFileName, renderPdfDefinition, signatureGrid, td, th } from '../orders/pdfCommon';
+import { SignatureMark } from '../../core/signatures';
 
 export interface InvoicePdfData {
   number: string;
@@ -32,6 +33,8 @@ export interface InvoicePdfData {
   accountingInvoiceNo?: string;
   paidDate?: Date;
   watermark?: string;
+  /** Podpisy v ostrém dokladu (vystavitel) — se značkou elektronického podpisu. */
+  signatures?: SignatureMark[];
 }
 
 /** Vodoznak podle stavu: jen předaný a dále posunutý podklad je „čistý" doklad. */
@@ -52,7 +55,8 @@ export function invoicePdfData(
   invoice: InvoiceBasis,
   projectTitle: string,
   customer: InvoicePdfData['customer'],
-  company: CompanySettings
+  company: CompanySettings,
+  signatures?: SignatureMark[]
 ): InvoicePdfData {
   return {
     number: invoice.number,
@@ -71,7 +75,8 @@ export function invoicePdfData(
     requestedByName: invoice.requestedByName,
     accountingInvoiceNo: invoice.accountingInvoiceNo,
     paidDate: invoice.paidDate,
-    watermark: invoiceWatermark(invoice.status)
+    watermark: invoiceWatermark(invoice.status),
+    signatures
   };
 }
 
@@ -186,6 +191,11 @@ export function buildInvoiceDocument(data: InvoicePdfData): TDocumentDefinitions
   if (data.note && data.note.trim() !== '') {
     content.push({ text: 'Poznámka pro účtárnu', fontSize: 8, color: GRAY, bold: true });
     content.push({ text: data.note, fontSize: 9, margin: [0, 2, 0, 12] });
+  }
+
+  if (data.signatures && data.signatures.length > 0 && !data.watermark) {
+    content.push({ text: 'Podpis', fontSize: 8, color: GRAY, bold: true, margin: [0, 0, 0, 3] });
+    content.push(signatureGrid(data.signatures, 'podepsáno'));
   }
 
   content.push({ text: 'Zpracování v účetnictví', fontSize: 8, color: GRAY, bold: true, margin: [0, 0, 0, 3] });

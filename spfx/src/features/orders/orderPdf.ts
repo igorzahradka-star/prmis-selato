@@ -21,7 +21,8 @@ import {
   lineTotalNet,
   orderTotals
 } from '../../core/orders';
-import { GRAY, LINE, NAVY, companyLinesOf, documentFooter, documentHeader, pdfFileName, party, renderPdfDefinition, td, th } from './pdfCommon';
+import { GRAY, LINE, NAVY, companyLinesOf, documentFooter, documentHeader, pdfFileName, party, renderPdfDefinition, signatureGrid, td, th } from './pdfCommon';
+import { SignatureMark } from '../../core/signatures';
 
 export interface OrderPdfData {
   /** Číslo objednávky; u nezaložené objednávky „NÁVRH". */
@@ -39,7 +40,9 @@ export interface OrderPdfData {
   paymentTermDays?: number;
   note?: string;
   requestedByName: string;
-  approvals: { label: string; name: string; at?: Date; auto?: boolean }[];
+  approvals: { label: string; name: string; at?: Date; auto?: boolean; login?: string; image?: string }[];
+  /** Vystavitel — v ostrém dokladu podepsán (značka elektronického podpisu, případně obrázek podpisu z profilu). */
+  issuer?: { name: string; login: string; at?: Date; image?: string };
   /** Text vodoznaku; prázdný = schválený doklad bez vodoznaku. */
   watermark?: string;
 }
@@ -90,8 +93,10 @@ export function orderPdfData(
         label: APPROVAL_LEVEL_LABELS[s.level],
         name: s.auto ? `${order.requestedByName} (vystavitel, v rámci svého limitu)` : s.byName || '—',
         at: s.at,
-        auto: s.auto
+        auto: s.auto,
+        login: s.auto ? undefined : s.byLogin
       })),
+    issuer: { name: order.requestedByName, login: order.requestedByLogin, at: order.created },
     watermark: watermarkForStatus(order.status)
   };
 }
@@ -202,17 +207,13 @@ export function buildOrderDocument(data: OrderPdfData): TDocumentDefinitions {
   if (data.approvals.length === 0) {
     content.push({ text: 'Objednávka zatím není schválená.', fontSize: 9, italics: true, color: GRAY });
   } else {
-    content.push({
-      table: {
-        widths: [130, '*', 90],
-        body: data.approvals.map((a) => [
-          td(a.label),
-          td(a.name),
-          td(a.at ? formatDate(a.at) : a.auto ? 'automaticky' : '—')
-        ])
-      },
-      layout: { hLineColor: () => LINE, vLineColor: () => 'white', hLineWidth: () => 0.5, vLineWidth: () => 0 }
-    });
+    // Podpisová pole: vystavitel (jen v ostrém dokladu) a schvalovatelé, každý se značkou elektronického podpisu.
+    const marks: SignatureMark[] = [];
+    if (data.issuer && !data.watermark) {
+      marks.push({ label: 'Vystavil', name: data.issuer.name, at: data.issuer.at, image: data.issuer.image });
+    }
+    data.approvals.forEach((a) => marks.push({ label: a.label, name: a.name, at: a.at, auto: a.auto, image: a.image }));
+    content.push(signatureGrid(marks, 'schváleno'));
   }
 
   return {

@@ -139,3 +139,44 @@ describe('orderPdfFileName', () => {
     expect(orderPdfFileName('OBJ/2026:5')).toBe('OBJ_2026_5.pdf');
   });
 });
+
+describe('podpisová pole a značka elektronického podpisu', () => {
+  const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+  const dodavatel = { name: 'BELTEC s.r.o.' };
+
+  it('schválená objednávka: vystavitel i schvalovatel se značkou „Elektronicky schváleno“', () => {
+    const text = allText(buildOrderDocument(orderPdfData(objednavka, 'X', dodavatel, firma)).content);
+    expect(text).toContain('Anna Asistentka');
+    expect(text).toContain('Petr Manažer');
+    expect((text.match(/Elektronicky schváleno/g) || []).length).toBe(2);
+  });
+
+  it('koncept s vodoznakem vystavitele nepodepisuje, jen uvede už provedená schválení', () => {
+    const koncept: PurchaseOrder = { ...objednavka, status: OrderStatus.KeSchvaleni };
+    const text = allText(buildOrderDocument(orderPdfData(koncept, 'X', dodavatel, firma)).content);
+    // jen jedno podpisové pole (schvalovatel); vystavitel je uvedený jen v hlavičce, ne v podpisovém poli
+    expect((text.match(/Elektronicky schváleno/g) || []).length).toBe(1);
+    expect(text).toContain('Petr Manažer');
+  });
+
+  it('obrázek podpisu z profilu se vloží do pole', () => {
+    const data = orderPdfData(objednavka, 'X', dodavatel, firma);
+    const s = { ...data, approvals: data.approvals.map((a) => ({ ...a, image: PNG })), issuer: data.issuer ? { ...data.issuer, image: PNG } : undefined };
+    // podpis se v dokumentu objeví u vystavitele i schvalovatele; bez něj tam není
+    expect(JSON.stringify(buildOrderDocument(s).content).split(PNG).length - 1).toBe(2);
+    expect(JSON.stringify(buildOrderDocument(data).content).split(PNG).length - 1).toBe(0);
+  });
+
+  it('automatické schválení se ukáže jako automatické a nemá obrázek', () => {
+    const auto = { ...objednavka, approvalChain: [{ level: 'pm' as const, approved: true, auto: true }] };
+    const data = orderPdfData(auto, 'X', dodavatel, firma);
+    const text = allText(buildOrderDocument({ ...data, approvals: data.approvals.map((a) => ({ ...a, image: PNG })) }).content);
+    expect(text).toContain('schváleno automaticky');
+  });
+
+  it('přihlašovací jméno schvalovatele jde do dat (kvůli dohledání podpisu)', () => {
+    const d = orderPdfData({ ...objednavka, approvalChain: [{ level: 'pm', approved: true, byName: 'Petr Manažer', byLogin: 'petr@revoltum.cz' }] }, 'X', dodavatel, firma);
+    expect(d.approvals[0].login).toBe('petr@revoltum.cz');
+    expect(d.issuer?.login).toBe('anna');
+  });
+});

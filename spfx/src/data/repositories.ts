@@ -6,6 +6,7 @@
  * a UI se dá vyvíjet proti mock implementaci (viz `data/mock/`).
  */
 
+import type { UserSignature } from '../core/signatures';
 import type { FolderMap } from '../core/projectFolders';
 import { ProjectRemovalPreview, ProjectRemovalResult } from '../core/projectDeletion';
 import { CurrentUser, Currency, Partner, Project, ProjectStatus, ProjectTask, TaskType } from '../core/types';
@@ -741,6 +742,21 @@ export interface IRatesRepository {
 }
 
 /** Vše dohromady — předává se komponentám přes React context. */
+/**
+ * Profil uživatele — zatím podpis jako obrázek. Čtení podpisů **nikdy nesmí shodit** tvorbu dokladu: když seznam ještě není (před Instalací),
+ * vrací prázdný výsledek a doklad se vytvoří bez obrázku podpisu.
+ */
+export interface IProfileRepository {
+  /** Podpisy daných uživatelů podle přihlašovacího jména (klíč = `signatureKey`). Chybějící se vynechají. */
+  getSignatures(logins: string[]): Promise<Record<string, UserSignature>>;
+  /** Podpis jednoho uživatele, nebo `undefined`. */
+  getSignature(login: string): Promise<UserSignature | undefined>;
+  /** Uloží podpis přihlášeného uživatele (jen svůj; ověřuje se i zde). */
+  saveSignature(actor: CurrentUser, imageDataUrl: string): Promise<UserSignature>;
+  /** Odstraní podpis přihlášeného uživatele (jen svůj). */
+  removeSignature(actor: CurrentUser): Promise<void>;
+}
+
 export interface RepositorySet {
   users: IUserRepository;
   userAdmin: IUserAdminRepository;
@@ -753,6 +769,7 @@ export interface RepositorySet {
   invoices: IInvoiceRepository;
   diary: IDiaryRepository;
   rates: IRatesRepository;
+  profiles: IProfileRepository;
   mail: IMailRepository;
   numbering: INumberingRepository;
   install: IInstallRepository;

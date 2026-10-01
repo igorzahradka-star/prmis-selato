@@ -8,6 +8,7 @@
  * zdroje dat a předá je aplikaci. Veškerá logika je v `core/`, `data/` a `features/`.
  */
 
+import { SpProfileRepository } from '../../data/sharepoint/spProfileRepository';
 import * as React from 'react';
 import * as ReactDom from 'react-dom';
 import { Version } from '@microsoft/sp-core-library';
@@ -81,6 +82,7 @@ export default class PrmWebPart extends BaseClientSideWebPart<IPrmWebPartProps> 
     const projects = new SpProjectRepository(this.context, userId, numbering, settings);
     const partners = new SpPartnerRepository(this.context);
     const rates = new SpRatesRepository(this.context);
+    const profiles = new SpProfileRepository(this.context);
 
     return {
       users: new SpUserRepository(this.context, financeSiteUrl),
@@ -96,6 +98,7 @@ export default class PrmWebPart extends BaseClientSideWebPart<IPrmWebPartProps> 
       invoices: new SpInvoiceRepository(this.context, numbering, projects),
       diary: new SpDiaryRepository(this.context, projects, settings),
       rates,
+      profiles,
       mail: new SpMailRepository(this.context),
       numbering,
       install: new SpInstallRepository(this.context, financeSiteUrl, settings)

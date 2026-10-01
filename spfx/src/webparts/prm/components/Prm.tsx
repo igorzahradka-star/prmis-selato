@@ -3,6 +3,7 @@
  * podle adresy v hashi.
  */
 
+import { ProfilePage } from '../../../features/profile/ProfilePage';
 import * as React from 'react';
 import { ThemeProvider } from '@fluentui/react/lib/Theme';
 import { initializeIcons } from '@fluentui/react/lib/Icons';
@@ -131,6 +132,8 @@ function renderRoute(route: Route): React.ReactNode {
       return <UsersPage />;
     case RouteName.Settings:
       return <SettingsPage />;
+    case RouteName.Profile:
+      return <ProfilePage />;
     case RouteName.Help:
       return <HelpPage />;
     case RouteName.WaitingForMe:

@@ -11,7 +11,7 @@ import type { Content, TDocumentDefinitions, TableCell } from 'pdfmake/interface
 import { CompanySettings } from '../../core/settings';
 import { formatDate, formatDateTime } from '../../core/format';
 import { DiaryEntry, EntryStatus, SIGNATURE_LABELS, isImageFile, parseIsoDay } from '../../core/siteDiary';
-import { GRAY, LINE, NAVY, companyLinesOf, documentFooter, documentHeader, renderPdfDefinition, td, th } from '../orders/pdfCommon';
+import { GRAY, LINE, NAVY, companyLinesOf, documentFooter, documentHeader, renderPdfDefinition, signatureGrid, td, th } from '../orders/pdfCommon';
 
 export interface EntryImage {
   dataUrl: string;
@@ -26,6 +26,8 @@ export interface EntryDocData {
   company: CompanySettings;
   /** Obrázky použité v bodech (název souboru → obrázek). Ostatní soubory se v dokumentu jen vypíšou. */
   images: Record<string, EntryImage>;
+  /** Obrázek podpisu toho, kdo zápis podepsal v aplikaci (z jeho profilu); bez něj je v poli jen jméno se značkou. */
+  signature?: string;
 }
 
 /** Vodoznak podle stavu: jen uzavřený a podepsaný zápis je „čistý" doklad. */
@@ -215,6 +217,11 @@ export function buildEntryPdfDocument(data: EntryDocData): TDocumentDefinitions 
     if (signature) {
       content.push({ text: signature, fontSize: 8, bold: true, margin: [0, 3, 0, 0] });
     }
+  }
+  // Zápis podepsaný v aplikaci: podpisové pole se značkou elektronického podpisu (a obrázkem podpisu z profilu).
+  if (entry.status === EntryStatus.Podepsano && entry.signatureKind === 'aplikace' && entry.signedAt) {
+    content.push({ text: '', margin: [0, 6, 0, 0] } as Content);
+    content.push(signatureGrid([{ label: 'Podepsal', name: entry.signedByName || '—', at: entry.signedAt, image: data.signature }], 'podepsáno'));
   }
   if (entry.status === EntryStatus.Storno && entry.cancelReason) {
     content.push({ text: `Stornováno: ${entry.cancelReason}`, fontSize: 9, color: '#7A1712', margin: [0, 8, 0, 0] });

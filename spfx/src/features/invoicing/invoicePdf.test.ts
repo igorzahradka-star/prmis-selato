@@ -101,3 +101,23 @@ describe('zálohová faktura', () => {
     expect(invoiceKindOf({ kind: InvoiceKind.Zaloha })).toBe(InvoiceKind.Zaloha);
   });
 });
+
+describe('podpis na podkladu', () => {
+  const marks = [{ label: 'Vystavil', name: 'Jan Novák', at: new Date(2026, 9, 1, 10, 30) }];
+
+  it('ostrý (předaný) podklad má podpisové pole se značkou „Elektronicky podepsáno“', () => {
+    const text = allText(buildInvoiceDocument(invoicePdfData(podklad, 'X', { name: 'Z' }, firma, marks)).content);
+    expect(text).toContain('Elektronicky podepsáno');
+    expect(text).toContain('Jan Novák');
+  });
+
+  it('koncept s vodoznakem se nepodepisuje', () => {
+    const koncept = { ...podklad, status: InvoiceStatus.Koncept };
+    const text = allText(buildInvoiceDocument(invoicePdfData(koncept, 'X', { name: 'Z' }, firma, marks)).content);
+    expect(text).not.toContain('Elektronicky podepsáno');
+  });
+
+  it('bez podpisů se pole nevykreslí', () => {
+    expect(allText(buildInvoiceDocument(invoicePdfData(podklad, 'X', { name: 'Z' }, firma)).content)).not.toContain('Elektronicky');
+  });
+});

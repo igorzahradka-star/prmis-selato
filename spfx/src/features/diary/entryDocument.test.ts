@@ -181,3 +181,28 @@ describe('názvy souborů', () => {
     expect(extensionForType('text/x')).toBe('');
   });
 });
+
+describe('podpis zápisu v aplikaci', () => {
+  const firmaZapisu = { ...DEFAULT_SETTINGS.company };
+  const podepsany = (kind: 'aplikace' | 'sken'): DiaryEntry =>
+    zapis({ status: EntryStatus.Podepsano, signatureKind: kind, signedByName: 'Petr Manažer', signedAt: new Date(2026, 9, 2, 9, 15), closedByName: 'Anna', closedAt: new Date(2026, 9, 1), contentHash: 'abc' });
+
+  it('podepsaný v aplikaci: podpisové pole se značkou a jménem', () => {
+    const doc = buildEntryPdfDocument({ entry: podepsany('aplikace'), projectTitle: 'X', company: firmaZapisu, images: {} });
+    const json = JSON.stringify(doc.content);
+    expect(json).toContain('Elektronicky podepsáno');
+    expect(json).toContain('Petr Manažer');
+  });
+
+  it('obrázek podpisu se vloží, když ho podepisující má v profilu', () => {
+    const doc = buildEntryPdfDocument({ entry: podepsany('aplikace'), projectTitle: 'X', company: firmaZapisu, images: {}, signature: TINY_JPEG });
+    expect(JSON.stringify(doc.content)).toContain('"image":"data:image/jpeg');
+  });
+
+  it('podepsaný skenem a nepodepsaný zápis pole se značkou nemá', () => {
+    const sken = JSON.stringify(buildEntryPdfDocument({ entry: podepsany('sken'), projectTitle: 'X', company: firmaZapisu, images: {} }).content);
+    const koncept = JSON.stringify(buildEntryPdfDocument({ entry: zapis(), projectTitle: 'X', company: firmaZapisu, images: {} }).content);
+    expect(sken).not.toContain('Elektronicky podepsáno');
+    expect(koncept).not.toContain('Elektronicky podepsáno');
+  });
+});

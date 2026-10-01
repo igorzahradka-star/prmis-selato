@@ -639,7 +639,8 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
       afterChange(signed);
       stage = 'Přepsání PDF a Wordu s podpisem';
       try {
-        const data = await docDataOf(signed, blobs);
+        const mine = await repos.profiles.getSignature(user.loginName).catch(() => undefined);
+        const data = { ...(await docDataOf(signed, blobs)), signature: mine ? mine.imageDataUrl : undefined };
         await saveOutputs(signed, data, project);
       } catch (err) {
         setNotice({ text: `Zápis je podepsaný, ale PDF s podpisem se nepodařilo přepsat (${why(err)}). Uložené PDF je ze stavu před podpisem.`, type: MessageBarType.warning });

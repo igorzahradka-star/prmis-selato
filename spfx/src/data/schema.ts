@@ -18,7 +18,7 @@
  * Verze schématu. Ukládá se do PRM_Settings pod klíčem `schemaVersion`.
  * Průvodce porovná uloženou verzi s touto a nabídne doplnění rozdílu.
  */
-export const SCHEMA_VERSION = 11;
+export const SCHEMA_VERSION = 12;
 
 /** Typ sloupce v SharePointu. */
 export type FieldType =
@@ -603,11 +603,27 @@ const PRM_EXCHANGE_RATES: ListDef = {
   ]
 };
 
+const PRM_USER_PROFILES: ListDef = {
+  name: 'PRM_UserProfiles',
+  title: 'PRM – Profily uživatelů',
+  description: 'Osobní nastavení uživatelů — zatím podpis jako obrázek pro vkládání do ostrých dokladů (objednávky, podklady, zápisy).',
+  kind: 'list',
+  site: 'PRM',
+  versioning: true,
+  fields: [
+    { name: 'UserLogin', title: 'Přihlašovací jméno', type: 'Text', required: true, indexed: true },
+    { name: 'UserName', title: 'Jméno', type: 'Text' },
+    { name: 'Signature', title: 'Podpis (obrázek)', type: 'Note', description: 'Obrázek podpisu jako PNG/JPEG data URL. Nastavuje si každý sám v aplikaci (Můj profil).' },
+    { name: 'SignatureUpdated', title: 'Podpis změněn', type: 'DateTime' }
+  ]
+};
+
 export const LISTS: ListDef[] = [
   PRM_SETTINGS,
   PRM_DOCTYPES,
   PRM_COUNTERS,
   PRM_EXCHANGE_RATES,
+  PRM_USER_PROFILES,
   PRM_PARTNERS,
   PRM_PROJECTS,
   PRM_TASKS,

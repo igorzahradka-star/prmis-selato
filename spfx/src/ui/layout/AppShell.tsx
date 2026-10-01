@@ -260,15 +260,17 @@ const Header: React.FC<{ onToggleNav: () => void }> = ({ onToggleNav }) => {
 
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 18 }}>
         <HeaderTools />
-        <Persona
-          text={user.displayName}
-          secondaryText={user.email}
-          size={PersonaSize.size32}
-          styles={{
-            primaryText: { color: RES.white },
-            secondaryText: { color: RES.grayBlue }
-          }}
-        />
+        <a href={buildHash(RouteName.Profile)} title="Můj profil a podpis" style={{ textDecoration: 'none', color: 'inherit' }}>
+          <Persona
+            text={user.displayName}
+            secondaryText={user.email}
+            size={PersonaSize.size32}
+            styles={{
+              primaryText: { color: RES.white, cursor: 'pointer' },
+              secondaryText: { color: RES.grayBlue, cursor: 'pointer' }
+            }}
+          />
+        </a>
         {dataSource !== 'mock' && <HomeButton />}
         {dataSource !== 'mock' && <FullScreenButton />}
       </div>

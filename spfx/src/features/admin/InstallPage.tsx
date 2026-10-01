@@ -19,6 +19,7 @@ import { RES } from '../../ui/theme';
 import { PageHeading } from '../../ui/components/PageHeading';
 import { DiagnosticItem, DiagnosticReport, InstallProgress } from '../../data/repositories';
 import { canOpenAdmin } from '../../core/roles';
+import { SpeedCard } from './SpeedCard';
 
 export const InstallPage: React.FC = () => {
   const { repos, user, dataSource } = useApp();
@@ -159,6 +160,8 @@ export const InstallPage: React.FC = () => {
           />
         </>
       )}
+
+      {dataSource !== 'mock' && <SpeedCard />}
 
       <Dialog
         hidden={!confirmOpen}

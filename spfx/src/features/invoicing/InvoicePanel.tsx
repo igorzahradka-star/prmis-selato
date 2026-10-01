@@ -8,6 +8,7 @@
  * Okna (náhled, odeslání, komentář) jsou uvnitř panelu — jinak by klik v nich panel považoval za klik „ven" a zavřel se.
  */
 
+import { UserSignature, signatureOf } from '../../core/signatures';
 import { folderFor } from '../../core/projectFolders';
 import * as React from 'react';
 import { Panel, PanelType } from '@fluentui/react/lib/Panel';
@@ -420,8 +421,12 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
 
   // --- náhled PDF a odeslání účtárně ---
 
-  const pdfSource = (): ReturnType<typeof invoicePdfData> => {
-    const inv: InvoiceBasis =
+  /**
+   * `asStatus` — v jakém stavu se PDF vykreslí. Při předání účtárně se PDF dělá ještě ve stavu před předáním; ostrý doklad ale nemá nést vodoznak
+   * „NÁHLED – NEPŘEDÁNO“, proto se tehdy vykreslí, jako by už byl předaný.
+   */
+  const pdfSource = (asStatus?: InvoiceStatus): ReturnType<typeof invoicePdfData> => {
+    const inv0: InvoiceBasis =
       editing || !invoice
         ? {
             id: invoice ? invoice.id : 0,
@@ -442,6 +447,7 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
             note: fNote.trim() || undefined
           }
         : invoice;
+    const inv: InvoiceBasis = asStatus ? { ...inv0, status: asStatus } : inv0;
     const partner = inv.customerName ? partners.filter((p) => p.name === inv.customerName)[0] : undefined;
     return invoicePdfData(
       inv,
@@ -457,11 +463,25 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
     );
   };
 
+  /** Ostrý doklad (bez vodoznaku) dostane podpisové pole vystavitele se značkou elektronického podpisu a obrázkem podpisu z profilu (když ho má). */
+  const withSignature = async (data: ReturnType<typeof invoicePdfData>): Promise<ReturnType<typeof invoicePdfData>> => {
+    if (data.watermark) {
+      return data;
+    }
+    const login = invoice ? invoice.requestedByLogin : user.loginName;
+    const sigs = await repos.profiles.getSignatures([login]).catch((): Record<string, UserSignature> => ({}));
+    return {
+      ...data,
+      signatures: [{ label: 'Vystavil', name: data.requestedByName, at: invoice && invoice.handoverDate ? invoice.handoverDate : new Date(), image: signatureOf(sigs, login) }]
+    };
+  };
+
   const openPreview = (): void => {
     setError(undefined);
     setPreviewBlob(undefined);
     setPreviewOpen(true);
-    renderInvoicePdf(pdfSource())
+    withSignature(pdfSource())
+      .then(renderInvoicePdf)
       .then(setPreviewBlob)
       .catch((e: Error) => {
         setPreviewOpen(false);
@@ -483,7 +503,8 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
     let stage = 'Vytvoření PDF';
     let mailSent = false;
     try {
-      const blob = await renderInvoicePdf(pdfSource());
+      const alreadyHandedOver = invoice.status === InvoiceStatus.Predano || invoice.status === InvoiceStatus.Vyfakturovano || invoice.status === InvoiceStatus.Uhrazeno;
+      const blob = await renderInvoicePdf(await withSignature(pdfSource(alreadyHandedOver ? undefined : InvoiceStatus.Predano)));
       const fileName = invoicePdfFileName(invoice.number);
       stage = 'Uložení PDF do složky projektu';
       let pdfUrl: string | undefined;

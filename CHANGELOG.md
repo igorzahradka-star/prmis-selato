@@ -5,6 +5,29 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.19.0 — 1. 10. 2026 — Podpis jako obrázek v profilu a značka elektronického podpisu, bublina na mapě, složka u starších zápisů, měření rychlosti
+
+**Nové**
+
+- **Můj profil** (klik na jméno vpravo nahoře): každý uživatel si uloží **obrázek svého podpisu** — nahraje sken nebo fotku (bílé pozadí se zprůhlední), nebo se podepíše myší, prstem či perem.
+- **Značka elektronického podpisu v PDF.** V ostrých dokladech je podpisové pole: role (Vystavil, Projektový manažer, Vedení, Jednatel…), obrázek podpisu z profilu (když ho člověk má), čára, **značka (kolečko s fajfkou)**,
+  jméno a „Elektronicky schváleno / podepsáno · datum a čas“. Objednávka: vystavitel (jen v ostrém dokladu) a každý schvalovatel; automatické schválení se označí jako automatické; podklad pro fakturaci: vystavitel; zápis ze stavby
+  podepsaný v aplikaci: podepisující. Koncept s vodoznakem se nepodepisuje. Není to kvalifikovaný (certifikátový) podpis — je to doložení, že doklad v aplikaci vystavil či schválil konkrétní uživatel.
+- **Měření rychlosti načítání** (Instalace a diagnostika → Rychlost načítání): změří hlavní seznamy aplikace (projekty, objednávky, podklady, partneři, kurzy, zápisy), každý dvakrát, a ukáže, který trvá. Slouží k hledání pomalého místa.
+
+**Změněno**
+
+- **Bublina u špendlíku na mapě**: Název, Projektový manažer, Celková cena (ve výchozí měně přehledů), Dokončení (předpokládané), Stav, Rozpočet. Typ a Termíny se nezobrazují.
+
+**Opraveno**
+
+- **Tlačítko se složkou u zápisů** (a odkazy „Otevřít složku“ u fotek) končilo u starších dokladů chybou 404 — adresa se skládala z uložené cesty. Teď se složka **hledá v SharePointu tolerantně** (číslo na začátku, pomlčka/podtržítko, diakritika) a otevře se ta skutečná.
+- **PDF podkladu pro fakturaci uložené při prvním předání účtárně neslo vodoznak „NÁHLED – NEPŘEDÁNO“**, protože se vykreslilo ještě ve stavu před předáním. Teď se vykresluje jako předaný doklad.
+
+**Schéma dat: 12** (nový seznam PRM_UserProfiles — podpisy uživatelů). **Po nahrání balíčku spusťte Instalaci a diagnostiku.** Bez ní jde aplikace používat, jen se podpis nedá uložit (aplikace to řekne).
+
+---
+
 ## 0.18.0 — 1. 10. 2026 — Režie má vlastní strukturu složek, oprava odkazu na složku, Nastavení projektu (ozubené kolečko)
 
 **Nové**

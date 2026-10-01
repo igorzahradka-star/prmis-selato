@@ -23,7 +23,8 @@ export enum RouteName {
   Users = 'uzivatele',
   Settings = 'nastaveni',
   Install = 'instalace',
-  Help = 'napoveda'
+  Help = 'napoveda',
+  Profile = 'profil'
 }
 
 export interface Route {
