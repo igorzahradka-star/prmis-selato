@@ -145,7 +145,7 @@ export class SpTaskRepository implements ITaskRepository {
       FinishDate: input.finishDate ? input.finishDate.toISOString() : null,
       IsContractualDeadline: input.isContractualDeadline,
       PercentComplete: input.percentComplete,
-      ResponsibleId: input.responsibleName ? await this.resolveUserId(sp, input.responsibleName) : null
+      ResponsibleId: await this.responsibleId(sp, input)
     };
   }
 
@@ -172,6 +172,28 @@ export class SpTaskRepository implements ITaskRepository {
       throw new Error('Termín není navázaný na žádný projekt.');
     }
     return number;
+  }
+
+  /**
+   * ID odpovědné osoby. Osoba vybraná z adresáře firmy se podle přihlašovacího jména **přidá na web** (ensureUser), takže jde
+   * vybrat i člověka, který na web ještě nikdy nebyl. Bez přihlašovacího jména (starší uložená hodnota) se hledá podle jména.
+   */
+  private async responsibleId(sp: SPFI, input: TaskInput): Promise<number | null> {
+    if (input.responsibleLogin) {
+      try {
+        const ensured = (await sp.web.ensureUser(input.responsibleLogin)) as unknown as { data?: { Id?: number }; Id?: number };
+        const id = ensured.data?.Id ?? ensured.Id;
+        if (id !== undefined) {
+          return id;
+        }
+      } catch (error) {
+        throw new Error(describeSpError(error, `Osobu „${input.responsibleName ?? input.responsibleLogin}“ se nepodařilo přidat na web`));
+      }
+    }
+    if (input.responsibleName) {
+      return (await this.resolveUserId(sp, input.responsibleName)) ?? null;
+    }
+    return null;
   }
 
   /** Najde ID uživatele webu podle zobrazovaného jména — pro sloupec typu Osoba. */

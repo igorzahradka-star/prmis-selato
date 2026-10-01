@@ -28,7 +28,8 @@ import {
   normalizeLoginKey
 } from '../../core/userAdmin';
 import { renderDocumentNumber, nextSequence, counterScopeKey, CounterState } from '../../core/numbering';
-import { projectFolderRoot } from '../../core/folders';
+import { projectFolderName, projectFolderRoot } from '../../core/folders';
+import { ProjectRemovalPreview, ProjectRemovalResult } from '../../core/projectDeletion';
 import {
   overheadProjectNumber,
   overheadProjectTitle,
@@ -333,7 +334,15 @@ export class MockProjectRepository implements IProjectRepository {
     );
   }
 
-  public async remove(projectNumber: string, actor: CurrentUser, reason?: string): Promise<void> {
+  public async describeRemoval(projectNumber: string): Promise<ProjectRemovalPreview> {
+    const project = this.projects.filter((p) => p.projectNumber === projectNumber)[0];
+    if (!project) {
+      throw new Error(`Projekt ${projectNumber} nebyl nalezen.`);
+    }
+    return delay({ counts: [], folderUrl: project.folderUrl });
+  }
+
+  public async remove(projectNumber: string, actor: CurrentUser, reason?: string): Promise<ProjectRemovalResult> {
     // Stejná kontrola jako v ostré implementaci — skrytí tlačítka v UI není ochrana.
     if (!canDeleteProject(actor.roles)) {
       throw new Error('Mazat projekty smí jen administrátor PRM.');
@@ -345,7 +354,7 @@ export class MockProjectRepository implements IProjectRepository {
     this.projects = this.projects.filter((p) => p.projectNumber !== projectNumber);
     this.versions.delete(projectNumber);
     this.deleted.push({ projectNumber, by: actor.displayName, reason });
-    return delay(undefined);
+    return delay({ deleted: [], folderRecycled: false, folderWarning: 'Ukázkový režim: nic se opravdu nemaže.' });
   }
 
   /** Co se v ukázkovém režimu „smazalo" — zastupuje koš SharePointu a auditní log. */
@@ -496,7 +505,7 @@ export class MockProjectRepository implements IProjectRepository {
     const settings = await this.settings.get();
     // Rok podsložky = rok založení (dnešek), ne plánované zahájení projektu —
     // odpovídá tak roku v přiděleném čísle, i při pozdějším opakovaném pokusu.
-    const root = projectFolderRoot(settings.folders, project.title, new Date(), project.isOverhead ? new Date().getFullYear() : undefined);
+    const root = projectFolderRoot(settings.folders, projectFolderName(project.projectNumber, project.title), new Date(), project.isOverhead ? new Date().getFullYear() : undefined);
     const folderUrl = `#/ukazkovy-rezim/slozka/${encodeURIComponent(root || project.title)}`;
     this.projects = this.projects.map((p) => (p.id === project.id ? { ...p, folderUrl } : p));
     return undefined;

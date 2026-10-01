@@ -81,6 +81,8 @@ export function defaultOrderMail(input: {
 /** Výchozí předmět a text e-mailu účtárně s podkladem pro fakturaci. Uživatel je před odesláním může upravit. */
 export function defaultInvoiceMail(input: {
   number: string;
+  /** Podklad pro zálohovou fakturu (jinak běžná faktura). */
+  advance?: boolean;
   projectNumber: string;
   projectName?: string;
   customerName?: string;
@@ -93,13 +95,13 @@ export function defaultInvoiceMail(input: {
   const lines = [
     'Dobrý den,',
     '',
-    `v příloze zasíláme podklad pro fakturaci č. ${input.number}.`,
+    `v příloze zasíláme podklad pro ${input.advance ? 'zálohovou fakturu' : 'fakturaci'} č. ${input.number}.`,
     `Projekt: ${input.projectNumber}${input.projectName ? ' ' + input.projectName : ''}`,
     `Odběratel: ${input.customerName || '—'}`,
     `Částka bez DPH: ${input.amountText}`,
     input.dueDate ? `Splatnost: ${input.dueDate}` : '',
     '',
-    'Prosíme o vystavení faktury a sdělení jejího čísla.',
+    input.advance ? 'Prosíme o vystavení zálohové faktury a sdělení jejího čísla.' : 'Prosíme o vystavení faktury a sdělení jejího čísla.',
     '',
     'S pozdravem',
     input.senderName,
@@ -107,7 +109,7 @@ export function defaultInvoiceMail(input: {
     input.senderEmail || ''
   ];
   const body = lines.filter((l, i) => !(l === '' && i === 6)).join('\n').replace(/\n{3,}/g, '\n\n').replace(/\n+$/, '');
-  return { subject: `Podklad pro fakturaci ${input.number} – ${input.customerName || input.projectNumber}`, body };
+  return { subject: `Podklad pro ${input.advance ? 'zálohovou fakturu' : 'fakturaci'} ${input.number} – ${input.customerName || input.projectNumber}`, body };
 }
 
 /** Co Microsoft Graph vrátil při odeslání — nejen text, ale i číselný kód, ze kterého jde poznat příčina. */

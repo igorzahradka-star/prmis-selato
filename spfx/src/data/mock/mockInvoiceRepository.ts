@@ -240,7 +240,7 @@ export class MockInvoiceRepository implements IInvoiceRepository {
     }
   }
 
-  private fromInput(input: InvoiceInput): Pick<InvoiceBasis, 'customerId' | 'customerName' | 'lines' | 'amountNet' | 'vatRate' | 'currency' | 'issueDate' | 'taxableDate' | 'dueDate' | 'note'> {
+  private fromInput(input: InvoiceInput): Pick<InvoiceBasis, 'kind' | 'customerId' | 'customerName' | 'lines' | 'amountNet' | 'vatRate' | 'currency' | 'issueDate' | 'taxableDate' | 'dueDate' | 'note'> {
     return {
       customerId: input.customerId,
       customerName: input.customerName,
@@ -249,6 +249,7 @@ export class MockInvoiceRepository implements IInvoiceRepository {
       vatRate: input.vatRate,
       currency: input.currency,
       issueDate: input.issueDate,
+      kind: input.kind,
       taxableDate: input.taxableDate,
       dueDate: input.dueDate,
       note: input.note

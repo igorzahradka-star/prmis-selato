@@ -5,6 +5,39 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.15.0 — 1. 10. 2026 — Opravy složek, mazání projektu, koncepty (KO), zálohová faktura, výběr osob
+
+**Opraveno**
+
+- **Složky nového projektu.** Složka projektu se zakládá jako `26007-Název` (číslo, pomlčka, název — jako ve stávajících projektech) přímo v `General/01_PROJEKTY`
+  a **vždy se založí celá struktura podsložek**. Odkaz „Otevřít složku projektu“ míří vždy na **kořen složky projektu**, ne na poslední podsložku
+  (u projektů založených starší verzí to dělalo, že se otevřela např. `10-Servis`). Oprava starších projektů: tlačítko **Opravit složky** v detailu projektu
+  založí chybějící složky na správném místě a přepíše odkaz; nic nemaže ani nepřesouvá.
+- **Instalace a diagnostika** ukáže, jestli kořenová složka projektů z Nastavení v knihovně existuje, a upozorní na chybně slepenou složku `General01_PROJEKTY`.
+- **Patička aplikace ukazuje verzi balíčku** (např. „verze 0.15.0.0“), aby šlo hned poznat, jaká verze na SharePointu opravdu běží.
+- **Pole „Odpovídá“ u termínů** bylo obyčejné textové pole (prohlížeč nabízel dříve napsané texty) a neznámé jméno tiše zahazovalo. Teď je to **výběr osoby ze všech uživatelů
+  tenantu** (napište aspoň 3 znaky jména nebo e-mailu); osoba, která na web ještě nebyla, se přidá automaticky.
+
+**Nové**
+
+- **Smazání projektu (jen administrátor).** Tlačítko **Smazat projekt** v detailu projektu: velké červené varování s přesným rozsahem, potvrzení opsáním čísla projektu.
+  Smaže se (vše **do koše SharePointu**, obnovitelné 93 dní): evidence projektu, jeho objednávky se schvalováním, podklady pro fakturaci, stavební deníky a zápisy, termíny,
+  rozpočtové položky a **složka projektu i s dokumenty a fotkami**. Složku aplikace smaže jen když leží přímo v `General/01_PROJEKTY`; jinak ji nechá a řekne to
+  (smaže se ručně). Projekt Režie se nemaže. Zůstává záznam v auditním logu.
+- **Koncepty (KO) ve složce projektu.** Objednávka, podklad pro fakturaci i zápis ze stavby se do složky projektu ukládají **už při uložení konceptu** jako
+  `OBJ-2026-0001 (KO).pdf` (u zápisu PDF i Word). Ostrý dokument má stejný název bez `(KO)`; po vystavení (odeslání objednávky, předání podkladu účtárně, uzavření zápisu)
+  se koncept nahradí ostrou verzí (koncept se smaže do koše). Při stornu nebo smazání dokumentu **koncept zůstává**.
+- **Tlačítko se složkou** v hlavičce objednávky, podkladu a zápisu otevře v nové kartě složku, kde dokument leží (aby šel soubor rovnou odeslat).
+- **Zálohová faktura.** Podklad pro fakturaci má **druh dokladu**: Faktura / Zálohová faktura (stejná řada čísel FP). Záloha má nadpis „Podklad pro zálohovou fakturu“,
+  nemá DUZP a e-mail účtárně to říká. V seznamu je u zálohy popisek „záloha“. **Schéma dat 10 (nový sloupec Druh) — po nahrání balíčku spusťte Instalaci a diagnostiku.**
+
+**Ručně:** projekty a složky založené starší verzí (např. `General01_PROJEKTY`, složka testovacího projektu 26007) je potřeba přesunout nebo smazat ručně;
+aplikace staré složky sama nemaže.
+
+**Schéma dat: 10** (přidáno: PRM_InvoiceBases → Druh).
+
+---
+
 ## 0.14.0 — 1. 10. 2026 — Fotodokumentace jinak: dávky s názvem, poznámky, galerie, fotky do zápisu
 
 **Nové**

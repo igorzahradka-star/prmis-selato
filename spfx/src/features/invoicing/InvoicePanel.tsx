@@ -19,6 +19,8 @@ import { Dialog, DialogType, DialogFooter } from '@fluentui/react/lib/Dialog';
 import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 import { Link } from '@fluentui/react/lib/Link';
 
+import { DocumentFolderButton } from '../../ui/components/DocumentFolderButton';
+import { removeConceptCopy, saveConceptCopy } from '../documents/conceptCopy';
 import { useApp } from '../../ui/AppContext';
 import { RES } from '../../ui/theme';
 import { CS_CALENDAR_STRINGS } from '../../ui/csCalendarStrings';
@@ -29,9 +31,12 @@ import { Currency, Partner, Project } from '../../core/types';
 import { formatDate, formatDateTime, formatMoney, parseAmount, parseCzechDate } from '../../core/format';
 import { OrderLine, lineTotalNet } from '../../core/orders';
 import {
+  INVOICE_KIND_CHOICES,
   InvoiceBasis,
+  InvoiceKind,
   InvoiceStatus,
   dueDateFrom,
+  invoiceKindOf,
   invoiceTotals,
   isOverdue,
   paymentDays,
@@ -89,6 +94,8 @@ const CURRENCY_OPTIONS: IDropdownOption[] = [
   { key: 'USD', text: 'USD' }
 ];
 
+const KIND_OPTIONS: IDropdownOption[] = INVOICE_KIND_CHOICES.map((k) => ({ key: k, text: k }));
+
 const DEFAULT_DAYS = 30;
 
 const today = (): Date => {
@@ -122,6 +129,7 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
   const [fLines, setFLines] = React.useState<LineForm[]>([emptyLine()]);
   const [fVat, setFVat] = React.useState(21);
   const [fCurrency, setFCurrency] = React.useState<Currency>('CZK');
+  const [fKind, setFKind] = React.useState<InvoiceKind>(InvoiceKind.Faktura);
   const [fIssue, setFIssue] = React.useState<Date | undefined>(today());
   const [fTaxable, setFTaxable] = React.useState<Date | undefined>(today());
   const [fDays, setFDays] = React.useState(String(DEFAULT_DAYS));
@@ -141,6 +149,7 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
     );
     setFVat(inv ? inv.vatRate : 21);
     setFCurrency((inv?.currency as Currency) || 'CZK');
+    setFKind(inv ? invoiceKindOf(inv) : InvoiceKind.Faktura);
     setFIssue(inv ? inv.issueDate : today());
     setFTaxable(inv ? inv.taxableDate : today());
     const days = inv ? paymentDays(inv.issueDate, inv.dueDate) : undefined;
@@ -240,6 +249,7 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
 
   const buildInput = (): InvoiceInput => ({
     projectNumber: fProject ?? '',
+    kind: fKind,
     customerId: customer ? customer.id : undefined,
     customerName,
     lines: buildLines(),
@@ -346,6 +356,35 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
     }
   };
 
+  /** Koncept PDF (KO) do složky projektu — podklad se do složky ukládá už při uložení konceptu. Na pozadí; selhání se ukáže upozorněním. */
+  const saveConcept = (saved: InvoiceBasis): void => {
+    const proj = projects.filter((p) => p.projectNumber === saved.projectNumber)[0];
+    if (!proj || !proj.folderUrl) {
+      return;
+    }
+    const partner = saved.customerName ? partners.filter((p) => p.name === saved.customerName)[0] : undefined;
+    const data = invoicePdfData(
+      saved,
+      proj.shortName || proj.title,
+      {
+        name: partner ? partner.name : saved.customerName || '—',
+        address: partner ? partner.address : undefined,
+        ico: partner ? partner.ico : undefined,
+        dic: partner ? partner.dic : undefined,
+        email: partner ? partner.email : undefined
+      },
+      settings.company
+    );
+    renderInvoicePdf(data)
+      .then((blob) => saveConceptCopy(repos.documents, proj, settings.folders.invoiceFolder, invoicePdfFileName(saved.number), blob))
+      .catch((e: unknown) =>
+        setNotice({
+          text: `Podklad je uložený, ale koncept PDF (KO) se do složky projektu nepodařilo uložit: ${why(e)}`,
+          type: MessageBarType.warning
+        })
+      );
+  };
+
   const save = async (thenSubmit: boolean): Promise<void> => {
     const input = buildInput();
     const found = validateInvoiceDraft(input, thenSubmit);
@@ -363,6 +402,7 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
       onChanged();
       afterChange(saved);
       setEditing(false);
+      saveConcept(saved);
       if (thenSubmit) {
         if (mayCheck) {
           setSendError(undefined);
@@ -385,6 +425,7 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
         ? {
             id: invoice ? invoice.id : 0,
             number: invoice ? invoice.number : 'NÁVRH',
+            kind: fKind,
             projectNumber: fProject ?? '',
             customerName,
             lines: buildLines(),
@@ -462,6 +503,8 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
       stage = again ? 'Zápis opakovaného předání' : 'Zápis předání účtárně';
       const options = { sentTo: payload ? payload.to.join(', ') : undefined, pdfUrl };
       const updated = again ? await repos.invoices.resend(invoice.id, user, options) : await repos.invoices.handOver(invoice.id, user, options);
+      // Ostrá verze je uložená — koncept (KO) už není potřeba (maže se do koše SharePointu).
+      await removeConceptCopy(repos.documents, project, settings.folders.invoiceFolder, fileName);
       setSendOpen(undefined);
       afterChange(updated);
     } catch (e) {
@@ -519,7 +562,9 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
   const totals = invoiceTotals(input.lines, fVat);
   const dueText = dueFromForm();
 
-  const headerText = invoice ? `Podklad ${invoice.number}` : 'Nový podklad pro fakturaci';
+  const headerText = invoice
+    ? `Podklad ${invoice.number}${invoiceKindOf(invoice) === InvoiceKind.Zaloha ? ' · zálohová faktura' : ''}`
+    : 'Nový podklad pro fakturaci';
 
   const DIALOG_TEXT: Record<DialogKind, { title: string; label: string; required: boolean; confirm: string }> = {
     return: {
@@ -616,6 +661,7 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
   const accountingMail = (): { subject: string; body: string } =>
     defaultInvoiceMail({
       number: invoice ? invoice.number : '',
+      advance: invoice ? invoiceKindOf(invoice) === InvoiceKind.Zaloha : false,
       projectNumber: invoice ? invoice.projectNumber : '',
       projectName: project ? project.shortName || project.title : undefined,
       customerName: invoice ? invoice.customerName : undefined,
@@ -634,6 +680,12 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
         type={PanelType.large}
         headerText={headerText}
         closeButtonAriaLabel="Zavřít"
+        onRenderNavigationContent={(props, defaultRender) => (
+          <>
+            <DocumentFolderButton project={project} relativeFolder={settings.folders.invoiceFolder} />
+            {defaultRender ? defaultRender(props) : null}
+          </>
+        )}
         isFooterAtBottom
         onRenderFooterContent={footer}
       >
@@ -661,6 +713,14 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
                 </ul>
               </MessageBar>
             )}
+
+            <Dropdown
+              label="Druh dokladu"
+              options={KIND_OPTIONS}
+              selectedKey={fKind}
+              onChange={(_, o) => o && setFKind(String(o.key) as InvoiceKind)}
+              styles={{ root: { maxWidth: 260 } }}
+            />
 
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
               <Dropdown
@@ -770,16 +830,18 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
                 allowTextInput
                 styles={{ root: { flex: '1 1 160px' } }}
               />
-              <DatePicker
-                label="DUZP"
-                value={fTaxable}
-                onSelectDate={(d) => setFTaxable(d ?? undefined)}
-                formatDate={(d) => (d ? formatDate(d) : '')}
-                strings={CS_CALENDAR_STRINGS}
-                parseDateFromString={(t) => parseCzechDate(t) ?? null}
-                allowTextInput
-                styles={{ root: { flex: '1 1 160px' } }}
-              />
+              {fKind !== InvoiceKind.Zaloha && (
+                <DatePicker
+                  label="DUZP"
+                  value={fTaxable}
+                  onSelectDate={(d) => setFTaxable(d ?? undefined)}
+                  formatDate={(d) => (d ? formatDate(d) : '')}
+                  strings={CS_CALENDAR_STRINGS}
+                  parseDateFromString={(t) => parseCzechDate(t) ?? null}
+                  allowTextInput
+                  styles={{ root: { flex: '1 1 160px' } }}
+                />
+              )}
               <TextField
                 label="Splatnost (dnů)"
                 value={fDays}
@@ -929,7 +991,8 @@ const InvoiceDetail: React.FC<{
         />
         <Row label="Odběratel" value={invoice.customerName || '—'} />
         <Row label="Datum vystavení" value={invoice.issueDate ? formatDate(invoice.issueDate) : '—'} />
-        <Row label="DUZP" value={invoice.taxableDate ? formatDate(invoice.taxableDate) : '—'} />
+        <Row label="Druh dokladu" value={invoiceKindOf(invoice)} />
+        {invoiceKindOf(invoice) !== InvoiceKind.Zaloha && <Row label="DUZP" value={invoice.taxableDate ? formatDate(invoice.taxableDate) : '—'} />}
         <Row label="Splatnost" value={invoice.dueDate ? formatDate(invoice.dueDate) : '—'} />
         <Row label="Vystavil" value={invoice.requestedByName || '—'} />
         {invoice.handoverDate && <Row label="Předáno účtárně" value={formatDate(invoice.handoverDate)} />}

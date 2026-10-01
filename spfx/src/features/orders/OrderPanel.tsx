@@ -17,6 +17,8 @@ import { Dialog, DialogType, DialogFooter } from '@fluentui/react/lib/Dialog';
 import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 import { Link } from '@fluentui/react/lib/Link';
 
+import { DocumentFolderButton } from '../../ui/components/DocumentFolderButton';
+import { removeConceptCopy, saveConceptCopy } from '../documents/conceptCopy';
 import { useApp } from '../../ui/AppContext';
 import { useAutoRefresh } from '../../ui/useAutoRefresh';
 import { ExternalLink } from '../../ui/components/ExternalLink';
@@ -308,6 +310,38 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
     return failed;
   };
 
+  /**
+   * Koncept PDF (KO) do složky projektu: objednávka se do složky ukládá už při uložení konceptu, aby s ní projektový manažer mohl pracovat dřív.
+   * Běží na pozadí; když se nepovede, objednávka je uložená a uživatel se to dozví upozorněním.
+   */
+  const saveConcept = (saved: PurchaseOrder): void => {
+    const proj = projects.filter((p) => p.projectNumber === saved.projectNumber)[0];
+    if (!proj || !proj.folderUrl) {
+      return;
+    }
+    const supplier = partners.filter((p) => p.id === saved.supplierId)[0];
+    const data = orderPdfData(
+      saved,
+      proj.shortName || proj.title,
+      {
+        name: supplier ? supplier.name : saved.supplierName || '—',
+        address: supplier ? supplier.address : undefined,
+        ico: supplier ? supplier.ico : undefined,
+        dic: supplier ? supplier.dic : undefined,
+        email: supplier ? supplier.email : undefined
+      },
+      settings.company
+    );
+    renderOrderPdf(data)
+      .then((blob) => saveConceptCopy(repos.documents, proj, settings.folders.orderFolder, orderPdfFileName(saved.orderNumber), blob))
+      .catch((e: unknown) =>
+        setNotice({
+          text: `Objednávka je uložená, ale koncept PDF (KO) se do složky projektu nepodařilo uložit: ${e instanceof Error ? e.message : String(e)}`,
+          type: MessageBarType.warning
+        })
+      );
+  };
+
   const save = async (thenSubmit: boolean): Promise<void> => {
     const input = buildInput();
     const found = validateOrderDraft(input, thenSubmit);
@@ -326,6 +360,7 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
       const failedFiles = await uploadPending(saved.id);
       afterChange(saved);
       setEditing(false);
+      saveConcept(saved);
       if (failedFiles.length > 0) {
         setError(`Objednávka je uložená, ale tyto přílohy se nenahrály — ${failedFiles.join(' | ')}`);
       } else if (thenSubmit) {
@@ -574,6 +609,8 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
       stage = again ? 'Zápis opakovaného odeslání do objednávky' : 'Zápis odeslání do objednávky';
       const options = { sentTo: payload ? payload.to.join(', ') : undefined, pdfUrl };
       const updated = again ? await repos.orders.resend(order.id, user, options) : await repos.orders.send(order.id, user, options);
+      // Ostrá verze je uložená — koncept (KO) už není potřeba (maže se do koše SharePointu).
+      await removeConceptCopy(repos.documents, project, settings.folders.orderFolder, fileName);
       setSendOpen(undefined);
       afterChange(updated);
     } catch (e) {
@@ -842,6 +879,12 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
         type={PanelType.large}
         headerText={headerText}
         closeButtonAriaLabel="Zavřít"
+        onRenderNavigationContent={(props, defaultRender) => (
+          <>
+            <DocumentFolderButton project={projects.filter((p) => p.projectNumber === (order ? order.projectNumber : fProject))[0]} relativeFolder={settings.folders.orderFolder} />
+            {defaultRender ? defaultRender(props) : null}
+          </>
+        )}
         isFooterAtBottom
         onRenderFooterContent={footer}
       >

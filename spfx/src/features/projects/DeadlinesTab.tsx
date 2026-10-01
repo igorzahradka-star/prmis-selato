@@ -20,6 +20,7 @@ import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
 import { Dialog, DialogType, DialogFooter } from '@fluentui/react/lib/Dialog';
 
+import { PersonPicker, PickedPerson } from '../../ui/components/PersonPicker';
 import { useApp } from '../../ui/AppContext';
 import { RES } from '../../ui/theme';
 import { CS_CALENDAR_STRINGS } from '../../ui/csCalendarStrings';
@@ -284,7 +285,7 @@ const DeadlinePanel: React.FC<{
   const [finishDate, setFinishDate] = React.useState<Date | undefined>(task?.finishDate);
   const [isContractual, setIsContractual] = React.useState(task?.isContractualDeadline ?? true);
   const [percentComplete, setPercentComplete] = React.useState(String(task?.percentComplete ?? 0));
-  const [responsibleName, setResponsibleName] = React.useState(task?.responsibleName ?? '');
+  const [responsible, setResponsible] = React.useState<PickedPerson>(task?.responsibleName ? { name: task.responsibleName } : {});
 
   const [saving, setSaving] = React.useState(false);
   const [saveError, setSaveError] = React.useState<string | undefined>(undefined);
@@ -315,7 +316,8 @@ const DeadlinePanel: React.FC<{
       finishDate,
       isContractualDeadline: isContractual,
       percentComplete: values.percentComplete,
-      responsibleName: responsibleName.trim() || undefined
+      responsibleName: responsible.name || undefined,
+      responsibleLogin: responsible.login
     };
 
     const akce = task
@@ -394,12 +396,7 @@ const DeadlinePanel: React.FC<{
           onChange={(_, v) => setPercentComplete(v ?? '')}
         />
 
-        <TextField
-          label="Odpovídá"
-          description="Jméno, jak je v Microsoftu 365. Nepovinné."
-          value={responsibleName}
-          onChange={(_, v) => setResponsibleName(v ?? '')}
-        />
+        <PersonPicker label="Odpovídá" description="Kdokoli z firmy (adresář Microsoft 365). Nepovinné." value={responsible} onChange={setResponsible} />
 
         {showIssues && issues.length > 0 && (
           <MessageBar messageBarType={MessageBarType.error} isMultiline>

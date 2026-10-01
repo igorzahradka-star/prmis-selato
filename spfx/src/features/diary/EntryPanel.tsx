@@ -23,6 +23,8 @@ import { Dialog, DialogType, DialogFooter } from '@fluentui/react/lib/Dialog';
 import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 import { Link } from '@fluentui/react/lib/Link';
 
+import { DocumentFolderButton } from '../../ui/components/DocumentFolderButton';
+import { removeConceptCopy, saveConceptCopy } from '../documents/conceptCopy';
 import { useApp } from '../../ui/AppContext';
 import { RES } from '../../ui/theme';
 import { CS_CALENDAR_STRINGS } from '../../ui/csCalendarStrings';
@@ -486,6 +488,27 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
       .catch(() => undefined);
   };
 
+  /**
+   * Koncepty PDF a Wordu (KO) do složky zápisu: zápis se do složky ukládá už při uložení konceptu, aby s ním šlo pracovat dřív
+   * (Word je upravitelný). Běží na pozadí; když se nepovede, zápis je uložený a uživatel se to dozví upozorněním.
+   */
+  const saveConcept = (saved: DiaryEntry): void => {
+    const p = projects.filter((x) => x.projectNumber === saved.projectNumber)[0];
+    if (!p || !p.folderUrl) {
+      return;
+    }
+    (async (): Promise<void> => {
+      const blobs = await loadPointFiles(saved, p);
+      const data = await docDataOf(saved, blobs);
+      const pdf = await renderEntryPdf(data);
+      const docx = await renderEntryDocx(data);
+      await saveConceptCopy(repos.documents, p, saved.folderPath, entryFileName(saved.projectNumber, saved.entryNo, 'pdf'), pdf);
+      await saveConceptCopy(repos.documents, p, saved.folderPath, entryFileName(saved.projectNumber, saved.entryNo, 'docx'), docx);
+    })().catch((e: unknown) =>
+      setNotice({ text: `Zápis je uložený, ale koncept PDF a Wordu (KO) se do složky projektu nepodařilo uložit: ${why(e)}`, type: MessageBarType.warning })
+    );
+  };
+
   const save = async (thenClose: boolean): Promise<void> => {
     const input = buildInput();
     const found = validateEntry(input, thenClose);
@@ -509,6 +532,8 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
       }
       if (thenClose) {
         await doClose(saved);
+      } else {
+        saveConcept(saved);
       }
     } catch (e) {
       setBusy(false);
@@ -577,6 +602,9 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
       const stamped: DiaryEntry = { ...e, status: EntryStatus.Uzavreno, closedByName: user.displayName, closedAt: new Date(), contentHash: hash };
       const data = await docDataOf(stamped, blobs);
       const urls = await saveOutputs(e, data, p);
+      // Ostrá verze je uložená — koncepty (KO) už nejsou potřeba (mažou se do koše SharePointu).
+      await removeConceptCopy(repos.documents, p, e.folderPath, entryFileName(e.projectNumber, e.entryNo, 'pdf'));
+      await removeConceptCopy(repos.documents, p, e.folderPath, entryFileName(e.projectNumber, e.entryNo, 'docx'));
       stage = 'Zápis uzavření';
       const closed = await repos.diary.close(e.id, hash, urls, user);
       afterChange(closed);
@@ -835,6 +863,12 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
         type={PanelType.large}
         headerText={headerText}
         closeButtonAriaLabel="Zavřít"
+        onRenderNavigationContent={(props, defaultRender) => (
+          <>
+            <DocumentFolderButton project={project} relativeFolder={entry ? entry.folderPath : settings.folders.diaryFolder} />
+            {defaultRender ? defaultRender(props) : null}
+          </>
+        )}
         isFooterAtBottom
         onRenderFooterContent={footer}
       >

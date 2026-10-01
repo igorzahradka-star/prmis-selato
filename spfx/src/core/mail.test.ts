@@ -1,4 +1,4 @@
-import { attachmentsFit, defaultOrderMail, describeGraphError, isValidEmail, MAIL_MAX_ATTACHMENT_BYTES, parseRecipients, tokenScopes } from './mail';
+import { attachmentsFit, defaultInvoiceMail, defaultOrderMail, describeGraphError, isValidEmail, MAIL_MAX_ATTACHMENT_BYTES, parseRecipients, tokenScopes } from './mail';
 
 describe('tokenScopes', () => {
   const jwt = (payload: object): string => {
@@ -136,5 +136,30 @@ describe('defaultOrderMail', () => {
     const { body } = defaultOrderMail(vstup);
     expect(body).not.toMatch(/\n{3,}/);
     expect(body.endsWith('\n')).toBe(false);
+  });
+});
+
+describe('defaultInvoiceMail', () => {
+  const vstup = {
+    number: 'FP26004',
+    projectNumber: '26001',
+    customerName: 'ČEZ Distribuce, a.s.',
+    amountText: '105 000 Kč',
+    senderName: 'Jan Novák',
+    companyName: 'Revoltum Engineering & Services'
+  };
+
+  it('běžná faktura', () => {
+    const m = defaultInvoiceMail(vstup);
+    expect(m.subject).toBe('Podklad pro fakturaci FP26004 – ČEZ Distribuce, a.s.');
+    expect(m.body).toContain('podklad pro fakturaci č. FP26004');
+    expect(m.body).toContain('vystavení faktury');
+  });
+
+  it('zálohová faktura', () => {
+    const m = defaultInvoiceMail({ ...vstup, advance: true });
+    expect(m.subject).toBe('Podklad pro zálohovou fakturu FP26004 – ČEZ Distribuce, a.s.');
+    expect(m.body).toContain('podklad pro zálohovou fakturu č. FP26004');
+    expect(m.body).toContain('vystavení zálohové faktury');
   });
 });

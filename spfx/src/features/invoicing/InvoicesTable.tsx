@@ -11,7 +11,7 @@ import { buildHash, RouteName } from '../../ui/router';
 import { formatDate, formatMoney } from '../../core/format';
 import { amountNetInCzk } from '../../core/orders';
 import { RateTable } from '../../core/currency';
-import { InvoiceBasis, InvoiceSortKey, isOverdue, sortInvoices } from '../../core/invoiceBases';
+import { InvoiceBasis, InvoiceKind, InvoiceSortKey, invoiceKindOf, isOverdue, sortInvoices } from '../../core/invoiceBases';
 import { useOrderRates } from '../orders/useOrderRates';
 import { InvoiceStatusBadge } from './InvoiceStatusBadge';
 
@@ -44,9 +44,12 @@ export const InvoicesTable: React.FC<InvoicesTableProps> = ({ invoices, onOpen, 
       isResizable: true,
       ...sortable('number'),
       onRender: (i: InvoiceBasis) => (
-        <Link onClick={() => onOpen(i.id)} style={{ fontWeight: 600 }}>
-          {i.number}
-        </Link>
+        <>
+          <Link onClick={() => onOpen(i.id)} style={{ fontWeight: 600 }}>
+            {i.number}
+          </Link>
+          {invoiceKindOf(i) === InvoiceKind.Zaloha && <div style={{ fontSize: 11, color: '#5A6472' }}>záloha</div>}
+        </>
       )
     },
     {

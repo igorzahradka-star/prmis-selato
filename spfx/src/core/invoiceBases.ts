@@ -31,10 +31,33 @@ export const INVOICE_STATUS_ORDER: InvoiceStatus[] = [
 /** Z těchto stavů už podklad nikam nejde. */
 export const FINAL_INVOICE_STATUSES: InvoiceStatus[] = [InvoiceStatus.Uhrazeno, InvoiceStatus.Storno];
 
+/**
+ * Druh dokladu, který se má podle podkladu vystavit: běžná faktura, nebo zálohová faktura (záloha před dodáním).
+ * Obojí jde stejnou řadou čísel podkladů (FP); liší se nadpisem dokladu a tím, že záloha nemá DUZP.
+ */
+export enum InvoiceKind {
+  Faktura = 'Faktura',
+  Zaloha = 'Zálohová faktura'
+}
+
+export const INVOICE_KIND_CHOICES: InvoiceKind[] = [InvoiceKind.Faktura, InvoiceKind.Zaloha];
+
+/** Druh podkladu; starší podklady bez vyplněného druhu jsou běžné faktury. */
+export function invoiceKindOf(basis: { kind?: InvoiceKind }): InvoiceKind {
+  return basis.kind === InvoiceKind.Zaloha ? InvoiceKind.Zaloha : InvoiceKind.Faktura;
+}
+
+/** Nadpis PDF podkladu: „PODKLAD PRO FAKTURACI“ / „PODKLAD PRO ZÁLOHOVOU FAKTURU“. */
+export function invoiceDocumentTitle(kind: InvoiceKind): string {
+  return kind === InvoiceKind.Zaloha ? 'PODKLAD PRO ZÁLOHOVOU FAKTURU' : 'PODKLAD PRO FAKTURACI';
+}
+
 export interface InvoiceBasis {
   id: number;
   /** Číslo podkladu (řada FP, společná pro všechny projekty, reset každý rok). */
   number: string;
+  /** Druh dokladu (faktura / zálohová faktura); bez hodnoty = faktura. */
+  kind?: InvoiceKind;
   projectNumber: string;
   projectTitle?: string;
   customerId?: number;
@@ -66,6 +89,7 @@ export interface InvoiceBasis {
 /** Údaje z formuláře podkladu. */
 export interface InvoiceDraft {
   projectNumber: string;
+  kind?: InvoiceKind;
   customerId?: number;
   customerName?: string;
   lines: OrderLine[];

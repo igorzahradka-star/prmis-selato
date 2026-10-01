@@ -5,6 +5,7 @@
  * (Skutečnou ochranu dat ale dělá SharePoint, ne tahle komponenta.)
  */
 
+import { APP_VERSION } from '../../core/version';
 import * as React from 'react';
 import { Icon } from '@fluentui/react/lib/Icon';
 import { Persona, PersonaSize } from '@fluentui/react/lib/Persona';
@@ -384,7 +385,9 @@ const Footer: React.FC<{ userRoles: string }> = ({ userRoles }) => {
       }}
     >
       <span>{settings.company.claim}</span>
-      <span>{userRoles ? `Vaše role: ${userRoles}` : 'Nemáte přiřazenou žádnou roli PRM.'}</span>
+      <span>
+        {userRoles ? `Vaše role: ${userRoles}` : 'Nemáte přiřazenou žádnou roli PRM.'} · verze {APP_VERSION}
+      </span>
     </footer>
   );
 };

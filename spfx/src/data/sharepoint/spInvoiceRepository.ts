@@ -13,6 +13,7 @@ import { toDate } from '../../core/format';
 import { linesFromJson, linesToJson } from '../../core/orders';
 import {
   InvoiceBasis,
+  InvoiceKind,
   InvoiceStatus,
   filterInvoices,
   highestInvoiceSequence,
@@ -73,6 +74,7 @@ const SELECT_FIELDS = [
   'Note',
   'CancelReason',
   'HandoverDate',
+  'InvoiceKind',
   'AccountingInvoiceNo',
   'PaidDate',
   'PdfUrl',
@@ -91,6 +93,7 @@ interface InvoiceItem {
   AmountNet?: number;
   VATRate?: number;
   Currency?: string;
+  InvoiceKind?: string;
   IssueDate?: string;
   TaxableDate?: string;
   DueDate?: string;
@@ -418,6 +421,7 @@ function toFields(input: InvoiceInput): Record<string, unknown> {
     AmountNet: invoiceTotals(input.lines, input.vatRate).net,
     VATRate: input.vatRate,
     Currency: input.currency,
+    InvoiceKind: input.kind === InvoiceKind.Zaloha ? InvoiceKind.Zaloha : InvoiceKind.Faktura,
     IssueDate: input.issueDate ? input.issueDate.toISOString() : null,
     TaxableDate: input.taxableDate ? input.taxableDate.toISOString() : null,
     DueDate: input.dueDate ? input.dueDate.toISOString() : null,
@@ -435,6 +439,7 @@ function mapInvoice(item: InvoiceItem): InvoiceBasis {
     lines: linesFromJson(item.Lines),
     amountNet: item.AmountNet ?? 0,
     vatRate: item.VATRate ?? 21,
+    kind: item.InvoiceKind === InvoiceKind.Zaloha ? InvoiceKind.Zaloha : InvoiceKind.Faktura,
     currency: item.Currency ?? 'CZK',
     issueDate: toDate(item.IssueDate),
     taxableDate: toDate(item.TaxableDate),

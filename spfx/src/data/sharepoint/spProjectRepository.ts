@@ -19,7 +19,8 @@ import {
   accessGroupsForRoles,
   canManageProjectAccess
 } from '../../core/projectAccess';
-import { buildProjectFolderPlan, projectFolderRoot } from '../../core/folders';
+import { buildProjectFolderPlan, projectFolderName, projectFolderRoot } from '../../core/folders';
+import { ProjectRemovalPreview, ProjectRemovalResult, RemovalCount, projectFolderRemovalTarget } from '../../core/projectDeletion';
 import {
   overheadProjectNumber,
   overheadProjectTitle,
@@ -326,14 +327,112 @@ export class SpProjectRepository implements IProjectRepository {
   }
 
   /**
-   * Smaže projekt **do koše SharePointu** (`recycle`), ne natrvalo — správce
-   * webu ho odtud 93 dní obnoví. Složka projektu a dokumenty v ní zůstávají.
-   *
-   * Pořadí je schválně takové: nejdřív zápis do auditního logu, pak smazání.
-   * Kdyby se to obrátilo a zápis logu selhal, zůstal by smazaný projekt bez
-   * jakékoli stopy, kdo ho smazal.
+   * Seznamy, jejichž položky patří k projektu (sloupec Projekt). Pořadí je pořadí mazání: nejdřív to, co visí na jiném
+   * (zápisy na deníku), nakonec evidenční položka projektu. Číslované doklady (PRM_Documents) zůstávají — jsou to přidělená čísla.
    */
-  public async remove(projectNumber: string, actor: CurrentUser, reason?: string): Promise<void> {
+  private static readonly REMOVAL_LISTS: { list: string; label: string }[] = [
+    { list: 'PRM_DiaryEntries', label: 'zápisy ze stavby' },
+    { list: 'PRM_SiteDiaries', label: 'stavební deníky' },
+    { list: 'PRM_PurchaseOrders', label: 'objednávky' },
+    { list: 'PRM_InvoiceBases', label: 'podklady pro fakturaci' },
+    { list: 'PRM_Tasks', label: 'termíny a úkoly' },
+    { list: 'PRM_BudgetItems', label: 'položky rozpočtu' },
+    { list: 'PRM_BudgetVersions', label: 'verze rozpočtu' },
+    { list: 'PRM_IncomePlan', label: 'fakturační milníky' },
+    { list: 'PRM_ActualCashflows', label: 'skutečné platby' }
+  ];
+
+  /** Položky, které smazání projektu smaže — jen jejich čísla; nic se nemění. Seznam, který ještě neexistuje, se přeskočí. */
+  private async collectRemoval(
+    sp: SPFI,
+    project: Project
+  ): Promise<{ groups: { list: string; label: string; ids: number[] }[]; approvals: number[] }> {
+    const groups: { list: string; label: string; ids: number[] }[] = [];
+    for (const entry of SpProjectRepository.REMOVAL_LISTS) {
+      let ids: number[] = [];
+      try {
+        const rows: { Id: number }[] = await sp.web.lists
+          .getByTitle(entry.list)
+          .items.select('Id')
+          .filter(`ProjectId eq ${project.id}`)
+          .top(5000)();
+        ids = rows.map((r) => r.Id);
+      } catch (error) {
+        if (extractStatus(error) !== 404) {
+          throw new Error(describeSpError(error, `Nepodařilo se zjistit, co k projektu ${project.projectNumber} patří (${entry.label})`));
+        }
+      }
+      groups.push({ list: entry.list, label: entry.label, ids });
+    }
+
+    const approvals: number[] = [];
+    const wanted: [string, string][] = [
+      ['Objednávka', 'PRM_PurchaseOrders'],
+      ['Podklad pro fakturaci', 'PRM_InvoiceBases']
+    ];
+    for (const [entityType, listName] of wanted) {
+      const owned = groups.filter((g) => g.list === listName)[0].ids;
+      if (owned.length === 0) {
+        continue;
+      }
+      try {
+        const rows: { Id: number; EntityId: number }[] = await sp.web.lists
+          .getByTitle('PRM_Approvals')
+          .items.select('Id', 'EntityId')
+          .filter(`EntityType eq '${entityType}'`)
+          .top(5000)();
+        rows.filter((r) => owned.indexOf(Number(r.EntityId)) !== -1).forEach((r) => approvals.push(r.Id));
+      } catch (error) {
+        if (extractStatus(error) !== 404) {
+          throw new Error(describeSpError(error, 'Nepodařilo se zjistit záznamy o schvalování projektu'));
+        }
+      }
+    }
+    return { groups, approvals };
+  }
+
+  /** Složka projektu a to, jestli ji aplikace smí smazat (leží přímo v kořenové složce projektů). */
+  private async folderRemovalTarget(project: Project): Promise<{ sp?: SPFI; path?: string; warning?: string }> {
+    if (!project.folderUrl) {
+      return { warning: 'Projekt nemá odkaz na složku, žádná složka se nesmaže.' };
+    }
+    const folders = (await this.settings.get()).folders;
+    try {
+      const foldersSp = await this.foldersSp();
+      const libraryRoot = (await resolveLibrary(foldersSp, folders.libraryTitle)).serverRelativeUrl;
+      const target = projectFolderRemovalTarget(serverRelativePath(project.folderUrl), libraryRoot, folders.rootFolder);
+      return { sp: foldersSp, path: target.path, warning: target.warning };
+    } catch (error) {
+      return { warning: describeSpError(error, 'Složku projektu se nepodařilo určit, proto se nesmaže. Smažte ji ručně') };
+    }
+  }
+
+  public async describeRemoval(projectNumber: string): Promise<ProjectRemovalPreview> {
+    const project = await this.getByNumber(projectNumber);
+    if (!project) {
+      throw new Error(`Projekt ${projectNumber} nebyl nalezen.`);
+    }
+    const sp = getSp(this.context);
+    const plan = await this.collectRemoval(sp, project);
+    const counts: RemovalCount[] = plan.groups.map((g) => ({ label: g.label, count: g.ids.length }));
+    counts.push({ label: 'záznamy o schvalování', count: plan.approvals.length });
+    const folder = await this.folderRemovalTarget(project);
+    return {
+      counts: counts.filter((x) => x.count > 0),
+      folderUrl: folder.path ? project.folderUrl : undefined,
+      folderWarning: folder.warning
+    };
+  }
+
+  /**
+   * Smaže projekt i s tím, co k němu patří — **vše do koše SharePointu** (`recycle`), ne natrvalo; správce webu to odtud
+   * 93 dní obnoví. Složka projektu se maže jen tehdy, když leží přímo v kořenové složce projektů.
+   *
+   * Pořadí je schválně takové: nejdřív zápis do auditního logu (bez něj se nemaže), pak evidence (nejdřív podřízené
+   * položky, nakonec projekt) a až úplně nakonec složka. Kdyby složku nešlo smazat, evidence už je pryč a složku jde smazat ručně;
+   * opačné pořadí by při chybě nechalo projekt bez složky a dokumentů.
+   */
+  public async remove(projectNumber: string, actor: CurrentUser, reason?: string): Promise<ProjectRemovalResult> {
     // Oprávnění se ověřuje znovu těsně před zápisem (CLAUDE.md, kap. 4) —
     // skryté tlačítko v UI není ochrana, ochrana jsou oprávnění SharePointu.
     if (!canDeleteProject(actor.roles)) {
@@ -344,15 +443,55 @@ export class SpProjectRepository implements IProjectRepository {
     if (!project) {
       throw new Error(`Projekt ${projectNumber} nebyl nalezen.`);
     }
+    if (project.isOverhead) {
+      throw new Error('Projekt Režie se nemaže. Přístup k ní se omezuje v detailu projektu.');
+    }
 
     const sp = getSp(this.context);
-    await this.writeAuditEntry(sp, project, actor, reason);
+    const plan = await this.collectRemoval(sp, project);
+    const summary = plan.groups.filter((g) => g.ids.length > 0).map((g) => `${g.label}: ${g.ids.length}`);
+    const note = [reason ? `Důvod: ${reason}` : '', summary.length > 0 ? `Smazáno i: ${summary.join(', ')}` : ''].filter((x) => x !== '').join(' | ');
+    await this.writeAuditEntry(sp, project, actor, note);
 
+    const deleted: RemovalCount[] = [];
     try {
+      for (const id of plan.approvals) {
+        await sp.web.lists.getByTitle('PRM_Approvals').items.getById(id).recycle();
+      }
+      if (plan.approvals.length > 0) {
+        deleted.push({ label: 'záznamy o schvalování', count: plan.approvals.length });
+      }
+      for (const g of plan.groups) {
+        for (const id of g.ids) {
+          await sp.web.lists.getByTitle(g.list).items.getById(id).recycle();
+        }
+        if (g.ids.length > 0) {
+          deleted.push({ label: g.label, count: g.ids.length });
+        }
+      }
       await sp.web.lists.getByTitle(PROJECTS_LIST).items.getById(project.id).recycle();
     } catch (error) {
-      throw new Error(describeSpError(error, `Nepodařilo se smazat projekt ${projectNumber}`));
+      const done = deleted.map((d) => `${d.label} ${d.count}`).join(', ') || 'nic';
+      throw new Error(
+        describeSpError(error, `Projekt ${projectNumber} se smazal jen částečně (smazáno: ${done}). Zbytek jde smazat znovu, smazané věci jsou v koši SharePointu`)
+      );
     }
+
+    const folder = await this.folderRemovalTarget(project);
+    let folderRecycled = false;
+    let folderWarning = folder.warning;
+    if (folder.sp && folder.path) {
+      try {
+        await folder.sp.web.getFolderByServerRelativePath(folder.path).recycle();
+        folderRecycled = true;
+      } catch (error) {
+        folderWarning =
+          extractStatus(error) === 404
+            ? 'Složka projektu už neexistovala.'
+            : describeSpError(error, 'Evidence projektu je smazaná, ale složku projektu se nepodařilo smazat. Smažte ji ručně');
+      }
+    }
+    return { deleted, folderRecycled, folderWarning };
   }
 
   /**
@@ -383,7 +522,7 @@ export class SpProjectRepository implements IProjectRepository {
           currency: project.currency,
           folderUrl: project.folderUrl
         }),
-        NewValue: reason ? `Důvod: ${reason}` : ''
+        NewValue: reason ?? ''
       });
     } catch (error) {
       throw new Error(
@@ -848,14 +987,15 @@ export class SpProjectRepository implements IProjectRepository {
     // odpovídá tak roku v přiděleném čísle, i při pozdějším opakovaném pokusu.
     // Režie má výjimku: `99900-Režie/<rok>`, rok se bere z jejího čísla (`26999` → 2026).
     const overheadYear = project.isOverhead ? yearFromProjectNumber(project.projectNumber) : undefined;
-    const plan = buildProjectFolderPlan(folders, project.title, new Date(), overheadYear);
+    const folderName = projectFolderName(project.projectNumber, project.title);
+    const plan = buildProjectFolderPlan(folders, folderName, new Date(), overheadYear);
 
     for (const relativePath of plan) {
       const fullPath = `${libraryRoot}/${relativePath}`;
       await ensureFolder(foldersSp, fullPath);
     }
 
-    const projectFolderPath = `${libraryRoot}/${projectFolderRoot(folders, project.title, new Date(), overheadYear)}`;
+    const projectFolderPath = `${libraryRoot}/${projectFolderRoot(folders, folderName, new Date(), overheadYear)}`;
     const siteAbsoluteUrl = folders.siteUrl || this.context.pageContext.web.absoluteUrl;
     const origin = new URL(siteAbsoluteUrl).origin;
     return `${origin}${projectFolderPath}`;

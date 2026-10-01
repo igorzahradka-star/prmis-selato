@@ -1,5 +1,5 @@
 import { buildInvoiceDocument, invoicePdfData, invoicePdfFileName, invoiceWatermark } from './invoicePdf';
-import { InvoiceBasis, InvoiceStatus } from '../../core/invoiceBases';
+import { InvoiceBasis, InvoiceKind, InvoiceStatus, invoiceKindOf } from '../../core/invoiceBases';
 import { DEFAULT_SETTINGS } from '../../core/settings';
 
 const firma = { ...DEFAULT_SETTINGS.company, ico: '12345678', dic: 'CZ12345678' };
@@ -80,5 +80,24 @@ describe('buildInvoiceDocument', () => {
   it('název souboru je bez nepovolených znaků', () => {
     expect(invoicePdfFileName('FP26004')).toBe('FP26004.pdf');
     expect(invoicePdfFileName('FP 26/004')).toBe('FP_26_004.pdf');
+  });
+});
+
+describe('zálohová faktura', () => {
+  const zaloha: InvoiceBasis = { ...podklad, kind: InvoiceKind.Zaloha };
+  const text = allText(buildInvoiceDocument(invoicePdfData(zaloha, 'MASTIROVICE 1', { name: 'ČEZ Distribuce, a.s.' }, firma)).content);
+
+  it('nadpis je „Podklad pro zálohovou fakturu“ a záloha nemá DUZP', () => {
+    expect(text).toContain('PODKLAD PRO ZÁLOHOVOU FAKTURU č. FP26004');
+    expect(text).not.toContain('DUZP');
+    expect(text).toContain('Splatnost');
+  });
+
+  it('běžný podklad (i starší bez druhu) zůstává „Podklad pro fakturaci“ s DUZP', () => {
+    const beze = allText(buildInvoiceDocument(invoicePdfData(podklad, 'X', { name: 'Z' }, firma)).content);
+    expect(beze).toContain('PODKLAD PRO FAKTURACI č. FP26004');
+    expect(beze).toContain('DUZP');
+    expect(invoiceKindOf(podklad)).toBe(InvoiceKind.Faktura);
+    expect(invoiceKindOf({ kind: InvoiceKind.Zaloha })).toBe(InvoiceKind.Zaloha);
   });
 });

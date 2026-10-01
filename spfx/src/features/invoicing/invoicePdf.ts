@@ -11,11 +11,12 @@ import type { Content, TDocumentDefinitions, TableCell } from 'pdfmake/interface
 import { CompanySettings } from '../../core/settings';
 import { formatDate, formatMoneyExact } from '../../core/format';
 import { lineTotalNet } from '../../core/orders';
-import { InvoiceBasis, InvoiceStatus, invoiceTotals } from '../../core/invoiceBases';
+import { InvoiceBasis, InvoiceKind, InvoiceStatus, invoiceDocumentTitle, invoiceKindOf, invoiceTotals } from '../../core/invoiceBases';
 import { GRAY, LINE, NAVY, companyLinesOf, documentFooter, documentHeader, party, pdfFileName, renderPdfDefinition, td, th } from '../orders/pdfCommon';
 
 export interface InvoicePdfData {
   number: string;
+  kind: InvoiceKind;
   projectNumber: string;
   projectTitle: string;
   company: CompanySettings;
@@ -55,6 +56,7 @@ export function invoicePdfData(
 ): InvoicePdfData {
   return {
     number: invoice.number,
+    kind: invoiceKindOf(invoice),
     projectNumber: invoice.projectNumber,
     projectTitle,
     company,
@@ -109,7 +111,7 @@ export function buildInvoiceDocument(data: InvoicePdfData): TDocumentDefinitions
 
   const content: Content[] = [
     ...documentHeader(company),
-    { text: `PODKLAD PRO FAKTURACI č. ${data.number}`, fontSize: 18, bold: true, color: NAVY },
+    { text: `${invoiceDocumentTitle(data.kind)} č. ${data.number}`, fontSize: 18, bold: true, color: NAVY },
     {
       text: `Projekt ${data.projectNumber}${data.projectTitle ? ` · ${data.projectTitle}` : ''}`,
       fontSize: 10,
@@ -126,16 +128,23 @@ export function buildInvoiceDocument(data: InvoicePdfData): TDocumentDefinitions
     },
     {
       table: {
-        widths: ['*', '*', '*', '*'],
-        body: [
-          [small('Datum vystavení'), small('DUZP'), small('Splatnost'), small('Měna')],
-          [
-            big(data.issueDate ? formatDate(data.issueDate) : '—'),
-            big(data.taxableDate ? formatDate(data.taxableDate) : '—'),
-            big(data.dueDate ? formatDate(data.dueDate) : '—'),
-            big(data.currency)
-          ]
-        ]
+        // Záloha nemá datum uskutečnění zdanitelného plnění (DUZP) — to vzniká až u konečné faktury.
+        widths: data.kind === InvoiceKind.Zaloha ? ['*', '*', '*'] : ['*', '*', '*', '*'],
+        body:
+          data.kind === InvoiceKind.Zaloha
+            ? [
+                [small('Datum vystavení'), small('Splatnost'), small('Měna')],
+                [big(data.issueDate ? formatDate(data.issueDate) : '—'), big(data.dueDate ? formatDate(data.dueDate) : '—'), big(data.currency)]
+              ]
+            : [
+                [small('Datum vystavení'), small('DUZP'), small('Splatnost'), small('Měna')],
+                [
+                  big(data.issueDate ? formatDate(data.issueDate) : '—'),
+                  big(data.taxableDate ? formatDate(data.taxableDate) : '—'),
+                  big(data.dueDate ? formatDate(data.dueDate) : '—'),
+                  big(data.currency)
+                ]
+              ]
       },
       layout: boxLayout,
       margin: [0, 0, 0, 12]
@@ -195,7 +204,7 @@ export function buildInvoiceDocument(data: InvoicePdfData): TDocumentDefinitions
     pageSize: 'A4',
     pageMargins: [40, 36, 40, 50],
     defaultStyle: { font: 'Roboto', fontSize: 10, color: '#1B1F2A' },
-    info: { title: `Podklad pro fakturaci ${data.number}`, author: company.name, subject: `Projekt ${data.projectNumber}` },
+    info: { title: `${data.kind === InvoiceKind.Zaloha ? 'Podklad pro zálohovou fakturu' : 'Podklad pro fakturaci'} ${data.number}`, author: company.name, subject: `Projekt ${data.projectNumber}` },
     watermark: data.watermark ? { text: data.watermark, color: '#8A94A0', opacity: 0.16, bold: true, angle: -30, fontSize: 52 } : undefined,
     content,
     footer: documentFooter(company)

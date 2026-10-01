@@ -6,6 +6,7 @@
  * a UI se dá vyvíjet proti mock implementaci (viz `data/mock/`).
  */
 
+import { ProjectRemovalPreview, ProjectRemovalResult } from '../core/projectDeletion';
 import { CurrentUser, Currency, Partner, Project, ProjectStatus, ProjectTask, TaskType } from '../core/types';
 import { AppSettings } from '../core/settings';
 import { RoleGroupMapping } from '../core/roles';
@@ -14,7 +15,7 @@ import { AccessGroup, ProjectAccessState } from '../core/projectAccess';
 import { StatusChange } from '../core/projectStatus';
 import { ApprovalLevel, OrderAttachment, OrderLine, PurchaseOrder } from '../core/orders';
 import { Assignee } from '../core/orderWorkflow';
-import { InvoiceBasis } from '../core/invoiceBases';
+import { InvoiceBasis, InvoiceKind } from '../core/invoiceBases';
 import { DiaryEntry, EntryInput, EntryListFilter, SiteDiary } from '../core/siteDiary';
 import { StoredRate, StoredRates } from '../core/currency';
 import { ListDef } from './schema';
@@ -167,18 +168,22 @@ export interface IProjectRepository {
    */
   update(projectNumber: string, input: ProjectEditInput, expectedVersion?: string): Promise<Project>;
   /**
-   * Smaže projekt — **do koše SharePointu**, ne natrvalo. Odtud ho jde 93 dní
+   * Smaže projekt **i s tím, co k němu patří** — vše **do koše SharePointu**, ne natrvalo. Odtud to jde 93 dní
    * obnovit; o to se stará správce webu, aplikace na to tlačítko nemá.
    *
-   * Co se **nemaže**: složka projektu v knihovně ani dokumenty v ní. Smaže se
-   * jen evidenční položka. Složku ať smaže člověk vědomě, ne aplikace mimochodem.
+   * Maže se: evidenční položka projektu, jeho objednávky (se schvalováním), podklady pro fakturaci, stavební deníky
+   * a zápisy, termíny a další položky evidence navázané na projekt, a **složka projektu v knihovně i s dokumenty**
+   * (jen když leží přímo v kořenové složce projektů; jinak ji aplikace nechá a řekne to — viz `projectFolderRemovalTarget`).
+   * Auditní záznam zůstává. Před smazáním lze zjistit rozsah (`describeRemoval`).
    *
    * Smí jen administrátor (`canDeleteProject`). Oprávnění se ověřuje znovu
    * tady v datové vrstvě — skrytí tlačítka v UI není ochrana.
    *
    * `reason` se zapíše do auditního logu spolu s tím, kdo a kdy mazal.
    */
-  remove(projectNumber: string, actor: CurrentUser, reason?: string): Promise<void>;
+  remove(projectNumber: string, actor: CurrentUser, reason?: string): Promise<ProjectRemovalResult>;
+  /** Co by se smazáním projektu smazalo (počty a složka) — pro varování před potvrzením. Nic nemění. */
+  describeRemoval(projectNumber: string): Promise<ProjectRemovalPreview>;
   /**
    * Vrátí projekt Režie, a když ještě neexistuje, založí ho.
    *
@@ -259,6 +264,8 @@ export interface TaskInput {
   isContractualDeadline: boolean;
   percentComplete: number;
   responsibleName?: string;
+  /** Přihlašovací jméno vybrané osoby z adresáře firmy (u SharePointu se podle něj osoba přidá na web, i když tam ještě nebyla). */
+  responsibleLogin?: string;
 }
 
 /**
@@ -502,6 +509,7 @@ export interface OrderInput {
 /** Údaje z formuláře podkladu pro fakturaci. */
 export interface InvoiceInput {
   projectNumber: string;
+  kind?: InvoiceKind;
   customerId?: number;
   customerName?: string;
   lines: OrderLine[];

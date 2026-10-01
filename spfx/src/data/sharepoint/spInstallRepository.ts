@@ -23,6 +23,7 @@ import { buildFieldXml, ADD_FIELD_INTERNAL_NAME_HINT } from './fieldXml';
 import { mergedChoices, missingChoices } from './choiceSync';
 import { getSp, getSpForSite, describeSpError } from './spContext';
 import { SpSettingsRepository } from './spSettingsRepository';
+import { resolveLibrary } from './spLibrary';
 
 /** Šablona SharePoint seznamu. */
 const TEMPLATE_GENERIC_LIST = 100;
@@ -78,6 +79,9 @@ export class SpInstallRepository implements IInstallRepository {
 
     // --- Web PRM ---
     await this.diagnoseSite('PRM', undefined, items);
+
+    // --- Kořenová složka projektů v knihovně ---
+    await this.diagnoseProjectRoot(items);
 
     // --- Web PRM-Finance ---
     if (!this.financeSiteUrl) {
@@ -138,6 +142,62 @@ export class SpInstallRepository implements IInstallRepository {
   }
 
   // --- diagnostika ---------------------------------------------------------
+
+  /**
+   * Kontrola, že kořenová složka projektů z Nastavení v knihovně opravdu existuje, a že vedle ní nevznikla chybně slepená složka
+   * (starší verze z „General/01_PROJEKTY“ udělala „General01_PROJEKTY“). Nic nemění.
+   */
+  private async diagnoseProjectRoot(items: DiagnosticItem[]): Promise<void> {
+    const label = 'Kořenová složka projektů v knihovně dokumentů';
+    try {
+      const folders = (await this.settingsRepo.get()).folders;
+      if (!folders.libraryTitle.trim()) {
+        items.push({ key: 'project-root', label, state: 'manual', detail: 'V Nastavení → Složky projektů není vyplněná knihovna dokumentů.' });
+        return;
+      }
+      const sp = folders.siteUrl ? getSpForSite(this.context, folders.siteUrl) : getSp(this.context);
+      const libraryRoot = (await resolveLibrary(sp, folders.libraryTitle)).serverRelativeUrl;
+      const parts = folders.rootFolder.split('/').map((p) => p.trim()).filter((p) => p !== '');
+      if (parts.length === 0) {
+        items.push({ key: 'project-root', label, state: 'ok', detail: 'Projekty se zakládají přímo v kořeni knihovny.' });
+        return;
+      }
+      const shown = parts.join('/');
+      let exists = false;
+      try {
+        const info: { Exists?: boolean } = await sp.web.getFolderByServerRelativePath(`${libraryRoot}/${shown}`).select('Exists')();
+        exists = info.Exists === true;
+      } catch {
+        exists = false;
+      }
+      items.push(
+        exists
+          ? { key: 'project-root', label, state: 'ok', detail: `Složka „${shown}“ existuje — sem se zakládají nové projekty.` }
+          : {
+              key: 'project-root',
+              label,
+              state: 'error',
+              detail: `Složka „${shown}“ v knihovně „${folders.libraryTitle}“ neexistuje. Zkontrolujte Nastavení → Složky projektů (kořenová složka). Nový projekt by ji při založení vytvořil.`
+            }
+      );
+
+      if (parts.length > 1) {
+        const squash = (s: string): string => s.replace(/[^0-9A-Za-zÀ-ɏ]/g, '').toLowerCase();
+        const top: { Name: string }[] = await sp.web.getFolderByServerRelativePath(libraryRoot).folders.select('Name')();
+        const stray = top.map((t) => t.Name).filter((n) => squash(n) === squash(parts.join('')) && n !== parts[0])[0];
+        if (stray) {
+          items.push({
+            key: 'project-root-stray',
+            label: 'Chybně založená složka vedle kořenové složky projektů',
+            state: 'manual',
+            detail: `V knihovně je složka „${stray}“ — vznikla chybou starší verze aplikace (lomítko v názvu). Přesuňte z ní případné projekty do „${shown}“ a složku ručně smažte; aplikace ji sama nemaže.`
+          });
+        }
+      }
+    } catch (error) {
+      items.push({ key: 'project-root', label, state: 'error', detail: describeSpError(error, 'Kořenovou složku projektů se nepodařilo zkontrolovat') });
+    }
+  }
 
   private async diagnoseSite(
     site: 'PRM' | 'PRM-Finance',
