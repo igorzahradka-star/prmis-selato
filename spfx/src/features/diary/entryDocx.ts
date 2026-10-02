@@ -6,8 +6,8 @@
  */
 
 import { formatDate } from '../../core/format';
-import { EntryStatus } from '../../core/siteDiary';
-import { EntryDocData, closureNote, entryWatermark, signatureNote, taskDue } from './entryDocument';
+import { EntryStatus, HANDOVER_RESULT_LABELS, entryTitle, isHandover, protocolNumber } from '../../core/siteDiary';
+import { EntryDocData, closureNote, entryWatermark, handoverIntro, handoverResultColor, signatureNote, taskDue, warrantyNote } from './entryDocument';
 import { dataUrlToBytes } from './imageUtils';
 
 /** Text s odřádkováním: každý řádek je samostatný běh textu oddělený zalomením. */
@@ -19,6 +19,7 @@ export async function renderEntryDocx(data: EntryDocData): Promise<Blob> {
   const docx = await import(/* webpackChunkName: 'docx' */ 'docx');
   const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, ImageRun, AlignmentType, BorderStyle, Footer, PageNumber } = docx;
   const { entry, company } = data;
+  const handover = isHandover(entry);
 
   const para = (text: string, opts: { bold?: boolean; size?: number; color?: string; after?: number; before?: number; align?: (typeof AlignmentType)[keyof typeof AlignmentType] } = {}): InstanceType<typeof Paragraph> =>
     new Paragraph({
@@ -55,9 +56,9 @@ export async function renderEntryDocx(data: EntryDocData): Promise<Blob> {
     children.push(para(addr, { size: 18, color: '5A6472', after: 200 }));
   }
 
-  children.push(para(`ZÁPIS č. ${entry.entryNo}`, { bold: true, size: 36, color: '0E2841', after: 40 }));
+  children.push(para(handover ? 'PŘEDÁVACÍ PROTOKOL' : `ZÁPIS č. ${entry.entryNo}`, { bold: true, size: 36, color: '0E2841', after: 40 }));
   children.push(
-    para(`${entry.diaryTitle ? `Stavební deník: ${entry.diaryTitle} · ` : ''}Projekt ${entry.projectNumber}${data.projectTitle ? ` · ${data.projectTitle}` : ''}`, {
+    para(handover ? `č. ${protocolNumber(entry.projectNumber, entry.entryNo)} · Projekt ${entry.projectNumber}${data.projectTitle ? ` · ${data.projectTitle}` : ''}` : `${entry.diaryTitle ? `Stavební deník: ${entry.diaryTitle} · ` : ''}Projekt ${entry.projectNumber}${data.projectTitle ? ` · ${data.projectTitle}` : ''}`, {
       size: 20,
       color: '5A6472',
       after: 200
@@ -72,17 +73,27 @@ export async function renderEntryDocx(data: EntryDocData): Promise<Blob> {
     table([
       new TableRow({ children: [cell('Stavba', { bold: true, fill: 'EAF0F5', width: 22 }), cell(entry.header.constructionName, { width: 78 })] }),
       new TableRow({ children: [cell('Místo stavby', { bold: true, fill: 'EAF0F5' }), cell(entry.header.place)] }),
-      new TableRow({ children: [cell('Datum', { bold: true, fill: 'EAF0F5' }), cell(formatDate(entry.date))] }),
-      new TableRow({ children: [cell('Projektový manažer stavby', { bold: true, fill: 'EAF0F5' }), cell(entry.header.managerName)] }),
-      new TableRow({ children: [cell('Jednání s', { bold: true, fill: 'EAF0F5' }), cell(entry.header.counterparty || '')] }),
-      ...(entry.conditions && entry.conditions.trim() !== ''
+      new TableRow({ children: [cell(handover ? 'Datum předání' : 'Datum', { bold: true, fill: 'EAF0F5' }), cell(formatDate(entry.date))] }),
+      new TableRow({
+        children: [
+          cell(handover ? 'Předává (zhotovitel)' : 'Projektový manažer stavby', { bold: true, fill: 'EAF0F5' }),
+          cell(handover ? `${company.name}${entry.header.managerName ? ' · ' + entry.header.managerName : ''}` : entry.header.managerName)
+        ]
+      }),
+      new TableRow({ children: [cell(handover ? 'Přebírá (objednatel)' : 'Jednání s', { bold: true, fill: 'EAF0F5' }), cell(entry.header.counterparty || '')] }),
+      ...(handover ? [new TableRow({ children: [cell('Protokol č.', { bold: true, fill: 'EAF0F5' }), cell(protocolNumber(entry.projectNumber, entry.entryNo))] })] : []),
+      ...(!handover && entry.conditions && entry.conditions.trim() !== ''
         ? [new TableRow({ children: [cell('Počasí a podmínky', { bold: true, fill: 'EAF0F5' }), cell(entry.conditions)] })]
         : [])
     ])
   );
 
+  if (handover) {
+    children.push(para(handoverIntro(entry, company), { size: 21, before: 200, after: 100 }));
+  }
+
   if (entry.participants.length > 0) {
-    children.push(para('Účastníci', { bold: true, size: 22, color: '0E2841', before: 240, after: 80 }));
+    children.push(para(handover ? 'Účastníci předání' : 'Účastníci', { bold: true, size: 22, color: '0E2841', before: 240, after: 80 }));
     children.push(
       table([
         new TableRow({ tableHeader: true, children: [head('Jméno', 28), head('Firma / subjekt', 32), head('Funkce', 25), head('Přítomen', 15)] }),
@@ -97,7 +108,7 @@ export async function renderEntryDocx(data: EntryDocData): Promise<Blob> {
     if (p.text.trim() === '' && p.files.length === 0 && !(p.title && p.title.trim() !== '')) {
       return;
     }
-    children.push(para(`${i + 1}. ${p.title && p.title.trim() !== '' ? p.title : 'Bod jednání'}`, { bold: true, size: 23, color: '0E2841', before: 220, after: 60 }));
+    children.push(para(`${i + 1}. ${p.title && p.title.trim() !== '' ? p.title : handover ? 'Předmět předání' : 'Bod jednání'}`, { bold: true, size: 23, color: '0E2841', before: 220, after: 60 }));
     if (p.text.trim() !== '') {
       children.push(para(p.text, { size: 21, after: 100 }));
     }
@@ -124,19 +135,30 @@ export async function renderEntryDocx(data: EntryDocData): Promise<Blob> {
 
   const tasks = entry.tasks.filter((t) => t.description.trim() !== '');
   if (tasks.length > 0) {
-    children.push(para('Dohodnuté úkoly', { bold: true, size: 23, color: '0E2841', before: 240, after: 80 }));
+    children.push(para(handover ? 'Zjištěné vady a nedodělky' : 'Dohodnuté úkoly', { bold: true, size: 23, color: '0E2841', before: 240, after: 80 }));
     children.push(
       table([
-        new TableRow({ tableHeader: true, children: [head('Úkol', 55), head('Odpovědný', 28), head('Termín', 17)] }),
+        new TableRow({ tableHeader: true, children: [head(handover ? 'Vada / nedodělek' : 'Úkol', 55), head('Odpovědný', 28), head(handover ? 'Odstranit do' : 'Termín', 17)] }),
         ...tasks.map((t) => new TableRow({ children: [cell(t.description), cell(t.responsible || ''), cell(taskDue(t.due))] }))
       ])
     );
   }
 
-  // Podpisy: řádek pro podpis u každého přítomného účastníka a u zpracovatele.
+  if (handover) {
+    const result = entry.handover ? entry.handover.result : undefined;
+    const warranty = warrantyNote(entry);
+    children.push(para('Závěr', { bold: true, size: 23, color: '0E2841', before: 240, after: 80 }));
+    children.push(para(result ? HANDOVER_RESULT_LABELS[result] : '—', { bold: true, size: 22, color: handoverResultColor(result).replace('#', ''), after: 60 }));
+    if (warranty) {
+      children.push(para(warranty, { size: 21, after: 100 }));
+    }
+  }
+
+  // Podpisy: řádek pro podpis u každého přítomného účastníka a u zpracovatele; u protokolu i u přebírajícího.
   children.push(para('Podpisy', { bold: true, size: 23, color: '0E2841', before: 300, after: 160 }));
   const signers = [
     { name: entry.header.managerName || entry.createdByName, note: `za ${company.name || 'zhotovitele'}` },
+    ...(handover && entry.header.counterparty && entry.header.counterparty.trim() !== '' ? [{ name: '', note: `za objednatele — ${entry.header.counterparty}` }] : []),
     ...entry.participants.filter((p) => p.present && p.name.trim() !== '').map((p) => ({ name: p.name, note: p.organization || '' }))
   ];
   signers.forEach((s) => {
@@ -148,7 +170,7 @@ export async function renderEntryDocx(data: EntryDocData): Promise<Blob> {
         children: [new TextRun({ text: ' ', size: 4 })]
       })
     );
-    children.push(para(`${s.name}${s.note ? ` — ${s.note}` : ''}`, { size: 18, after: 60 }));
+    children.push(para(s.name ? `${s.name}${s.note ? ` — ${s.note}` : ''}` : s.note, { size: 18, after: 60 }));
   });
 
   const closure = closureNote(entry);
@@ -165,7 +187,7 @@ export async function renderEntryDocx(data: EntryDocData): Promise<Blob> {
 
   const doc = new Document({
     creator: company.name,
-    title: `Zápis č. ${entry.entryNo} – ${entry.header.constructionName}`,
+    title: `${entryTitle(entry)} – ${entry.header.constructionName}`,
     description: `Projekt ${entry.projectNumber}`,
     styles: { default: { document: { run: { font: 'Calibri', size: 21 } } } },
     sections: [

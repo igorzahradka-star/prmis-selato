@@ -28,7 +28,8 @@ import {
   safeName,
   signEntryInApp,
   sortEntriesNewestFirst,
-  validateEntry
+  validateEntry,
+  warrantyEnd
 } from './siteDiary';
 import { computeEntryHash, entryHashInput, sha256Hex } from './entryHash';
 import { Actor, WorkflowError, WorkflowProject } from './orderWorkflow';
@@ -296,6 +297,12 @@ describe('předávací protokol', () => {
     expect(validateEntry(vstup({ handover: { result: 's-vyhradami' }, tasks: [{ description: 'Doplnit štítky' }] }), true)).toEqual([]);
     // koncept se nekontroluje přísně
     expect(validateEntry(vstup({ handover: {}, points: [] }), false)).toEqual([]);
+  });
+
+  it('konec záruky: datum předání + měsíce, konec měsíce se nepřelévá', () => {
+    expect(warrantyEnd(new Date(2026, 9, 1), 60)).toEqual(new Date(2031, 9, 1));
+    expect(warrantyEnd(new Date(2026, 0, 31), 1)).toEqual(new Date(2026, 1, 28));
+    expect(warrantyEnd(new Date(2027, 11, 15), 24)).toEqual(new Date(2029, 11, 15));
   });
 
   it('filtr podle druhu odděluje protokoly od zápisů', () => {

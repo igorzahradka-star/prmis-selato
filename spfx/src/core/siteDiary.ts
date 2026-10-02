@@ -211,6 +211,15 @@ export function protocolNumber(projectNumber: string, entryNo: number): string {
   return `PP-${(projectNumber || '').trim()}-${pad(entryNo, 2)}`;
 }
 
+/** Konec záruční doby: datum předání + počet měsíců (31. 1. + 1 měsíc = 28. 2.). */
+export function warrantyEnd(handoverDate: Date, months: number): Date {
+  const day = handoverDate.getDate();
+  const d = new Date(handoverDate.getFullYear(), handoverDate.getMonth() + months, 1);
+  const last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  d.setDate(Math.min(day, last));
+  return d;
+}
+
 /** Název dokumentu v záhlaví a v seznamech: „Zápis č. 7“, nebo „Předávací protokol PP-26001-01“. */
 export function entryTitle(e: { kind?: EntryKind; projectNumber: string; entryNo: number }): string {
   return isHandover(e) ? `Předávací protokol ${protocolNumber(e.projectNumber, e.entryNo)}` : `Zápis č. ${e.entryNo}`;

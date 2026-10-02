@@ -10,7 +10,7 @@ import type { Content, TDocumentDefinitions, TableCell } from 'pdfmake/interface
 
 import { CompanySettings } from '../../core/settings';
 import { formatDate, formatDateTime } from '../../core/format';
-import { DiaryEntry, EntryStatus, SIGNATURE_LABELS, isImageFile, parseIsoDay } from '../../core/siteDiary';
+import { DiaryEntry, EntryStatus, HANDOVER_RESULT_LABELS, SIGNATURE_LABELS, entryTitle, isHandover, isImageFile, parseIsoDay, protocolNumber, warrantyEnd } from '../../core/siteDiary';
 import { GRAY, LINE, NAVY, companyLinesOf, documentFooter, documentHeader, renderPdfDefinition, signatureGrid, td, th } from '../orders/pdfCommon';
 
 export interface EntryImage {
@@ -47,7 +47,7 @@ export function closureNote(entry: DiaryEntry): string | undefined {
   if (!entry.closedAt || !entry.closedByName) {
     return undefined;
   }
-  return `Zápis uzavřen v aplikaci PRM: ${entry.closedByName}, ${formatDateTime(entry.closedAt)}.${
+  return `${isHandover(entry) ? 'Protokol' : 'Zápis'} uzavřen v aplikaci PRM: ${entry.closedByName}, ${formatDateTime(entry.closedAt)}.${
     entry.contentHash ? ` Otisk obsahu (SHA-256): ${entry.contentHash}` : ''
   }`;
 }
@@ -57,7 +57,7 @@ export function signatureNote(entry: DiaryEntry): string | undefined {
   if (entry.status !== EntryStatus.Podepsano || !entry.signedAt || !entry.signatureKind) {
     return undefined;
   }
-  return `Zápis podepsán (${SIGNATURE_LABELS[entry.signatureKind]}): ${entry.signedByName || '—'}, ${formatDateTime(entry.signedAt)}.`;
+  return `${isHandover(entry) ? 'Protokol' : 'Zápis'} podepsán (${SIGNATURE_LABELS[entry.signatureKind]}): ${entry.signedByName || '—'}, ${formatDateTime(entry.signedAt)}.`;
 }
 
 /** Soubory použité v bodech, které nejsou obrázky (plány, tabulky…) — v dokumentu se vypisují jako přílohy. */
@@ -87,17 +87,41 @@ const boxLayout = {
   paddingBottom: (): number => 4
 };
 
+/** Barva výsledku předání: zelená bez výhrad, oranžová s výhradami, červená nepřevzato. */
+export function handoverResultColor(result: string | undefined): string {
+  return result === 'bez-vyhrad' ? '#1E7B34' : result === 's-vyhradami' ? '#A15C00' : result === 'neprevzato' ? '#7A1712' : '#1B1F2A';
+}
+
+/** Věta o záruce („Záruční doba 60 měsíců od 1. 10. 2026, tj. do 1. 10. 2031.“) nebo `undefined`. */
+export function warrantyNote(entry: DiaryEntry): string | undefined {
+  const months = entry.handover ? entry.handover.warrantyMonths : undefined;
+  if (months === undefined || months <= 0 || (entry.handover && entry.handover.result === 'neprevzato')) {
+    return undefined;
+  }
+  return `Záruční doba ${months} měsíců od ${formatDate(entry.date)}, tj. do ${formatDate(warrantyEnd(entry.date, months))}.`;
+}
+
+/** Úvodní věta předávacího protokolu. */
+export function handoverIntro(entry: DiaryEntry, company: CompanySettings): string {
+  const who = company.name || 'Zhotovitel';
+  const to = entry.header.counterparty && entry.header.counterparty.trim() !== '' ? entry.header.counterparty : 'objednatel';
+  return `Dne ${formatDate(entry.date)} předal zhotovitel ${who} objednateli ${to} níže popsaný předmět předání (stavba: ${entry.header.constructionName || '—'}, ${entry.header.place || '—'}). Stav, předané doklady a zjištěné vady jsou uvedeny v tomto protokolu.`;
+}
+
 /** Sestaví definici dokumentu pro pdfmake. */
 export function buildEntryPdfDocument(data: EntryDocData): TDocumentDefinitions {
   const { entry, company } = data;
+  const handover = isHandover(entry);
   const small = (text: string): Content => ({ text, fontSize: 8, color: GRAY });
   const big = (text: string): Content => ({ text: text || '—', fontSize: 10, bold: true });
 
   const content: Content[] = [
     ...documentHeader(company),
-    { text: `ZÁPIS č. ${entry.entryNo}`, fontSize: 18, bold: true, color: NAVY },
+    { text: handover ? 'PŘEDÁVACÍ PROTOKOL' : `ZÁPIS č. ${entry.entryNo}`, fontSize: 18, bold: true, color: NAVY },
     {
-      text: `${entry.diaryTitle ? `Stavební deník: ${entry.diaryTitle} · ` : ''}Projekt ${entry.projectNumber}${data.projectTitle ? ` · ${data.projectTitle}` : ''}`,
+      text: handover
+        ? `č. ${protocolNumber(entry.projectNumber, entry.entryNo)} · Projekt ${entry.projectNumber}${data.projectTitle ? ` · ${data.projectTitle}` : ''}`
+        : `${entry.diaryTitle ? `Stavební deník: ${entry.diaryTitle} · ` : ''}Projekt ${entry.projectNumber}${data.projectTitle ? ` · ${data.projectTitle}` : ''}`,
       fontSize: 10,
       color: GRAY,
       margin: [0, 2, 0, 12]
@@ -105,25 +129,40 @@ export function buildEntryPdfDocument(data: EntryDocData): TDocumentDefinitions 
     {
       table: {
         widths: ['*', '*', 90],
-        body: [
-          [small('Stavba'), small('Místo stavby'), small('Datum')],
-          [big(entry.header.constructionName), big(entry.header.place), big(formatDate(entry.date))],
-          [small('Projektový manažer stavby'), small('Jednání s'), small('Zápis č.')],
-          [big(entry.header.managerName), big(entry.header.counterparty || ''), big(String(entry.entryNo))]
-        ]
+        body: handover
+          ? [
+              [small('Stavba'), small('Místo stavby'), small('Datum předání')],
+              [big(entry.header.constructionName), big(entry.header.place), big(formatDate(entry.date))],
+              [small('Předává (zhotovitel)'), small('Přebírá (objednatel)'), small('Protokol č.')],
+              [
+                big(`${company.name}${entry.header.managerName ? ' · ' + entry.header.managerName : ''}`),
+                big(entry.header.counterparty || ''),
+                big(protocolNumber(entry.projectNumber, entry.entryNo))
+              ]
+            ]
+          : [
+              [small('Stavba'), small('Místo stavby'), small('Datum')],
+              [big(entry.header.constructionName), big(entry.header.place), big(formatDate(entry.date))],
+              [small('Projektový manažer stavby'), small('Jednání s'), small('Zápis č.')],
+              [big(entry.header.managerName), big(entry.header.counterparty || ''), big(String(entry.entryNo))]
+            ]
       },
       layout: boxLayout,
       margin: [0, 0, 0, 10]
     }
   ];
 
-  if (entry.conditions && entry.conditions.trim() !== '') {
+  if (handover) {
+    content.push({ text: handoverIntro(entry, company), fontSize: 10, margin: [0, 0, 0, 10] });
+  }
+
+  if (!handover && entry.conditions && entry.conditions.trim() !== '') {
     content.push({ text: 'Počasí a podmínky na stavbě', fontSize: 8, color: GRAY, bold: true });
     content.push({ text: entry.conditions, fontSize: 10, margin: [0, 2, 0, 10] });
   }
 
   if (entry.participants.length > 0) {
-    content.push({ text: 'Účastníci', fontSize: 8, color: GRAY, bold: true, margin: [0, 0, 0, 3] });
+    content.push({ text: handover ? 'Účastníci předání' : 'Účastníci', fontSize: 8, color: GRAY, bold: true, margin: [0, 0, 0, 3] });
     content.push({
       table: {
         headerRows: 1,
@@ -142,7 +181,7 @@ export function buildEntryPdfDocument(data: EntryDocData): TDocumentDefinitions 
     if (p.text.trim() === '' && p.files.length === 0 && !(p.title && p.title.trim() !== '')) {
       return;
     }
-    content.push({ text: `${i + 1}. ${p.title && p.title.trim() !== '' ? p.title : 'Bod jednání'}`, fontSize: 11, bold: true, color: NAVY, margin: [0, 6, 0, 3] });
+    content.push({ text: `${i + 1}. ${p.title && p.title.trim() !== '' ? p.title : handover ? 'Předmět předání' : 'Bod jednání'}`, fontSize: 11, bold: true, color: NAVY, margin: [0, 6, 0, 3] });
     if (p.text.trim() !== '') {
       content.push({ text: p.text, fontSize: 10, margin: [0, 0, 0, 6] });
     }
@@ -168,13 +207,13 @@ export function buildEntryPdfDocument(data: EntryDocData): TDocumentDefinitions 
   });
 
   if (entry.tasks.some((t) => t.description.trim() !== '')) {
-    content.push({ text: 'Dohodnuté úkoly', fontSize: 11, bold: true, color: NAVY, margin: [0, 10, 0, 3] });
+    content.push({ text: handover ? 'Zjištěné vady a nedodělky' : 'Dohodnuté úkoly', fontSize: 11, bold: true, color: NAVY, margin: [0, 10, 0, 3] });
     content.push({
       table: {
         headerRows: 1,
         widths: ['*', 130, 70],
         body: [
-          [th('Úkol'), th('Odpovědný'), th('Termín')],
+          [th(handover ? 'Vada / nedodělek' : 'Úkol'), th('Odpovědný'), th(handover ? 'Odstranit do' : 'Termín')],
           ...entry.tasks
             .filter((t) => t.description.trim() !== '')
             .map((t): TableCell[] => [td(t.description), td(t.responsible || ''), td(taskDue(t.due))])
@@ -185,9 +224,40 @@ export function buildEntryPdfDocument(data: EntryDocData): TDocumentDefinitions 
     });
   }
 
-  // Podpisy: každý přítomný účastník a zpracovatel zápisu má řádek pro podpis.
+  // Závěr předávacího protokolu: výsledek předání a záruka v rámečku.
+  if (handover) {
+    const result = entry.handover ? entry.handover.result : undefined;
+    const warranty = warrantyNote(entry);
+    content.push({ text: 'Závěr', fontSize: 11, bold: true, color: NAVY, margin: [0, 10, 0, 3], unbreakable: true } as Content);
+    content.push({
+      table: {
+        widths: ['*'],
+        body: [
+          [
+            {
+              stack: [
+                { text: result ? HANDOVER_RESULT_LABELS[result] : '—', fontSize: 11, bold: true, color: handoverResultColor(result) },
+                ...(warranty ? [{ text: warranty, fontSize: 10, margin: [0, 3, 0, 0] as [number, number, number, number] }] : [])
+              ],
+              margin: [6, 4, 6, 4]
+            }
+          ]
+        ]
+      },
+      layout: boxLayout,
+      margin: [0, 0, 0, 10],
+      unbreakable: true
+    } as Content);
+  }
+
+  // Podpisy: každý přítomný účastník a zpracovatel zápisu má řádek pro podpis; u protokolu i strana přebírajícího.
+  const counterpartySigner =
+    handover && entry.header.counterparty && entry.header.counterparty.trim() !== ''
+      ? [{ name: '', note: `za objednatele — ${entry.header.counterparty}` }]
+      : [];
   const signers = [
     { name: entry.header.managerName || entry.createdByName, note: `za ${companyLinesOf(company)[0] || 'zhotovitele'}` },
+    ...counterpartySigner,
     ...entry.participants.filter((p) => p.present && p.name.trim() !== '').map((p) => ({ name: p.name, note: p.organization || '' }))
   ];
   content.push({ text: 'Podpisy', fontSize: 11, bold: true, color: NAVY, margin: [0, 14, 0, 6], unbreakable: true } as Content);
@@ -233,7 +303,7 @@ export function buildEntryPdfDocument(data: EntryDocData): TDocumentDefinitions 
     pageMargins: [40, 36, 40, 50],
     defaultStyle: { font: 'Roboto', fontSize: 10, color: '#1B1F2A' },
     info: {
-      title: `Zápis č. ${entry.entryNo} – ${entry.header.constructionName}`,
+      title: `${entryTitle(entry)} – ${entry.header.constructionName}`,
       author: company.name,
       subject: `Projekt ${entry.projectNumber}`
     },

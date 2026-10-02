@@ -1,5 +1,5 @@
 import * as util from 'util';
-import { buildEntryPdfDocument, closureNote, companyForEntry, entryWatermark, nonImageAttachments, signatureNote, taskDue } from './entryDocument';
+import { buildEntryPdfDocument, closureNote, companyForEntry, entryWatermark, handoverResultColor, nonImageAttachments, signatureNote, taskDue, warrantyNote } from './entryDocument';
 import { renderEntryDocx } from './entryDocx';
 import { extensionForType, fitSize, photoFileName, readBlob, uniqueFileName } from './imageUtils';
 import { DiaryEntry, EntryStatus, emptyHeader } from '../../core/siteDiary';
@@ -205,4 +205,72 @@ describe('podpis zápisu v aplikaci', () => {
     expect(sken).not.toContain('Elektronicky podepsáno');
     expect(koncept).not.toContain('Elektronicky podepsáno');
   });
+});
+
+describe('PDF a Word předávacího protokolu', () => {
+  const protokol = (extra: Partial<DiaryEntry> = {}): DiaryEntry =>
+    zapis({
+      kind: 'predani',
+      diaryTitle: 'Předávací protokoly',
+      entryNo: 1,
+      conditions: undefined,
+      handover: { result: 'bez-vyhrad', warrantyMonths: 60 },
+      points: [{ title: 'Předmět předání', text: 'FVE 1 MWp včetně přípojky.', files: [] }],
+      tasks: [],
+      ...extra
+    });
+  const textOf = (e: DiaryEntry): string => allText(buildEntryPdfDocument({ entry: e, projectTitle: 'MASTIROVICE 1', company: companyForEntry(e, DEFAULT_SETTINGS.company), images: {} }).content);
+
+  it('má nadpis Předávací protokol, číslo PP, předávajícího a přebírajícího', () => {
+    const t = textOf(protokol());
+    expect(t).toContain('PŘEDÁVACÍ PROTOKOL');
+    expect(t).toContain('PP-26001-01');
+    expect(t).toContain('Předává (zhotovitel)');
+    expect(t).toContain('Přebírá (objednatel)');
+    expect(t).toContain('BELTEC s.r.o.');
+    expect(t).toContain('FVE 1 MWp');
+    expect(t).not.toContain('ZÁPIS č.');
+    expect(t).not.toContain('Počasí');
+  });
+
+  it('závěr: výsledek a záruka s koncem záruční doby', () => {
+    const t = textOf(protokol());
+    expect(t).toContain('Dílo převzato bez výhrad');
+    expect(t).toContain('Záruční doba 60 měsíců od 1. 10. 2026, tj. do 1. 10. 2031.');
+  });
+
+  it('s výhradami: vady a nedodělky v tabulce s termínem odstranění', () => {
+    const t = textOf(protokol({ handover: { result: 's-vyhradami' }, tasks: [{ description: 'Doplnit štítky rozvaděče', responsible: 'Jan Dodavatel', due: '2026-10-20' }] }));
+    expect(t).toContain('Zjištěné vady a nedodělky');
+    expect(t).toContain('Odstranit do');
+    expect(t).toContain('Doplnit štítky rozvaděče');
+    expect(t).toContain('20. 10. 2026');
+    expect(t).toContain('převzato s výhradami');
+  });
+
+  it('nepřevzato nemá záruku; podpisy mají řádek i za objednatele', () => {
+    const e = protokol({ handover: { result: 'neprevzato', warrantyMonths: 24 } });
+    expect(warrantyNote(e)).toBeUndefined();
+    expect(textOf(e)).toContain('za objednatele — BELTEC s.r.o.');
+    expect(handoverResultColor('neprevzato')).not.toBe(handoverResultColor('bez-vyhrad'));
+  });
+
+  it('běžný zápis zůstává beze změny (nadpis, bez závěru)', () => {
+    const t = textOf(zapis());
+    expect(t).toContain('ZÁPIS č. 7');
+    expect(t).not.toContain('PŘEDÁVACÍ PROTOKOL');
+    expect(t).not.toContain('Závěr');
+  });
+
+  it('uzavřený protokol říká „Protokol uzavřen“', () => {
+    expect(closureNote(protokol({ closedByName: 'Anna', closedAt: new Date(2026, 9, 1, 9, 0), contentHash: 'abc' }))).toContain('Protokol uzavřen v aplikaci PRM: Anna');
+  });
+
+  it('Word protokolu se vytvoří', async () => {
+    Object.assign(globalThis, { TextEncoder: util.TextEncoder, TextDecoder: util.TextDecoder });
+    const e = protokol({ status: EntryStatus.Uzavreno, handover: { result: 's-vyhradami', warrantyMonths: 24 }, tasks: [{ description: 'Vada 1' }] });
+    const blob = await renderEntryDocx({ entry: e, projectTitle: 'X', company: companyForEntry(e, DEFAULT_SETTINGS.company), images: {} });
+    const bytes = new Uint8Array(await readBlob(blob));
+    expect(String.fromCharCode(bytes[0], bytes[1])).toBe('PK');
+  }, 30000);
 });
