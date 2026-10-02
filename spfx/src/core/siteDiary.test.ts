@@ -14,7 +14,11 @@ import {
   entryFileName,
   entryFolderPath,
   entryFilesPath,
+  entryTitle,
   filterEntries,
+  isHandover,
+  isHandoverDiary,
+  protocolNumber,
   isImageFile,
   isoDay,
   nextEntryNumber,
@@ -225,5 +229,87 @@ describe('otisk zápisu', () => {
   it('do vstupu se berou soubory seřazené podle názvu', () => {
     const z = zapis({ points: [{ text: 'a', files: ['b.jpg', 'a.jpg'] }] });
     expect(entryHashInput(identity, z, { 'a.jpg': '1', 'b.jpg': '2' })).toContain('"files":["a.jpg:1","b.jpg:2"]');
+  });
+});
+
+describe('předávací protokol', () => {
+  const protokol = (extra: Partial<DiaryEntry> = {}): DiaryEntry =>
+    zapis({
+      kind: 'predani',
+      handover: { result: 'bez-vyhrad', warrantyMonths: 60 },
+      header: { ...header, counterparty: 'ČEZ Distribuce' },
+      diaryTitle: 'Předávací protokoly',
+      entryNo: 1,
+      ...extra
+    });
+
+  it('číslo PP-projekt-pořadí a název dokumentu', () => {
+    expect(protocolNumber('26001', 1)).toBe('PP-26001-01');
+    expect(protocolNumber('26001', 12)).toBe('PP-26001-12');
+    expect(entryTitle(protokol())).toBe('Předávací protokol PP-26001-01');
+    expect(entryTitle(zapis())).toBe('Zápis č. 7');
+    expect(isHandover(protokol())).toBe(true);
+    expect(isHandover(zapis())).toBe(false);
+  });
+
+  it('složka PP01 a název souboru; zápis zůstává Z007', () => {
+    expect(entryFolderPath('04-Zápisy', 'Předávací protokoly', 1, 'predani')).toBe('04-Zápisy/Předávací protokoly/PP01');
+    expect(entryFolderPath('04-Zápisy', 'Hlavní deník', 7)).toBe('04-Zápisy/Hlavní deník/Z007');
+    expect(entryFileName('26001', 1, 'pdf', 'predani')).toBe('Predavaci_protokol_26001_PP01.pdf');
+    expect(entryFileName('26001', 7, 'pdf')).toBe('Zapis_26001_Z007.pdf');
+  });
+
+  it('deník Předávací protokoly se pozná podle názvu', () => {
+    expect(isHandoverDiary({ title: 'Předávací protokoly' })).toBe(true);
+    expect(isHandoverDiary({ title: ' předávací PROTOKOLY ' })).toBe(true);
+    expect(isHandoverDiary({ title: 'Hlavní deník' })).toBe(false);
+  });
+
+  it('druh a závěr se uloží a přečtou zpět; běžný zápis druh neukládá', () => {
+    const back = contentFromJson(contentToJson(protokol()), header);
+    expect(back.kind).toBe('predani');
+    expect(back.handover).toEqual({ result: 'bez-vyhrad', warrantyMonths: 60 });
+    expect(contentToJson(zapis())).not.toContain('kind');
+    expect(contentFromJson(contentToJson(zapis()), header).kind).toBeUndefined();
+    const spatny = contentFromJson(JSON.stringify({ kind: 'predani', handover: { result: 'nesmysl', warrantyMonths: -3 } }), header);
+    expect(spatny.handover).toEqual({ result: undefined, warrantyMonths: undefined });
+  });
+
+  it('před uzavřením musí být výsledek, přebírající a předmět; s výhradami i vada', () => {
+    const vstup = (extra = {}): Parameters<typeof validateEntry>[0] => ({
+      diaryId: 1,
+      projectNumber: '26001',
+      date: NOW,
+      header: { ...header, counterparty: 'ČEZ Distribuce' },
+      participants: [],
+      points: [{ text: 'Předána FVE 1 MWp', files: [] }],
+      tasks: [],
+      kind: 'predani',
+      handover: { result: 'bez-vyhrad' },
+      ...extra
+    });
+    expect(validateEntry(vstup(), true)).toEqual([]);
+    expect(validateEntry(vstup({ handover: {} }), true).map((i) => i.field)).toEqual(['result']);
+    expect(validateEntry(vstup({ header: { ...header, counterparty: ' ' } }), true).map((i) => i.field)).toEqual(['counterparty']);
+    expect(validateEntry(vstup({ points: [] }), true)[0].message).toContain('předmět předání');
+    expect(validateEntry(vstup({ handover: { result: 's-vyhradami' } }), true).map((i) => i.field)).toEqual(['tasks']);
+    expect(validateEntry(vstup({ handover: { result: 's-vyhradami' }, tasks: [{ description: 'Doplnit štítky' }] }), true)).toEqual([]);
+    // koncept se nekontroluje přísně
+    expect(validateEntry(vstup({ handover: {}, points: [] }), false)).toEqual([]);
+  });
+
+  it('filtr podle druhu odděluje protokoly od zápisů', () => {
+    const list = [zapis({ id: 1 }), protokol({ id: 2 }), zapis({ id: 3 })];
+    expect(filterEntries(list, { kind: 'predani' }).map((e) => e.id)).toEqual([2]);
+    expect(filterEntries(list, { kind: 'zapis' }).map((e) => e.id)).toEqual([1, 3]);
+    expect(filterEntries(list).length).toBe(3);
+  });
+
+  it('otisk se mění se závěrem protokolu, ale otisk běžného zápisu zůstává stejný', async () => {
+    const identity = { projectNumber: '26001', diaryId: 1, entryNo: 1, date: new Date(2026, 9, 1) };
+    const p = protokol();
+    const h1 = await computeEntryHash(identity, p, {});
+    expect(await computeEntryHash(identity, { ...p, handover: { result: 'neprevzato' } }, {})).not.toBe(h1);
+    expect(entryHashInput(identity, zapis(), {})).not.toContain('kind');
   });
 });

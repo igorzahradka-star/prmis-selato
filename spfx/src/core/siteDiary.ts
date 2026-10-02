@@ -32,6 +32,36 @@ export const SIGNATURE_LABELS: Record<SignatureKind, string> = {
   sken: 'podepsaný sken'
 };
 
+/**
+ * Druh zápisu: běžný zápis ze stavby, nebo **předávací protokol** (stejný postup — koncept, uzavření, podpis —, ale jiný
+ * obsah a vzhled dokumentu). Uložený je v obsahu zápisu, takže se schéma seznamů nemění.
+ */
+export type EntryKind = 'zapis' | 'predani';
+
+/** Výsledek předání: co objednatel s dílem udělal. */
+export type HandoverResult = 'bez-vyhrad' | 's-vyhradami' | 'neprevzato';
+
+export const HANDOVER_RESULTS: HandoverResult[] = ['bez-vyhrad', 's-vyhradami', 'neprevzato'];
+
+export const HANDOVER_RESULT_LABELS: Record<HandoverResult, string> = {
+  'bez-vyhrad': 'Dílo převzato bez výhrad',
+  's-vyhradami': 'Dílo převzato s výhradami (vady a nedodělky viz níže)',
+  neprevzato: 'Dílo nebylo převzato'
+};
+
+/** Závěr předávacího protokolu. */
+export interface HandoverInfo {
+  result?: HandoverResult;
+  /** Záruční doba v měsících (od data předání). */
+  warrantyMonths?: number;
+}
+
+/** Název deníku, do kterého se ukládají předávací protokoly projektu (zakládá se sám při prvním protokolu). */
+export const HANDOVER_DIARY_TITLE = 'Předávací protokoly';
+
+/** Deník — stavební, nebo ten, který je vyhrazený předávacím protokolům? */
+export const isHandoverDiary = (d: { title: string }): boolean => d.title.trim().toLocaleLowerCase('cs-CZ') === HANDOVER_DIARY_TITLE.toLocaleLowerCase('cs-CZ');
+
 /** Deník stavby. K jednomu projektu jich může být víc. */
 export interface SiteDiary {
   id: number;
@@ -84,6 +114,10 @@ export interface EntryContent {
   tasks: DiaryTask[];
   /** Počasí a podmínky na stavbě (u stavebního deníku obvyklé). */
   conditions?: string;
+  /** Druh zápisu; bez uvedení je to běžný zápis ze stavby. */
+  kind?: EntryKind;
+  /** Závěr předávacího protokolu (jen u druhu `predani`). */
+  handover?: HandoverInfo;
 }
 
 export interface DiaryEntry extends EntryContent {
@@ -137,7 +171,9 @@ export function contentToJson(content: EntryContent): string {
     participants: content.participants,
     points: content.points,
     tasks: content.tasks,
-    conditions: content.conditions ?? ''
+    conditions: content.conditions ?? '',
+    // Jen u předávacího protokolu — běžné zápisy se ukládají beze změny.
+    ...(content.kind === 'predani' ? { kind: content.kind, handover: content.handover ?? {} } : {})
   });
 }
 
@@ -155,8 +191,29 @@ export function contentFromJson(json: string | undefined, fallbackHeader: EntryH
     participants: arr(raw.participants).map((p) => ({ name: p.name || '', organization: p.organization, role: p.role, present: p.present !== false })),
     points: arr(raw.points).map((p) => ({ title: p.title, text: p.text || '', files: arr(p.files) })),
     tasks: arr(raw.tasks),
-    conditions: raw.conditions || undefined
+    conditions: raw.conditions || undefined,
+    ...(raw.kind === 'predani' ? { kind: 'predani' as EntryKind, handover: readHandover(raw.handover) } : {})
   };
+}
+
+/** Závěr protokolu z uloženého JSONu; neznámé hodnoty se zahodí. */
+function readHandover(raw: HandoverInfo | undefined): HandoverInfo {
+  const result = raw && HANDOVER_RESULTS.indexOf(raw.result as HandoverResult) !== -1 ? raw.result : undefined;
+  const months = raw && typeof raw.warrantyMonths === 'number' && raw.warrantyMonths >= 0 && raw.warrantyMonths <= 600 ? Math.floor(raw.warrantyMonths) : undefined;
+  return { result, warrantyMonths: months };
+}
+
+/** Je zápis předávací protokol? */
+export const isHandover = (e: { kind?: EntryKind }): boolean => e.kind === 'predani';
+
+/** Číslo předávacího protokolu podle řady PP: `PP-26001-01`. */
+export function protocolNumber(projectNumber: string, entryNo: number): string {
+  return `PP-${(projectNumber || '').trim()}-${pad(entryNo, 2)}`;
+}
+
+/** Název dokumentu v záhlaví a v seznamech: „Zápis č. 7“, nebo „Předávací protokol PP-26001-01“. */
+export function entryTitle(e: { kind?: EntryKind; projectNumber: string; entryNo: number }): string {
+  return isHandover(e) ? `Předávací protokol ${protocolNumber(e.projectNumber, e.entryNo)}` : `Zápis č. ${e.entryNo}`;
 }
 
 /** Soubory použité v bodech zápisu (bez opakování, v pořadí použití). */
@@ -198,7 +255,22 @@ export function validateEntry(input: EntryInput, strict: boolean): EntryIssue[] 
       issues.push({ field: 'place', message: 'Vyplňte místo stavby.' });
     }
     if (!input.points.some((p) => p.text.trim() !== '' || p.files.length > 0)) {
-      issues.push({ field: 'points', message: 'Zapište aspoň jeden bod jednání (text nebo fotku).' });
+      issues.push({
+        field: 'points',
+        message: input.kind === 'predani' ? 'Popište předmět předání (text nebo fotku).' : 'Zapište aspoň jeden bod jednání (text nebo fotku).'
+      });
+    }
+    if (input.kind === 'predani') {
+      const result = input.handover ? input.handover.result : undefined;
+      if (!result) {
+        issues.push({ field: 'result', message: 'Vyberte výsledek předání (převzato bez výhrad / s výhradami / nepřevzato).' });
+      }
+      if (!input.header.counterparty || input.header.counterparty.trim() === '') {
+        issues.push({ field: 'counterparty', message: 'Vyplňte, komu se dílo předává (objednatel / přebírající).' });
+      }
+      if (result === 's-vyhradami' && !input.tasks.some((t) => t.description.trim() !== '')) {
+        issues.push({ field: 'tasks', message: 'Při převzetí s výhradami uveďte aspoň jednu vadu nebo nedodělek.' });
+      }
     }
     if (input.header.company.name.trim() === '') {
       issues.push({ field: 'company', message: 'Vyplňte název firmy v hlavičce.' });
@@ -228,9 +300,11 @@ function pad(n: number, width: number): string {
 }
 
 /** Složka zápisu uvnitř složky projektu: `Zápisy/Hlavní deník/Z007`. */
-export function entryFolderPath(diaryFolder: string, diaryTitle: string, entryNo: number): string {
+export function entryFolderPath(diaryFolder: string, diaryTitle: string, entryNo: number, kind?: EntryKind): string {
   const base = (diaryFolder || '').replace(/^\/+|\/+$/g, '');
-  return `${base ? base + '/' : ''}${safeName(diaryTitle, 'Denik')}/Z${pad(entryNo, 3)}`;
+  // Předávací protokol má složku `PP01` (v deníku Předávací protokoly), zápis `Z007`.
+  const last = kind === 'predani' ? `PP${pad(entryNo, 2)}` : `Z${pad(entryNo, 3)}`;
+  return `${base ? base + '/' : ''}${safeName(diaryTitle, 'Denik')}/${last}`;
 }
 
 /** Podsložka příloh zápisu (fotky, náčrty, další soubory). */
@@ -239,7 +313,10 @@ export function entryFilesPath(entryFolder: string): string {
 }
 
 /** Název souboru s výstupem zápisu: `Zapis_26001_Z007.pdf`. */
-export function entryFileName(projectNumber: string, entryNo: number, extension: 'pdf' | 'docx' | 'podepsano.pdf'): string {
+export function entryFileName(projectNumber: string, entryNo: number, extension: 'pdf' | 'docx' | 'podepsano.pdf', kind?: EntryKind): string {
+  if (kind === 'predani') {
+    return `Predavaci_protokol_${safeName(projectNumber, 'projekt').replace(/\s/g, '_')}_PP${pad(entryNo, 2)}.${extension}`;
+  }
   return `Zapis_${safeName(projectNumber, 'projekt').replace(/\s/g, '_')}_Z${pad(entryNo, 3)}.${extension}`;
 }
 
@@ -468,6 +545,8 @@ export interface EntryListFilter {
   diaryId?: number;
   statuses?: string[];
   search?: string;
+  /** Jen zápisy ze stavby (`zapis`), nebo jen předávací protokoly (`predani`); bez uvedení všechno. */
+  kind?: EntryKind;
 }
 
 /** Fulltext přes pořadové číslo, hlavičku, účastníky a texty bodů; filtr projektu, deníku a stavu. */
@@ -479,6 +558,9 @@ export function filterEntries(list: DiaryEntry[], filter?: EntryListFilter): Dia
       return false;
     }
     if (f.diaryId && e.diaryId !== f.diaryId) {
+      return false;
+    }
+    if (f.kind && (f.kind === 'predani') !== isHandover(e)) {
       return false;
     }
     if (f.statuses && f.statuses.length > 0 && f.statuses.indexOf(e.status) === -1) {

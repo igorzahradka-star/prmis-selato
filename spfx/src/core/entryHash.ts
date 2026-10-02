@@ -148,6 +148,8 @@ export function entryHashInput(identity: EntryIdentity, content: EntryContent, f
     points: content.points,
     tasks: content.tasks,
     conditions: content.conditions ?? '',
+    // Jen u předávacího protokolu — otisky dřívějších zápisů zůstávají stejné.
+    ...(content.kind === 'predani' ? { kind: content.kind, handover: content.handover ?? {} } : {}),
     files
   });
 }
