@@ -8,7 +8,7 @@ import { Link } from '@fluentui/react/lib/Link';
 
 import { buildHash, RouteName } from '../../ui/router';
 import { formatDate } from '../../core/format';
-import { DiaryEntry } from '../../core/siteDiary';
+import { DiaryEntry, isHandover, protocolNumber } from '../../core/siteDiary';
 import { EntryStatusBadge } from './EntryStatusBadge';
 
 export interface EntriesTableProps {
@@ -16,20 +16,22 @@ export interface EntriesTableProps {
   onOpen: (id: number) => void;
   /** U seznamu jednoho projektu je sloupec Projekt zbytečný. */
   hideProject?: boolean;
+  /** Seznam předávacích protokolů: bez sloupce Deník, s číslem PP a sloupcem Přebírá. */
+  protocols?: boolean;
   ariaLabel?: string;
 }
 
-export const EntriesTable: React.FC<EntriesTableProps> = ({ entries, onOpen, hideProject, ariaLabel }) => {
+export const EntriesTable: React.FC<EntriesTableProps> = ({ entries, onOpen, hideProject, protocols, ariaLabel }) => {
   const columns: IColumn[] = [
     {
       key: 'no',
-      name: 'Zápis',
-      minWidth: 60,
-      maxWidth: 80,
+      name: protocols ? 'Protokol' : 'Zápis',
+      minWidth: protocols ? 100 : 60,
+      maxWidth: protocols ? 130 : 80,
       isResizable: true,
       onRender: (e: DiaryEntry) => (
         <Link onClick={() => onOpen(e.id)} style={{ fontWeight: 600 }}>
-          č. {e.entryNo}
+          {isHandover(e) ? protocolNumber(e.projectNumber, e.entryNo) : `č. ${e.entryNo}`}
         </Link>
       )
     },
@@ -46,7 +48,9 @@ export const EntriesTable: React.FC<EntriesTableProps> = ({ entries, onOpen, hid
             onRender: (e: DiaryEntry) => <Link href={buildHash(RouteName.ProjectDetail, e.projectNumber)}>{e.projectNumber}</Link>
           } as IColumn
         ]),
-    { key: 'diary', name: 'Deník', minWidth: 110, maxWidth: 170, isResizable: true, onRender: (e: DiaryEntry) => e.diaryTitle || '—' },
+    ...(protocols
+      ? []
+      : [{ key: 'diary', name: 'Deník', minWidth: 110, maxWidth: 170, isResizable: true, onRender: (e: DiaryEntry) => e.diaryTitle || '—' } as IColumn]),
     {
       key: 'construction',
       name: 'Stavba',
@@ -54,7 +58,7 @@ export const EntriesTable: React.FC<EntriesTableProps> = ({ entries, onOpen, hid
       isResizable: true,
       onRender: (e: DiaryEntry) => <span title={e.header.constructionName}>{e.header.constructionName || '—'}</span>
     },
-    { key: 'with', name: 'Jednání s', minWidth: 120, maxWidth: 180, isResizable: true, onRender: (e: DiaryEntry) => e.header.counterparty || '—' },
+    { key: 'with', name: protocols ? 'Přebírá' : 'Jednání s', minWidth: 120, maxWidth: 180, isResizable: true, onRender: (e: DiaryEntry) => e.header.counterparty || '—' },
     {
       key: 'status',
       name: 'Stav',
@@ -63,7 +67,7 @@ export const EntriesTable: React.FC<EntriesTableProps> = ({ entries, onOpen, hid
       isResizable: true,
       onRender: (e: DiaryEntry) => <EntryStatusBadge status={e.status} signatureKind={e.signatureKind} />
     },
-    { key: 'by', name: 'Zapsal', minWidth: 110, maxWidth: 150, isResizable: true, onRender: (e: DiaryEntry) => e.createdByName || '—' }
+    { key: 'by', name: protocols ? 'Vystavil' : 'Zapsal', minWidth: 110, maxWidth: 150, isResizable: true, onRender: (e: DiaryEntry) => e.createdByName || '—' }
   ];
 
   return (

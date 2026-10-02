@@ -102,7 +102,7 @@ export async function collectProjectReport(
     repos.orders.list({ projectNumber: project.projectNumber }),
     repos.invoices.list({ projectNumber: project.projectNumber }),
     repos.tasks.listByProject(project.projectNumber),
-    repos.diary.listEntries({ projectNumber: project.projectNumber })
+    repos.diary.listEntries({ projectNumber: project.projectNumber, kind: 'zapis' })
   ]);
   let photos: ReportPhoto[] = [];
   if (sections.photos) {

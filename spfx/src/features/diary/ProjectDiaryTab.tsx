@@ -16,7 +16,7 @@ import { useApp } from '../../ui/AppContext';
 import { RES } from '../../ui/theme';
 import { useAutoRefresh } from '../../ui/useAutoRefresh';
 import { Project } from '../../core/types';
-import { DiaryEntry, SiteDiary, canWriteDiary } from '../../core/siteDiary';
+import { DiaryEntry, SiteDiary, canWriteDiary, isHandover, isHandoverDiary } from '../../core/siteDiary';
 import { toActor, toWorkflowProject } from '../../core/orderWorkflow';
 import { EntriesTable } from './EntriesTable';
 import { EntryPanel } from './EntryPanel';
@@ -38,8 +38,9 @@ export const ProjectDiaryTab: React.FC<{ project: Project }> = ({ project }) => 
     Promise.all([repos.diary.listDiaries(project.projectNumber), repos.diary.listEntries({ projectNumber: project.projectNumber })])
       .then(([d, e]) => {
         if (!cancelled) {
-          setDiaries(d);
-          setEntries(e);
+          // Předávací protokoly mají vlastní záložku — mezi zápisy ze stavby se neukazují.
+          setDiaries(d.filter((x) => !isHandoverDiary(x)));
+          setEntries(e.filter((x) => !isHandover(x)));
         }
       })
       .catch((e: Error) => !cancelled && setError(e.message));

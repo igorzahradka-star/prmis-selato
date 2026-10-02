@@ -24,6 +24,7 @@ import {
   closeEntry,
   emptyHeader,
   entryFolderPath,
+  entryTitle,
   filterEntries,
   nextEntryNumber,
   reopenEntry,
@@ -221,7 +222,7 @@ export class MockDiaryRepository implements IDiaryRepository {
       id: this.nextEntryId++,
       diaryTitle: diary.title,
       entryNo,
-      folderPath: entryFolderPath(folderFor(project, 'diary', settings.folders), diary.title, entryNo),
+      folderPath: entryFolderPath(folderFor(project, 'diary', settings.folders), diary.title, entryNo, input.kind),
       status: EntryStatus.Koncept,
       createdByName: actor.displayName,
       createdByLogin: actor.loginName,
@@ -229,7 +230,7 @@ export class MockDiaryRepository implements IDiaryRepository {
       modified: new Date()
     };
     this.entries = [...all, entry];
-    this.record(entry.id, actor, 'Založen zápis');
+    this.record(entry.id, actor, input.kind === 'predani' ? 'Založen protokol' : 'Založen zápis');
     return delay(entry);
   }
 
@@ -237,7 +238,7 @@ export class MockDiaryRepository implements IDiaryRepository {
     const entry = await this.require(id);
     const project = await this.requireProject(entry.projectNumber);
     if (!canEditEntry(entry, toWorkflowProject(project), toActor(actor))) {
-      throw new WorkflowError(`Zápis č. ${entry.entryNo} teď nejde upravovat (stav „${entry.status}“, nebo k němu nemáte oprávnění).`);
+      throw new WorkflowError(`${entryTitle(entry)} teď nejde upravovat (stav „${entry.status}“, nebo k němu nemáte oprávnění).`);
     }
     if (input.projectNumber !== entry.projectNumber || input.diaryId !== entry.diaryId) {
       throw new WorkflowError('Projekt ani deník se u založeného zápisu nemění. Zápis stornujte a založte nový.');

@@ -34,6 +34,7 @@ import { EXTERNAL_LINK_PROPS } from '../../ui/components/ExternalLink';
 import { ProjectOrdersTab } from '../orders/ProjectOrdersTab';
 import { ProjectInvoicesTab } from '../invoicing/ProjectInvoicesTab';
 import { ProjectDiaryTab } from '../diary/ProjectDiaryTab';
+import { ProjectHandoverTab } from '../diary/ProjectHandoverTab';
 import { ProjectPhotos } from '../photos/ProjectPhotos';
 
 export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projectNumber }) => {
@@ -260,6 +261,9 @@ export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projec
         </PivotItem>
         <PivotItem headerText="Stavební deník" itemIcon="Dictionary">
           <ProjectDiaryTab project={project} />
+        </PivotItem>
+        <PivotItem headerText="Předávací protokoly" itemIcon="DocumentApproval">
+          <ProjectHandoverTab project={project} />
         </PivotItem>
         <PivotItem headerText="Fotodokumentace" itemIcon="Camera">
           <ProjectPhotos project={project} />

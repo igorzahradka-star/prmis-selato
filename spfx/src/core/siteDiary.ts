@@ -462,7 +462,7 @@ export function closeEntry(entry: DiaryEntry, contentHash: string, ctx: EntryCon
     contentHash,
     pdfUrl: output ? output.pdfUrl : undefined,
     docxUrl: output ? output.docxUrl : undefined,
-    auditAction: `Zápis uzavřen (otisk ${contentHash.slice(0, 12)}…)`
+    auditAction: `${isHandover(entry) ? 'Protokol' : 'Zápis'} uzavřen (otisk ${contentHash.slice(0, 12)}…)`
   };
 }
 

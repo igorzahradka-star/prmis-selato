@@ -17,7 +17,7 @@ import { PageHeading } from '../../ui/components/PageHeading';
 import { CONTROL_HEIGHT, FilterField as Field } from '../../ui/components/FilterField';
 import { useAutoRefresh } from '../../ui/useAutoRefresh';
 import { navigate, RouteName } from '../../ui/router';
-import { DiaryEntry, ENTRY_STATUS_ORDER, canWriteDiary, filterEntries } from '../../core/siteDiary';
+import { DiaryEntry, ENTRY_STATUS_ORDER, canWriteDiary, filterEntries, isHandover } from '../../core/siteDiary';
 import { toActor, toWorkflowProject } from '../../core/orderWorkflow';
 import { normalizeLogin } from '../../core/roles';
 import { Project } from '../../core/types';
@@ -61,7 +61,7 @@ export const DiaryPage: React.FC<{ entryId?: number }> = ({ entryId }) => {
   const mayWrite = projects.some((p) => canWriteDiary(toWorkflowProject(p), actor));
   const statusOptions: IDropdownOption[] = ENTRY_STATUS_ORDER.map((s) => ({ key: s, text: s }));
   const me = normalizeLogin(user.loginName);
-  const shown = filterEntries(entries ?? [], { search, statuses }).filter((e) => !onlyMine || normalizeLogin(e.createdByLogin) === me);
+  const shown = filterEntries((entries ?? []).filter((e) => !isHandover(e)), { search, statuses }).filter((e) => !onlyMine || normalizeLogin(e.createdByLogin) === me);
 
   return (
     <>

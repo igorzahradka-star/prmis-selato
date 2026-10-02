@@ -5,6 +5,23 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.21.0 — 2. 10. 2026 — Předávací protokoly
+
+**Nové**
+
+- **Záložka „Předávací protokoly“ v detailu projektu** (dílčí i konečné předání; více protokolů na projekt). Tlačítko **Nový předávací protokol** otevře formulář s předvyplněnou hlavičkou z projektu.
+- **Obsah protokolu:** datum předání, stavba a místo, **předává** (zhotovitel — projektový manažer) a **přebírá** (objednatel / zákazník), účastníci předání, **předmět předání** a **předané doklady** (položky s textem, fotkami, náčrty a přílohami jako u zápisů),
+  **zjištěné vady a nedodělky** (popis, kdo odstraní, odstranit do) a **závěr předání**: *převzato bez výhrad / s výhradami / nepřevzato* a nepovinná **záruční doba v měsících** (aplikace spočítá, kdy záruka končí).
+- **Cesta jako u zápisů ze stavby:** Koncept → Uzavřeno (zamčeno, vznikne PDF a Word, zapíše se otisk obsahu) → Podepsáno (podpis v aplikaci s podpisem z profilu a značkou elektronického podpisu, nebo nahraný podepsaný sken); Storno s důvodem. Koncepty PDF a Wordu se průběžně ukládají se značkou (KO).
+- **PDF protokolu** v grafice RES: číslo **PP-26001-01** (řada PP podle projektu), úvodní věta, tabulky, závěr v rámečku (zelená / oranžová / červená), **podpisová pole za zhotovitele, za objednatele a pro každého přítomného účastníka**. Před uzavřením hlídá: výsledek předání, přebírající strana, předmět předání; při převzetí s výhradami aspoň jednu vadu.
+- Soubory leží ve složce zápisů projektu: `04-Zápisy/Předávací protokoly/PP01` (žádná nová složka na nejvyšší úrovni projektu). Bez změny schématu — Instalaci spouštět nemusíte.
+
+**Změněno**
+
+- Mezi zápisy ze stavby, v Přehledu zápisů a v reportu projektu se protokoly neukazují (mají vlastní záložku).
+
+---
+
 ## 0.20.1 — 2. 10. 2026 — Přepínač měny v přehledech, skupina Servis v nabídce
 
 **Nové**

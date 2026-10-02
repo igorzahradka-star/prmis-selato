@@ -42,7 +42,12 @@ import {
   EntryAction,
   EntryHeader,
   EntryInput,
+  EntryKind,
   EntryStatus,
+  HANDOVER_DIARY_TITLE,
+  HANDOVER_RESULTS,
+  HANDOVER_RESULT_LABELS,
+  HandoverResult,
   Participant,
   SIGNATURE_LABELS,
   SiteDiary,
@@ -51,18 +56,23 @@ import {
   emptyHeader,
   entryFileName,
   entryFilesPath,
+  entryTitle,
   fileExtension,
+  isHandover,
+  isHandoverDiary,
   isImageFile,
+  protocolNumber,
   isoDay,
   parseIsoDay,
   pointFiles,
-  validateEntry
+  validateEntry,
+  warrantyEnd
 } from '../../core/siteDiary';
 import { computeEntryHash, sha256Hex } from '../../core/entryHash';
 import { toActor, toWorkflowProject } from '../../core/orderWorkflow';
 import { DiaryHistoryEntry } from '../../data/repositories';
 import { OrderPdfPreview } from '../orders/OrderPdfPreview';
-import { EntryDocData, EntryImage, closureNote, companyForEntry, nonImageAttachments, renderEntryPdf, signatureNote } from './entryDocument';
+import { EntryDocData, EntryImage, closureNote, companyForEntry, handoverResultColor, nonImageAttachments, renderEntryPdf, signatureNote, warrantyNote } from './entryDocument';
 import { renderEntryDocx } from './entryDocx';
 import { extensionForType, photoFileName, readBlob, resizeImage, toDataUrl, uniqueFileName } from './imageUtils';
 import { SketchDialog } from './SketchDialog';
@@ -76,6 +86,8 @@ export interface EntryPanelProps {
   /** U nového zápisu předvybraný projekt (např. z detailu projektu) a deník. */
   projectNumber?: string;
   diaryId?: number;
+  /** Druh nového zápisu: běžný zápis ze stavby (výchozí), nebo předávací protokol. U existujícího zápisu se bere z něj. */
+  kind?: EntryKind;
   onDismiss: () => void;
   /** Zápis se změnil — seznam za panelem se má načíst znovu. */
   onChanged: () => void;
@@ -151,7 +163,13 @@ const FileTile: React.FC<{
   );
 };
 
-export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, projectNumber, diaryId, onDismiss, onChanged }) => {
+/** Prázdné položky předávacího protokolu: o čem protokol je a co se předává. */
+const protocolPoints = (): DiaryPoint[] => [
+  { title: 'Předmět předání', text: '', files: [] },
+  { title: 'Předané doklady (dokumentace skutečného provedení, revizní zprávy, atesty, návody, záruční listy)', text: '', files: [] }
+];
+
+export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, projectNumber, diaryId, kind, onDismiss, onChanged }) => {
   const { repos, settings, user } = useApp();
   const actor = React.useMemo(() => toActor(user), [user]);
 
@@ -183,6 +201,8 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
   const [fPoints, setFPoints] = React.useState<DiaryPoint[]>([emptyPoint()]);
   const [fTasks, setFTasks] = React.useState<DiaryTask[]>([]);
   const [fConditions, setFConditions] = React.useState('');
+  const [fResult, setFResult] = React.useState<HandoverResult | undefined>(undefined);
+  const [fWarranty, setFWarranty] = React.useState('');
 
   const cameraRef = React.useRef<HTMLInputElement>(null);
   const fileRef = React.useRef<HTMLInputElement>(null);
@@ -207,18 +227,27 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
       setFPoints(e.points.length > 0 ? e.points.map((p) => ({ ...p, files: p.files.slice() })) : [emptyPoint()]);
       setFTasks(e.tasks.map((t) => ({ ...t })));
       setFConditions(e.conditions ?? '');
+      setFResult(e.handover ? e.handover.result : undefined);
+      setFWarranty(e.handover && e.handover.warrantyMonths !== undefined ? String(e.handover.warrantyMonths) : '');
       return;
     }
     const p = projectList.filter((x) => x.projectNumber === preset)[0];
     setFProject(preset);
-    const mine = diaryList.filter((d) => d.projectNumber === preset && d.isActive);
-    setFDiary(presetDiary ?? (mine.length > 0 ? mine[0].id : undefined));
+    setFDiary(presetDiary ?? pickDiary(preset, diaryList));
     setFDate(today());
     setFHeader(headerFromProject(p));
     setFParticipants([]);
-    setFPoints([emptyPoint()]);
+    setFPoints(kind === 'predani' ? protocolPoints() : [emptyPoint()]);
     setFTasks([]);
     setFConditions('');
+    setFResult(undefined);
+    setFWarranty('');
+  };
+
+  /** Deník, do kterého zápis patří: u protokolu vyhrazený deník Předávací protokoly (když už je), u zápisu první aktivní stavební deník. */
+  const pickDiary = (projectNo: string | undefined, diaryList: SiteDiary[]): number | undefined => {
+    const mine = diaryList.filter((d) => d.projectNumber === projectNo && d.isActive && isHandoverDiary(d) === (kind === 'predani'));
+    return mine.length > 0 ? mine[0].id : undefined;
   };
 
   // Načtení dat při otevření panelu.
@@ -277,8 +306,10 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
     return () => {
       cancelled = true;
     };
-  }, [isOpen, entryId, projectNumber, diaryId, repos]);
+  }, [isOpen, entryId, projectNumber, diaryId, kind, repos]);
 
+  /** Předávací protokol (jiné popisky, závěr předání), nebo běžný zápis ze stavby. */
+  const protocol = entry ? isHandover(entry) : kind === 'predani';
   const currentProjectNumber = entry ? entry.projectNumber : fProject;
   const project = projects.filter((p) => p.projectNumber === currentProjectNumber)[0];
   const workflowProject = React.useMemo(() => (project ? toWorkflowProject(project) : undefined), [project]);
@@ -288,7 +319,7 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
     .sort((a, b) => a.projectNumber.localeCompare(b.projectNumber, 'cs-CZ', { numeric: true }))
     .map((p) => ({ key: p.projectNumber, text: `${p.projectNumber} · ${p.shortName || p.title}` }));
   const diaryOptions: IDropdownOption[] = diaries
-    .filter((d) => d.projectNumber === fProject && (d.isActive || d.id === fDiary))
+    .filter((d) => d.projectNumber === fProject && (d.isActive || d.id === fDiary) && (isHandoverDiary(d) === protocol || d.id === fDiary))
     .map((d) => ({ key: d.id, text: d.title }));
   const partnerOptions: IComboBoxOption[] = partners.map((p) => ({ key: p.id, text: p.name }));
 
@@ -315,8 +346,8 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
       .catch(() => undefined);
   };
 
-  const buildInput = (): EntryInput => ({
-    diaryId: fDiary ?? 0,
+  const buildInput = (diaryOverride?: number): EntryInput => ({
+    diaryId: diaryOverride ?? fDiary ?? 0,
     projectNumber: fProject ?? '',
     date: fDate ?? today(),
     header: {
@@ -328,18 +359,39 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
     },
     participants: fParticipants.filter((p) => p.name.trim() !== '').map((p) => ({ ...p, name: p.name.trim() })),
     points: fPoints
-      .filter((p) => p.text.trim() !== '' || p.files.length > 0 || (p.title && p.title.trim() !== ''))
+      // U protokolu se prázdné předvyplněné položky (jen nadpis) nezakládají.
+      .filter((p) => p.text.trim() !== '' || p.files.length > 0 || (!protocol && p.title && p.title.trim() !== ''))
       .map((p) => ({ title: p.title && p.title.trim() !== '' ? p.title.trim() : undefined, text: p.text, files: p.files })),
     tasks: fTasks.filter((t) => t.description.trim() !== '' || (t.responsible && t.responsible.trim() !== '')),
-    conditions: fConditions.trim() !== '' ? fConditions.trim() : undefined
+    conditions: !protocol && fConditions.trim() !== '' ? fConditions.trim() : undefined,
+    ...(protocol ? { kind: 'predani' as EntryKind, handover: { result: fResult, warrantyMonths: warrantyMonthsOf(fWarranty) } } : {})
   });
+
+  /** Počet měsíců záruky z textu políčka; prázdné nebo nesmyslné = bez záruky. */
+  const warrantyMonthsOf = (text: string): number | undefined => {
+    const n = parseInt(text.trim(), 10);
+    return isNaN(n) || n < 0 || n > 600 ? undefined : n;
+  };
+
+  /** Deník Předávací protokoly projektu: najde se, nebo se při prvním protokolu založí. U zápisu se bere zvolený deník. */
+  const resolveDiary = async (projectNo: string): Promise<number | undefined> => {
+    if (!protocol || fDiary) {
+      return fDiary;
+    }
+    const found = (await repos.diary.listDiaries(projectNo)).filter((d) => isHandoverDiary(d) && d.isActive)[0];
+    const diary = found || (await repos.diary.createDiary(projectNo, HANDOVER_DIARY_TITLE, 'Předávací protokoly projektu (zakládá aplikace).', user));
+    setDiaries((cur) => (cur.some((d) => d.id === diary.id) ? cur : [...cur, diary]));
+    setFDiary(diary.id);
+    return diary.id;
+  };
 
   /** Uloží rozepsaný zápis jako koncept, pokud ještě neexistuje (soubory se dají ukládat až do složky existujícího zápisu). */
   const ensureSaved = async (): Promise<DiaryEntry> => {
     if (entry) {
       return entry;
     }
-    const input = buildInput();
+    const diaryNo = fProject ? await resolveDiary(fProject) : undefined;
+    const input = buildInput(diaryNo);
     const found = validateEntry(input, false);
     if (found.length > 0) {
       throw new Error(`Nejdřív vyplňte: ${found.map((f) => f.message).join(' ')}`);
@@ -503,15 +555,23 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
       const data = await docDataOf(saved, blobs);
       const pdf = await renderEntryPdf(data);
       const docx = await renderEntryDocx(data);
-      await saveConceptCopy(repos.documents, p, saved.folderPath, entryFileName(saved.projectNumber, saved.entryNo, 'pdf'), pdf);
-      await saveConceptCopy(repos.documents, p, saved.folderPath, entryFileName(saved.projectNumber, saved.entryNo, 'docx'), docx);
+      await saveConceptCopy(repos.documents, p, saved.folderPath, entryFileName(saved.projectNumber, saved.entryNo, 'pdf', saved.kind), pdf);
+      await saveConceptCopy(repos.documents, p, saved.folderPath, entryFileName(saved.projectNumber, saved.entryNo, 'docx', saved.kind), docx);
     })().catch((e: unknown) =>
       setNotice({ text: `Zápis je uložený, ale koncept PDF a Wordu (KO) se do složky projektu nepodařilo uložit: ${why(e)}`, type: MessageBarType.warning })
     );
   };
 
   const save = async (thenClose: boolean): Promise<void> => {
-    const input = buildInput();
+    setError(undefined);
+    let diaryNo: number | undefined;
+    try {
+      diaryNo = !entry && fProject ? await resolveDiary(fProject) : fDiary;
+    } catch (e) {
+      setError(why(e));
+      return;
+    }
+    const input = buildInput(diaryNo);
     const found = validateEntry(input, thenClose);
     if (found.length > 0) {
       setIssues(found.map((i) => i.message));
@@ -579,8 +639,8 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
     setProgress('Vytvářím Word…');
     const docx = await renderEntryDocx(data);
     setProgress('Ukládám do složky projektu…');
-    const pdfUrl = await repos.documents.saveProjectFile(p, e.folderPath, entryFileName(e.projectNumber, e.entryNo, 'pdf'), pdf);
-    const docxUrl = await repos.documents.saveProjectFile(p, e.folderPath, entryFileName(e.projectNumber, e.entryNo, 'docx'), docx);
+    const pdfUrl = await repos.documents.saveProjectFile(p, e.folderPath, entryFileName(e.projectNumber, e.entryNo, 'pdf', e.kind), pdf);
+    const docxUrl = await repos.documents.saveProjectFile(p, e.folderPath, entryFileName(e.projectNumber, e.entryNo, 'docx', e.kind), docx);
     return { pdfUrl, docxUrl };
   };
 
@@ -604,12 +664,12 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
       const data = await docDataOf(stamped, blobs);
       const urls = await saveOutputs(e, data, p);
       // Ostrá verze je uložená — koncepty (KO) už nejsou potřeba (mažou se do koše SharePointu).
-      await removeConceptCopy(repos.documents, p, e.folderPath, entryFileName(e.projectNumber, e.entryNo, 'pdf'));
-      await removeConceptCopy(repos.documents, p, e.folderPath, entryFileName(e.projectNumber, e.entryNo, 'docx'));
+      await removeConceptCopy(repos.documents, p, e.folderPath, entryFileName(e.projectNumber, e.entryNo, 'pdf', e.kind));
+      await removeConceptCopy(repos.documents, p, e.folderPath, entryFileName(e.projectNumber, e.entryNo, 'docx', e.kind));
       stage = 'Zápis uzavření';
       const closed = await repos.diary.close(e.id, hash, urls, user);
       afterChange(closed);
-      setNotice({ text: 'Zápis je uzavřený. PDF a Word jsou uložené ve složce zápisu. Teď ho můžete podepsat v aplikaci, nebo vytisknout, podepsat a nahrát sken.', type: MessageBarType.success });
+      setNotice({ text: `${protocol ? 'Protokol je uzavřený' : 'Zápis je uzavřený'}. PDF a Word jsou uložené ve složce ${protocol ? 'protokolu' : 'zápisu'}. Teď ho můžete podepsat v aplikaci, nebo vytisknout, nechat podepsat oběma stranami a nahrát sken.`, type: MessageBarType.success });
     } catch (err) {
       setBusy(false);
       setProgress(undefined);
@@ -646,7 +706,7 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
         setNotice({ text: `Zápis je podepsaný, ale PDF s podpisem se nepodařilo přepsat (${why(err)}). Uložené PDF je ze stavu před podpisem.`, type: MessageBarType.warning });
         return;
       }
-      setNotice({ text: 'Zápis je podepsaný. PDF a Word ve složce obsahují údaje o podpisu.', type: MessageBarType.success });
+      setNotice({ text: `${protocol ? 'Protokol je podepsaný' : 'Zápis je podepsaný'}. PDF a Word ve složce obsahují údaje o podpisu.`, type: MessageBarType.success });
     } catch (err) {
       setBusy(false);
       setProgress(undefined);
@@ -668,12 +728,12 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
     setError(undefined);
     setProgress('Nahrávám podepsaný sken…');
     try {
-      const name = entryFileName(entry.projectNumber, entry.entryNo, 'podepsano.pdf').replace(/\.pdf$/, ext === '.jpeg' ? '.jpg' : ext);
+      const name = entryFileName(entry.projectNumber, entry.entryNo, 'podepsano.pdf', entry.kind).replace(/\.pdf$/, ext === '.jpeg' ? '.jpg' : ext);
       const blob = ext === '.pdf' ? file : await resizeImage(file, { maxSide: 3000, quality: 0.9 });
       const url = await repos.documents.saveProjectFile(project, entry.folderPath, name, blob);
       const signed = await repos.diary.attachScan(entry.id, url, user);
       afterChange(signed);
-      setNotice({ text: 'Podepsaný sken je připojený, zápis je podepsaný.', type: MessageBarType.success });
+      setNotice({ text: `Podepsaný sken je připojený, ${protocol ? 'protokol' : 'zápis'} je podepsaný.`, type: MessageBarType.success });
     } catch (err) {
       setBusy(false);
       setProgress(undefined);
@@ -769,8 +829,7 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
   const changeProject = (key: string): void => {
     setFProject(key);
     const p = projects.filter((x) => x.projectNumber === key)[0];
-    const mine = diaries.filter((d) => d.projectNumber === key && d.isActive);
-    setFDiary(mine.length > 0 ? mine[0].id : undefined);
+    setFDiary(pickDiary(key, diaries));
     if (!entry) {
       setFHeader(headerFromProject(p));
     }
@@ -803,7 +862,13 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
 
   // --- zobrazení ---
 
-  const headerText = entry ? `Zápis č. ${entry.entryNo}${entry.diaryTitle ? ` · ${entry.diaryTitle}` : ''}` : 'Nový zápis ze stavby';
+  const headerText = entry
+    ? protocol
+      ? entryTitle(entry)
+      : `Zápis č. ${entry.entryNo}${entry.diaryTitle ? ` · ${entry.diaryTitle}` : ''}`
+    : protocol
+    ? 'Nový předávací protokol'
+    : 'Nový zápis ze stavby';
 
   const footer = (): JSX.Element | null => {
     if (loading) {
@@ -813,7 +878,7 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
       return (
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <DefaultButton text={busy ? 'Pracuji…' : 'Uložit koncept'} disabled={busy} onClick={() => save(false).catch(() => undefined)} />
-          <PrimaryButton text="Uložit a uzavřít zápis" disabled={busy} onClick={() => save(true).catch(() => undefined)} />
+          <PrimaryButton text={protocol ? 'Uložit a uzavřít protokol' : 'Uložit a uzavřít zápis'} disabled={busy} onClick={() => save(true).catch(() => undefined)} />
           <DefaultButton iconProps={{ iconName: 'PDF' }} text="Náhled" disabled={busy} onClick={openPreview} />
           {entry && (
             <DefaultButton
@@ -837,7 +902,7 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
     return (
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         {has('edit') && <DefaultButton iconProps={{ iconName: 'Edit' }} text="Upravit" disabled={busy} onClick={() => setEditing(true)} />}
-        {has('close') && <PrimaryButton text="Uzavřít zápis" disabled={busy} onClick={() => doClose(entry).catch(() => undefined)} />}
+        {has('close') && <PrimaryButton text={protocol ? 'Uzavřít protokol' : 'Uzavřít zápis'} disabled={busy} onClick={() => doClose(entry).catch(() => undefined)} />}
         {has('sign') && <PrimaryButton iconProps={{ iconName: 'Edit' }} text="Podepsat v aplikaci" disabled={busy} onClick={() => setDialog({ kind: 'sign', text: '' })} />}
         {has('scan') && (
           <DefaultButton iconProps={{ iconName: 'Upload' }} text="Nahrát podepsaný sken" disabled={busy} onClick={() => scanRef.current && scanRef.current.click()} />
@@ -850,9 +915,9 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
   };
 
   const DIALOG_TEXT: Record<DialogKind, { title: string; label: string; required: boolean; confirm: string }> = {
-    reopen: { title: 'Znovu otevřít zápis', label: 'Proč se zápis otevírá? (zapíše se do historie)', required: true, confirm: 'Znovu otevřít' },
-    cancel: { title: 'Stornovat zápis', label: 'Důvod storna', required: true, confirm: 'Stornovat' },
-    sign: { title: 'Podepsat zápis v aplikaci', label: '', required: false, confirm: 'Podepsat' }
+    reopen: { title: protocol ? 'Znovu otevřít protokol' : 'Znovu otevřít zápis', label: protocol ? 'Proč se protokol otevírá? (zapíše se do historie)' : 'Proč se zápis otevírá? (zapíše se do historie)', required: true, confirm: 'Znovu otevřít' },
+    cancel: { title: protocol ? 'Stornovat protokol' : 'Stornovat zápis', label: 'Důvod storna', required: true, confirm: 'Stornovat' },
+    sign: { title: protocol ? 'Podepsat protokol v aplikaci' : 'Podepsat zápis v aplikaci', label: '', required: false, confirm: 'Podepsat' }
   };
 
   const hasDiary = diaryOptions.length > 0;
@@ -949,18 +1014,20 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
                 placeholder="Vyberte projekt"
                 styles={{ root: { flex: '1 1 260px' } }}
               />
-              <Dropdown
-                label="Deník"
-                required
-                disabled={!!entry}
-                options={diaryOptions}
-                selectedKey={fDiary ?? null}
-                onChange={(_, o) => o && setFDiary(Number(o.key))}
-                placeholder={fProject ? 'Vyberte deník' : 'Nejdřív projekt'}
-                styles={{ root: { flex: '1 1 200px' } }}
-              />
+              {!protocol && (
+                <Dropdown
+                  label="Deník"
+                  required
+                  disabled={!!entry}
+                  options={diaryOptions}
+                  selectedKey={fDiary ?? null}
+                  onChange={(_, o) => o && setFDiary(Number(o.key))}
+                  placeholder={fProject ? 'Vyberte deník' : 'Nejdřív projekt'}
+                  styles={{ root: { flex: '1 1 200px' } }}
+                />
+              )}
               <DatePicker
-                label="Datum"
+                label={protocol ? 'Datum předání' : 'Datum'}
                 value={fDate}
                 onSelectDate={(d) => setFDate(d ?? undefined)}
                 formatDate={(d) => (d ? formatDate(d) : '')}
@@ -970,7 +1037,7 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
                 styles={{ root: { width: 150 } }}
               />
             </div>
-            {fProject && !hasDiary && !entry && (
+            {!protocol && fProject && !hasDiary && !entry && (
               <MessageBar
                 messageBarType={MessageBarType.info}
                 isMultiline
@@ -985,15 +1052,16 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
             )}
 
             <div style={{ border: `1px solid ${RES.grayBlue}`, borderRadius: 4, padding: '10px 12px', background: RES.white }}>
-              <div style={{ fontWeight: 600, color: RES.navy, marginBottom: 6 }}>Hlavička zápisu</div>
+              <div style={{ fontWeight: 600, color: RES.navy, marginBottom: 6 }}>{protocol ? 'Hlavička protokolu' : 'Hlavička zápisu'}</div>
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                 <TextField label="Název stavby" required value={fHeader.constructionName} onChange={(_, v) => setFHeader((h) => ({ ...h, constructionName: v ?? '' }))} styles={{ root: { flex: '1 1 260px' } }} />
                 <TextField label="Místo stavby" required value={fHeader.place} onChange={(_, v) => setFHeader((h) => ({ ...h, place: v ?? '' }))} styles={{ root: { flex: '1 1 200px' } }} />
               </div>
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                <TextField label="Projektový manažer stavby" value={fHeader.managerName} onChange={(_, v) => setFHeader((h) => ({ ...h, managerName: v ?? '' }))} styles={{ root: { flex: '1 1 220px' } }} />
+                <TextField label={protocol ? 'Předává za zhotovitele (projektový manažer)' : 'Projektový manažer stavby'} value={fHeader.managerName} onChange={(_, v) => setFHeader((h) => ({ ...h, managerName: v ?? '' }))} styles={{ root: { flex: '1 1 220px' } }} />
                 <ComboBox
-                  label="Jednání s (dodavatel nebo jiný subjekt)"
+                  label={protocol ? 'Přebírá (objednatel / zákazník)' : 'Jednání s (dodavatel nebo jiný subjekt)'}
+                  required={protocol}
                   allowFreeform
                   autoComplete="on"
                   options={partnerOptions}
@@ -1020,16 +1088,18 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
                   <TextField label="DIČ" value={fHeader.company.dic} onChange={(_, v) => setCompany({ dic: v ?? '' })} styles={{ root: { width: 130 } }} />
                 </div>
               )}
-              <TextField
-                label="Počasí a podmínky na stavbě (nepovinné)"
-                value={fConditions}
-                onChange={(_, v) => setFConditions(v ?? '')}
-                placeholder="např. jasno, 12 °C, bez srážek"
-              />
+              {!protocol && (
+                <TextField
+                  label="Počasí a podmínky na stavbě (nepovinné)"
+                  value={fConditions}
+                  onChange={(_, v) => setFConditions(v ?? '')}
+                  placeholder="např. jasno, 12 °C, bez srážek"
+                />
+              )}
             </div>
 
             <div>
-              <div style={{ fontWeight: 600, marginBottom: 4 }}>Účastníci</div>
+              <div style={{ fontWeight: 600, marginBottom: 4 }}>{protocol ? 'Účastníci předání (kdo protokol podepisuje)' : 'Účastníci'}</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {fParticipants.map((p, i) => (
                   <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'flex-start', flexWrap: 'wrap' }}>
@@ -1055,13 +1125,13 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
             </div>
 
             <div>
-              <div style={{ fontWeight: 600, marginBottom: 4 }}>Body jednání</div>
+              <div style={{ fontWeight: 600, marginBottom: 4 }}>{protocol ? 'Předmět předání a předané doklady' : 'Body jednání'}</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {fPoints.map((pt, i) => (
                   <div key={i} style={{ border: `1px solid ${RES.grayBlue}`, borderRadius: 4, padding: '8px 10px', background: RES.white }}>
                     <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                       <span style={{ fontWeight: 600, color: RES.navy }}>{i + 1}.</span>
-                      <TextField placeholder="Nadpis bodu (nepovinný)" ariaLabel={`Nadpis bodu ${i + 1}`} value={pt.title ?? ''} onChange={(_, v) => setPoint(i, { title: v ?? '' })} styles={{ root: { flex: '1 1 auto' } }} />
+                      <TextField placeholder={protocol ? 'Nadpis položky' : 'Nadpis bodu (nepovinný)'} ariaLabel={`Nadpis bodu ${i + 1}`} value={pt.title ?? ''} onChange={(_, v) => setPoint(i, { title: v ?? '' })} styles={{ root: { flex: '1 1 auto' } }} />
                       <IconButton
                         iconProps={{ iconName: 'Delete' }}
                         ariaLabel={`Odebrat bod ${i + 1}`}
@@ -1073,7 +1143,7 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
                       multiline
                       autoAdjustHeight
                       rows={3}
-                      placeholder="Text bodu — co se zjistilo, domluvilo, provedlo…"
+                      placeholder={protocol ? 'Text — co se předává, v jakém stavu, jaké doklady a zkoušky…' : 'Text bodu — co se zjistilo, domluvilo, provedlo…'}
                       ariaLabel={`Text bodu ${i + 1}`}
                       value={pt.text}
                       onChange={(_, v) => setPoint(i, { text: v ?? '' })}
@@ -1128,21 +1198,21 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
                   </div>
                 ))}
               </div>
-              <ActionButton iconProps={{ iconName: 'Add' }} text="Přidat bod jednání" onClick={() => setFPoints((cur) => [...cur, emptyPoint()])} />
+              <ActionButton iconProps={{ iconName: 'Add' }} text={protocol ? 'Přidat položku' : 'Přidat bod jednání'} onClick={() => setFPoints((cur) => [...cur, emptyPoint()])} />
               <div style={{ fontSize: 12, color: RES.gray }}>
                 Fotky a soubory se ukládají rovnou do složky zápisu ve složce projektu; první nahrání uloží zápis jako koncept.
               </div>
             </div>
 
             <div>
-              <div style={{ fontWeight: 600, marginBottom: 4 }}>Dohodnuté úkoly</div>
+              <div style={{ fontWeight: 600, marginBottom: 4 }}>{protocol ? 'Zjištěné vady a nedodělky' : 'Dohodnuté úkoly'}</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {fTasks.map((t, i) => (
                   <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                    <TextField placeholder="Úkol" ariaLabel={`Úkol ${i + 1}`} value={t.description} onChange={(_, v) => setTask(i, { description: v ?? '' })} styles={{ root: { flex: '2 1 240px' } }} />
-                    <TextField placeholder="Odpovědný" ariaLabel={`Odpovědný za úkol ${i + 1}`} value={t.responsible ?? ''} onChange={(_, v) => setTask(i, { responsible: v ?? '' })} styles={{ root: { flex: '1 1 140px' } }} />
+                    <TextField placeholder={protocol ? 'Vada / nedodělek' : 'Úkol'} ariaLabel={`Úkol ${i + 1}`} value={t.description} onChange={(_, v) => setTask(i, { description: v ?? '' })} styles={{ root: { flex: '2 1 240px' } }} />
+                    <TextField placeholder={protocol ? 'Kdo odstraní' : 'Odpovědný'} ariaLabel={`Odpovědný za úkol ${i + 1}`} value={t.responsible ?? ''} onChange={(_, v) => setTask(i, { responsible: v ?? '' })} styles={{ root: { flex: '1 1 140px' } }} />
                     <DatePicker
-                      placeholder="Termín"
+                      placeholder={protocol ? 'Odstranit do' : 'Termín'}
                       ariaLabel={`Termín úkolu ${i + 1}`}
                       value={parseIsoDay(t.due)}
                       onSelectDate={(d) => setTask(i, { due: d ? isoDay(d) : undefined })}
@@ -1156,8 +1226,34 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
                   </div>
                 ))}
               </div>
-              <ActionButton iconProps={{ iconName: 'Add' }} text="Přidat úkol" onClick={() => setFTasks((cur) => [...cur, { description: '' }])} />
+              <ActionButton iconProps={{ iconName: 'Add' }} text={protocol ? 'Přidat vadu / nedodělek' : 'Přidat úkol'} onClick={() => setFTasks((cur) => [...cur, { description: '' }])} />
             </div>
+
+            {protocol && (
+              <div style={{ border: `1px solid ${RES.grayBlue}`, borderRadius: 4, padding: '10px 12px', background: RES.white }}>
+                <div style={{ fontWeight: 600, color: RES.navy, marginBottom: 6 }}>Závěr předání</div>
+                <Dropdown
+                  label="Výsledek předání"
+                  required
+                  options={HANDOVER_RESULTS.map((r) => ({ key: r, text: HANDOVER_RESULT_LABELS[r] }))}
+                  selectedKey={fResult ?? null}
+                  onChange={(_, o) => o && setFResult(o.key as HandoverResult)}
+                  placeholder="Vyberte výsledek"
+                />
+                <TextField
+                  label="Záruční doba (měsíců, nepovinné)"
+                  value={fWarranty}
+                  onChange={(_, v) => setFWarranty((v ?? '').replace(/[^0-9]/g, ''))}
+                  placeholder="např. 60"
+                  description={
+                    warrantyMonthsOf(fWarranty) && fDate && fResult !== 'neprevzato'
+                      ? `Záruka končí ${formatDate(warrantyEnd(fDate, warrantyMonthsOf(fWarranty) as number))}.`
+                      : undefined
+                  }
+                  styles={{ root: { maxWidth: 260 } }}
+                />
+              </div>
+            )}
           </div>
         )}
 
@@ -1175,8 +1271,8 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
         {previewOpen && (
           <OrderPdfPreview
             blob={previewBlob}
-            fileName={entry ? entryFileName(entry.projectNumber, entry.entryNo, 'pdf') : 'Zapis_navrh.pdf'}
-            title={entry ? `Náhled zápisu č. ${entry.entryNo}` : 'Náhled zápisu (návrh)'}
+            fileName={entry ? entryFileName(entry.projectNumber, entry.entryNo, 'pdf', entry.kind) : protocol ? 'Predavaci_protokol_navrh.pdf' : 'Zapis_navrh.pdf'}
+            title={entry ? `Náhled: ${entryTitle(entry)}` : protocol ? 'Náhled protokolu (návrh)' : 'Náhled zápisu (návrh)'}
             onDismiss={() => setPreviewOpen(false)}
           />
         )}
@@ -1209,9 +1305,9 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
           >
             {dialog.kind === 'sign' ? (
               <div style={{ fontSize: 13, lineHeight: 1.6 }}>
-                Podepisujete jako <strong>{user.displayName}</strong>. Do zápisu se zapíše vaše jméno, čas a otisk obsahu; zápis se pak už nedá měnit.
+                Podepisujete jako <strong>{user.displayName}</strong>. Do {protocol ? 'protokolu' : 'zápisu'} se zapíše vaše jméno, čas a otisk obsahu; {protocol ? 'protokol' : 'zápis'} se pak už nedá měnit.
                 <br />
-                Jde o jednoduchý elektronický podpis — hodí se pro vnitřní evidenci. Potřebujete-li podpis dodavatele nebo zákazníka, vytiskněte zápis
+                Jde o jednoduchý elektronický podpis — hodí se pro vnitřní evidenci. Potřebujete-li podpis {protocol ? 'objednatele' : 'dodavatele nebo zákazníka'}, vytiskněte {protocol ? 'protokol' : 'zápis'}
                 a nahrajte podepsaný sken.
               </div>
             ) : (
@@ -1258,6 +1354,8 @@ const EntryDetail: React.FC<{
   const closure = closureNote(entry);
   const signature = signatureNote(entry);
   const others = nonImageAttachments(entry);
+  const protocol = isHandover(entry);
+  const warranty = warrantyNote(entry);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 8 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
@@ -1266,7 +1364,7 @@ const EntryDetail: React.FC<{
 
       {entry.status === EntryStatus.Uzavreno && (
         <MessageBar messageBarType={MessageBarType.info} isMultiline>
-          Zápis je uzavřený a zamčený. Podepište ho v aplikaci, nebo vytiskněte PDF, nechte podepsat a nahrajte sken
+          {protocol ? 'Protokol je uzavřený a zamčený' : 'Zápis je uzavřený a zamčený'}. Podepište ho v aplikaci, nebo vytiskněte PDF, nechte podepsat a nahrajte sken
           {canScan ? (
             <>
               {' '}
@@ -1282,7 +1380,7 @@ const EntryDetail: React.FC<{
         </MessageBar>
       )}
 
-      <Section title="Hlavička">
+      <Section title={protocol ? 'Hlavička protokolu' : 'Hlavička'}>
         <Row
           label="Projekt"
           value={
@@ -1292,18 +1390,19 @@ const EntryDetail: React.FC<{
             </Link>
           }
         />
-        <Row label="Deník" value={entry.diaryTitle || '—'} />
+        {!protocol && <Row label="Deník" value={entry.diaryTitle || '—'} />}
+        {protocol && <Row label="Číslo protokolu" value={protocolNumber(entry.projectNumber, entry.entryNo)} />}
         <Row label="Stavba" value={entry.header.constructionName || '—'} />
         <Row label="Místo stavby" value={entry.header.place || '—'} />
-        <Row label="Datum" value={formatDate(entry.date)} />
-        <Row label="Projektový manažer stavby" value={entry.header.managerName || '—'} />
-        <Row label="Jednání s" value={entry.header.counterparty || '—'} />
+        <Row label={protocol ? 'Datum předání' : 'Datum'} value={formatDate(entry.date)} />
+        <Row label={protocol ? 'Předává (zhotovitel)' : 'Projektový manažer stavby'} value={entry.header.managerName || '—'} />
+        <Row label={protocol ? 'Přebírá (objednatel)' : 'Jednání s'} value={entry.header.counterparty || '—'} />
         {entry.conditions && <Row label="Počasí a podmínky" value={entry.conditions} />}
-        <Row label="Zapsal" value={entry.createdByName || '—'} />
+        <Row label={protocol ? 'Vystavil' : 'Zapsal'} value={entry.createdByName || '—'} />
       </Section>
 
       {entry.participants.length > 0 && (
-        <Section title="Účastníci">
+        <Section title={protocol ? 'Účastníci předání' : 'Účastníci'}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <tbody>
               {entry.participants.map((p, i) => (
@@ -1318,12 +1417,12 @@ const EntryDetail: React.FC<{
         </Section>
       )}
 
-      <Section title="Body jednání">
-        {entry.points.length === 0 && <div style={{ color: RES.gray, fontSize: 13 }}>Zápis zatím nemá žádný bod.</div>}
+      <Section title={protocol ? 'Předmět předání a předané doklady' : 'Body jednání'}>
+        {entry.points.length === 0 && <div style={{ color: RES.gray, fontSize: 13 }}>{protocol ? 'Protokol zatím nemá žádnou položku.' : 'Zápis zatím nemá žádný bod.'}</div>}
         {entry.points.map((p, i) => (
           <div key={i} style={{ marginBottom: 12 }}>
             <div style={{ fontWeight: 600 }}>
-              {i + 1}. {p.title && p.title.trim() !== '' ? p.title : 'Bod jednání'}
+              {i + 1}. {p.title && p.title.trim() !== '' ? p.title : protocol ? 'Předmět předání' : 'Bod jednání'}
             </div>
             {p.text && <div style={{ whiteSpace: 'pre-wrap', fontSize: 13, margin: '2px 0 6px' }}>{p.text}</div>}
             {p.files.length > 0 && (
@@ -1339,7 +1438,7 @@ const EntryDetail: React.FC<{
       </Section>
 
       {entry.tasks.length > 0 && (
-        <Section title="Dohodnuté úkoly">
+        <Section title={protocol ? 'Zjištěné vady a nedodělky' : 'Dohodnuté úkoly'}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <tbody>
               {entry.tasks.map((t, i) => (
@@ -1354,9 +1453,18 @@ const EntryDetail: React.FC<{
         </Section>
       )}
 
+      {protocol && (
+        <Section title="Závěr předání">
+          <div style={{ fontWeight: 600, color: handoverResultColor(entry.handover ? entry.handover.result : undefined) }}>
+            {entry.handover && entry.handover.result ? HANDOVER_RESULT_LABELS[entry.handover.result] : '—'}
+          </div>
+          {warranty && <div style={{ fontSize: 13, marginTop: 4 }}>{warranty}</div>}
+        </Section>
+      )}
+
       {(entry.pdfUrl || entry.docxUrl || entry.signedUrl || closure || signature) && (
         <Section title="Výstupy a podpis">
-          {entry.pdfUrl && <Row label="PDF zápisu" value={<ExternalLink href={entry.pdfUrl}>otevřít v nové záložce</ExternalLink>} />}
+          {entry.pdfUrl && <Row label={protocol ? 'PDF protokolu' : 'PDF zápisu'} value={<ExternalLink href={entry.pdfUrl}>otevřít v nové záložce</ExternalLink>} />}
           {entry.docxUrl && <Row label="Word (editovatelný)" value={<ExternalLink href={entry.docxUrl}>otevřít / stáhnout</ExternalLink>} />}
           {entry.signedUrl && <Row label="Podepsaný sken" value={<ExternalLink href={entry.signedUrl}>otevřít v nové záložce</ExternalLink>} />}
           {closure && <div style={{ fontSize: 12, color: RES.gray, marginTop: 6, wordBreak: 'break-all' }}>{closure}</div>}

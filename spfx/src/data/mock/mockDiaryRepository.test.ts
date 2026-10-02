@@ -113,3 +113,29 @@ describe('MockDiaryRepository — zápisy', () => {
     expect(await r.diary.getEntry(z.id)).toBeUndefined();
   });
 });
+
+describe('MockDiaryRepository — předávací protokoly', () => {
+  it('protokol má vlastní deník, číslo PP, složku PP01 a od zápisů se dá oddělit filtrem', async () => {
+    const r = createMockRepositories();
+    const denik = await r.diary.createDiary('25003', 'Předávací protokoly', undefined, jan);
+    const p = await r.diary.createEntry(
+      vstup({ diaryId: denik.id, kind: 'predani', handover: { result: 'bez-vyhrad', warrantyMonths: 60 }, header: { ...vstup().header, counterparty: 'ČEZ Distribuce' } }),
+      martin
+    );
+    expect(p.entryNo).toBe(1);
+    expect(p.kind).toBe('predani');
+    expect(p.folderPath).toBe('04-Zápisy/Předávací protokoly/PP01');
+    expect(p.handover).toEqual({ result: 'bez-vyhrad', warrantyMonths: 60 });
+    const jenProtokoly = await r.diary.listEntries({ projectNumber: '25003', kind: 'predani' });
+    expect(jenProtokoly.map((e) => e.id)).toEqual([p.id]);
+    const jenZapisy = await r.diary.listEntries({ projectNumber: '25003', kind: 'zapis' });
+    expect(jenZapisy.some((e) => e.id === p.id)).toBe(false);
+  });
+
+  it('protokol bez výsledku předání nejde uzavřít', async () => {
+    const r = createMockRepositories();
+    const denik = await r.diary.createDiary('25003', 'Předávací protokoly', undefined, jan);
+    const p = await r.diary.createEntry(vstup({ diaryId: denik.id, kind: 'predani', handover: {}, header: { ...vstup().header, counterparty: 'ČEZ' } }), jan);
+    await expect(r.diary.close(p.id, 'hash', {}, jan)).rejects.toThrow(/výsledek předání/);
+  });
+});

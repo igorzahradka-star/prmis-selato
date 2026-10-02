@@ -32,6 +32,7 @@ import {
   contentToJson,
   emptyHeader,
   entryFolderPath,
+  entryTitle,
   filterEntries,
   nextEntryNumber,
   reopenEntry,
@@ -255,14 +256,14 @@ export class SpDiaryRepository implements IDiaryRepository {
     try {
       const sp = getSp(this.context);
       const added = await sp.web.lists.getByTitle(ENTRIES_LIST).items.add({
-        Title: `Zápis č. ${firstNo}`,
+        Title: entryTitle({ kind: input.kind, projectNumber: input.projectNumber, entryNo: firstNo }),
         DiaryId: diary.id,
         ProjectId: project.id,
         EntryNo: firstNo,
         EntryDate: input.date.toISOString(),
         EntryStatus: EntryStatus.Koncept,
         Content: contentToJson(input),
-        FolderPath: entryFolderPath(folderFor(project, 'diary', settings.folders), diary.title, firstNo),
+        FolderPath: entryFolderPath(folderFor(project, 'diary', settings.folders), diary.title, firstNo, input.kind),
         EntryAuthorId: actor.id
       });
       newId = extractAddedId(added);
@@ -281,12 +282,16 @@ export class SpDiaryRepository implements IDiaryRepository {
       finalNo = nextEntryNumber((await this.listEntries({ diaryId: diary.id })).map((e) => e.entryNo));
       await this.write(
         createdId,
-        { Title: `Zápis č. ${finalNo}`, EntryNo: finalNo, FolderPath: entryFolderPath(folderFor(project, 'diary', settings.folders), diary.title, finalNo) },
+        {
+          Title: entryTitle({ kind: input.kind, projectNumber: input.projectNumber, entryNo: finalNo }),
+          EntryNo: finalNo,
+          FolderPath: entryFolderPath(folderFor(project, 'diary', settings.folders), diary.title, finalNo, input.kind)
+        },
         undefined,
         'Nepodařilo se přečíslovat zápis'
       );
     }
-    await this.audit(`Zápis č. ${finalNo}`, `D${diary.id}-Z${finalNo}`, actor, 'Založen zápis', undefined, EntryStatus.Koncept);
+    await this.audit(entryTitle({ kind: input.kind, projectNumber: input.projectNumber, entryNo: finalNo }), `D${diary.id}-Z${finalNo}`, actor, input.kind === 'predani' ? 'Založen protokol' : 'Založen zápis', undefined, EntryStatus.Koncept);
     return (await this.requireEntry(createdId)).entry;
   }
 
@@ -294,14 +299,14 @@ export class SpDiaryRepository implements IDiaryRepository {
     const { entry, etag } = await this.requireEntry(id);
     const project = await this.requireProject(entry.projectNumber);
     if (!canEditEntry(entry, toWorkflowProject(project), toActor(actor))) {
-      throw new WorkflowError(`Zápis č. ${entry.entryNo} teď nejde upravovat (stav „${entry.status}“, nebo k němu nemáte oprávnění).`);
+      throw new WorkflowError(`${entryTitle(entry)} teď nejde upravovat (stav „${entry.status}“, nebo k němu nemáte oprávnění).`);
     }
     if (input.projectNumber !== entry.projectNumber || input.diaryId !== entry.diaryId) {
       throw new WorkflowError('Projekt ani deník se u založeného zápisu nemění. Zápis stornujte a založte nový.');
     }
     assertValid(input);
-    await this.write(id, { EntryDate: input.date.toISOString(), Content: contentToJson(input) }, etag, `Zápis č. ${entry.entryNo} se nepodařilo uložit`);
-    await this.audit(`Zápis č. ${entry.entryNo}`, auditId(entry), actor, 'Upraveno', entry.status, entry.status);
+    await this.write(id, { EntryDate: input.date.toISOString(), Content: contentToJson(input) }, etag, `${entryTitle(entry)} se nepodařilo uložit`);
+    await this.audit(`${entryTitle(entry)}`, auditId(entry), actor, 'Upraveno', entry.status, entry.status);
     return (await this.requireEntry(id)).entry;
   }
 
@@ -332,7 +337,7 @@ export class SpDiaryRepository implements IDiaryRepository {
     const { entry } = await this.requireEntry(id);
     // Audit jde první: smazaný zápis je v koši SharePointu, ale bez záznamu by nebylo vidět, kdo ho smazal.
     await this.audit(
-      `Zápis č. ${entry.entryNo}`,
+      `${entryTitle(entry)}`,
       auditId(entry),
       actor,
       `Zápis smazán administrátorem (projekt ${entry.projectNumber}, deník ${entry.diaryTitle ?? entry.diaryId}, stav „${entry.status}“)`,
@@ -343,7 +348,7 @@ export class SpDiaryRepository implements IDiaryRepository {
       const sp = getSp(this.context);
       await sp.web.lists.getByTitle(ENTRIES_LIST).items.getById(id).recycle();
     } catch (error) {
-      throw new Error(explain(error, `Zápis č. ${entry.entryNo} se nepodařilo smazat`));
+      throw new Error(explain(error, `${entryTitle(entry)} se nepodařilo smazat`));
     }
   }
 
@@ -465,18 +470,18 @@ export class SpDiaryRepository implements IDiaryRepository {
       fields.CancelReason = change.cancelReason;
     }
     if (change.pdfUrl) {
-      fields.PdfUrl = { Url: change.pdfUrl, Description: `Zápis č. ${entry.entryNo} (PDF)` };
+      fields.PdfUrl = { Url: change.pdfUrl, Description: `${entryTitle(entry)} (PDF)` };
     }
     if (change.docxUrl) {
-      fields.DocxUrl = { Url: change.docxUrl, Description: `Zápis č. ${entry.entryNo} (Word)` };
+      fields.DocxUrl = { Url: change.docxUrl, Description: `${entryTitle(entry)} (Word)` };
     }
     if (change.signedUrl) {
-      fields.SignedUrl = { Url: change.signedUrl, Description: `Zápis č. ${entry.entryNo} (podepsaný sken)` };
+      fields.SignedUrl = { Url: change.signedUrl, Description: `${entryTitle(entry)} (podepsaný sken)` };
     }
     await this.write(id, fields, etag, `Nepodařilo se změnit stav zápisu č. ${entry.entryNo}`);
 
     try {
-      await this.audit(`Zápis č. ${entry.entryNo}`, auditId(entry), actor, change.auditAction, entry.status, after.status);
+      await this.audit(`${entryTitle(entry)}`, auditId(entry), actor, change.auditAction, entry.status, after.status);
     } catch (error) {
       throw new Error(
         `Změna zápisu č. ${entry.entryNo} se provedla, ale nepodařilo se zapsat záznam o ní do historie. ` +
