@@ -18,6 +18,7 @@ import { useApp } from '../../ui/AppContext';
 import { RES } from '../../ui/theme';
 import { PageHeading } from '../../ui/components/PageHeading';
 import { useReportCurrency } from '../../ui/useReportCurrency';
+import { CurrencySwitch } from '../../ui/components/CurrencySwitch';
 import { buildHash, navigate, RouteName } from '../../ui/router';
 import { Project } from '../../core/types';
 import {
@@ -247,6 +248,9 @@ export const ProjectsMapPage: React.FC = () => {
 
       {projects && (
         <>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
+            <CurrencySwitch />
+          </div>
           <div style={{ position: 'relative', marginTop: 8 }}>
             <div
               ref={containerRef}

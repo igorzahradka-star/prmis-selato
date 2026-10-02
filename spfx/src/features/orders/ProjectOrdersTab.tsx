@@ -14,6 +14,7 @@ import { Project } from '../../core/types';
 import { PurchaseOrder } from '../../core/orders';
 import { canIssueOrder, toActor, toWorkflowProject } from '../../core/orderWorkflow';
 import { OrdersTable } from './OrdersTable';
+import { CurrencySwitch } from '../../ui/components/CurrencySwitch';
 import { OrderPanel } from './OrderPanel';
 
 export const ProjectOrdersTab: React.FC<{ project: Project }> = ({ project }) => {
@@ -45,6 +46,9 @@ export const ProjectOrdersTab: React.FC<{ project: Project }> = ({ project }) =>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
         <div style={{ flex: '1 1 auto', color: RES.gray, fontSize: 13 }}>
           Objednávky projektu {project.projectNumber}. Všechny objednávky napříč projekty najdete v části Objednávky.
+        </div>
+        <div style={{ marginRight: 12 }}>
+          <CurrencySwitch />
         </div>
         {mayIssue && (
           <PrimaryButton iconProps={{ iconName: 'Add' }} text="Nová objednávka" onClick={() => setCreating(true)} />

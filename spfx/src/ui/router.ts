@@ -20,6 +20,7 @@ export enum RouteName {
   Photos = 'foto',
   Finance = 'firemni-cashflow',
   Benchmark = 'benchmark',
+  Service = 'servis',
   Users = 'uzivatele',
   Settings = 'nastaveni',
   Install = 'instalace',

@@ -4,10 +4,10 @@ import { RouteName } from '../router';
 const nic = { benchmark: false, finance: false, admin: false };
 
 describe('buildNavigation', () => {
-  it('běžný uživatel: skupina Projekty, Čeká na mě, Partneři a Nápověda; správu nevidí', () => {
+  it('běžný uživatel: skupiny Projekty a Servis, Čeká na mě, Partneři a Nápověda; správu nevidí', () => {
     const e = buildNavigation(nic);
     const labels = e.map((x) => (x.kind === 'group' ? x.group.label : x.item.label));
-    expect(labels).toEqual(['Projekty', 'Čeká na mě', 'Partneři', 'Nápověda']);
+    expect(labels).toEqual(['Projekty', 'Čeká na mě', 'Partneři', 'Servis', 'Nápověda']);
   });
 
   it('skupina Projekty obsahuje projektové moduly', () => {

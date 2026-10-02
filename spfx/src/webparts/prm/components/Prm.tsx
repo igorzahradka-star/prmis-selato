@@ -154,6 +154,14 @@ function renderRoute(route: Route): React.ReactNode {
           description="Porovnání dokončených projektů: marže, odchylky rozpočtu a termínů, náklady na kWp."
         />
       );
+    case RouteName.Service:
+      return (
+        <ComingSoonPage
+          title="Servis"
+          phase="Připravujeme"
+          description="Evidence servisních zásahů, revizí a smluv po předání projektu (složka 10-Servis). Upřesníme společně."
+        />
+      );
     case RouteName.Finance:
       return (
         <ComingSoonPage

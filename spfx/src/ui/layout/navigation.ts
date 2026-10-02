@@ -37,7 +37,7 @@ const item = (route: RouteName, label: string, icon: string, comingSoon?: boolea
 /**
  * Navigace podle oprávnění uživatele (co nesmí, nevidí). Ve skupině Projekty jsou jen přehledy napříč projekty (přehled, mapa,
  * objednávky, fakturace); stavební deník a fotodokumentace se otevírají až z detailu konkrétního projektu. Správa je ve skupině
- * Nastavení. Skupinu Servis (10-Servis) přidáme, až bude modul hotový.
+ * Nastavení. Skupina Servis (složka 10-Servis) zatím obsahuje jen položku označenou jako připravovanou.
  */
 export function buildNavigation(flags: NavFlags): NavEntry[] {
   const entries: NavEntry[] = [
@@ -56,7 +56,16 @@ export function buildNavigation(flags: NavFlags): NavEntry[] {
       }
     },
     item(RouteName.WaitingForMe, 'Čeká na mě', 'Inbox'),
-    item(RouteName.Partners, 'Partneři', 'ContactCard')
+    item(RouteName.Partners, 'Partneři', 'ContactCard'),
+    {
+      kind: 'group',
+      group: {
+        key: 'servis',
+        label: 'Servis',
+        icon: 'Repair',
+        children: [{ route: RouteName.Service, label: 'Servis', icon: 'Repair', comingSoon: true }]
+      }
+    }
   ];
 
   if (flags.benchmark) {

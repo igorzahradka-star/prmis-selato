@@ -16,6 +16,7 @@ import { InvoiceBasis } from '../../core/invoiceBases';
 import { canIssueInvoice } from '../../core/invoiceWorkflow';
 import { toActor, toWorkflowProject } from '../../core/orderWorkflow';
 import { InvoicesTable } from './InvoicesTable';
+import { CurrencySwitch } from '../../ui/components/CurrencySwitch';
 import { InvoicePanel } from './InvoicePanel';
 
 export const ProjectInvoicesTab: React.FC<{ project: Project }> = ({ project }) => {
@@ -49,6 +50,9 @@ export const ProjectInvoicesTab: React.FC<{ project: Project }> = ({ project }) 
           {project.isOverhead
             ? 'Na projekt Režie se nefakturuje.'
             : `Podklady pro fakturaci projektu ${project.projectNumber}. Všechny podklady napříč projekty najdete v části Fakturace.`}
+        </div>
+        <div style={{ marginRight: 12 }}>
+          <CurrencySwitch />
         </div>
         {mayIssue && <PrimaryButton iconProps={{ iconName: 'Add' }} text="Nový podklad" onClick={() => setCreating(true)} />}
       </div>

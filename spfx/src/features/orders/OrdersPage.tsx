@@ -26,6 +26,7 @@ import { canIssueOrder, toActor, toWorkflowProject } from '../../core/orderWorkf
 import { normalizeLogin } from '../../core/roles';
 import { Project } from '../../core/types';
 import { OrdersTable } from './OrdersTable';
+import { CurrencySwitch } from '../../ui/components/CurrencySwitch';
 import { OrderPanel } from './OrderPanel';
 
 export const OrdersPage: React.FC<{ orderId?: number }> = ({ orderId }) => {
@@ -158,6 +159,7 @@ export const OrdersPage: React.FC<{ orderId?: number }> = ({ orderId }) => {
           </div>
         </Field>
         <div style={{ flex: '1 1 auto' }} />
+        <CurrencySwitch stacked />
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', height: CONTROL_HEIGHT }}>
           {orders && (
             <span style={{ color: RES.gray, fontSize: 12 }}>

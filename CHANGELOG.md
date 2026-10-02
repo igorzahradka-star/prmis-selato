@@ -5,6 +5,16 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.20.1 — 2. 10. 2026 — Přepínač měny v přehledech, skupina Servis v nabídce
+
+**Nové**
+
+- **Přepínač měny CZK / EUR / USD** nad každým přehledem s cenami: Přehled projektů, Mapa projektů, Objednávky, Fakturace, objednávky a podklady v detailu projektu a Čeká na mě. Částky se přepočtou kurzem ČNB (stejně jako dosud). **Výchozí zobrazení zůstává podle Nastavení**
+  (Výchozí měna přehledů); volba se **pamatuje v prohlížeči a platí pro všechny přehledy najednou**. Nastavením výchozí měny se nic nemění — doklady samotné zůstávají v měně dokladu. Report projektu (PDF) používá aktuálně zvolenou měnu.
+- V nabídce je skupina **Servis** s položkou označenou „Připravujeme“ (modul servisu se doplní později).
+
+---
+
 ## 0.20.0 — 1. 10. 2026 — Report projektu (PDF) ve stylu RES prezentace
 
 **Nové**

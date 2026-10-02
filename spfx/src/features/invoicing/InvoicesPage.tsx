@@ -27,6 +27,7 @@ import { toActor, toWorkflowProject } from '../../core/orderWorkflow';
 import { normalizeLogin } from '../../core/roles';
 import { Project } from '../../core/types';
 import { InvoicesTable } from './InvoicesTable';
+import { CurrencySwitch } from '../../ui/components/CurrencySwitch';
 import { InvoicePanel } from './InvoicePanel';
 
 export const InvoicesPage: React.FC<{ invoiceId?: number }> = ({ invoiceId }) => {
@@ -153,6 +154,7 @@ export const InvoicesPage: React.FC<{ invoiceId?: number }> = ({ invoiceId }) =>
           </div>
         </Field>
         <div style={{ flex: '1 1 auto' }} />
+        <CurrencySwitch stacked />
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', height: CONTROL_HEIGHT }}>
           {invoices && (
             <span style={{ color: RES.gray, fontSize: 12 }}>

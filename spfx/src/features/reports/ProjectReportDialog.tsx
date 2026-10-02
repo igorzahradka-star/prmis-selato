@@ -106,7 +106,7 @@ export const ProjectReportDialog: React.FC<{ project: Project; onClose: () => vo
           <Checkbox label="Termíny a úkoly ze zápisů" checked={sections.deadlines} disabled={busy} onChange={(_, c) => toggle('deadlines', !!c)} />
           <Checkbox label="Stavební deník — poslední zápisy" checked={sections.diary} disabled={busy} onChange={(_, c) => toggle('diary', !!c)} />
           <Checkbox label="Fotodokumentace — až 6 fotek z nejnovější dávky" checked={sections.photos} disabled={busy} onChange={(_, c) => toggle('photos', !!c)} />
-          <div style={{ fontSize: 12, color: RES.gray }}>Částky jsou ve výchozí měně přehledů ({report.label}), bez DPH.</div>
+          <div style={{ fontSize: 12, color: RES.gray }}>Částky jsou v měně zvolené nad přehledy ({report.label}), bez DPH.</div>
 
           {busy && <Spinner size={SpinnerSize.small} label={progress || 'Pracuji…'} labelPosition="right" styles={{ root: { justifyContent: 'flex-start', marginTop: 4 } }} />}
 

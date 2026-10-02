@@ -28,6 +28,7 @@ import { BudgetStatus, Project, ProjectStatus, ACTIVE_PROJECT_STATUSES } from '.
 import { formatDate, formatMoney, dueLabel } from '../../core/format';
 import { PurchaseOrder, SPENT_ORDER_STATUSES, spentByProject } from '../../core/orders';
 import { ReportCurrency, useReportCurrency } from '../../ui/useReportCurrency';
+import { CurrencySwitch } from '../../ui/components/CurrencySwitch';
 import { canCreateProject, canEditProject } from '../../core/roles';
 import streakUrl from '../../webparts/prm/assets/res-kpi-streak.png';
 
@@ -280,6 +281,8 @@ export const DashboardPage: React.FC = () => {
           styles={{ root: { minWidth: 180 } }}
           placeholder="Všechny stavy"
         />
+        <div style={{ flex: '1 1 auto' }} />
+        <CurrencySwitch stacked />
       </div>
 
       {error && (

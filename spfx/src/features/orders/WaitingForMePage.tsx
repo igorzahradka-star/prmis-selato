@@ -21,6 +21,7 @@ import { InvoiceBasis, InvoiceStatus } from '../../core/invoiceBases';
 import { isWaitingForCheck } from '../../core/invoiceWorkflow';
 import { InvoicesTable } from '../invoicing/InvoicesTable';
 import { OrdersTable } from './OrdersTable';
+import { CurrencySwitch } from '../../ui/components/CurrencySwitch';
 import { OrderPanel } from './OrderPanel';
 
 export const WaitingForMePage: React.FC<{ orderId?: number }> = ({ orderId }) => {
@@ -82,6 +83,11 @@ export const WaitingForMePage: React.FC<{ orderId?: number }> = ({ orderId }) =>
       {!orders && !error && <Spinner size={SpinnerSize.large} label="Načítám…" />}
       {orders && mine.length === 0 && invoicesToCheck.length === 0 && !error && (
         <MessageBar messageBarType={MessageBarType.success}>Nic na vás nečeká.</MessageBar>
+      )}
+      {(mine.length > 0 || invoicesToCheck.length > 0) && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', margin: '4px 0' }}>
+          <CurrencySwitch />
+        </div>
       )}
       {mine.length > 0 && <h2 style={{ fontSize: 15, margin: '8px 0', color: RES.navy }}>Objednávky ke schválení</h2>}
       {mine.length > 0 && (
