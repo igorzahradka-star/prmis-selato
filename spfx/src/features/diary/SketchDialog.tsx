@@ -2,7 +2,8 @@
  * Kreslení: prázdný náčrt nebo poznámky přímo do fotky (šipka, zakroužkování, popis závady — podobně jako v aplikacích
  * pro stavby). Funguje prstem i myší; výsledek je obrázek, který se připojí k bodu zápisu.
  *
- * Nástroje: pero (volná čára), rovná čára, obdélník (s Shiftem čtverec), kolečko a text (písmo Arial, tři velikosti).
+ * Nástroje: pero (volná čára), rovná čára, obdélník (s Shiftem čtverec), kolečko, text (písmo Arial, tři velikosti)
+ * a guma (čtvercová, tři velikosti — maže jen to, co se přejede; u fotky se pod gumou vrací původní fotka).
  * Tvary se táhnou myší nebo prstem a při tažení je vidět náhled; poslední krok jde vrátit tlačítkem Zpět.
  */
 
@@ -23,14 +24,15 @@ export interface SketchDialogProps {
   onCancel: () => void;
 }
 
-type Tool = 'pero' | 'cara' | 'obdelnik' | 'kolo' | 'text';
+type Tool = 'pero' | 'cara' | 'obdelnik' | 'kolo' | 'text' | 'guma';
 
 const TOOLS: { key: Tool; label: string; icon: string }[] = [
   { key: 'pero', label: 'Pero', icon: 'Edit' },
   { key: 'cara', label: 'Čára', icon: 'Remove' },
   { key: 'obdelnik', label: 'Obdélník', icon: 'RectangleShape' },
   { key: 'kolo', label: 'Kolečko', icon: 'CircleRing' },
-  { key: 'text', label: 'Text', icon: 'Font' }
+  { key: 'text', label: 'Text', icon: 'Font' },
+  { key: 'guma', label: 'Guma', icon: 'EraseTool' }
 ];
 
 const COLORS = ['#D32F2F', '#0268A6', '#111111', '#2E7D32', '#F9A825', '#FFFFFF'];
@@ -44,6 +46,12 @@ const TEXT_SIZES = [
   { label: 'Malý', value: 28 },
   { label: 'Střední', value: 48 },
   { label: 'Velký', value: 84 }
+];
+/** Strana čtvercové gumy v bodech plátna. */
+const ERASER_SIZES = [
+  { label: 'Malá', value: 30 },
+  { label: 'Střední', value: 80 },
+  { label: 'Velká', value: 160 }
 ];
 const TEXT_FONT = 'Arial, Helvetica, sans-serif';
 const BLANK = { width: 1200, height: 800 };
@@ -94,10 +102,14 @@ export const SketchDialog: React.FC<SketchDialogProps> = ({ background, title, o
   const shapeStart = React.useRef<Pt | undefined>(undefined);
   const shapeBase = React.useRef<ImageData | undefined>(undefined);
   const undo = React.useRef<ImageData[]>([]);
+  /** Podklad bez kresby (fotka nebo bílý list) — gumou se z něj obnovuje to, co se přejede. */
+  const baseRef = React.useRef<HTMLCanvasElement | undefined>(undefined);
   const [tool, setTool] = React.useState<Tool>('pero');
   const [color, setColor] = React.useState(COLORS[0]);
   const [width, setWidth] = React.useState(WIDTHS[1].value);
   const [textSize, setTextSize] = React.useState(TEXT_SIZES[1].value);
+  const [eraserSize, setEraserSize] = React.useState(ERASER_SIZES[1].value);
+  const [eraserHover, setEraserHover] = React.useState<{ left: number; top: number; size: number } | undefined>(undefined);
   const [textBox, setTextBox] = React.useState<{ at: Pt; left: number; top: number; value: string } | undefined>(undefined);
   const [ready, setReady] = React.useState(false);
   const [canUndo, setCanUndo] = React.useState(false);
@@ -122,6 +134,15 @@ export const SketchDialog: React.FC<SketchDialogProps> = ({ background, title, o
       ctx.fillRect(0, 0, w, h);
       if (draw) {
         draw(ctx);
+      }
+      // Kopie podkladu pro gumu.
+      const base = document.createElement('canvas');
+      base.width = w;
+      base.height = h;
+      const bctx = base.getContext('2d');
+      if (bctx) {
+        bctx.drawImage(canvas, 0, 0);
+        baseRef.current = base;
       }
       undo.current = [];
       setCanUndo(false);
@@ -181,6 +202,28 @@ export const SketchDialog: React.FC<SketchDialogProps> = ({ background, title, o
     });
   };
 
+  /** Smaže čtverec kolem bodu: vrátí do něj podklad. Mezi dvěma body se maže po malých krocích, ať po rychlém tahu nezůstanou mezery. */
+  const erase = (ctx: CanvasRenderingContext2D, from: Pt, to: Pt): void => {
+    const base = baseRef.current;
+    if (!base) {
+      return;
+    }
+    const s = eraserSize;
+    const dist = Math.max(Math.abs(to.x - from.x), Math.abs(to.y - from.y));
+    const steps = Math.max(1, Math.ceil(dist / (s / 3)));
+    for (let i = 1; i <= steps; i++) {
+      const x = Math.round(from.x + ((to.x - from.x) * i) / steps - s / 2);
+      const y = Math.round(from.y + ((to.y - from.y) * i) / steps - s / 2);
+      const sx = Math.max(0, x);
+      const sy = Math.max(0, y);
+      const ex = Math.min(base.width, x + s);
+      const ey = Math.min(base.height, y + s);
+      if (ex > sx && ey > sy) {
+        ctx.drawImage(base, sx, sy, ex - sx, ey - sy, sx, sy, ex - sx, ey - sy);
+      }
+    }
+  };
+
   const onDown = (e: React.PointerEvent<HTMLCanvasElement>): void => {
     const canvas = e.currentTarget;
     const ctx = canvas.getContext('2d');
@@ -205,7 +248,9 @@ export const SketchDialog: React.FC<SketchDialogProps> = ({ background, title, o
     drawing.current = true;
     const p = point(e);
     last.current = p;
-    if (tool === 'pero') {
+    if (tool === 'guma') {
+      erase(ctx, p, p);
+    } else if (tool === 'pero') {
       // Jediné kliknutí udělá tečku.
       ctx.fillStyle = color;
       ctx.beginPath();
@@ -218,6 +263,14 @@ export const SketchDialog: React.FC<SketchDialogProps> = ({ background, title, o
   };
 
   const onMove = (e: React.PointerEvent<HTMLCanvasElement>): void => {
+    if (tool === 'guma') {
+      // Čtvereček pod ukazatelem ukazuje, co guma smaže.
+      const canvas = e.currentTarget;
+      const rect = canvas.getBoundingClientRect();
+      const parent = canvas.parentElement ? canvas.parentElement.getBoundingClientRect() : rect;
+      const size = (eraserSize / canvas.width) * rect.width;
+      setEraserHover({ left: e.clientX - parent.left - size / 2, top: e.clientY - parent.top - size / 2, size });
+    }
     if (!drawing.current || !last.current) {
       return;
     }
@@ -226,7 +279,9 @@ export const SketchDialog: React.FC<SketchDialogProps> = ({ background, title, o
       return;
     }
     const p = point(e);
-    if (tool === 'pero') {
+    if (tool === 'guma') {
+      erase(ctx, last.current, p);
+    } else if (tool === 'pero') {
       ctx.strokeStyle = color;
       ctx.lineWidth = width;
       ctx.lineCap = 'round';
@@ -247,7 +302,7 @@ export const SketchDialog: React.FC<SketchDialogProps> = ({ background, title, o
     const canvas = canvasRef.current;
     const ctx = canvas ? canvas.getContext('2d') : null;
     // Tvar bez rozměru (jen klik) se zahodí i s krokem zpět.
-    if (drawing.current && tool !== 'pero' && ctx && shapeStart.current && last.current && shapeBase.current) {
+    if (drawing.current && tool !== 'pero' && tool !== 'guma' && ctx && shapeStart.current && last.current && shapeBase.current) {
       const moved = Math.abs(last.current.x - shapeStart.current.x) + Math.abs(last.current.y - shapeStart.current.y);
       if (moved < 3) {
         ctx.putImageData(shapeBase.current, 0, 0);
@@ -337,7 +392,7 @@ export const SketchDialog: React.FC<SketchDialogProps> = ({ background, title, o
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          {COLORS.map((c) => (
+          {tool !== 'guma' && COLORS.map((c) => (
             <button
               key={c}
               type="button"
@@ -355,7 +410,18 @@ export const SketchDialog: React.FC<SketchDialogProps> = ({ background, title, o
             />
           ))}
           <span style={{ width: 8 }} />
-          {tool === 'text'
+          {tool === 'guma'
+            ? ERASER_SIZES.map((s) => (
+                <DefaultButton
+                  key={s.value}
+                  text={s.label}
+                  title="Velikost gumy"
+                  checked={eraserSize === s.value}
+                  onClick={() => setEraserSize(s.value)}
+                  styles={{ root: { minWidth: 0, padding: '0 10px' } }}
+                />
+              ))
+            : tool === 'text'
             ? TEXT_SIZES.map((s) => (
                 <DefaultButton
                   key={s.value}
@@ -384,6 +450,7 @@ export const SketchDialog: React.FC<SketchDialogProps> = ({ background, title, o
         {tool === 'text' && (
           <div style={{ fontSize: 12, color: RES.gray }}>Klikněte do obrázku, napište text a stiskněte Enter (nový řádek: Shift+Enter). Písmo Arial.</div>
         )}
+        {tool === 'guma' && <div style={{ fontSize: 12, color: RES.gray }}>Táhněte přes to, co chcete smazat — maže se jen přejeté místo (čtvercová guma). Vrátit jde tlačítkem Zpět.</div>}
         {tool === 'obdelnik' && <div style={{ fontSize: 12, color: RES.gray }}>Táhněte myší nebo prstem; s klávesou Shift vznikne čtverec.</div>}
         {tool === 'kolo' && <div style={{ fontSize: 12, color: RES.gray }}>Klikněte doprostřed a táhněte — vzdálenost určí velikost kolečka.</div>}
 
@@ -395,8 +462,24 @@ export const SketchDialog: React.FC<SketchDialogProps> = ({ background, title, o
               onPointerMove={onMove}
               onPointerUp={onUp}
               onPointerCancel={onUp}
-              style={{ width: '100%', touchAction: 'none', background: '#fff', cursor: tool === 'text' ? 'text' : 'crosshair', display: 'block' }}
+              style={{ width: '100%', touchAction: 'none', background: '#fff', cursor: tool === 'text' ? 'text' : tool === 'guma' ? 'none' : 'crosshair', display: 'block' }}
+              onPointerLeave={() => setEraserHover(undefined)}
             />
+            {tool === 'guma' && eraserHover && (
+              <div
+                style={{
+                  position: 'absolute',
+                  left: eraserHover.left,
+                  top: eraserHover.top,
+                  width: eraserHover.size,
+                  height: eraserHover.size,
+                  border: '2px solid #D32F2F',
+                  background: 'rgba(255,255,255,0.35)',
+                  pointerEvents: 'none',
+                  boxSizing: 'border-box'
+                }}
+              />
+            )}
             {textBox && (
               <div style={{ position: 'absolute', left: Math.max(0, textBox.left), top: Math.max(0, textBox.top), zIndex: 2 }}>
                 <TextField

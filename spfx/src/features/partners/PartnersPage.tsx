@@ -24,7 +24,8 @@ import { RES } from '../../ui/theme';
 import { PageHeading } from '../../ui/components/PageHeading';
 import { Partner, PartnerType } from '../../core/types';
 import { canManagePartners } from '../../core/roles';
-import { isValidIco } from '../../core/ico';
+import { isValidIco, normalizeIco } from '../../core/ico';
+import { PanelMessages } from '../../ui/components/PanelMessages';
 import { lookupCompanyByIco } from '../../data/ares';
 import {
   DEFAULT_COUNTRY,
@@ -73,6 +74,9 @@ export const PartnersPage: React.FC = () => {
   const [isNew, setIsNew] = React.useState<boolean>(false);
   const [aresLoading, setAresLoading] = React.useState<boolean>(false);
   const [aresError, setAresError] = React.useState<string | undefined>(undefined);
+  /** Co chybí k uložení a co se při ukládání nepovedlo — ukazuje se nad tlačítky v patě panelu. */
+  const [saveIssues, setSaveIssues] = React.useState<string[]>([]);
+  const [saveError, setSaveError] = React.useState<string | undefined>(undefined);
   // Chrání proti tomu, aby pomalejší starší odpověď (např. při rychlém psaní
   // do hledání) přepsala výsledek novějšího dotazu.
   const requestId = React.useRef(0);
@@ -103,28 +107,46 @@ export const PartnersPage: React.FC = () => {
     setEditing({ ...EMPTY_DRAFT, id: 0 });
     setIsNew(true);
     setAresError(undefined);
+    setSaveIssues([]);
+    setSaveError(undefined);
   };
 
   const openEdit = (partner: Partner): void => {
     setEditing({ ...partner });
     setIsNew(false);
     setAresError(undefined);
+    setSaveIssues([]);
+    setSaveError(undefined);
   };
 
   const close = (): void => setEditing(undefined);
 
+  /** Proč lupa nejde, nebo na co si dát pozor (jinak `undefined`). */
+  const icoHint = (ico: string | undefined): string | undefined => {
+    const n = normalizeIco(ico);
+    if (n === '') {
+      return undefined;
+    }
+    if (n.length !== 8) {
+      return 'IČO má 8 číslic — zkontrolujte, zda je zapsané celé a bez písmen.';
+    }
+    return isValidIco(n) ? undefined : 'Kontrolní číslice IČO nesouhlasí, IČO je nejspíš špatně opsané. Lupa přesto zkusí firmu v ARES najít.';
+  };
+
   const loadFromAres = (): void => {
-    if (!editing || !editing.ico) {
+    const ico = normalizeIco(editing ? editing.ico : undefined);
+    if (!editing || ico.length !== 8) {
       return;
     }
     setAresError(undefined);
     setAresLoading(true);
-    lookupCompanyByIco(editing.ico)
+    lookupCompanyByIco(ico)
       .then((company) => {
         setEditing((current) =>
           current
             ? {
                 ...current,
+                ico,
                 name: company.name || current.name,
                 address: company.address,
                 dic: company.dic,
@@ -144,6 +166,12 @@ export const PartnersPage: React.FC = () => {
     if (!editing) {
       return;
     }
+    if (!editing.name.trim()) {
+      setSaveIssues(['Vyplňte název partnera (nebo ho dotáhněte z ARES podle IČO).']);
+      return;
+    }
+    setSaveIssues([]);
+    setSaveError(undefined);
     const { id, ...data } = editing;
     const request = isNew ? repos.partners.create(data) : repos.partners.update(id, data);
     request
@@ -151,7 +179,7 @@ export const PartnersPage: React.FC = () => {
         close();
         return reload();
       })
-      .catch((e: Error) => setError(e.message));
+      .catch((e: Error) => setSaveError(e.message));
   };
 
   return (
@@ -204,6 +232,16 @@ export const PartnersPage: React.FC = () => {
         type={PanelType.medium}
         headerText={isNew ? 'Nový partner' : 'Upravit partnera'}
         closeButtonAriaLabel="Zavřít"
+        isFooterAtBottom
+        onRenderFooterContent={() => (
+          <div>
+            <PanelMessages issues={saveIssues} error={saveError} onDismissError={() => setSaveError(undefined)} />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <PrimaryButton text="Uložit" onClick={save} />
+              <DefaultButton text="Zrušit" onClick={close} />
+            </div>
+          </div>
+        )}
       >
         {editing && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
@@ -228,11 +266,25 @@ export const PartnersPage: React.FC = () => {
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
               <TextField
                 label="IČO"
-                description="Vyplňte a dotáhněte zbytek údajů z ARES."
+                description={
+                  icoHint(editing.ico) ?? 'Vyplňte a dotáhněte zbytek údajů z ARES (Enter nebo lupa).'
+                }
                 value={editing.ico ?? ''}
                 onChange={(_, v) => {
                   setAresError(undefined);
                   setEditing({ ...editing, ico: v });
+                }}
+                onBlur={() => {
+                  const n = normalizeIco(editing.ico);
+                  if (editing.ico && n !== editing.ico) {
+                    setEditing({ ...editing, ico: n });
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    loadFromAres();
+                  }
                 }}
                 styles={{ root: { flex: '1 1 auto' } }}
               />
@@ -243,7 +295,7 @@ export const PartnersPage: React.FC = () => {
                   <IconButton
                     iconProps={{ iconName: 'Search' }}
                     ariaLabel="Načíst z ARES"
-                    disabled={!editing.ico || !isValidIco(editing.ico)}
+                    disabled={normalizeIco(editing.ico).length !== 8}
                     onClick={loadFromAres}
                     styles={{
                       root: {
@@ -349,10 +401,6 @@ export const PartnersPage: React.FC = () => {
               checked={editing.isActive}
               onChange={(_, c) => setEditing({ ...editing, isActive: !!c })}
             />
-            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-              <PrimaryButton text="Uložit" disabled={!editing.name.trim()} onClick={save} />
-              <DefaultButton text="Zrušit" onClick={close} />
-            </div>
           </div>
         )}
       </Panel>

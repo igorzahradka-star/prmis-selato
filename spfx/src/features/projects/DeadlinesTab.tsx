@@ -344,9 +344,25 @@ const DeadlinePanel: React.FC<{
       closeButtonAriaLabel="Zavřít"
       isFooterAtBottom
       onRenderFooterContent={() => (
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div>
+          {showIssues && issues.length > 0 && (
+            <MessageBar messageBarType={MessageBarType.error} isMultiline>
+              <ul style={{ margin: 0, paddingLeft: 18 }}>
+                {issues.map((i) => (
+                  <li key={i.message}>{i.message}</li>
+                ))}
+              </ul>
+            </MessageBar>
+          )}
+          {saveError && (
+            <MessageBar messageBarType={MessageBarType.error} isMultiline>
+              {saveError}
+            </MessageBar>
+          )}
+          <div style={{ display: 'flex', gap: 8 }}>
           <PrimaryButton text={saving ? 'Ukládám…' : 'Uložit'} disabled={saving} onClick={save} />
           <DefaultButton text="Zrušit" onClick={onDismiss} disabled={saving} />
+          </div>
         </div>
       )}
     >
@@ -398,16 +414,6 @@ const DeadlinePanel: React.FC<{
 
         <PersonPicker label="Odpovídá" description="Kdokoli z firmy (adresář Microsoft 365). Nepovinné." value={responsible} onChange={setResponsible} />
 
-        {showIssues && issues.length > 0 && (
-          <MessageBar messageBarType={MessageBarType.error} isMultiline>
-            <ul style={{ margin: 0, paddingLeft: 18 }}>
-              {issues.map((i) => (
-                <li key={i.message}>{i.message}</li>
-              ))}
-            </ul>
-          </MessageBar>
-        )}
-
         {warnings.length > 0 && (
           <MessageBar messageBarType={MessageBarType.warning} isMultiline>
             <ul style={{ margin: 0, paddingLeft: 18 }}>
@@ -418,11 +424,6 @@ const DeadlinePanel: React.FC<{
           </MessageBar>
         )}
 
-        {saveError && (
-          <MessageBar messageBarType={MessageBarType.error} isMultiline>
-            {saveError}
-          </MessageBar>
-        )}
       </div>
     </Panel>
   );

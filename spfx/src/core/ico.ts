@@ -7,6 +7,18 @@
 
 const ICO_WEIGHTS = [8, 7, 6, 5, 4, 3, 2];
 
+/**
+ * Uklidí IČO zapsané „po lidsku“: bez mezer a jiných znaků, kratší číslo doplní zleva nulami na osm číslic (`69797` → `00069797`),
+ * přebytečné nuly zleva u delšího čísla zahodí (`000069797` → `00069797`). Co se tak na osm číslic dostat nedá, vrátí jen očištěné číslice.
+ */
+export function normalizeIco(text: string | undefined): string {
+  let digits = (text || '').replace(/\D/g, '');
+  while (digits.length > 8 && digits.charAt(0) === '0') {
+    digits = digits.slice(1);
+  }
+  return digits.length > 0 && digits.length < 8 ? ('00000000' + digits).slice(-8) : digits;
+}
+
 export function isValidIco(ico: string): boolean {
   if (!/^\d{8}$/.test(ico)) {
     return false;

@@ -49,8 +49,20 @@ export const HANDOVER_RESULT_LABELS: Record<HandoverResult, string> = {
   neprevzato: 'Dílo nebylo převzato'
 };
 
+/** Směr předání: my dílo předáváme zákazníkovi, nebo ho od dodavatele přebíráme. */
+export type HandoverDirection = 'predavame' | 'prebirame';
+
+export const HANDOVER_DIRECTIONS: HandoverDirection[] = ['predavame', 'prebirame'];
+
+export const HANDOVER_DIRECTION_LABELS: Record<HandoverDirection, string> = {
+  predavame: 'Předáváme dílo zákazníkovi (objednateli)',
+  prebirame: 'Přebíráme dílo od dodavatele'
+};
+
 /** Závěr předávacího protokolu. */
 export interface HandoverInfo {
+  /** Směr předání; bez uvedení předáváme my (starší protokoly). */
+  direction?: HandoverDirection;
   result?: HandoverResult;
   /** Záruční doba v měsících (od data předání). */
   warrantyMonths?: number;
@@ -200,7 +212,33 @@ export function contentFromJson(json: string | undefined, fallbackHeader: EntryH
 function readHandover(raw: HandoverInfo | undefined): HandoverInfo {
   const result = raw && HANDOVER_RESULTS.indexOf(raw.result as HandoverResult) !== -1 ? raw.result : undefined;
   const months = raw && typeof raw.warrantyMonths === 'number' && raw.warrantyMonths >= 0 && raw.warrantyMonths <= 600 ? Math.floor(raw.warrantyMonths) : undefined;
-  return { result, warrantyMonths: months };
+  return { result, warrantyMonths: months, ...(raw && raw.direction === 'prebirame' ? { direction: 'prebirame' as HandoverDirection } : {}) };
+}
+
+/** Směr předání protokolu (bez uvedení předáváme my). */
+export const handoverDirectionOf = (e: { handover?: HandoverInfo }): HandoverDirection => (e.handover && e.handover.direction === 'prebirame' ? 'prebirame' : 'predavame');
+
+export interface HandoverParties {
+  /** Kdo předává / kdo přebírá — jméno (u naší strany firma a projektový manažer) a role. */
+  giver: string;
+  giverRole: string;
+  receiver: string;
+  receiverRole: string;
+  /** Naše firma a role, kterou v tomto protokolu má. */
+  ourRole: string;
+  /** Druhá strana (zákazník nebo dodavatel) a její role. */
+  otherName: string;
+  otherRole: string;
+}
+
+/** Strany protokolu podle směru: předáváme (my zhotovitel, druhá strana objednatel), nebo přebíráme (druhá strana dodavatel, my objednatel). */
+export function handoverParties(e: { handover?: HandoverInfo; header: { managerName?: string; counterparty?: string } }, companyName: string): HandoverParties {
+  const ours = `${companyName || 'naše firma'}${e.header.managerName ? ' · ' + e.header.managerName : ''}`;
+  const other = e.header.counterparty && e.header.counterparty.trim() !== '' ? e.header.counterparty.trim() : '';
+  if (handoverDirectionOf(e) === 'prebirame') {
+    return { giver: other, giverRole: 'dodavatel', receiver: ours, receiverRole: 'objednatel', ourRole: 'objednatel', otherName: other, otherRole: 'dodavatel' };
+  }
+  return { giver: ours, giverRole: 'zhotovitel', receiver: other, receiverRole: 'objednatel', ourRole: 'zhotovitel', otherName: other, otherRole: 'objednatel' };
 }
 
 /** Je zápis předávací protokol? */
@@ -275,7 +313,10 @@ export function validateEntry(input: EntryInput, strict: boolean): EntryIssue[] 
         issues.push({ field: 'result', message: 'Vyberte výsledek předání (převzato bez výhrad / s výhradami / nepřevzato).' });
       }
       if (!input.header.counterparty || input.header.counterparty.trim() === '') {
-        issues.push({ field: 'counterparty', message: 'Vyplňte, komu se dílo předává (objednatel / přebírající).' });
+        issues.push({
+          field: 'counterparty',
+          message: input.handover && input.handover.direction === 'prebirame' ? 'Vyplňte, od koho dílo přebíráme (dodavatel).' : 'Vyplňte, komu se dílo předává (objednatel / přebírající).'
+        });
       }
       if (result === 's-vyhradami' && !input.tasks.some((t) => t.description.trim() !== '')) {
         issues.push({ field: 'tasks', message: 'Při převzetí s výhradami uveďte aspoň jednu vadu nebo nedodělek.' });
@@ -595,3 +636,6 @@ export function filterEntries(list: DiaryEntry[], filter?: EntryListFilter): Dia
 export function sortEntriesNewestFirst(list: DiaryEntry[]): DiaryEntry[] {
   return list.slice().sort((a, b) => b.date.getTime() - a.date.getTime() || b.entryNo - a.entryNo);
 }
+
+/** Role ve druhém pádě pro věty typu „za objednatele“ (zhotovitel → zhotovitele, objednatel → objednatele, dodavatel → dodavatele). */
+export const roleGenitive = (role: string): string => `${role}e`;

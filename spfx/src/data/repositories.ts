@@ -588,6 +588,12 @@ export interface IInvoiceRepository {
   delete(id: number, actor: CurrentUser): Promise<void>;
   /** Historie změn podkladu (kdo, kdy, co) z auditního logu, od nejstarší. */
   history(id: number): Promise<InvoiceHistoryEntry[]>;
+  /** Přílohy podkladu (soubory uložené u položky); stejně jako u objednávek. */
+  listAttachments(id: number): Promise<OrderAttachment[]>;
+  /** Připojí soubor (třeba PDF předávacího protokolu); jen u konceptu a podkladu ke kontrole. */
+  addAttachment(id: number, file: File, actor: CurrentUser): Promise<OrderAttachment>;
+  removeAttachment(id: number, fileName: string, actor: CurrentUser): Promise<void>;
+  readAttachment(id: number, fileName: string): Promise<Blob>;
 }
 
 /** Jeden záznam historie podkladu. */

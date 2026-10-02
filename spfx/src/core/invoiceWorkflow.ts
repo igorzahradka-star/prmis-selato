@@ -70,6 +70,16 @@ export function canEditInvoice(inv: InvoiceBasis, project: WorkflowProject, acto
   return inv.status === InvoiceStatus.Koncept && canManageInvoice(inv, project, actor);
 }
 
+/**
+ * Přílohu k podkladu smí přidat ten, kdo s ním smí nakládat, dokud není předaný účtárně (koncept, ke kontrole).
+ * Odebrat ji jde jen v těchto stavech — účtárna dostala konkrétní podklad.
+ */
+export function canAddInvoiceAttachment(inv: InvoiceBasis, project: WorkflowProject, actor: Actor): boolean {
+  return (inv.status === InvoiceStatus.Koncept || inv.status === InvoiceStatus.KeKontrole) && canManageInvoice(inv, project, actor);
+}
+
+export const canRemoveInvoiceAttachment = canAddInvoiceAttachment;
+
 /** Smaže podklad jen administrátor (Jednorázové akce); běžně se podklady stornují. */
 export function canDeleteInvoice(actor: Actor): boolean {
   return hasAnyRole(actor.roles, Role.Administrator);

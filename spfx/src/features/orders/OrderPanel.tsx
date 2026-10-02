@@ -20,6 +20,7 @@ import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 import { Link } from '@fluentui/react/lib/Link';
 
 import { DocumentFolderButton } from '../../ui/components/DocumentFolderButton';
+import { PanelMessages } from '../../ui/components/PanelMessages';
 import { removeConceptCopy, saveConceptCopy } from '../documents/conceptCopy';
 import { useApp } from '../../ui/AppContext';
 import { useAutoRefresh } from '../../ui/useAutoRefresh';
@@ -892,6 +893,15 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
   const setLine = (index: number, patch: Partial<LineForm>): void =>
     setFLines((cur) => cur.map((l, i) => (i === index ? { ...l, ...patch } : l)));
 
+  const footerNode = footer();
+  // Hlášky (co chybí, co se nepovedlo) jsou nad tlačítky v patě, kde je uživatel uvidí; bez paty (načítání, nenalezeno) zůstávají nahoře.
+  const footerWithMessages = footerNode ? (
+    <div>
+      <PanelMessages issues={issues} error={error} onDismissError={() => setError(undefined)} />
+      {footerNode}
+    </div>
+  ) : null;
+
   return (
     <>
       <Panel
@@ -907,11 +917,11 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
           </>
         )}
         isFooterAtBottom
-        onRenderFooterContent={footer}
+        onRenderFooterContent={() => footerWithMessages}
       >
         {loading && <Spinner size={SpinnerSize.large} label="Načítám…" />}
 
-        {error && (
+        {error && !footerNode && (
           <MessageBar messageBarType={MessageBarType.error} isMultiline onDismiss={() => setError(undefined)}>
             {error}
           </MessageBar>
@@ -924,16 +934,6 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
 
         {!loading && editing && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 8 }}>
-            {issues.length > 0 && (
-              <MessageBar messageBarType={MessageBarType.warning} isMultiline>
-                <ul style={{ margin: 0, paddingLeft: 18 }}>
-                  {issues.map((m) => (
-                    <li key={m}>{m}</li>
-                  ))}
-                </ul>
-              </MessageBar>
-            )}
-
             {order && editResetsApproval(order) && (
               <MessageBar messageBarType={MessageBarType.warning} isMultiline>
                 Objednávka je {order.status === OrderStatus.Schvaleno ? 'schválená' : 'zamítnutá'}.{' '}

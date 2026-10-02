@@ -6,7 +6,7 @@
  */
 
 import { formatDate } from '../../core/format';
-import { EntryStatus, HANDOVER_RESULT_LABELS, entryTitle, isHandover, protocolNumber } from '../../core/siteDiary';
+import { EntryStatus, HANDOVER_RESULT_LABELS, entryTitle, handoverDirectionOf, handoverParties, isHandover, protocolNumber, roleGenitive } from '../../core/siteDiary';
 import { EntryDocData, closureNote, entryWatermark, handoverIntro, handoverResultColor, signatureNote, taskDue, warrantyNote } from './entryDocument';
 import { dataUrlToBytes } from './imageUtils';
 
@@ -20,6 +20,7 @@ export async function renderEntryDocx(data: EntryDocData): Promise<Blob> {
   const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, ImageRun, AlignmentType, BorderStyle, Footer, PageNumber } = docx;
   const { entry, company } = data;
   const handover = isHandover(entry);
+  const parties = handoverParties(entry, company.name);
 
   const para = (text: string, opts: { bold?: boolean; size?: number; color?: string; after?: number; before?: number; align?: (typeof AlignmentType)[keyof typeof AlignmentType] } = {}): InstanceType<typeof Paragraph> =>
     new Paragraph({
@@ -58,7 +59,7 @@ export async function renderEntryDocx(data: EntryDocData): Promise<Blob> {
 
   children.push(para(handover ? 'PŘEDÁVACÍ PROTOKOL' : `ZÁPIS č. ${entry.entryNo}`, { bold: true, size: 36, color: '0E2841', after: 40 }));
   children.push(
-    para(handover ? `č. ${protocolNumber(entry.projectNumber, entry.entryNo)} · Projekt ${entry.projectNumber}${data.projectTitle ? ` · ${data.projectTitle}` : ''}` : `${entry.diaryTitle ? `Stavební deník: ${entry.diaryTitle} · ` : ''}Projekt ${entry.projectNumber}${data.projectTitle ? ` · ${data.projectTitle}` : ''}`, {
+    para(handover ? `č. ${protocolNumber(entry.projectNumber, entry.entryNo)} · ${handoverDirectionOf(entry) === 'prebirame' ? 'Převzetí díla od dodavatele' : 'Předání díla zákazníkovi'} · Projekt ${entry.projectNumber}${data.projectTitle ? ` · ${data.projectTitle}` : ''}` : `${entry.diaryTitle ? `Stavební deník: ${entry.diaryTitle} · ` : ''}Projekt ${entry.projectNumber}${data.projectTitle ? ` · ${data.projectTitle}` : ''}`, {
       size: 20,
       color: '5A6472',
       after: 200
@@ -76,11 +77,11 @@ export async function renderEntryDocx(data: EntryDocData): Promise<Blob> {
       new TableRow({ children: [cell(handover ? 'Datum předání' : 'Datum', { bold: true, fill: 'EAF0F5' }), cell(formatDate(entry.date))] }),
       new TableRow({
         children: [
-          cell(handover ? 'Předává (zhotovitel)' : 'Projektový manažer stavby', { bold: true, fill: 'EAF0F5' }),
-          cell(handover ? `${company.name}${entry.header.managerName ? ' · ' + entry.header.managerName : ''}` : entry.header.managerName)
+          cell(handover ? `Předává (${parties.giverRole})` : 'Projektový manažer stavby', { bold: true, fill: 'EAF0F5' }),
+          cell(handover ? parties.giver : entry.header.managerName)
         ]
       }),
-      new TableRow({ children: [cell(handover ? 'Přebírá (objednatel)' : 'Jednání s', { bold: true, fill: 'EAF0F5' }), cell(entry.header.counterparty || '')] }),
+      new TableRow({ children: [cell(handover ? `Přebírá (${parties.receiverRole})` : 'Jednání s', { bold: true, fill: 'EAF0F5' }), cell(handover ? parties.receiver : entry.header.counterparty || '')] }),
       ...(handover ? [new TableRow({ children: [cell('Protokol č.', { bold: true, fill: 'EAF0F5' }), cell(protocolNumber(entry.projectNumber, entry.entryNo))] })] : []),
       ...(!handover && entry.conditions && entry.conditions.trim() !== ''
         ? [new TableRow({ children: [cell('Počasí a podmínky', { bold: true, fill: 'EAF0F5' }), cell(entry.conditions)] })]
@@ -157,8 +158,8 @@ export async function renderEntryDocx(data: EntryDocData): Promise<Blob> {
   // Podpisy: řádek pro podpis u každého přítomného účastníka a u zpracovatele; u protokolu i u přebírajícího.
   children.push(para('Podpisy', { bold: true, size: 23, color: '0E2841', before: 300, after: 160 }));
   const signers = [
-    { name: entry.header.managerName || entry.createdByName, note: `za ${company.name || 'zhotovitele'}` },
-    ...(handover && entry.header.counterparty && entry.header.counterparty.trim() !== '' ? [{ name: '', note: `za objednatele — ${entry.header.counterparty}` }] : []),
+    { name: entry.header.managerName || entry.createdByName, note: `za ${company.name || 'naši firmu'}${handover ? ` (${parties.ourRole})` : ''}` },
+    ...(handover && parties.otherName !== '' ? [{ name: '', note: `za ${roleGenitive(parties.otherRole)} — ${parties.otherName}` }] : []),
     ...entry.participants.filter((p) => p.present && p.name.trim() !== '').map((p) => ({ name: p.name, note: p.organization || '' }))
   ];
   signers.forEach((s) => {

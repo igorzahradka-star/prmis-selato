@@ -123,3 +123,36 @@ describe('MockInvoiceRepository — cesta podkladu', () => {
     expect((await r.invoices.list({ search: '2026-0412' })).map((x) => x.number)).toEqual(['FP26001']);
   });
 });
+
+describe('MockInvoiceRepository — přílohy', () => {
+  const pdf = (name: string): File => new File([new Uint8Array([37, 80, 68, 70, 45])], name, { type: 'application/pdf' });
+
+  it('k konceptu jde přiložit soubor (třeba PDF protokolu), přečíst ho a odebrat; vše je v historii', async () => {
+    const r = createMockRepositories();
+    const i = await r.invoices.create(vstup(), jan);
+    const a = await r.invoices.addAttachment(i.id, pdf('Predavaci_protokol_25003_PP01.pdf'), jan);
+    expect(a.name).toBe('Predavaci_protokol_25003_PP01.pdf');
+    expect((await r.invoices.listAttachments(i.id)).map((x) => x.name)).toEqual(['Predavaci_protokol_25003_PP01.pdf']);
+    expect((await r.invoices.readAttachment(i.id, a.name)).size).toBe(5);
+    await r.invoices.removeAttachment(i.id, a.name, jan);
+    expect(await r.invoices.listAttachments(i.id)).toEqual([]);
+    const h = (await r.invoices.history(i.id)).map((x) => x.action);
+    expect(h).toEqual(expect.arrayContaining(['Příloha přidána: Predavaci_protokol_25003_PP01.pdf', 'Příloha odebrána: Predavaci_protokol_25003_PP01.pdf']));
+  });
+
+  it('cizí PM přílohu nepřidá; po předání účtárně už se příloha nepřidává ani neodebírá', async () => {
+    const r = createMockRepositories();
+    const i = await r.invoices.create(vstup(), jan);
+    await expect(r.invoices.addAttachment(i.id, pdf('a.pdf'), cizi)).rejects.toThrow(/nemáte oprávnění/);
+    await r.invoices.addAttachment(i.id, pdf('a.pdf'), jan);
+    await r.invoices.handOver(i.id, jan);
+    await expect(r.invoices.addAttachment(i.id, pdf('b.pdf'), jan)).rejects.toThrow(/předaný účtárně/);
+    await expect(r.invoices.removeAttachment(i.id, 'a.pdf', jan)).rejects.toThrow(/jen u konceptu/);
+  });
+
+  it('spustitelný soubor se nepřipojí', async () => {
+    const r = createMockRepositories();
+    const i = await r.invoices.create(vstup(), jan);
+    await expect(r.invoices.addAttachment(i.id, new File([new Uint8Array([1])], 'x.exe'), jan)).rejects.toThrow(/nesmí/);
+  });
+});

@@ -42,6 +42,8 @@ export interface SendOrderDialogProps {
     hint: string;
     markOnly: string;
     sendButton: string;
+    /** Popisek přepínače příloh; bez něj „Přiložit i přílohy objednávky“. */
+    attachmentsLabel?: string;
   };
   busy: boolean;
   error?: string;
@@ -116,7 +118,7 @@ export const SendOrderDialog: React.FC<SendOrderDialogProps> = ({
         </div>
         {attachmentCount > 0 && (
           <Checkbox
-            label={`Přiložit i přílohy objednávky (${attachmentCount})`}
+            label={`${texts && texts.attachmentsLabel ? texts.attachmentsLabel : 'Přiložit i přílohy objednávky'} (${attachmentCount})`}
             checked={includeAttachments}
             onChange={(_, c) => setIncludeAttachments(!!c)}
           />

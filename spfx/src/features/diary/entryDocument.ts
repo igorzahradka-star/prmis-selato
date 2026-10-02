@@ -10,7 +10,7 @@ import type { Content, TDocumentDefinitions, TableCell } from 'pdfmake/interface
 
 import { CompanySettings } from '../../core/settings';
 import { formatDate, formatDateTime } from '../../core/format';
-import { DiaryEntry, EntryStatus, HANDOVER_RESULT_LABELS, SIGNATURE_LABELS, entryTitle, isHandover, isImageFile, parseIsoDay, protocolNumber, warrantyEnd } from '../../core/siteDiary';
+import { DiaryEntry, EntryStatus, HANDOVER_RESULT_LABELS, SIGNATURE_LABELS, entryTitle, handoverDirectionOf, handoverParties, isHandover, isImageFile, parseIsoDay, protocolNumber, roleGenitive, warrantyEnd } from '../../core/siteDiary';
 import { GRAY, LINE, NAVY, companyLinesOf, documentFooter, documentHeader, renderPdfDefinition, signatureGrid, td, th } from '../orders/pdfCommon';
 
 export interface EntryImage {
@@ -103,15 +103,19 @@ export function warrantyNote(entry: DiaryEntry): string | undefined {
 
 /** Úvodní věta předávacího protokolu. */
 export function handoverIntro(entry: DiaryEntry, company: CompanySettings): string {
-  const who = company.name || 'Zhotovitel';
-  const to = entry.header.counterparty && entry.header.counterparty.trim() !== '' ? entry.header.counterparty : 'objednatel';
-  return `Dne ${formatDate(entry.date)} předal zhotovitel ${who} objednateli ${to} níže popsaný předmět předání (stavba: ${entry.header.constructionName || '—'}, ${entry.header.place || '—'}). Stav, předané doklady a zjištěné vady jsou uvedeny v tomto protokolu.`;
+  const parties = handoverParties(entry, company.name);
+  const us = company.name || 'naše firma';
+  const other = parties.otherName || '—';
+  const giverName = handoverDirectionOf(entry) === 'prebirame' ? other : us;
+  const receiverName = handoverDirectionOf(entry) === 'prebirame' ? us : other;
+  return `Dne ${formatDate(entry.date)} předal ${parties.giverRole} ${giverName} objednateli ${receiverName} níže popsaný předmět předání (stavba: ${entry.header.constructionName || '—'}, ${entry.header.place || '—'}). Stav, předané doklady a zjištěné vady jsou uvedeny v tomto protokolu.`;
 }
 
 /** Sestaví definici dokumentu pro pdfmake. */
 export function buildEntryPdfDocument(data: EntryDocData): TDocumentDefinitions {
   const { entry, company } = data;
   const handover = isHandover(entry);
+  const parties = handoverParties(entry, company.name);
   const small = (text: string): Content => ({ text, fontSize: 8, color: GRAY });
   const big = (text: string): Content => ({ text: text || '—', fontSize: 10, bold: true });
 
@@ -120,7 +124,7 @@ export function buildEntryPdfDocument(data: EntryDocData): TDocumentDefinitions 
     { text: handover ? 'PŘEDÁVACÍ PROTOKOL' : `ZÁPIS č. ${entry.entryNo}`, fontSize: 18, bold: true, color: NAVY },
     {
       text: handover
-        ? `č. ${protocolNumber(entry.projectNumber, entry.entryNo)} · Projekt ${entry.projectNumber}${data.projectTitle ? ` · ${data.projectTitle}` : ''}`
+        ? `č. ${protocolNumber(entry.projectNumber, entry.entryNo)} · ${handoverDirectionOf(entry) === 'prebirame' ? 'Převzetí díla od dodavatele' : 'Předání díla zákazníkovi'} · Projekt ${entry.projectNumber}${data.projectTitle ? ` · ${data.projectTitle}` : ''}`
         : `${entry.diaryTitle ? `Stavební deník: ${entry.diaryTitle} · ` : ''}Projekt ${entry.projectNumber}${data.projectTitle ? ` · ${data.projectTitle}` : ''}`,
       fontSize: 10,
       color: GRAY,
@@ -133,12 +137,8 @@ export function buildEntryPdfDocument(data: EntryDocData): TDocumentDefinitions 
           ? [
               [small('Stavba'), small('Místo stavby'), small('Datum předání')],
               [big(entry.header.constructionName), big(entry.header.place), big(formatDate(entry.date))],
-              [small('Předává (zhotovitel)'), small('Přebírá (objednatel)'), small('Protokol č.')],
-              [
-                big(`${company.name}${entry.header.managerName ? ' · ' + entry.header.managerName : ''}`),
-                big(entry.header.counterparty || ''),
-                big(protocolNumber(entry.projectNumber, entry.entryNo))
-              ]
+              [small(`Předává (${parties.giverRole})`), small(`Přebírá (${parties.receiverRole})`), small('Protokol č.')],
+              [big(parties.giver), big(parties.receiver), big(protocolNumber(entry.projectNumber, entry.entryNo))]
             ]
           : [
               [small('Stavba'), small('Místo stavby'), small('Datum')],
@@ -252,11 +252,9 @@ export function buildEntryPdfDocument(data: EntryDocData): TDocumentDefinitions 
 
   // Podpisy: každý přítomný účastník a zpracovatel zápisu má řádek pro podpis; u protokolu i strana přebírajícího.
   const counterpartySigner =
-    handover && entry.header.counterparty && entry.header.counterparty.trim() !== ''
-      ? [{ name: '', note: `za objednatele — ${entry.header.counterparty}` }]
-      : [];
+    handover && parties.otherName !== '' ? [{ name: '', note: `za ${roleGenitive(parties.otherRole)} — ${parties.otherName}` }] : [];
   const signers = [
-    { name: entry.header.managerName || entry.createdByName, note: `za ${companyLinesOf(company)[0] || 'zhotovitele'}` },
+    { name: entry.header.managerName || entry.createdByName, note: `za ${companyLinesOf(company)[0] || 'naši firmu'}${handover ? ` (${parties.ourRole})` : ''}` },
     ...counterpartySigner,
     ...entry.participants.filter((p) => p.present && p.name.trim() !== '').map((p) => ({ name: p.name, note: p.organization || '' }))
   ];

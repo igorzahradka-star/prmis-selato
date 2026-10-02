@@ -25,6 +25,7 @@ import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 import { Link } from '@fluentui/react/lib/Link';
 
 import { DocumentFolderButton } from '../../ui/components/DocumentFolderButton';
+import { PanelMessages } from '../../ui/components/PanelMessages';
 import { removeConceptCopy, saveConceptCopy } from '../documents/conceptCopy';
 import { useApp } from '../../ui/AppContext';
 import { RES } from '../../ui/theme';
@@ -45,8 +46,11 @@ import {
   EntryKind,
   EntryStatus,
   HANDOVER_DIARY_TITLE,
+  HANDOVER_DIRECTIONS,
+  HANDOVER_DIRECTION_LABELS,
   HANDOVER_RESULTS,
   HANDOVER_RESULT_LABELS,
+  HandoverDirection,
   HandoverResult,
   Participant,
   SIGNATURE_LABELS,
@@ -58,6 +62,8 @@ import {
   entryFilesPath,
   entryTitle,
   fileExtension,
+  handoverDirectionOf,
+  handoverParties,
   isHandover,
   isHandoverDiary,
   isImageFile,
@@ -202,6 +208,7 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
   const [fTasks, setFTasks] = React.useState<DiaryTask[]>([]);
   const [fConditions, setFConditions] = React.useState('');
   const [fResult, setFResult] = React.useState<HandoverResult | undefined>(undefined);
+  const [fDirection, setFDirection] = React.useState<HandoverDirection>('predavame');
   const [fWarranty, setFWarranty] = React.useState('');
 
   const cameraRef = React.useRef<HTMLInputElement>(null);
@@ -228,6 +235,7 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
       setFTasks(e.tasks.map((t) => ({ ...t })));
       setFConditions(e.conditions ?? '');
       setFResult(e.handover ? e.handover.result : undefined);
+      setFDirection(handoverDirectionOf(e));
       setFWarranty(e.handover && e.handover.warrantyMonths !== undefined ? String(e.handover.warrantyMonths) : '');
       return;
     }
@@ -241,6 +249,7 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
     setFTasks([]);
     setFConditions('');
     setFResult(undefined);
+    setFDirection('predavame');
     setFWarranty('');
   };
 
@@ -364,7 +373,7 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
       .map((p) => ({ title: p.title && p.title.trim() !== '' ? p.title.trim() : undefined, text: p.text, files: p.files })),
     tasks: fTasks.filter((t) => t.description.trim() !== '' || (t.responsible && t.responsible.trim() !== '')),
     conditions: !protocol && fConditions.trim() !== '' ? fConditions.trim() : undefined,
-    ...(protocol ? { kind: 'predani' as EntryKind, handover: { result: fResult, warrantyMonths: warrantyMonthsOf(fWarranty) } } : {})
+    ...(protocol ? { kind: 'predani' as EntryKind, handover: { result: fResult, warrantyMonths: warrantyMonthsOf(fWarranty), ...(fDirection === 'prebirame' ? { direction: 'prebirame' as HandoverDirection } : {}) } } : {})
   });
 
   /** Počet měsíců záruky z textu políčka; prázdné nebo nesmyslné = bez záruky. */
@@ -922,6 +931,15 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
 
   const hasDiary = diaryOptions.length > 0;
 
+  const footerNode = footer();
+  // Hlášky (co chybí, co se nepovedlo) jsou nad tlačítky v patě, kde je uživatel uvidí; bez paty (načítání, nenalezeno) zůstávají nahoře.
+  const footerWithMessages = footerNode ? (
+    <div>
+      <PanelMessages issues={issues} error={error} onDismissError={() => setError(undefined)} />
+      {footerNode}
+    </div>
+  ) : null;
+
   return (
     <>
       <Panel
@@ -937,12 +955,12 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
           </>
         )}
         isFooterAtBottom
-        onRenderFooterContent={footer}
+        onRenderFooterContent={() => footerWithMessages}
       >
         {loading && <Spinner size={SpinnerSize.large} label="Načítám…" />}
         {progress && <Spinner size={SpinnerSize.small} label={progress} styles={{ root: { justifyContent: 'flex-start', margin: '6px 0' } }} />}
 
-        {error && (
+        {error && !footerNode && (
           <MessageBar messageBarType={MessageBarType.error} isMultiline onDismiss={() => setError(undefined)}>
             {error}
           </MessageBar>
@@ -993,16 +1011,6 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
 
         {!loading && editing && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 8 }}>
-            {issues.length > 0 && (
-              <MessageBar messageBarType={MessageBarType.warning} isMultiline>
-                <ul style={{ margin: 0, paddingLeft: 18 }}>
-                  {issues.map((m) => (
-                    <li key={m}>{m}</li>
-                  ))}
-                </ul>
-              </MessageBar>
-            )}
-
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
               <Dropdown
                 label="Projekt"
@@ -1051,6 +1059,17 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
               </MessageBar>
             )}
 
+            {protocol && (
+              <Dropdown
+                label="Směr předání"
+                required
+                disabled={!!entry && entry.status !== EntryStatus.Koncept}
+                options={HANDOVER_DIRECTIONS.map((d) => ({ key: d, text: HANDOVER_DIRECTION_LABELS[d] }))}
+                selectedKey={fDirection}
+                onChange={(_, o) => o && setFDirection(o.key as HandoverDirection)}
+              />
+            )}
+
             <div style={{ border: `1px solid ${RES.grayBlue}`, borderRadius: 4, padding: '10px 12px', background: RES.white }}>
               <div style={{ fontWeight: 600, color: RES.navy, marginBottom: 6 }}>{protocol ? 'Hlavička protokolu' : 'Hlavička zápisu'}</div>
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
@@ -1058,9 +1077,9 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
                 <TextField label="Místo stavby" required value={fHeader.place} onChange={(_, v) => setFHeader((h) => ({ ...h, place: v ?? '' }))} styles={{ root: { flex: '1 1 200px' } }} />
               </div>
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                <TextField label={protocol ? 'Předává za zhotovitele (projektový manažer)' : 'Projektový manažer stavby'} value={fHeader.managerName} onChange={(_, v) => setFHeader((h) => ({ ...h, managerName: v ?? '' }))} styles={{ root: { flex: '1 1 220px' } }} />
+                <TextField label={protocol ? 'Za naši firmu (projektový manažer)' : 'Projektový manažer stavby'} value={fHeader.managerName} onChange={(_, v) => setFHeader((h) => ({ ...h, managerName: v ?? '' }))} styles={{ root: { flex: '1 1 220px' } }} />
                 <ComboBox
-                  label={protocol ? 'Přebírá (objednatel / zákazník)' : 'Jednání s (dodavatel nebo jiný subjekt)'}
+                  label={protocol ? (fDirection === 'prebirame' ? 'Předává (dodavatel)' : 'Přebírá (objednatel / zákazník)') : 'Jednání s (dodavatel nebo jiný subjekt)'}
                   required={protocol}
                   allowFreeform
                   autoComplete="on"
@@ -1395,8 +1414,18 @@ const EntryDetail: React.FC<{
         <Row label="Stavba" value={entry.header.constructionName || '—'} />
         <Row label="Místo stavby" value={entry.header.place || '—'} />
         <Row label={protocol ? 'Datum předání' : 'Datum'} value={formatDate(entry.date)} />
-        <Row label={protocol ? 'Předává (zhotovitel)' : 'Projektový manažer stavby'} value={entry.header.managerName || '—'} />
-        <Row label={protocol ? 'Přebírá (objednatel)' : 'Jednání s'} value={entry.header.counterparty || '—'} />
+        {protocol ? (
+          <>
+            <Row label="Směr předání" value={HANDOVER_DIRECTION_LABELS[handoverDirectionOf(entry)]} />
+            <Row label={`Předává (${handoverParties(entry, '').giverRole})`} value={handoverParties(entry, entry.header.company.name).giver || '—'} />
+            <Row label={`Přebírá (${handoverParties(entry, '').receiverRole})`} value={handoverParties(entry, entry.header.company.name).receiver || '—'} />
+          </>
+        ) : (
+          <>
+            <Row label="Projektový manažer stavby" value={entry.header.managerName || '—'} />
+            <Row label="Jednání s" value={entry.header.counterparty || '—'} />
+          </>
+        )}
         {entry.conditions && <Row label="Počasí a podmínky" value={entry.conditions} />}
         <Row label={protocol ? 'Vystavil' : 'Zapsal'} value={entry.createdByName || '—'} />
       </Section>

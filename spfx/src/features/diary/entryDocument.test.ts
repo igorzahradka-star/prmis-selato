@@ -255,6 +255,24 @@ describe('PDF a Word předávacího protokolu', () => {
     expect(handoverResultColor('neprevzato')).not.toBe(handoverResultColor('bez-vyhrad'));
   });
 
+  it('přebíráme od dodavatele: strany jsou prohozené', () => {
+    const e = protokol({ handover: { result: 'bez-vyhrad', direction: 'prebirame' } });
+    const t = textOf(e);
+    expect(t).toContain('Převzetí díla od dodavatele');
+    expect(t).toContain('Předává (dodavatel)');
+    expect(t).toContain('Přebírá (objednatel)');
+    expect(t).toContain('předal dodavatel BELTEC s.r.o. objednateli');
+    expect(t).toContain('za dodavatele — BELTEC s.r.o.');
+    expect(t).toContain('(objednatel)');
+  });
+
+  it('předáváme zákazníkovi: zhotovitel jsme my', () => {
+    const t = textOf(protokol());
+    expect(t).toContain('Předání díla zákazníkovi');
+    expect(t).toContain('Předává (zhotovitel)');
+    expect(t).toContain('za objednatele — BELTEC s.r.o.');
+  });
+
   it('běžný zápis zůstává beze změny (nadpis, bez závěru)', () => {
     const t = textOf(zapis());
     expect(t).toContain('ZÁPIS č. 7');

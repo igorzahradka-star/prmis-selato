@@ -22,6 +22,7 @@ import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 import { Link } from '@fluentui/react/lib/Link';
 
 import { DocumentFolderButton } from '../../ui/components/DocumentFolderButton';
+import { PanelMessages } from '../../ui/components/PanelMessages';
 import { removeConceptCopy, saveConceptCopy } from '../documents/conceptCopy';
 import { useApp } from '../../ui/AppContext';
 import { RES } from '../../ui/theme';
@@ -31,7 +32,7 @@ import { ExternalLink } from '../../ui/components/ExternalLink';
 import { buildHash, RouteName } from '../../ui/router';
 import { Currency, Partner, Project } from '../../core/types';
 import { formatDate, formatDateTime, formatMoney, parseAmount, parseCzechDate } from '../../core/format';
-import { OrderLine, lineTotalNet } from '../../core/orders';
+import { OrderAttachment, OrderLine, lineTotalNet } from '../../core/orders';
 import {
   INVOICE_KIND_CHOICES,
   InvoiceBasis,
@@ -51,6 +52,9 @@ import {
   canIssueInvoice
 } from '../../core/invoiceWorkflow';
 import { toActor, toWorkflowProject } from '../../core/orderWorkflow';
+import { canAddInvoiceAttachment } from '../../core/invoiceWorkflow';
+import { DiaryEntry, EntryStatus, HANDOVER_RESULT_LABELS, entryFileName, protocolNumber } from '../../core/siteDiary';
+import { AttachmentsSection } from '../orders/AttachmentsSection';
 import { defaultInvoiceMail } from '../../core/mail';
 import { invoiceCheckMail, invoiceCheckRecipients, invoiceReturnedMail, orderLink, personRecipient } from '../../core/orderNotify';
 import { RoleMembership } from '../../core/userAdmin';
@@ -126,6 +130,10 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
   const [previewBlob, setPreviewBlob] = React.useState<Blob | undefined>(undefined);
   const [sendOpen, setSendOpen] = React.useState<'handover' | 'resend' | undefined>(undefined);
   const [sendError, setSendError] = React.useState<string | undefined>(undefined);
+  const [attachments, setAttachments] = React.useState<OrderAttachment[]>([]);
+  const [pendingFiles, setPendingFiles] = React.useState<File[]>([]);
+  /** Uzavřené a podepsané předávací protokoly projektu — nabízejí se jako příloha. */
+  const [protocols, setProtocols] = React.useState<DiaryEntry[]>([]);
 
   const [fProject, setFProject] = React.useState<string | undefined>(undefined);
   const [fLines, setFLines] = React.useState<LineForm[]>([emptyLine()]);
@@ -175,6 +183,9 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
     setHistory([]);
     setPreviewOpen(false);
     setSendOpen(undefined);
+    setAttachments([]);
+    setPendingFiles([]);
+    setProtocols([]);
 
     Promise.all([
       repos.projects.list({}),
@@ -202,6 +213,10 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
           repos.invoices
             .history(loaded.id)
             .then((h) => !cancelled && setHistory(h))
+            .catch(() => undefined);
+          repos.invoices
+            .listAttachments(loaded.id)
+            .then((a) => !cancelled && setAttachments(a))
             .catch(() => undefined);
         }
       })
@@ -402,10 +417,13 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
       // Hned po uložení si podklad pamatujeme — kdyby selhalo předání, další pokus koncept upraví, nezaloží druhý.
       setInvoice(saved);
       onChanged();
+      const failedFiles = await uploadPending(saved.id);
       afterChange(saved);
       setEditing(false);
       saveConcept(saved);
-      if (thenSubmit) {
+      if (failedFiles.length > 0) {
+        setError(`Podklad je uložený, ale tyto přílohy se nenahrály — ${failedFiles.join(' | ')}`);
+      } else if (thenSubmit) {
         if (mayCheck) {
           setSendError(undefined);
           setSendOpen('handover');
@@ -418,6 +436,150 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
       setError(why(e));
     }
   };
+
+  // --- přílohy ---
+
+  const reloadAttachments = (id: number): void => {
+    repos.invoices
+      .listAttachments(id)
+      .then(setAttachments)
+      .catch(() => undefined);
+  };
+
+  /** Nahraje soubory čekající na uložení nového podkladu. Nepovedený soubor nezdrží ostatní; o chybách se řekne. */
+  const uploadPending = async (id: number): Promise<string[]> => {
+    const failed: string[] = [];
+    for (const file of pendingFiles) {
+      try {
+        await repos.invoices.addAttachment(id, file, user);
+      } catch (e) {
+        failed.push(`${file.name}: ${why(e)}`);
+      }
+    }
+    setPendingFiles([]);
+    if (pendingFiles.length > 0) {
+      reloadAttachments(id);
+    }
+    return failed;
+  };
+
+  const addFiles = (files: File[]): void => {
+    if (!invoice) {
+      setPendingFiles((cur) => [...cur, ...files]);
+      return;
+    }
+    setError(undefined);
+    setBusy(true);
+    (async (): Promise<void> => {
+      const failed: string[] = [];
+      for (const file of files) {
+        try {
+          await repos.invoices.addAttachment(invoice.id, file, user);
+        } catch (e) {
+          failed.push(`${file.name}: ${why(e)}`);
+        }
+      }
+      reloadAttachments(invoice.id);
+      setBusy(false);
+      if (failed.length > 0) {
+        setError(failed.join(' | '));
+      }
+    })().catch(() => setBusy(false));
+  };
+
+  const removeSavedAttachment = (name: string): void => {
+    if (!invoice) {
+      return;
+    }
+    setError(undefined);
+    setBusy(true);
+    repos.invoices
+      .removeAttachment(invoice.id, name, user)
+      .then(() => {
+        reloadAttachments(invoice.id);
+        setBusy(false);
+      })
+      .catch((e: Error) => {
+        setBusy(false);
+        setError(e.message);
+      });
+  };
+
+  // Předávací protokoly projektu, které jdou připojit (uzavřené nebo podepsané — mají PDF).
+  const protocolProject = invoice ? invoice.projectNumber : fProject;
+  React.useEffect(() => {
+    if (!isOpen || !protocolProject) {
+      return undefined;
+    }
+    let cancelled = false;
+    repos.diary
+      .listEntries({ projectNumber: protocolProject, kind: 'predani' })
+      .then((list) => !cancelled && setProtocols(list.filter((e) => e.status === EntryStatus.Uzavreno || e.status === EntryStatus.Podepsano)))
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [repos, isOpen, protocolProject]);
+
+  /** Připojí PDF hotového předávacího protokolu (kopie — podklad drží stav protokolu z okamžiku připojení). */
+  const attachProtocol = (entry: DiaryEntry): void => {
+    const name = entryFileName(entry.projectNumber, entry.entryNo, 'pdf', entry.kind);
+    if (attachments.some((a) => a.name === name) || pendingFiles.some((f) => f.name === name)) {
+      setError(`Protokol ${protocolNumber(entry.projectNumber, entry.entryNo)} je už přiložený.`);
+      return;
+    }
+    if (!project) {
+      return;
+    }
+    setError(undefined);
+    setBusy(true);
+    repos.documents
+      .readProjectFile(project, entry.folderPath, name)
+      .then((blob) => {
+        setBusy(false);
+        addFiles([new File([blob], name, { type: 'application/pdf' })]);
+      })
+      .catch((e: unknown) => {
+        setBusy(false);
+        setError(`PDF protokolu ${protocolNumber(entry.projectNumber, entry.entryNo)} se nepodařilo načíst ze složky projektu: ${why(e)}`);
+      });
+  };
+
+  /** Přílohy a nabídka předávacích protokolů — ve formuláři i v detailu podkladu. */
+  const attachmentsBlock = (hideTitle: boolean): JSX.Element => (
+    <>
+      <AttachmentsSection
+        hideTitle={hideTitle}
+        attachments={attachments}
+        pending={pendingFiles}
+        canAdd={!invoice || (!!project && canAddInvoiceAttachment(invoice, toWorkflowProject(project), actor))}
+        canRemove={!invoice || (!!project && canAddInvoiceAttachment(invoice, toWorkflowProject(project), actor))}
+        busy={busy}
+        onAdd={addFiles}
+        onRemoveSaved={removeSavedAttachment}
+        onRemovePending={(i) => setPendingFiles((cur) => cur.filter((_, idx) => idx !== i))}
+      />
+      {(!invoice || (!!project && canAddInvoiceAttachment(invoice, toWorkflowProject(project), actor))) && (
+        <Dropdown
+          ariaLabel="Připojit předávací protokol"
+          placeholder={protocols.length > 0 ? 'Připojit předávací protokol projektu…' : 'Projekt nemá uzavřený předávací protokol'}
+          disabled={busy || protocols.length === 0}
+          options={protocols.map((e) => ({
+            key: e.id,
+            text: `${protocolNumber(e.projectNumber, e.entryNo)} · ${formatDate(e.date)}${e.handover && e.handover.result ? ' · ' + HANDOVER_RESULT_LABELS[e.handover.result] : ''}`
+          }))}
+          selectedKey={null}
+          onChange={(_, o) => {
+            const found = protocols.filter((e) => e.id === o?.key)[0];
+            if (found) {
+              attachProtocol(found);
+            }
+          }}
+          styles={{ root: { maxWidth: 520, marginTop: 6 } }}
+        />
+      )}
+    </>
+  );
 
   // --- náhled PDF a odeslání účtárně ---
 
@@ -519,6 +681,11 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
       if (payload) {
         stage = 'Odeslání e-mailu';
         const files: MailAttachment[] = [{ name: fileName, contentType: 'application/pdf', content: blob }];
+        if (payload.includeAttachments) {
+          for (const a of attachments) {
+            files.push({ name: a.name, contentType: 'application/octet-stream', content: await repos.invoices.readAttachment(invoice.id, a.name) });
+          }
+        }
         await repos.mail.send({ to: payload.to, cc: payload.cc, subject: payload.subject, bodyText: payload.body, attachments: files });
         mailSent = true;
       }
@@ -694,6 +861,15 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
       companyName: settings.company.name
     });
 
+  const footerNode = footer();
+  // Hlášky (co chybí, co se nepovedlo) jsou nad tlačítky v patě, kde je uživatel uvidí; bez paty (načítání, nenalezeno) zůstávají nahoře.
+  const footerWithMessages = footerNode ? (
+    <div>
+      <PanelMessages issues={issues} error={error} onDismissError={() => setError(undefined)} />
+      {footerNode}
+    </div>
+  ) : null;
+
   return (
     <>
       <Panel
@@ -709,11 +885,11 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
           </>
         )}
         isFooterAtBottom
-        onRenderFooterContent={footer}
+        onRenderFooterContent={() => footerWithMessages}
       >
         {loading && <Spinner size={SpinnerSize.large} label="Načítám…" />}
 
-        {error && (
+        {error && !footerNode && (
           <MessageBar messageBarType={MessageBarType.error} isMultiline onDismiss={() => setError(undefined)}>
             {error}
           </MessageBar>
@@ -726,16 +902,6 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
 
         {!loading && editing && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 8 }}>
-            {issues.length > 0 && (
-              <MessageBar messageBarType={MessageBarType.warning} isMultiline>
-                <ul style={{ margin: 0, paddingLeft: 18 }}>
-                  {issues.map((m) => (
-                    <li key={m}>{m}</li>
-                  ))}
-                </ul>
-              </MessageBar>
-            )}
-
             <Dropdown
               label="Druh dokladu"
               options={KIND_OPTIONS}
@@ -875,6 +1041,11 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
 
             <TextField label="Poznámka pro účtárnu" multiline rows={2} value={fNote} onChange={(_, v) => setFNote(v ?? '')} />
 
+            <div>
+              <div style={{ fontWeight: 600, marginBottom: 4 }}>Přílohy</div>
+              {attachmentsBlock(true)}
+            </div>
+
             <TotalsBox net={totals.net} vat={totals.vat} gross={totals.gross} currency={fCurrency} vatRate={fVat} />
             {fCurrency !== 'CZK' && (
               <div style={{ alignSelf: 'flex-end', fontSize: 12, color: RES.gray, textAlign: 'right' }}>
@@ -892,7 +1063,7 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
         )}
 
         {!loading && !editing && invoice && (
-          <InvoiceDetail invoice={invoice} history={history} projectName={project ? project.shortName || project.title : ''} rates={rates} />
+          <InvoiceDetail invoice={invoice} history={history} projectName={project ? project.shortName || project.title : ''} rates={rates} attachmentsNode={attachmentsBlock(true)} showAttachments={attachments.length > 0 || (!!project && canAddInvoiceAttachment(invoice, toWorkflowProject(project), actor))} />
         )}
 
         {sendOpen && invoice && (
@@ -907,14 +1078,15 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
                   ? `PDF se znovu uloží do složky projektu (${folderFor(project, 'invoices', settings.folders)}) a v historii bude zapsáno, komu a kdy šlo znovu. Stav podkladu se nemění. E-mail odejde z vaší schránky.`
                   : `PDF se zároveň uloží do složky projektu (${folderFor(project, 'invoices', settings.folders)}) a podklad se označí jako předaný účtárně. E-mail odejde z vaší schránky a bude i ve vaší poště Odeslané.`,
               markOnly: sendOpen === 'resend' ? 'Jen uložit PDF a zapsat předání' : 'Jen uložit PDF a označit jako předáno',
-              sendButton: 'Odeslat účtárně'
+              sendButton: 'Odeslat účtárně',
+              attachmentsLabel: 'Přiložit i přílohy podkladu (např. předávací protokol)'
             }}
             orderNumber={invoice.number}
             initialTo={settings.company.accountingEmail || ''}
             initialCc={user.email || ''}
             initialSubject={accountingMail().subject}
             initialBody={accountingMail().body}
-            attachmentCount={0}
+            attachmentCount={attachments.length}
             busy={busy}
             error={sendError}
             onSendMail={(payload) => runSend(payload, sendOpen === 'resend').catch(() => undefined)}
@@ -982,7 +1154,10 @@ const InvoiceDetail: React.FC<{
   history: InvoiceHistoryEntry[];
   projectName: string;
   rates: ReturnType<typeof effectiveRates>;
-}> = ({ invoice, history, projectName, rates }) => {
+  /** Přílohy (a nabídka předávacích protokolů) připravené v panelu. */
+  attachmentsNode: React.ReactNode;
+  showAttachments: boolean;
+}> = ({ invoice, history, projectName, rates, attachmentsNode, showAttachments }) => {
   const totals = invoiceTotals(invoice.lines, invoice.vatRate);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 8 }}>
@@ -1063,6 +1238,8 @@ const InvoiceDetail: React.FC<{
           </div>
         )}
       </Section>
+
+      {showAttachments && <Section title="Přílohy">{attachmentsNode}</Section>}
 
       {history.length > 0 && (
         <Section title="Historie">

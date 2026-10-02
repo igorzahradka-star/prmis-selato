@@ -10,7 +10,7 @@
 import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { CurrentUser, Project } from '../../core/types';
 import { toDate } from '../../core/format';
-import { linesFromJson, linesToJson } from '../../core/orders';
+import { OrderAttachment, linesFromJson, linesToJson, validateAttachment } from '../../core/orders';
 import {
   InvoiceBasis,
   InvoiceKind,
@@ -25,6 +25,7 @@ import {
   InvoiceChange,
   InvoiceContext,
   applyInvoiceChange,
+  canAddInvoiceAttachment,
   canDeleteInvoice,
   canEditInvoice,
   canIssueInvoice,
@@ -257,6 +258,63 @@ export class SpInvoiceRepository implements IInvoiceRepository {
       return rows.map((r) => ({ action: r.Action ?? '', byName: r.PerformedBy?.Title ?? '—', at: toDate(r.PerformedAt) }));
     } catch (error) {
       throw new Error(describeSpError(error, 'Nepodařilo se načíst historii podkladu'));
+    }
+  }
+
+  public async listAttachments(id: number): Promise<OrderAttachment[]> {
+    try {
+      const sp = getSp(this.context);
+      const origin = new URL(this.context.pageContext.web.absoluteUrl).origin;
+      const files: { FileName: string; ServerRelativeUrl: string }[] = await sp.web.lists.getByTitle(LIST).items.getById(id).attachmentFiles();
+      return files.map((f) => ({ name: f.FileName, url: `${origin}${f.ServerRelativeUrl}` }));
+    } catch (error) {
+      throw new Error(describeSpError(error, 'Nepodařilo se načíst přílohy podkladu'));
+    }
+  }
+
+  public async addAttachment(id: number, file: File, actor: CurrentUser): Promise<OrderAttachment> {
+    const { invoice } = await this.requireInvoice(id);
+    const project = await this.requireProject(invoice.projectNumber);
+    if (!canAddInvoiceAttachment(invoice, toWorkflowProject(project), toActor(actor))) {
+      throw new WorkflowError('K tomuto podkladu teď přílohu přidat nemůžete (nemáte oprávnění, nebo už je předaný účtárně).');
+    }
+    const problem = validateAttachment(file.name, file.size);
+    if (problem) {
+      throw new WorkflowError(problem);
+    }
+    try {
+      const sp = getSp(this.context);
+      await sp.web.lists.getByTitle(LIST).items.getById(id).attachmentFiles.add(file.name, file);
+    } catch (error) {
+      throw new Error(describeSpError(error, `Přílohu „${file.name}“ se nepodařilo nahrát`));
+    }
+    await this.writeAudit(id, invoice.number, actor, `Příloha přidána: ${file.name}`, invoice.status, invoice.status);
+    const found = (await this.listAttachments(id)).filter((a) => a.name === file.name)[0];
+    return found ?? { name: file.name, url: '' };
+  }
+
+  public async removeAttachment(id: number, fileName: string, actor: CurrentUser): Promise<void> {
+    const { invoice } = await this.requireInvoice(id);
+    const project = await this.requireProject(invoice.projectNumber);
+    if (!canAddInvoiceAttachment(invoice, toWorkflowProject(project), toActor(actor))) {
+      throw new WorkflowError('Přílohu jde odebrat jen u konceptu nebo podkladu ke kontrole.');
+    }
+    // Audit jde první: odebraný soubor je v koši SharePointu, ale bez záznamu by nebylo vidět, kdo ho odebral.
+    await this.writeAudit(id, invoice.number, actor, `Příloha odebrána: ${fileName}`, invoice.status, invoice.status);
+    try {
+      const sp = getSp(this.context);
+      await sp.web.lists.getByTitle(LIST).items.getById(id).attachmentFiles.getByName(fileName).delete();
+    } catch (error) {
+      throw new Error(describeSpError(error, `Přílohu „${fileName}“ se nepodařilo odebrat`));
+    }
+  }
+
+  public async readAttachment(id: number, fileName: string): Promise<Blob> {
+    try {
+      const sp = getSp(this.context);
+      return await sp.web.lists.getByTitle(LIST).items.getById(id).attachmentFiles.getByName(fileName).getBlob();
+    } catch (error) {
+      throw new Error(describeSpError(error, `Přílohu „${fileName}“ se nepodařilo načíst`));
     }
   }
 

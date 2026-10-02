@@ -210,9 +210,16 @@ export const NewProjectPanel: React.FC<NewProjectPanelProps> = ({ isOpen, onDism
       closeButtonAriaLabel="Zavřít"
       isFooterAtBottom
       onRenderFooterContent={() => (
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div>
+          {saveError && (
+            <MessageBar messageBarType={MessageBarType.error} isMultiline>
+              {saveError}
+            </MessageBar>
+          )}
+          <div style={{ display: 'flex', gap: 8 }}>
           <PrimaryButton text={saving ? 'Ukládám…' : 'Uložit'} disabled={!canSave} onClick={save} />
           <DefaultButton text="Zrušit" onClick={onDismiss} disabled={saving} />
+          </div>
         </div>
       )}
     >
@@ -328,12 +335,6 @@ export const NewProjectPanel: React.FC<NewProjectPanelProps> = ({ isOpen, onDism
             setTitle(v ?? '');
           }}
         />
-
-        {saveError && (
-          <MessageBar messageBarType={MessageBarType.error} isMultiline>
-            {saveError}
-          </MessageBar>
-        )}
 
         {folderRetry && (
           <MessageBar

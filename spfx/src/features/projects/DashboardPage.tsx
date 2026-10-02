@@ -416,7 +416,11 @@ function buildColumns(ctx: ColumnContext): IColumn[] {
       isMultiline: false,
       onRender: (p: Project) => {
         const name = titleWithoutNumber(p);
-        return <span title={name}>{name}</span>;
+        return (
+          <Link href={buildHash(RouteName.ProjectDetail, p.projectNumber)} title={name}>
+            {name}
+          </Link>
+        );
       }
     },
     {

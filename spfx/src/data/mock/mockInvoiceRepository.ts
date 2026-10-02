@@ -18,6 +18,7 @@ import {
   InvoiceChange,
   InvoiceContext,
   applyInvoiceChange,
+  canAddInvoiceAttachment,
   canDeleteInvoice,
   canEditInvoice,
   canIssueInvoice,
@@ -30,6 +31,7 @@ import {
   submitInvoice
 } from '../../core/invoiceWorkflow';
 import { WorkflowError, toActor, toWorkflowProject } from '../../core/orderWorkflow';
+import { OrderAttachment, validateAttachment } from '../../core/orders';
 import {
   INumberingRepository,
   IInvoiceRepository,
@@ -113,6 +115,8 @@ export class MockInvoiceRepository implements IInvoiceRepository {
   private invoices: InvoiceBasis[];
   private readonly log = new Map<number, InvoiceHistoryEntry[]>();
   private nextId: number;
+  /** Přílohy podkladů (v ukázkovém režimu jen v paměti prohlížeče). */
+  private readonly files = new Map<number, { name: string; blob: Blob; url: string }[]>();
 
   public constructor(
     private readonly numbering: INumberingRepository,
@@ -213,6 +217,50 @@ export class MockInvoiceRepository implements IInvoiceRepository {
 
   public history(id: number): Promise<InvoiceHistoryEntry[]> {
     return delay((this.log.get(id) ?? []).map((h) => ({ ...h })));
+  }
+
+  public listAttachments(id: number): Promise<OrderAttachment[]> {
+    return delay((this.files.get(id) ?? []).map((f) => ({ name: f.name, url: f.url, sizeBytes: f.blob.size })));
+  }
+
+  public async addAttachment(id: number, file: File, actor: CurrentUser): Promise<OrderAttachment> {
+    const invoice = this.require(id);
+    const project = await this.requireProject(invoice.projectNumber);
+    if (!canAddInvoiceAttachment(invoice, toWorkflowProject(project), toActor(actor))) {
+      throw new WorkflowError('K tomuto podkladu teď přílohu přidat nemůžete (nemáte oprávnění, nebo už je předaný účtárně).');
+    }
+    const problem = validateAttachment(file.name, file.size);
+    if (problem) {
+      throw new WorkflowError(problem);
+    }
+    const url = typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function' ? URL.createObjectURL(file) : '#';
+    const list = (this.files.get(id) ?? []).filter((f) => f.name !== file.name);
+    list.push({ name: file.name, blob: file, url });
+    this.files.set(id, list);
+    this.record(id, actor, `Příloha přidána: ${file.name}`);
+    return delay({ name: file.name, url, sizeBytes: file.size });
+  }
+
+  public async removeAttachment(id: number, fileName: string, actor: CurrentUser): Promise<void> {
+    const invoice = this.require(id);
+    const project = await this.requireProject(invoice.projectNumber);
+    if (!canAddInvoiceAttachment(invoice, toWorkflowProject(project), toActor(actor))) {
+      throw new WorkflowError('Přílohu jde odebrat jen u konceptu nebo podkladu ke kontrole.');
+    }
+    this.files.set(
+      id,
+      (this.files.get(id) ?? []).filter((f) => f.name !== fileName)
+    );
+    this.record(id, actor, `Příloha odebrána: ${fileName}`);
+    return delay(undefined);
+  }
+
+  public readAttachment(id: number, fileName: string): Promise<Blob> {
+    const found = (this.files.get(id) ?? []).filter((f) => f.name === fileName)[0];
+    if (!found) {
+      return Promise.reject(new WorkflowError('Příloha nebyla nalezena.'));
+    }
+    return delay(found.blob);
   }
 
   // --- vnitřní ---

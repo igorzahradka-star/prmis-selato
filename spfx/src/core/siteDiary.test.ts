@@ -16,6 +16,8 @@ import {
   entryFilesPath,
   entryTitle,
   filterEntries,
+  handoverDirectionOf,
+  handoverParties,
   isHandover,
   isHandoverDiary,
   protocolNumber,
@@ -303,6 +305,19 @@ describe('předávací protokol', () => {
     expect(warrantyEnd(new Date(2026, 9, 1), 60)).toEqual(new Date(2031, 9, 1));
     expect(warrantyEnd(new Date(2026, 0, 31), 1)).toEqual(new Date(2026, 1, 28));
     expect(warrantyEnd(new Date(2027, 11, 15), 24)).toEqual(new Date(2029, 11, 15));
+  });
+
+  it('směr předání: bez uvedení předáváme my; přebíráme prohodí strany', () => {
+    const h = { managerName: 'Petr Manažer', counterparty: 'BELTEC' };
+    expect(handoverDirectionOf({})).toBe('predavame');
+    expect(handoverDirectionOf({ handover: { direction: 'prebirame' } })).toBe('prebirame');
+    const a = handoverParties({ header: h }, 'Revoltum');
+    expect([a.giver, a.giverRole, a.receiver, a.receiverRole]).toEqual(['Revoltum · Petr Manažer', 'zhotovitel', 'BELTEC', 'objednatel']);
+    const b = handoverParties({ header: h, handover: { direction: 'prebirame' } }, 'Revoltum');
+    expect([b.giver, b.giverRole, b.receiver, b.receiverRole]).toEqual(['BELTEC', 'dodavatel', 'Revoltum · Petr Manažer', 'objednatel']);
+    expect(b.ourRole).toBe('objednatel');
+    expect(contentFromJson(contentToJson({ ...protokol(), handover: { result: 'bez-vyhrad', direction: 'prebirame' } }), header).handover?.direction).toBe('prebirame');
+    expect(contentFromJson(contentToJson(protokol()), header).handover?.direction).toBeUndefined();
   });
 
   it('filtr podle druhu odděluje protokoly od zápisů', () => {

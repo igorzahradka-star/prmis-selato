@@ -243,9 +243,26 @@ export const EditProjectPanel: React.FC<EditProjectPanelProps> = ({
       closeButtonAriaLabel="Zavřít"
       isFooterAtBottom
       onRenderFooterContent={() => (
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div>
+          {showIssues && issues.length > 0 && (
+            <MessageBar messageBarType={MessageBarType.error} isMultiline>
+              Opravte prosím označená pole:
+              <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>
+                {issues.map((i) => (
+                  <li key={`${i.field}-${i.message}`}>{i.message}</li>
+                ))}
+              </ul>
+            </MessageBar>
+          )}
+          {saveError && (
+            <MessageBar messageBarType={MessageBarType.error} isMultiline>
+              {saveError}
+            </MessageBar>
+          )}
+          <div style={{ display: 'flex', gap: 8 }}>
           <PrimaryButton text={saving ? 'Ukládám…' : 'Uložit změny'} disabled={saving} onClick={save} />
           <DefaultButton text="Zrušit" onClick={onDismiss} disabled={saving} />
+          </div>
         </div>
       )}
     >
@@ -390,17 +407,6 @@ export const EditProjectPanel: React.FC<EditProjectPanelProps> = ({
           onChange={(_, v) => setTitle(v ?? '')}
         />
 
-        {showIssues && issues.length > 0 && (
-          <MessageBar messageBarType={MessageBarType.error} isMultiline>
-            Opravte prosím označená pole:
-            <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>
-              {issues.map((i) => (
-                <li key={`${i.field}-${i.message}`}>{i.message}</li>
-              ))}
-            </ul>
-          </MessageBar>
-        )}
-
         {warnings.length > 0 && (
           <MessageBar messageBarType={MessageBarType.warning} isMultiline>
             {warnings.length === 1 ? (
@@ -412,12 +418,6 @@ export const EditProjectPanel: React.FC<EditProjectPanelProps> = ({
                 ))}
               </ul>
             )}
-          </MessageBar>
-        )}
-
-        {saveError && (
-          <MessageBar messageBarType={MessageBarType.error} isMultiline>
-            {saveError}
           </MessageBar>
         )}
 

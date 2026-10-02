@@ -1,4 +1,4 @@
-import { isValidIco } from './ico';
+import { isValidIco, normalizeIco } from './ico';
 
 describe('isValidIco', () => {
   it('uzná platná IČO (ověřeno proti skutečným firmám v ARES)', () => {
@@ -25,5 +25,23 @@ describe('isValidIco', () => {
   it('odmítne nečíselné znaky', () => {
     expect(isValidIco('2472903a')).toBe(false);
     expect(isValidIco('24 729035')).toBe(false);
+  });
+});
+
+describe('normalizeIco', () => {
+  it('vyčistí mezery a doplní nuly zleva', () => {
+    expect(normalizeIco('452 746 49')).toBe('45274649');
+    expect(normalizeIco('69797')).toBe('00069797');
+    expect(normalizeIco(' 06859101 ')).toBe('06859101');
+  });
+  it('přebytečné nuly zleva zahodí', () => {
+    expect(normalizeIco('000069797')).toBe('00069797');
+    expect(normalizeIco('0045274649')).toBe('45274649');
+  });
+  it('prázdné a nesmyslné nechá očištěné', () => {
+    expect(normalizeIco('')).toBe('');
+    expect(normalizeIco(undefined)).toBe('');
+    expect(normalizeIco('abc')).toBe('');
+    expect(normalizeIco('123456789')).toBe('123456789');
   });
 });

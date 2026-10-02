@@ -5,6 +5,27 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.22.0 — 2. 10. 2026 — Protokol v obou směrech, přílohy podkladu, hlášky nad tlačítky, guma v náčrtu, oprava lupy ARES
+
+**Nové**
+
+- **Předávací protokol v obou směrech.** Ve formuláři je volba **Směr předání**: *Předáváme dílo zákazníkovi* (my jsme zhotovitel, druhá strana objednatel) nebo *Přebíráme dílo od dodavatele* (druhá strana je dodavatel, my objednatel). Podle směru se prohodí strany v hlavičce,
+  úvodní větě i podpisových polích PDF a Wordu. Starší protokoly mají směr „předáváme“.
+- **Přílohy u podkladu pro fakturaci** (jako u objednávek): libovolné soubory (PDF apod.), u nového podkladu se nahrají po uložení. Navíc rozbalovací nabídka **Připojit předávací protokol** — nabídne uzavřené a podepsané protokoly projektu a připojí jejich PDF (kopii).
+  Přílohy jdou přidávat a odebírat u konceptu a podkladu ke kontrole; po předání účtárně se nemění. Při předání účtárně e-mailem je lze přiložit (zaškrtávátko v okně odeslání).
+- **Guma v náčrtu**: čtvercová, tři velikosti (malá, střední, velká); maže jen přejeté místo, u fotky se pod gumou vrací původní fotka. Čtvereček pod ukazatelem ukazuje, co se smaže. Vrátit jde tlačítkem Zpět.
+- V přehledu projektů je **odkazem i název projektu** (dosud jen číslo).
+
+**Změněno**
+
+- **Hlášky „něco chybí“ a chyby uložení jsou nad tlačítky v patě panelu** (ne nahoře, kde se přehlédly): zápis a protokol, objednávka, podklad, úprava a založení projektu, termín, partner. Partner se nově dá zkusit uložit i bez názvu — aplikace řekne, co chybí.
+
+**Opraveno**
+
+- **Lupa (ARES) u partnera** nešla zmáčknout, když bylo IČO zapsané s mezerou, s nulami navíc (např. 9 číslic) nebo mělo špatnou kontrolní číslici — bez vysvětlení. Teď se IČO uklidí (mezery pryč, nuly doplněny/ubrány), lupa jde i s Enterem a políčko řekne, co je špatně. ARES samotný funguje (ověřeno 2. 10. 2026).
+
+---
+
 ## 0.21.0 — 2. 10. 2026 — Předávací protokoly
 
 **Nové**
