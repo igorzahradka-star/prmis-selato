@@ -1,39 +1,53 @@
 import {
+  BudgetApproval,
   BudgetDoc,
+  BudgetGroup,
   BudgetItem,
-  BudgetVersion,
-  BudgetVersionStatus,
+  BudgetRecord,
+  BudgetStatus,
   addGroup,
   addItem,
+  addRate,
+  approvalsFromJson,
+  approvalsToJson,
   availableBudgetActions,
-  baselineOf,
   budgetFromJson,
   budgetToJson,
   budgetTotals,
+  calcItems,
+  changedSinceApproval,
+  duplicateItem,
   emptyBudget,
   itemCost,
   itemMarkup,
   itemSale,
+  kindForName,
+  lastApproval,
   marginPercent,
   markupPercentOf,
+  moveItem,
   newItem,
-  nextVersionNo,
   parseBudgetTable,
   parseClipboardTable,
   removeGroup,
+  removeRate,
+  statusAfterReject,
   updateGroup,
   validateBudget,
   withMarkup,
   withSale
 } from './budget';
+import { RateTable } from './currency';
 import { Actor, WorkflowProject } from './orderWorkflow';
 import { Role } from './types';
 
-const g1 = { id: 'g1', name: 'Materiál', defaultMarkupPercent: 20 };
-const g2 = { id: 'g2', name: 'Doprava', defaultMarkupPercent: 0 };
+const RATES = { EUR: 25, USD: 20, source: 'test' } as unknown as RateTable;
+const g1: BudgetGroup = { id: 'g1', name: 'Materiál', kind: 'standard', defaultMarkupPercent: 20 };
+const g2: BudgetGroup = { id: 'g2', name: 'Doprava', kind: 'standard', defaultMarkupPercent: 0 };
+const gp: BudgetGroup = { id: 'gp', name: 'Vlastní práce', kind: 'prace', defaultMarkupPercent: 0 };
+const gr: BudgetGroup = { id: 'gr', name: 'Rezerva', kind: 'rezerva', defaultMarkupPercent: 0 };
 const item = (extra: Partial<BudgetItem> = {}): BudgetItem => ({ id: 'i1', groupId: 'g1', description: 'Rozvaděč ABCD', currency: 'CZK', quantity: 1, unitCost: 100, ...extra });
-const doc = (items: BudgetItem[]): BudgetDoc => ({ groups: [g1, g2], items });
-const same = (amount: number, from: string): number => (from === 'EUR' ? amount * 25 : amount);
+const doc = (items: BudgetItem[], groups: BudgetGroup[] = [g1, g2]): BudgetDoc => ({ groups, items, rates: [{ id: 's1', name: 'Montér', costRate: 400, saleRate: 600 }] });
 
 describe('přirážka, prodej a marže', () => {
   it('příklad: nákup 100, přirážka 20 % → prodej 120, marže z prodeje 16,67 %', () => {
@@ -58,32 +72,99 @@ describe('přirážka, prodej a marže', () => {
     expect(itemMarkup(i, g1)).toBe(50);
   });
 
-  it('withMarkup: shodná se skupinou se dědí; withSale: shodná s výpočtem zůstane výpočtem', () => {
+  it('withMarkup / withSale: shodné se skupinou nebo s výpočtem se dědí', () => {
     expect(withMarkup(item({ markupPercent: 5 }), g1, 20).markupPercent).toBeUndefined();
     expect(withMarkup(item(), g1, 35).markupPercent).toBe(35);
     expect(withMarkup(item({ salePriceOverride: 999 }), g1, 35).salePriceOverride).toBeUndefined();
     expect(withSale(item(), g1, 120).salePriceOverride).toBeUndefined();
     expect(withSale(item(), g1, 130).salePriceOverride).toBe(130);
-    expect(withSale(item({ markupPercent: 5 }), g1, 130).markupPercent).toBeUndefined();
   });
 
   it('nulový nákup a prodej nepadnou', () => {
     expect(marginPercent(0, 0)).toBe(0);
     expect(markupPercentOf(0, 10)).toBe(0);
-    expect(itemMarkup(item({ unitCost: 0, salePriceOverride: 50 }), g1)).toBe(20);
+  });
+});
+
+describe('vlastní práce: hodiny × sazby profese', () => {
+  it('nákup z nákladové sazby, prodej z prodejní; skutečnost z odpracovaných hodin', () => {
+    const d = doc([item({ id: 'p', groupId: 'gp', quantity: 10, unit: 'h', rateId: 's1', actualQty: 4 })], [g1, gp]);
+    const [c] = calcItems(d, RATES);
+    expect([c.cost, c.sale, c.margin]).toEqual([4000, 6000, 33.33]);
+    expect([c.actualQty, c.actualCost, c.remainingQty, c.remainingCost]).toEqual([4, 1600, 6, 2400]);
+    expect(c.currency).toBe('CZK');
+  });
+  it('změna sazby v projektu se promítne; bez profese je nula', () => {
+    const d = doc([item({ id: 'p', groupId: 'gp', quantity: 10, rateId: 's1' }), item({ id: 'q', groupId: 'gp', quantity: 10 })], [gp]);
+    expect(calcItems(d, RATES).map((c) => c.cost)).toEqual([4000, 0]);
+    const up = { ...d, rates: [{ id: 's1', name: 'Montér', costRate: 500, saleRate: 700 }] };
+    expect(calcItems(up, RATES)[0].sale).toBe(7000);
+  });
+  it('sazby: přidání, odebrání (položka zůstane bez profese)', () => {
+    const d = doc([item({ id: 'p', groupId: 'gp', rateId: 's1' })], [gp]);
+    expect(addRate(d, ' Revizák ').rates.map((r) => r.name)).toEqual(['Montér', 'Revizák']);
+    expect(removeRate(d, 's1').items[0].rateId).toBeUndefined();
+  });
+});
+
+describe('rezerva: nákup = prodej, částkou nebo v % z prodeje', () => {
+  it('částkou: stejná v nákupu i prodeji', () => {
+    const d = doc([item({ id: 'r', groupId: 'gr', unitCost: 100 })], [gr]);
+    const [c] = calcItems(d, RATES);
+    expect([c.cost, c.sale, c.margin]).toEqual([100, 100, 0]);
+  });
+  it('v %: rezerva je p % z celkového prodeje včetně sebe — R = p/(100−p) × ostatní', () => {
+    // ostatní prodej 970 000 → rezerva 3 % z celku = 30 000 (celek 1 000 000)
+    const d = doc([item({ id: 'a', unitCost: 808333.33 }), item({ id: 'r', groupId: 'gr', reservePercent: 3, unitCost: 0 })], [g1, gr]);
+    const calcs = calcItems(d, RATES);
+    expect(calcs[0].sale).toBeCloseTo(970000, 0);
+    expect(calcs[1].cost).toBeCloseTo(30000, 0);
+    expect(calcs[1].sale).toBe(calcs[1].cost);
+    const t = budgetTotals(d, 'CZK', RATES);
+    expect(t.sale).toBeCloseTo(1000000, 0);
+    expect((calcs[1].sale / t.sale) * 100).toBeCloseTo(3, 1);
+  });
+  it('rezerva z cizí měny ostatních položek se počítá přes kurz v Kč', () => {
+    const d = doc([item({ id: 'a', currency: 'EUR', unitCost: 100, markupPercent: 0 }), item({ id: 'r', groupId: 'gr', reservePercent: 50 })], [g1, gr]);
+    // ostatní prodej 100 EUR = 2 500 Kč; 50 % → R = 50/50 × 2500
+    expect(calcItems(d, RATES)[1].cost).toBe(2500);
+  });
+  it('procenta rezerv dohromady 100 % a víc se nepřijmou', () => {
+    const d = doc([item({ id: 'r', groupId: 'gr', reservePercent: 100 })], [gr]);
+    expect(validateBudget(d, false).map((i) => i.message)).toContain('Rezerva v procentech z prodeje musí být dohromady pod 100 %.');
+  });
+});
+
+describe('skutečnost a zbývá', () => {
+  it('příklad: 100 ks za korunu = 100 Kč; koupeno 60 ks za 60 Kč → zbývá 40 ks a 40 Kč', () => {
+    const d = doc([item({ quantity: 100, unitCost: 1, actualQty: 60, actualCost: 60 })]);
+    const [c] = calcItems(d, RATES);
+    expect([c.cost, c.actualQty, c.actualCost, c.remainingQty, c.remainingCost]).toEqual([100, 60, 60, 40, 40]);
+    const t = budgetTotals(d, 'CZK', RATES);
+    expect([t.cost, t.actual, t.remaining, t.spentPercent]).toEqual([100, 60, 40, 60]);
+  });
+  it('překročení je záporné zbývá; duplikát položky začíná bez skutečnosti', () => {
+    const d = doc([item({ quantity: 10, unitCost: 10, actualQty: 12, actualCost: 130 })]);
+    const [c] = calcItems(d, RATES);
+    expect([c.remainingQty, c.remainingCost]).toEqual([-2, -30]);
+    const dup = duplicateItem(d, 'i1');
+    expect(dup.items.length).toBe(2);
+    expect(dup.items[1].actualCost).toBeUndefined();
+    expect(dup.items[1].id).not.toBe('i1');
   });
 });
 
 describe('součty', () => {
   it('po skupinách a kategoriích; cizí měna se přepočítá', () => {
     const d = doc([
-      item({ id: 'a', category: 'Materiál' }),
+      item({ id: 'a', category: 'Materiál', actualCost: 40 }),
       item({ id: 'b', currency: 'EUR', unitCost: 10, category: 'Materiál' }), // 10 EUR = 250 Kč, přirážka 20 % → 300
       item({ id: 'c', groupId: 'g2', unitCost: 40, category: 'Doprava' })
     ]);
-    const t = budgetTotals(d, same);
+    const t = budgetTotals(d, 'CZK', RATES);
     expect(t.cost).toBe(390);
     expect(t.sale).toBe(460);
+    expect(t.actual).toBe(40);
     expect(t.byGroup.map((g) => [g.name, g.cost, g.sale, g.count])).toEqual([
       ['Materiál', 350, 420, 2],
       ['Doprava', 40, 40, 1]
@@ -92,85 +173,126 @@ describe('součty', () => {
     expect(t.marginPercent).toBe(15.22);
     expect(t.markupPercent).toBe(17.95);
   });
-
+  it('v jiné měně: EUR', () => {
+    const t = budgetTotals(doc([item({ unitCost: 250 })]), 'EUR', RATES);
+    expect(t.cost).toBe(10);
+  });
   it('prázdný rozpočet má nuly', () => {
-    const t = budgetTotals({ groups: [g1], items: [] }, same);
-    expect([t.cost, t.sale, t.marginPercent]).toEqual([0, 0, 0]);
+    const t = budgetTotals({ groups: [g1], items: [], rates: [] }, 'CZK', RATES);
+    expect([t.cost, t.sale, t.marginPercent, t.spentPercent]).toEqual([0, 0, 0, 0]);
   });
 });
 
 describe('úpravy rozpočtu', () => {
-  it('nový rozpočet má skupiny podle kategorií; položky se řadí na konec své skupiny', () => {
-    const d = emptyBudget(['Materiál', 'Doprava', ' ']);
-    expect(d.groups.map((g) => g.name)).toEqual(['Materiál', 'Doprava']);
-    const a = addItem(d, newItem(d.groups[0].id));
-    const b = addItem(a, newItem(d.groups[1].id));
-    const c = addItem(b, newItem(d.groups[0].id));
-    expect(c.items.map((i) => i.groupId)).toEqual([d.groups[0].id, d.groups[0].id, d.groups[1].id]);
+  it('nový rozpočet: skupiny podle kategorií s druhem a sazby z číselníku', () => {
+    const d = emptyBudget(['Materiál', 'Vlastní práce', 'Rezerva', ' '], [{ id: 'p1', name: 'Projektant', costRate: 500, saleRate: 900 }, { id: 'p2', name: ' ', costRate: 0, saleRate: 0 }]);
+    expect(d.groups.map((g) => [g.name, g.kind])).toEqual([['Materiál', 'standard'], ['Vlastní práce', 'prace'], ['Rezerva', 'rezerva']]);
+    expect(d.rates.map((r) => [r.name, r.costRate, r.saleRate])).toEqual([['Projektant', 500, 900]]);
+    expect(kindForName('realizační rezerva')).toBe('rezerva');
+    expect(kindForName('Doprava')).toBe('standard');
   });
 
-  it('odebrání skupiny odebere i její položky; úprava výchozí přirážky', () => {
+  it('položky se řadí na konec své skupiny; nová práce dostane první profesi a hodiny', () => {
+    const d = emptyBudget(['Materiál', 'Vlastní práce'], [{ id: 'p1', name: 'Projektant', costRate: 1, saleRate: 2 }]);
+    const [mat, prace] = d.groups;
+    const a = addItem(d, newItem(mat));
+    const b = addItem(a, newItem(prace, d.rates));
+    const c = addItem(b, newItem(mat));
+    expect(c.items.map((i) => i.groupId)).toEqual([mat.id, mat.id, prace.id]);
+    expect(b.items[1]).toMatchObject({ unit: 'h', currency: 'CZK', rateId: d.rates[0].id });
+  });
+
+  it('odebrání skupiny odebere i její položky; úprava výchozí přirážky; přidání skupiny s druhem', () => {
     const d = doc([item({ id: 'a' }), item({ id: 'b', groupId: 'g2' })]);
     expect(removeGroup(d, 'g1').items.map((i) => i.id)).toEqual(['b']);
-    expect(updateGroup(addGroup(d, 'Nová', 12), 'g1', { defaultMarkupPercent: 30 }).groups.map((g) => g.defaultMarkupPercent)).toEqual([30, 0, 12]);
+    const e = updateGroup(addGroup(d, 'Nová', 'rezerva'), 'g1', { defaultMarkupPercent: 30 });
+    expect(e.groups.map((g) => g.defaultMarkupPercent)).toEqual([30, 0, 0]);
+    expect(e.groups[2].kind).toBe('rezerva');
   });
 
-  it('kontrola: prázdné názvy, duplicity, záporné hodnoty; přísná kontrola chce popis i položky', () => {
-    expect(validateBudget({ groups: [g1, { ...g2, name: 'materiál' }], items: [] }, false).map((i) => i.message)).toEqual(['Skupina „materiál“ je v rozpočtu dvakrát.']);
+  it('přesun položky do práce nastaví profesi a hodiny, z běžné do rezervy zruší přirážku', () => {
+    const d = doc([item({ id: 'a', markupPercent: 10 })], [g1, gp, gr]);
+    const p = moveItem(d, 'a', 'gp').items[0];
+    expect([p.groupId, p.rateId, p.unit, p.markupPercent]).toEqual(['gp', 's1', 'h', undefined]);
+    const r = moveItem(d, 'a', 'gr').items[0];
+    expect([r.groupId, r.markupPercent]).toEqual(['gr', undefined]);
+  });
+
+  it('kontrola: prázdné názvy, duplicity, záporné hodnoty, práce bez profese; přísná chce popis i položky', () => {
+    expect(validateBudget({ groups: [g1, { ...g2, name: 'materiál' }], items: [], rates: [] }, false).map((i) => i.message)).toEqual(['Skupina „materiál“ je v rozpočtu dvakrát.']);
     expect(validateBudget(doc([item({ unitCost: -1 })]), false).length).toBe(1);
     expect(validateBudget(doc([]), true).map((i) => i.message)).toEqual(['Rozpočet nemá žádnou položku.']);
     expect(validateBudget(doc([item({ description: ' ' })]), true).map((i) => i.message)).toEqual(['Řádek 1 nemá popis.']);
     expect(validateBudget(doc([item()]), true)).toEqual([]);
     expect(validateBudget(doc([item({ groupId: 'x' })]), false).length).toBe(1);
+    expect(validateBudget(doc([item({ groupId: 'gp', description: '' })], [gp]), true).map((i) => i.message)).toEqual(['Práce řádek 1: vyberte profesi.']);
   });
 });
 
 describe('uložení jako JSON', () => {
   it('rozpočet se uloží a přečte zpět', () => {
-    const d = doc([item({ supplier: 'BELTEC', markupPercent: 7, note: 'pozn.' }), item({ id: 'i2', currency: 'EUR', salePriceOverride: 500 })]);
+    const d = doc(
+      [item({ supplier: 'BELTEC', markupPercent: 7, note: 'pozn.', actualQty: 1, actualCost: 5 }), item({ id: 'i2', currency: 'EUR', salePriceOverride: 500 }), item({ id: 'i3', groupId: 'gr', reservePercent: 3, rateId: undefined })],
+      [g1, gr]
+    );
     expect(budgetFromJson(budgetToJson(d))).toEqual(d);
   });
-  it('poškozený nebo prázdný JSON dá prázdný rozpočet; chybějící části se doplní', () => {
-    expect(budgetFromJson('{rozbité')).toEqual({ groups: [], items: [] });
-    expect(budgetFromJson(undefined)).toEqual({ groups: [], items: [] });
-    const b = budgetFromJson(JSON.stringify({ groups: [{ name: 'A' }], items: [{ groupId: 'x', description: 'D', currency: 'GBP' }] }));
+  it('poškozený nebo prázdný JSON dá prázdný rozpočet; chybějící části a druh skupiny se doplní', () => {
+    expect(budgetFromJson('{rozbité')).toEqual({ groups: [], items: [], rates: [] });
+    expect(budgetFromJson(undefined)).toEqual({ groups: [], items: [], rates: [] });
+    const b = budgetFromJson(JSON.stringify({ groups: [{ name: 'Vlastní práce' }], items: [{ groupId: 'x', description: 'D', currency: 'GBP' }] }));
     expect(b.groups[0].id).not.toBe('');
+    expect(b.groups[0].kind).toBe('prace');
     expect(b.items[0]).toMatchObject({ quantity: 1, unitCost: 0, currency: 'CZK', description: 'D' });
+    expect(b.rates).toEqual([]);
+  });
+  it('historie schválení se uloží a přečte, řazená podle čísla', () => {
+    const a: BudgetApproval[] = [
+      { no: 2, at: new Date(2026, 9, 2), byName: 'B', cost: 2, sale: 3, marginPercent: 33.3, comment: 'ok' },
+      { no: 1, at: new Date(2026, 9, 1), byName: 'A', cost: 1, sale: 2, marginPercent: 50 }
+    ];
+    const back = approvalsFromJson(approvalsToJson(a));
+    expect(back.map((x) => x.no)).toEqual([1, 2]);
+    expect(back[1].at.getTime()).toBe(new Date(2026, 9, 2).getTime());
+    expect(approvalsFromJson('{x')).toEqual([]);
+    expect(lastApproval({ approvals: back })?.no).toBe(2);
+    expect(lastApproval(undefined)).toBeUndefined();
   });
 });
 
-describe('verze a schvalování', () => {
+describe('žádost o schválení a schválení (rozpočet se nezamyká)', () => {
   const PM = 'i:0#.f|membership|pm@revoltum.cz';
   const project: WorkflowProject = { projectNumber: '26001', projectManagerLogin: PM, assistantLogins: [], isOverhead: false };
   const pm: Actor = { login: PM, displayName: 'PM', roles: [Role.ProjektovyManazer] };
   const vedeni: Actor = { login: 'i:0#.f|membership|v@revoltum.cz', displayName: 'V', roles: [Role.Vedeni] };
   const cizi: Actor = { login: 'i:0#.f|membership|c@revoltum.cz', displayName: 'C', roles: [Role.ProjektovyManazer] };
-  const ver = (no: number, status: BudgetVersionStatus): BudgetVersion => ({ id: no, projectNumber: '26001', versionNo: no, status });
+  const rec = (status: BudgetStatus, approvals: BudgetApproval[] = []): BudgetRecord => ({ id: 1, projectNumber: '26001', status, approvals });
+  const ap: BudgetApproval = { no: 1, at: new Date(), byName: 'V', cost: 100, sale: 120, marginPercent: 16.67 };
 
-  it('koncept: PM upravuje a odesílá, cizí PM nic', () => {
-    expect(availableBudgetActions(ver(1, BudgetVersionStatus.Koncept), true, project, pm)).toEqual(['edit', 'submit']);
-    expect(availableBudgetActions(ver(1, BudgetVersionStatus.Koncept), true, project, cizi)).toEqual([]);
+  it('PM upravuje vždy a může požádat o schválení; cizí PM nic', () => {
+    expect(availableBudgetActions(rec(BudgetStatus.Koncept), project, pm)).toEqual(['edit', 'requestApproval']);
+    expect(availableBudgetActions(rec(BudgetStatus.Schvaleno, [ap]), project, pm)).toEqual(['edit', 'requestApproval']);
+    expect(availableBudgetActions(rec(BudgetStatus.Koncept), project, cizi)).toEqual([]);
   });
-  it('ke schválení: vedení schvaluje nebo vrací; PM může stáhnout zpět', () => {
-    const v = ver(1, BudgetVersionStatus.KeSchvaleni);
-    expect(availableBudgetActions(v, true, project, vedeni)).toEqual(['approve', 'return']);
-    expect(availableBudgetActions(v, true, project, pm)).toEqual(['return']);
+  it('ke schválení: vedení schvaluje nebo vrací; PM dál upravuje a smí stáhnout žádost', () => {
+    const r = rec(BudgetStatus.KeSchvaleni);
+    // vedení smí upravovat každý projekt, proto i „edit“ a „withdraw“
+    expect(availableBudgetActions(r, project, vedeni)).toEqual(['edit', 'approve', 'reject', 'withdraw']);
+    expect(availableBudgetActions(r, project, pm)).toEqual(['edit', 'withdraw']);
   });
-  it('schválená: jen poslední verze nabídne novou verzi; bez verze jde založit první', () => {
-    expect(availableBudgetActions(ver(2, BudgetVersionStatus.Schvaleno), true, project, pm)).toEqual(['newVersion']);
-    expect(availableBudgetActions(ver(1, BudgetVersionStatus.Schvaleno), false, project, pm)).toEqual([]);
-    expect(availableBudgetActions(undefined, true, project, pm)).toEqual(['newVersion']);
-    expect(availableBudgetActions(undefined, true, project, cizi)).toEqual([]);
+  it('bez rozpočtu jde založit; Režie rozpočet nevede', () => {
+    expect(availableBudgetActions(undefined, project, pm)).toEqual(['create']);
+    expect(availableBudgetActions(undefined, project, cizi)).toEqual([]);
+    expect(availableBudgetActions(undefined, { ...project, isOverhead: true }, vedeni)).toEqual([]);
   });
-  it('Režie rozpočet nevede', () => {
-    expect(availableBudgetActions(undefined, true, { ...project, isOverhead: true }, vedeni)).toEqual([]);
+  it('po vrácení se stav vrátí na poslední schválený, nebo koncept', () => {
+    expect(statusAfterReject({ approvals: [] })).toBe(BudgetStatus.Koncept);
+    expect(statusAfterReject({ approvals: [ap] })).toBe(BudgetStatus.Schvaleno);
   });
-  it('baseline = poslední schválená verze; další číslo verze', () => {
-    const list = [ver(1, BudgetVersionStatus.Schvaleno), ver(2, BudgetVersionStatus.Schvaleno), ver(3, BudgetVersionStatus.Koncept)];
-    expect(baselineOf(list)?.versionNo).toBe(2);
-    expect(baselineOf([ver(1, BudgetVersionStatus.Koncept)])).toBeUndefined();
-    expect(nextVersionNo(list)).toBe(4);
-    expect(nextVersionNo([])).toBe(1);
+  it('změna od posledního schválení se pozná podle součtů', () => {
+    expect(changedSinceApproval({ approvals: [ap] }, 100, 120)).toBe(false);
+    expect(changedSinceApproval({ approvals: [ap] }, 150, 120)).toBe(true);
+    expect(changedSinceApproval({ approvals: [] }, 150, 120)).toBe(false);
   });
 });
 
@@ -193,7 +315,6 @@ describe('import z tabulky', () => {
     ]);
     expect(r.notes).toEqual([]);
   });
-
   it('množství a cena za MJ, dodavatel a měna z tabulky', () => {
     const r = parseBudgetTable([
       ['Popis', 'Dodavatel', 'Množství', 'MJ', 'Cena za MJ', 'Měna'],
@@ -205,14 +326,12 @@ describe('import z tabulky', () => {
       { description: 'Panel', supplier: 'NODA', quantity: 10, unit: 'ks', unitCost: 100, currency: 'EUR' }
     ]);
   });
-
   it('bez nadpisů: první sloupec popis, první číslo nákup (s upozorněním); nic čitelného = upozornění', () => {
     const r = parseBudgetTable([['Rozvaděč', '1 200,50'], ['Kabel', 'x', '300']]);
     expect(r.rows.map((x) => [x.description, x.unitCost])).toEqual([['Rozvaděč', 1200.5], ['Kabel', 300]]);
     expect(r.notes.length).toBe(1);
     expect(parseBudgetTable([['jen text']]).notes.some((n) => n.includes('žádnou položku'))).toBe(true);
   });
-
   it('schránka z Excelu: řádky a tabulátory', () => {
     expect(parseClipboardTable('A\t1\r\nB\t2\r\n\r\n')).toEqual([['A', '1'], ['B', '2']]);
   });

@@ -265,6 +265,70 @@ export const SettingsPage: React.FC = () => {
               values={draft.budget.categories}
               onChange={(categories) => patch('budget', { categories })}
             />
+            <div style={{ fontWeight: 600, margin: '12px 0 4px' }}>Profese a hodinové sazby (vlastní práce)</div>
+            <Hint>
+              Číselník pro skupinu <strong>Vlastní práce</strong> v rozpočtech. Při založení rozpočtu si projekt sazby <strong>zkopíruje a pak drží vlastní</strong> —
+              změna tady se do už založených rozpočtů nepromítá (v projektu je lze upravit zvlášť). Sazby jsou v Kč za hodinu.
+            </Hint>
+            <table style={{ borderCollapse: 'collapse', fontSize: 13, marginBottom: 8 }}>
+              <thead>
+                <tr style={{ textAlign: 'left', color: RES.gray, fontSize: 12 }}>
+                  <th style={{ padding: '3px 4px' }}>Profese</th>
+                  <th style={{ padding: '3px 4px' }}>Nákladová sazba</th>
+                  <th style={{ padding: '3px 4px' }}>Prodejní sazba</th>
+                  <th style={{ padding: '3px 4px', textAlign: 'right' }}>Marže</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {draft.budget.professions.map((p, i) => (
+                  <tr key={p.id}>
+                    <td style={{ padding: '2px 4px' }}>
+                      <TextField
+                        ariaLabel={`Název profese ${i + 1}`}
+                        value={p.name}
+                        onChange={(_, v) => patch('budget', { professions: draft.budget.professions.map((x) => (x.id === p.id ? { ...x, name: v ?? '' } : x)) })}
+                        styles={{ root: { width: 240 } }}
+                      />
+                    </td>
+                    <td style={{ padding: '2px 4px' }}>
+                      <TextField
+                        ariaLabel={`Nákladová sazba ${p.name}`}
+                        suffix="Kč/h"
+                        value={String(p.costRate)}
+                        onChange={(_, v) => patch('budget', { professions: draft.budget.professions.map((x) => (x.id === p.id ? { ...x, costRate: Math.max(0, Number(String(v ?? '').replace(',', '.')) || 0) } : x)) })}
+                        styles={{ root: { width: 140 } }}
+                      />
+                    </td>
+                    <td style={{ padding: '2px 4px' }}>
+                      <TextField
+                        ariaLabel={`Prodejní sazba ${p.name}`}
+                        suffix="Kč/h"
+                        value={String(p.saleRate)}
+                        onChange={(_, v) => patch('budget', { professions: draft.budget.professions.map((x) => (x.id === p.id ? { ...x, saleRate: Math.max(0, Number(String(v ?? '').replace(',', '.')) || 0) } : x)) })}
+                        styles={{ root: { width: 140 } }}
+                      />
+                    </td>
+                    <td style={{ padding: '2px 8px', textAlign: 'right' }}>
+                      {p.saleRate > 0 ? `${(Math.round(((p.saleRate - p.costRate) / p.saleRate) * 1000) / 10).toLocaleString('cs-CZ')} %` : '—'}
+                    </td>
+                    <td>
+                      <DefaultButton
+                        text="Odebrat"
+                        onClick={() => patch('budget', { professions: draft.budget.professions.filter((x) => x.id !== p.id) })}
+                        styles={{ root: { height: 26, minWidth: 0, padding: '0 8px' } }}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <DefaultButton
+              text="Přidat profesi"
+              iconProps={{ iconName: 'Add' }}
+              onClick={() => patch('budget', { professions: [...draft.budget.professions, { id: `p${Date.now().toString(36)}`, name: '', costRate: 0, saleRate: 0 }] })}
+              styles={{ root: { marginBottom: 8 } }}
+            />
             <Hint>
               Semafor: <strong>zelená</strong> při odchylce prognózy proti schválenému rozpočtu do 0 %,
               <strong> žlutá</strong> do zadaného prahu, <strong>červená</strong> nad ním nebo když marže

@@ -5,6 +5,28 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.24.0 — 2. 10. 2026 — Rozpočet podruhé: jeden rozpočet na projekt, vlastní práce, rezerva, skutečnost
+
+Podle zkoušení rozpočtu v 0.23.0 přepracováno:
+
+**Změněno**
+
+- **Jeden rozpočet na projekt**, který se průběžně upravuje a **nezamyká se** (dřívější „verze“ zmizely). **Schválení** nic nezamkne — uloží do **historie schválení** záznam: číslo, datum, kdo, **náklady, prodej a marže** (v Kč) a poznámku. Potřebuje-li PM další schválení, podá žádost znovu a vznikne další záznam.
+  Cesta: PM „Požádat o schválení“ → vedení „Schválit“ (nebo „Vrátit k úpravě“ s důvodem; PM může žádost stáhnout). U rozpočtu je vidět, že byl **upraven od posledního schválení**.
+- **Smluvní cena projektu** v souhrnu se bere z údajů projektu (Upravit projekt). Je-li **nižší než nákup rozpočtu**, dlaždice to červeně řekne — v obrázku z testu byla cena v projektu zadaná jako 10 Kč, proto vyšla plánovaná marže −9 900 %.
+
+**Nové**
+
+- **Vlastní práce** jako zvláštní druh skupiny: zadává se **počet hodin** a **profese**; náklad a prodej počítají **sazby profese** (nákladová a prodejní, marže se dopočte). Číselník profesí (výchozích 10, upravitelných) je v **Nastavení → Rozpočet a semafor**. Při založení rozpočtu si projekt sazby **zkopíruje a pak drží vlastní** — v projektu je lze upravit (tlačítko Sazby profesí), změna v Nastavení se do už založených rozpočtů nepromítá.
+- **Rezerva** jako zvláštní druh skupiny (Realizační rezerva): **bez přirážky, nákup = prodej**. Zadává se částkou, nebo v **% z prodeje** — rezerva je pak p % z celkového prodeje včetně sebe (R = p / (100 − p) × prodej ostatních), takže nevzniká kruhový výpočet.
+- **Skutečnost a zbývá:** u každé položky sloupce **Koupeno (množství, za kolik)** a **Zbývá (množství, částka)** — např. 100 ks po 1 Kč = 100 Kč, koupeno 60 ks za 60 Kč → zbývá 40 ks a 40 Kč. U práce se zapisují odpracované hodiny (částka se dopočte ze sazby). Souhrn ukazuje **Plán / Skutečnost / Zbývá a Proinvestováno v %** s ukazatelem. (Napojení na účetnictví a import hodin přijde později.)
+- **Nabídka „⋯“ u každé položky:** Duplikovat, Přesunout do skupiny, Smazat; **Uložit do kusovníku** a **Objednat** jsou zatím vypnuté („Připravujeme“ — navážou další kroky).
+- Nová skupina se zakládá s druhem (běžná / vlastní práce / rezerva); skupiny „Vlastní práce“ a „Rezerva“ z Nastavení dostanou druh automaticky.
+
+**Co je potřeba udělat po nasazení:** spustit **Instalace a diagnostika** (schéma 14 — do seznamu rozpočtů přibyly sloupce Schválení, Žádost podal, Žádost podána dne; nic se nemaže). Rozpočet založený ve verzi 0.23.0 se načte (obsah se doplní o nové údaje).
+
+---
+
 ## 0.23.0 — 2. 10. 2026 — Realizační rozpočet (Fáze 3, krok 3a)
 
 **Nové**

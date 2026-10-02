@@ -1,6 +1,6 @@
 import { createMockRepositories } from './mockRepositories';
 import { CurrentUser, Role } from '../../core/types';
-import { BudgetDoc, BudgetVersionStatus, emptyBudget, newItem } from '../../core/budget';
+import { BudgetDoc, BudgetStatus, emptyBudget, newItem } from '../../core/budget';
 import { MOCK_USER } from './mockData';
 
 // Při plné zátěži počítače (celý běh testů) trvá ukázkový repozitář déle než výchozích 5 s.
@@ -17,72 +17,83 @@ const TOTALS = { totalCost: 100, totalSale: 120 };
 
 const naplneny = (): BudgetDoc => {
   const d = emptyBudget(['Materiál']);
-  return { ...d, items: [{ ...newItem(d.groups[0].id), description: 'Rozvaděč', unitCost: 100 }] };
+  return { ...d, items: [{ ...newItem(d.groups[0]), description: 'Rozvaděč', unitCost: 100 }] };
 };
 
-describe('MockBudgetRepository', () => {
-  it('ukázkový projekt 25001 má schválený rozpočet (baseline) s obsahem', async () => {
+describe('MockBudgetRepository (jeden rozpočet na projekt)', () => {
+  it('ukázkový projekt 25001 má schválený rozpočet s historií a obsahem (práce, rezerva)', async () => {
     const r = createMockRepositories();
-    const v = await r.budgets.listVersions('25001');
-    expect(v.map((x) => [x.versionNo, x.status])).toEqual([[1, BudgetVersionStatus.Schvaleno]]);
-    const c = await r.budgets.getContent(v[0].id);
-    expect(c.doc.groups.length).toBeGreaterThan(1);
-    expect(c.doc.items.length).toBeGreaterThan(2);
+    const c = await r.budgets.get('25001');
+    expect(c).toBeDefined();
+    expect(c?.record.status).toBe(BudgetStatus.Schvaleno);
+    expect(c?.record.approvals.length).toBe(1);
+    expect(c?.doc.groups.map((g) => g.kind)).toEqual(expect.arrayContaining(['standard', 'prace', 'rezerva']));
+    expect(c?.doc.rates.length).toBeGreaterThan(0);
   });
 
-  it('PM založí první verzi, uloží, odešle; schválí vedení; pak jde založit novou verzi jako kopii', async () => {
+  it('PM rozpočet založí, upravuje, požádá o schválení; schválí vedení; úpravy po schválení jsou dál možné', async () => {
     const r = createMockRepositories();
-    const v1 = await r.budgets.createVersion('25003', naplneny(), TOTALS, jan);
-    expect([v1.versionNo, v1.status]).toEqual([1, BudgetVersionStatus.Koncept]);
-    const upraveny = { ...naplneny() };
-    await r.budgets.saveContent(v1.id, upraveny, TOTALS, jan);
-    expect((await r.budgets.getContent(v1.id)).doc.items[0].description).toBe('Rozvaděč');
-    await r.budgets.submit(v1.id, jan);
-    await expect(r.budgets.approve(v1.id, undefined, jan)).rejects.toThrow(/vedení/);
-    await expect(r.budgets.saveContent(v1.id, upraveny, TOTALS, jan)).rejects.toThrow(/ve stavu/);
-    const ok = await r.budgets.approve(v1.id, 'v pořádku', igor);
-    expect(ok.status).toBe(BudgetVersionStatus.Schvaleno);
-    expect(ok.approvedByName).toBe(igor.displayName);
-    const v2 = await r.budgets.createVersion('25003', upraveny, TOTALS, jan);
-    expect(v2.versionNo).toBe(2);
-    expect((await r.budgets.listVersions('25003')).map((v) => v.versionNo)).toEqual([2, 1]);
-    const h = (await r.budgets.history(v1.id)).map((x) => x.action);
-    expect(h[0]).toBe('Založena verze rozpočtu');
-    expect(h.some((a) => a.startsWith('Schváleno'))).toBe(true);
+    expect(await r.budgets.get('25003')).toBeUndefined();
+    const rec = await r.budgets.create('25003', naplneny(), TOTALS, jan);
+    expect(rec.status).toBe(BudgetStatus.Koncept);
+    await expect(r.budgets.create('25003', naplneny(), TOTALS, jan)).rejects.toThrow(/už rozpočet má/);
+    await r.budgets.save(rec.id, naplneny(), TOTALS, jan);
+    await r.budgets.requestApproval(rec.id, jan);
+    await expect(r.budgets.approve(rec.id, { totalCost: 100, totalSale: 120 }, undefined, jan)).rejects.toThrow(/vedení/);
+    // rozpočet je dál upravitelný i během čekání na schválení
+    await r.budgets.save(rec.id, naplneny(), TOTALS, jan);
+    const ok = await r.budgets.approve(rec.id, { totalCost: 100, totalSale: 120 }, 'v pořádku', igor);
+    expect(ok.status).toBe(BudgetStatus.Schvaleno);
+    expect(ok.approvals).toHaveLength(1);
+    expect(ok.approvals[0]).toMatchObject({ no: 1, byName: igor.displayName, cost: 100, sale: 120, comment: 'v pořádku' });
+    expect(ok.approvals[0].marginPercent).toBe(16.67);
+    // po schválení se dá dál upravovat a požádat o další schválení — vznikne další záznam
+    await r.budgets.save(rec.id, naplneny(), { totalCost: 200, totalSale: 260 }, jan);
+    await r.budgets.requestApproval(rec.id, jan);
+    const dalsi = await r.budgets.approve(rec.id, { totalCost: 200, totalSale: 260 }, undefined, igor);
+    expect(dalsi.approvals.map((a) => a.no)).toEqual([1, 2]);
+    const h = (await r.budgets.history(rec.id)).map((x) => x.action);
+    expect(h[0]).toBe('Založen rozpočet');
+    expect(h.filter((a) => a.startsWith('Schváleno')).length).toBe(2);
   });
 
-  it('dokud je verze rozpracovaná, další nejde založit; cizí PM nezaloží ani neuloží', async () => {
+  it('cizí PM nezaloží ani neuloží; Režie rozpočet nevede', async () => {
     const r = createMockRepositories();
-    await expect(r.budgets.createVersion('25003', naplneny(), TOTALS, cizi)).rejects.toThrow(/oprávnění/);
-    const v1 = await r.budgets.createVersion('25003', naplneny(), TOTALS, jan);
-    await expect(r.budgets.createVersion('25003', naplneny(), TOTALS, jan)).rejects.toThrow(/rozpracovanou verzi/);
-    await expect(r.budgets.saveContent(v1.id, naplneny(), TOTALS, cizi)).rejects.toThrow(/Rozpočet smí upravovat/);
+    await expect(r.budgets.create('25003', naplneny(), TOTALS, cizi)).rejects.toThrow(/oprávnění/);
+    const rec = await r.budgets.create('25003', naplneny(), TOTALS, jan);
+    await expect(r.budgets.save(rec.id, naplneny(), TOTALS, cizi)).rejects.toThrow(/Rozpočet smí upravovat/);
+    await expect(r.budgets.create('26999', naplneny(), TOTALS, igor)).rejects.toThrow(/oprávnění/);
   });
 
-  it('prázdný rozpočet nejde odeslat; vedení vrací jen s důvodem, předkladatel stáhne zpět bez něj', async () => {
+  it('prázdný rozpočet nejde poslat ke schválení; schválit jde jen to, co čeká', async () => {
     const r = createMockRepositories();
-    const v1 = await r.budgets.createVersion('25003', emptyBudget(['Materiál']), TOTALS, jan);
-    await expect(r.budgets.submit(v1.id, jan)).rejects.toThrow(/žádnou položku/);
-    await r.budgets.saveContent(v1.id, naplneny(), TOTALS, jan);
-    await r.budgets.submit(v1.id, jan);
-    await expect(r.budgets.returnToDraft(v1.id, ' ', igor)).rejects.toThrow(/důvod/);
-    const vracena = await r.budgets.returnToDraft(v1.id, 'Doplňte dopravu', igor);
-    expect([vracena.status, vracena.comment]).toEqual([BudgetVersionStatus.Koncept, 'Doplňte dopravu']);
-    await r.budgets.submit(v1.id, jan);
-    const zpet = await r.budgets.returnToDraft(v1.id, '', jan);
-    expect(zpet.status).toBe(BudgetVersionStatus.Koncept);
+    const rec = await r.budgets.create('25003', emptyBudget(['Materiál']), TOTALS, jan);
+    await expect(r.budgets.requestApproval(rec.id, jan)).rejects.toThrow(/žádnou položku/);
+    await expect(r.budgets.approve(rec.id, TOTALS, undefined, igor)).rejects.toThrow(/o jehož schválení někdo požádal/);
   });
 
-  it('souběžná úprava: starý otisk verze se odmítne', async () => {
+  it('vedení vrací jen s důvodem a rozpočet se vrátí do konceptu; žadatel žádost stáhne; po schválení se vrací do „Schváleno“', async () => {
     const r = createMockRepositories();
-    const v1 = await r.budgets.createVersion('25003', naplneny(), TOTALS, jan);
-    const c = await r.budgets.getContent(v1.id);
-    await r.budgets.saveContent(v1.id, naplneny(), TOTALS, jan, c.etag);
-    await expect(r.budgets.saveContent(v1.id, naplneny(), TOTALS, jan, c.etag)).rejects.toThrow(/mezitím/);
+    const rec = await r.budgets.create('25003', naplneny(), TOTALS, jan);
+    await r.budgets.requestApproval(rec.id, jan);
+    await expect(r.budgets.reject(rec.id, ' ', igor)).rejects.toThrow(/důvod/);
+    const vracena = await r.budgets.reject(rec.id, 'Doplňte dopravu', igor);
+    expect([vracena.status, vracena.comment]).toEqual([BudgetStatus.Koncept, 'Doplňte dopravu']);
+    await r.budgets.requestApproval(rec.id, jan);
+    const zpet = await r.budgets.reject(rec.id, '', jan);
+    expect([zpet.status, zpet.comment]).toEqual([BudgetStatus.Koncept, undefined]);
+    // po schválení: nová žádost a stažení vrátí stav „Schváleno“
+    await r.budgets.requestApproval(rec.id, jan);
+    await r.budgets.approve(rec.id, TOTALS, undefined, igor);
+    await r.budgets.requestApproval(rec.id, jan);
+    expect((await r.budgets.reject(rec.id, '', jan)).status).toBe(BudgetStatus.Schvaleno);
   });
 
-  it('na Režii se rozpočet nevede', async () => {
+  it('souběžná úprava: starý otisk se odmítne', async () => {
     const r = createMockRepositories();
-    await expect(r.budgets.createVersion('26999', naplneny(), TOTALS, igor)).rejects.toThrow(/oprávnění/);
+    const rec = await r.budgets.create('25003', naplneny(), TOTALS, jan);
+    const c = await r.budgets.get('25003');
+    await r.budgets.save(rec.id, naplneny(), TOTALS, jan, c?.etag);
+    await expect(r.budgets.save(rec.id, naplneny(), TOTALS, jan, c?.etag)).rejects.toThrow(/mezitím/);
   });
 });

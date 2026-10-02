@@ -1,31 +1,53 @@
 /**
  * Realizační rozpočet (RR) projektu — čistá logika bez SharePointu a Reactu.
  *
- * Rozpočet tvoří **skupiny** (např. Materiál, Subdodávky) a v nich libovolný počet **položek**. Každá skupina má výchozí
- * obchodní přirážku; položka ji může mít vlastní. Výchozí je vždy **nákup** (cena, za kterou nakupujeme):
+ * Rozpočet je **jeden na projekt** a průběžně se upravuje (nezamyká se). Tvoří ho **skupiny** a v nich libovolný počet
+ * **položek**. Skupiny jsou tří druhů:
+ *  - běžná (materiál, subdodávky…): položka má **nákup** (množství × cena za jednotku), přirážku a prodej;
+ *  - **vlastní práce**: počet hodin × **sazby profesí** (nákladová a prodejní; číselník je v Nastavení a projekt si ho kopíruje
+ *    a drží vlastní); přirážka se tu nepoužívá;
+ *  - **rezerva**: nákup = prodej (bez přirážky); zadává se částkou, nebo v % z prodeje.
  *
- *   prodej = nákup × (1 + přirážka / 100)                (obchodní přirážka: 100 → 120 při 20 %)
- *   marže  = (prodej − nákup) / prodej × 100             (podíl zisku na prodejní ceně: 100 → 120 je marže 16,7 %)
+ *   prodej = nákup × (1 + přirážka / 100)            (obchodní přirážka: 100 → 120 při 20 %)
+ *   marže  = (prodej − nákup) / prodej × 100         (podíl zisku na prodeji: 100 → 120 je marže 16,7 %)
+ *   rezerva v % z prodeje p:  R = p / (100 − p) × prodej ostatních položek      (sama je součástí prodeje — bez rekurze)
  *
- * Zadává se přirážka (nebo rovnou prodejní cena, pak se přirážka dopočte). Marže se jen ukazuje a hlídá se podle ní
- * minimální marže v semaforu. Částky položek jsou v měně položky; součty se přepočítávají kurzem ČNB.
- *
- * Verze rozpočtu: Koncept (PM upravuje) → Ke schválení (zamčeno) → Schváleno (vedení; poslední schválená verze je baseline).
- * Schválená verze se nemění; úprava = nová verze, která začíná kopií schválené.
+ * U každé položky se vede i **skutečnost** (koupeno / odpracováno) a **zbývá**. Schválení nic nezamyká — uloží do historie
+ * záznam (náklady, prodej, marže, kdo a kdy).
  */
 
-import { CurrencyCode, asCurrencyCode } from './currency';
+import { CurrencyCode, RateTable, asCurrencyCode, convertAmount } from './currency';
 import { hasAnyRole, normalizeLogin } from './roles';
 import { Role } from './types';
-import { Actor, WorkflowError, WorkflowProject, canIssueOrder } from './orderWorkflow';
+import { Actor, WorkflowProject, canIssueOrder } from './orderWorkflow';
 import { parseAmount } from './format';
+import { Profession } from './settings';
+
+export type { Profession };
+
+export type GroupKind = 'standard' | 'prace' | 'rezerva';
+
+export const GROUP_KIND_LABELS: Record<GroupKind, string> = {
+  standard: 'běžná skupina',
+  prace: 'vlastní práce (hodiny)',
+  rezerva: 'rezerva'
+};
 
 export interface BudgetGroup {
   /** Stabilní identifikátor (vazby položek, objednávek). */
   id: string;
   name: string;
-  /** Výchozí obchodní přirážka položek skupiny v %. */
+  kind: GroupKind;
+  /** Výchozí obchodní přirážka položek běžné skupiny v %. */
   defaultMarkupPercent: number;
+}
+
+/** Sazba profese v projektu (Kč za hodinu). Kopie z číselníku v Nastavení, v projektu se dá upravit. */
+export interface LabourRate {
+  id: string;
+  name: string;
+  costRate: number;
+  saleRate: number;
 }
 
 export interface BudgetItem {
@@ -36,6 +58,7 @@ export interface BudgetItem {
   /** Kategorie nákladů z Nastavení (nepovinná). */
   category?: string;
   currency: CurrencyCode;
+  /** Plánované množství (u vlastní práce počet hodin). */
   quantity: number;
   unit?: string;
   /** Nákup za jednotku v měně položky. */
@@ -44,22 +67,31 @@ export interface BudgetItem {
   markupPercent?: number;
   /** Ručně zadaná prodejní cena celkem; má přednost před výpočtem z přirážky. */
   salePriceOverride?: number;
+  /** Vlastní práce: profese ze sazeb projektu. */
+  rateId?: string;
+  /** Rezerva: velikost v % z prodeje (jinak částkou v nákupu). */
+  reservePercent?: number;
+  /** Skutečnost: koupené množství (u práce odpracované hodiny). */
+  actualQty?: number;
+  /** Skutečnost: za kolik se koupilo (v měně položky); u práce se počítá z hodin a nákladové sazby. */
+  actualCost?: number;
   note?: string;
 }
 
 export interface BudgetDoc {
   groups: BudgetGroup[];
   items: BudgetItem[];
+  rates: LabourRate[];
 }
 
 export const round2 = (v: number): number => Math.round((v + Number.EPSILON) * 100) / 100;
 
 // --- výpočty položky -----------------------------------------------------------------
 
-/** Nákup celkem (množství × cena za jednotku) v měně položky. */
+/** Nákup celkem běžné položky (množství × cena za jednotku) v měně položky. */
 export const itemCost = (item: BudgetItem): number => round2(item.quantity * item.unitCost);
 
-/** Přirážka, která platí pro položku: ruční, jinak výchozí ze skupiny. Při ručně zadané prodejní ceně se dopočte. */
+/** Přirážka, která platí pro běžnou položku: ruční, jinak výchozí ze skupiny. Při ručně zadané prodejní ceně se dopočte. */
 export function itemMarkup(item: BudgetItem, group: BudgetGroup | undefined): number {
   const cost = itemCost(item);
   if (item.salePriceOverride !== undefined && cost > 0) {
@@ -71,7 +103,7 @@ export function itemMarkup(item: BudgetItem, group: BudgetGroup | undefined): nu
   return group ? group.defaultMarkupPercent : 0;
 }
 
-/** Prodej celkem v měně položky. */
+/** Prodej celkem běžné položky v měně položky. */
 export function itemSale(item: BudgetItem, group: BudgetGroup | undefined): number {
   if (item.salePriceOverride !== undefined) {
     return round2(item.salePriceOverride);
@@ -103,84 +135,186 @@ export function withSale(item: BudgetItem, group: BudgetGroup | undefined, sale:
   return round2(sale) === computed ? base : { ...item, markupPercent: undefined, salePriceOverride: round2(sale) };
 }
 
-// --- součty --------------------------------------------------------------------------
+// --- výpočet celého rozpočtu -----------------------------------------------------------
 
-export type Convert = (amount: number, from: CurrencyCode) => number;
-
-export interface BudgetSum {
+/** Vypočtené hodnoty jedné položky; částky jsou v měně `currency` (vlastní práce a rezerva v procentech v Kč). */
+export interface ItemCalc {
+  item: BudgetItem;
+  group: BudgetGroup | undefined;
+  currency: CurrencyCode;
   cost: number;
   sale: number;
+  markup: number;
+  margin: number;
+  /** Skutečnost: koupené množství a částka. */
+  actualQty: number;
+  actualCost: number;
+  /** Zbývá koupit: množství a částka (plán − skutečnost; záporné = překročeno). */
+  remainingQty: number;
+  remainingCost: number;
+}
+
+export const findRate = (doc: BudgetDoc, id: string | undefined): LabourRate | undefined => doc.rates.filter((r) => r.id === id)[0];
+
+/**
+ * Vypočte všechny položky. Rezerva v procentech potřebuje prodej ostatních položek v Kč, proto kurzy.
+ * `R = p / (100 − Σp) × prodej ostatních`, takže rezerva tvoří Σp % z celkového prodeje (včetně sebe).
+ */
+export function calcItems(doc: BudgetDoc, rates: RateTable): ItemCalc[] {
+  const groups = new Map(doc.groups.map((g) => [g.id, g] as [string, BudgetGroup]));
+  const base = (item: BudgetItem): ItemCalc => {
+    const group = groups.get(item.groupId);
+    let c: Pick<ItemCalc, 'currency' | 'cost' | 'sale' | 'actualQty' | 'actualCost'>;
+    if (group && group.kind === 'prace') {
+      const rate = findRate(doc, item.rateId);
+      const hours = item.actualQty ?? 0;
+      c = {
+        currency: 'CZK',
+        cost: round2(item.quantity * (rate ? rate.costRate : 0)),
+        sale: round2(item.quantity * (rate ? rate.saleRate : 0)),
+        actualQty: hours,
+        actualCost: round2(hours * (rate ? rate.costRate : 0))
+      };
+    } else if (group && group.kind === 'rezerva') {
+      const amount = itemCost(item);
+      c = { currency: item.currency, cost: amount, sale: amount, actualQty: item.actualQty ?? 0, actualCost: item.actualCost ?? 0 };
+    } else {
+      c = { currency: item.currency, cost: itemCost(item), sale: itemSale(item, group), actualQty: item.actualQty ?? 0, actualCost: item.actualCost ?? 0 };
+    }
+    const markup = group && group.kind === 'standard' ? itemMarkup(item, group) : markupPercentOf(c.cost, c.sale);
+    return {
+      item,
+      group,
+      ...c,
+      markup,
+      margin: marginPercent(c.cost, c.sale),
+      remainingQty: round2(item.quantity - c.actualQty),
+      remainingCost: round2(c.cost - c.actualCost)
+    };
+  };
+  const calcs = doc.items.map(base);
+  const percentReserves = calcs.filter((c) => c.group && c.group.kind === 'rezerva' && c.item.reservePercent !== undefined);
+  if (percentReserves.length > 0) {
+    const otherSaleCzk = calcs.filter((c) => percentReserves.indexOf(c) === -1).reduce((s, c) => s + convertAmount(c.sale, c.currency, 'CZK', rates), 0);
+    const totalP = percentReserves.reduce((s, c) => s + (c.item.reservePercent as number), 0);
+    percentReserves.forEach((c) => {
+      const p = c.item.reservePercent as number;
+      const amount = totalP >= 100 ? 0 : round2((p / (100 - totalP)) * otherSaleCzk);
+      c.currency = 'CZK';
+      c.cost = amount;
+      c.sale = amount;
+      c.markup = 0;
+      c.margin = 0;
+      c.remainingCost = round2(amount - c.actualCost);
+    });
+  }
+  return calcs;
+}
+
+export interface BudgetSum {
+  /** Plán: nákup a prodej. */
+  cost: number;
+  sale: number;
+  /** Skutečnost (koupeno) a zbývá, v nákladech. */
+  actual: number;
+  remaining: number;
 }
 
 export interface BudgetTotals extends BudgetSum {
   markupPercent: number;
   marginPercent: number;
-  byGroup: Array<BudgetSum & { groupId: string; name: string; count: number }>;
+  /** Kolik procent nákladů plánu je už skutečně vyčerpáno (proinvestováno). */
+  spentPercent: number;
+  byGroup: Array<BudgetSum & { groupId: string; name: string; kind: GroupKind; count: number }>;
   byCategory: Array<BudgetSum & { category: string }>;
 }
 
-/** Součty rozpočtu v jedné měně (`convert` přepočítá částku položky). Položky bez skupiny se počítají s přirážkou 0. */
-export function budgetTotals(doc: BudgetDoc, convert: Convert): BudgetTotals {
-  const groups = new Map(doc.groups.map((g) => [g.id, g] as [string, BudgetGroup]));
-  const byGroup = doc.groups.map((g) => ({ groupId: g.id, name: g.name, cost: 0, sale: 0, count: 0 }));
+const zeroSum = (): BudgetSum => ({ cost: 0, sale: 0, actual: 0, remaining: 0 });
+
+/** Součty rozpočtu v jedné měně (`target`); položky se přepočítají kurzem ČNB. */
+export function budgetTotals(doc: BudgetDoc, target: CurrencyCode, rates: RateTable): BudgetTotals {
+  const calcs = calcItems(doc, rates);
+  const to = (amount: number, from: CurrencyCode): number => convertAmount(amount, from, target, rates);
+  const total = zeroSum();
+  const groupSums = new Map<string, BudgetSum & { count: number }>(doc.groups.map((g) => [g.id, { ...zeroSum(), count: 0 }]));
   const cats = new Map<string, BudgetSum>();
-  let cost = 0;
-  let sale = 0;
-  doc.items.forEach((item) => {
-    const group = groups.get(item.groupId);
-    const c = convert(itemCost(item), item.currency);
-    const s = convert(itemSale(item, group), item.currency);
-    cost += c;
-    sale += s;
-    const row = byGroup.filter((g) => g.groupId === item.groupId)[0];
-    if (row) {
-      row.cost += c;
-      row.sale += s;
-      row.count += 1;
+  calcs.forEach((c) => {
+    const add = (s: BudgetSum): void => {
+      s.cost += to(c.cost, c.currency);
+      s.sale += to(c.sale, c.currency);
+      s.actual += to(c.actualCost, c.currency);
+      s.remaining += to(c.remainingCost, c.currency);
+    };
+    add(total);
+    const gs = groupSums.get(c.item.groupId);
+    if (gs) {
+      add(gs);
+      gs.count += 1;
     }
-    const key = item.category || 'Bez kategorie';
-    const cur = cats.get(key) ?? { cost: 0, sale: 0 };
-    cats.set(key, { cost: cur.cost + c, sale: cur.sale + s });
+    const key = c.item.category || (c.group && c.group.kind === 'prace' ? 'Vlastní práce' : 'Bez kategorie');
+    const cur = cats.get(key) ?? zeroSum();
+    add(cur);
+    cats.set(key, cur);
   });
-  cost = round2(cost);
-  sale = round2(sale);
+  const r = (s: BudgetSum): BudgetSum => ({ cost: round2(s.cost), sale: round2(s.sale), actual: round2(s.actual), remaining: round2(s.remaining) });
+  const t = r(total);
   return {
-    cost,
-    sale,
-    markupPercent: markupPercentOf(cost, sale),
-    marginPercent: marginPercent(cost, sale),
-    byGroup: byGroup.map((g) => ({ ...g, cost: round2(g.cost), sale: round2(g.sale) })),
-    byCategory: Array.from(cats.entries()).map(([category, v]) => ({ category, cost: round2(v.cost), sale: round2(v.sale) }))
+    ...t,
+    markupPercent: markupPercentOf(t.cost, t.sale),
+    marginPercent: marginPercent(t.cost, t.sale),
+    spentPercent: t.cost > 0 ? round2((t.actual / t.cost) * 100) : 0,
+    byGroup: doc.groups.map((g) => ({ ...r(groupSums.get(g.id) as BudgetSum), groupId: g.id, name: g.name, kind: g.kind, count: (groupSums.get(g.id) as { count: number }).count })),
+    byCategory: Array.from(cats.entries()).map(([category, v]) => ({ ...r(v), category }))
   };
 }
 
 // --- tvorba a úpravy -------------------------------------------------------------------
 
 let idCounter = 0;
-/** Nový stabilní identifikátor položky nebo skupiny. */
+/** Nový stabilní identifikátor položky, skupiny nebo sazby. */
 export function newBudgetId(prefix: string = 'r'): string {
   idCounter += 1;
   return `${prefix}${Date.now().toString(36)}${idCounter.toString(36)}${Math.floor(Math.random() * 1296).toString(36)}`;
 }
 
-/** Prázdný rozpočet: skupiny podle kategorií z Nastavení, bez přirážky (upraví PM). */
-export function emptyBudget(categories: string[]): BudgetDoc {
-  const names = categories.filter((c) => c.trim() !== '');
-  return { groups: (names.length > 0 ? names : ['Rozpočet']).map((name) => ({ id: newBudgetId('g'), name, defaultMarkupPercent: 0 })), items: [] };
+/** Druh skupiny podle názvu kategorie z Nastavení („Vlastní práce“ → práce, „Rezerva“ → rezerva). */
+export function kindForName(name: string): GroupKind {
+  const n = name.trim().toLocaleLowerCase('cs-CZ');
+  if (n === 'vlastní práce' || n === 'vlastni prace') {
+    return 'prace';
+  }
+  if (n === 'rezerva' || n === 'realizační rezerva' || n === 'realizacni rezerva') {
+    return 'rezerva';
+  }
+  return 'standard';
 }
 
-export function newItem(groupId: string, currency: CurrencyCode = 'CZK'): BudgetItem {
-  return { id: newBudgetId('i'), groupId, description: '', currency, quantity: 1, unitCost: 0 };
+/** Prázdný rozpočet: skupiny podle kategorií z Nastavení a sazby profesí zkopírované z číselníku (upraví PM). */
+export function emptyBudget(categories: string[], professions: Profession[] = []): BudgetDoc {
+  const names = categories.filter((c) => c.trim() !== '');
+  return {
+    groups: (names.length > 0 ? names : ['Rozpočet']).map((name) => ({ id: newBudgetId('g'), name, kind: kindForName(name), defaultMarkupPercent: 0 })),
+    items: [],
+    rates: professions.filter((p) => p.name.trim() !== '').map((p) => ({ id: newBudgetId('s'), name: p.name, costRate: p.costRate, saleRate: p.saleRate }))
+  };
+}
+
+export function newItem(group: BudgetGroup, rates: LabourRate[] = [], currency: CurrencyCode = 'CZK'): BudgetItem {
+  const base: BudgetItem = { id: newBudgetId('i'), groupId: group.id, description: '', currency, quantity: 1, unitCost: 0 };
+  if (group.kind === 'prace') {
+    return { ...base, currency: 'CZK', unit: 'h', rateId: rates.length > 0 ? rates[0].id : undefined };
+  }
+  return base;
 }
 
 /** Přidá skupinu na konec. */
-export function addGroup(doc: BudgetDoc, name: string, defaultMarkupPercent: number = 0): BudgetDoc {
-  return { ...doc, groups: [...doc.groups, { id: newBudgetId('g'), name: name.trim(), defaultMarkupPercent }] };
+export function addGroup(doc: BudgetDoc, name: string, kind: GroupKind = 'standard', defaultMarkupPercent: number = 0): BudgetDoc {
+  return { ...doc, groups: [...doc.groups, { id: newBudgetId('g'), name: name.trim(), kind, defaultMarkupPercent }] };
 }
 
 /** Odebere skupinu i s jejími položkami. */
 export function removeGroup(doc: BudgetDoc, groupId: string): BudgetDoc {
-  return { groups: doc.groups.filter((g) => g.id !== groupId), items: doc.items.filter((i) => i.groupId !== groupId) };
+  return { ...doc, groups: doc.groups.filter((g) => g.id !== groupId), items: doc.items.filter((i) => i.groupId !== groupId) };
 }
 
 export function updateGroup(doc: BudgetDoc, groupId: string, patch: Partial<Pick<BudgetGroup, 'name' | 'defaultMarkupPercent'>>): BudgetDoc {
@@ -195,7 +329,7 @@ export function removeItem(doc: BudgetDoc, itemId: string): BudgetDoc {
   return { ...doc, items: doc.items.filter((i) => i.id !== itemId) };
 }
 
-/** Přidá položku na konec dané skupiny (položky jsou v jednom seznamu seřazené podle skupin a pořadí). */
+/** Přidá položku na konec její skupiny (položky jsou v jednom seznamu seřazené podle skupin a pořadí). */
 export function addItem(doc: BudgetDoc, item: BudgetItem): BudgetDoc {
   const lastIndex = doc.items.reduce((acc, i, idx) => (i.groupId === item.groupId ? idx : acc), -1);
   const items = doc.items.slice();
@@ -203,9 +337,52 @@ export function addItem(doc: BudgetDoc, item: BudgetItem): BudgetDoc {
   return { ...doc, items };
 }
 
-/** Přesune položku do jiné skupiny. */
+/** Kopie položky hned pod původní (nové id, bez skutečnosti). */
+export function duplicateItem(doc: BudgetDoc, itemId: string): BudgetDoc {
+  const idx = doc.items.findIndex((i) => i.id === itemId);
+  if (idx === -1) {
+    return doc;
+  }
+  const copy: BudgetItem = { ...doc.items[idx], id: newBudgetId('i'), actualQty: undefined, actualCost: undefined };
+  const items = doc.items.slice();
+  items.splice(idx + 1, 0, copy);
+  return { ...doc, items };
+}
+
+/** Přesune položku do jiné skupiny. Při přesunu mezi druhy skupin se upraví pole podle nového druhu. */
 export function moveItem(doc: BudgetDoc, itemId: string, groupId: string): BudgetDoc {
-  return updateItem(doc, itemId, { groupId });
+  const target = doc.groups.filter((g) => g.id === groupId)[0];
+  const item = doc.items.filter((i) => i.id === itemId)[0];
+  if (!target || !item) {
+    return doc;
+  }
+  const rest = doc.items.filter((i) => i.id !== itemId);
+  let moved: BudgetItem = { ...item, groupId };
+  if (target.kind === 'prace' && !moved.rateId) {
+    moved = { ...moved, currency: 'CZK', unit: moved.unit || 'h', rateId: doc.rates.length > 0 ? doc.rates[0].id : undefined };
+  }
+  if (target.kind !== 'standard') {
+    moved = { ...moved, markupPercent: undefined, salePriceOverride: undefined };
+  }
+  if (target.kind !== 'rezerva') {
+    moved = { ...moved, reservePercent: undefined };
+  }
+  return addItem({ ...doc, items: rest }, moved);
+}
+
+// --- sazby profesí projektu --------------------------------------------------------------
+
+export function updateRate(doc: BudgetDoc, rateId: string, patch: Partial<Pick<LabourRate, 'name' | 'costRate' | 'saleRate'>>): BudgetDoc {
+  return { ...doc, rates: doc.rates.map((r) => (r.id === rateId ? { ...r, ...patch } : r)) };
+}
+
+export function addRate(doc: BudgetDoc, name: string): BudgetDoc {
+  return { ...doc, rates: [...doc.rates, { id: newBudgetId('s'), name: name.trim(), costRate: 0, saleRate: 0 }] };
+}
+
+/** Odebere sazbu; položky práce, které ji používaly, zůstanou bez profese (upozorní kontrola). */
+export function removeRate(doc: BudgetDoc, rateId: string): BudgetDoc {
+  return { ...doc, rates: doc.rates.filter((r) => r.id !== rateId), items: doc.items.map((i) => (i.rateId === rateId ? { ...i, rateId: undefined } : i)) };
 }
 
 // --- kontrola -------------------------------------------------------------------------
@@ -214,7 +391,7 @@ export interface BudgetIssue {
   message: string;
 }
 
-/** Kontrola rozpočtu před odesláním ke schválení. Koncept se ukládá i neúplný (`strict` = false hlídá jen nesmysly). */
+/** Kontrola rozpočtu před žádostí o schválení. Uložit jde i neúplný (`strict` = false hlídá jen nesmysly). */
 export function validateBudget(doc: BudgetDoc, strict: boolean): BudgetIssue[] {
   const out: BudgetIssue[] = [];
   const names = doc.groups.map((g) => g.name.trim().toLocaleLowerCase('cs-CZ'));
@@ -229,18 +406,34 @@ export function validateBudget(doc: BudgetDoc, strict: boolean): BudgetIssue[] {
     }
   });
   const ids = new Set(doc.groups.map((g) => g.id));
+  const kindOf = new Map(doc.groups.map((g) => [g.id, g.kind] as [string, GroupKind]));
+  const percentTotal = doc.items.filter((i) => kindOf.get(i.groupId) === 'rezerva' && i.reservePercent !== undefined).reduce((s, i) => s + (i.reservePercent as number), 0);
+  if (percentTotal >= 100) {
+    out.push({ message: 'Rezerva v procentech z prodeje musí být dohromady pod 100 %.' });
+  }
+  doc.rates.forEach((r, i) => {
+    if (r.name.trim() === '') {
+      out.push({ message: `Sazba ${i + 1} nemá název profese.` });
+    }
+    if (r.costRate < 0 || r.saleRate < 0) {
+      out.push({ message: `Sazba „${r.name}“: sazby nesmí být záporné.` });
+    }
+  });
   doc.items.forEach((item, i) => {
     const label = item.description.trim() !== '' ? `„${item.description.trim()}“` : `řádek ${i + 1}`;
     if (!ids.has(item.groupId)) {
       out.push({ message: `Položka ${label} nepatří do žádné skupiny.` });
     }
-    if (item.quantity < 0 || item.unitCost < 0) {
-      out.push({ message: `Položka ${label}: množství a cena nesmí být záporné.` });
+    if (item.quantity < 0 || item.unitCost < 0 || (item.actualQty ?? 0) < 0 || (item.actualCost ?? 0) < 0) {
+      out.push({ message: `Položka ${label}: množství a ceny nesmí být záporné.` });
     }
     if (item.markupPercent !== undefined && item.markupPercent <= -100) {
       out.push({ message: `Položka ${label}: přirážka musí být větší než −100 %.` });
     }
-    if (strict && item.description.trim() === '') {
+    if (kindOf.get(item.groupId) === 'prace' && !findRate(doc, item.rateId)) {
+      out.push({ message: `Práce ${label}: vyberte profesi.` });
+    }
+    if (strict && item.description.trim() === '' && kindOf.get(item.groupId) !== 'prace') {
       out.push({ message: `Řádek ${i + 1} nemá popis.` });
     }
   });
@@ -260,10 +453,11 @@ const num = (v: unknown, fallback: number): number => (typeof v === 'number' && 
 const optNum = (v: unknown): number | undefined => (typeof v === 'number' && isFinite(v) ? v : undefined);
 const str = (v: unknown): string => (typeof v === 'string' ? v : '');
 const optStr = (v: unknown): string | undefined => (typeof v === 'string' && v.trim() !== '' ? v : undefined);
+const asKind = (v: unknown, name: string): GroupKind => (v === 'prace' || v === 'rezerva' || v === 'standard' ? v : kindForName(name));
 
 /** Přečte uložený rozpočet; poškozené nebo chybějící části se nahradí prázdnými, aby šel rozpočet vždy otevřít. */
 export function budgetFromJson(json: string | undefined): BudgetDoc {
-  let raw: { groups?: unknown; items?: unknown } = {};
+  let raw: { groups?: unknown; items?: unknown; rates?: unknown } = {};
   try {
     raw = json ? (JSON.parse(json) as typeof raw) : {};
   } catch {
@@ -272,6 +466,7 @@ export function budgetFromJson(json: string | undefined): BudgetDoc {
   const groups = (Array.isArray(raw.groups) ? raw.groups : []).map((g: Record<string, unknown>) => ({
     id: str(g.id) || newBudgetId('g'),
     name: str(g.name),
+    kind: asKind(g.kind, str(g.name)),
     defaultMarkupPercent: num(g.defaultMarkupPercent, 0)
   }));
   const items = (Array.isArray(raw.items) ? raw.items : []).map((i: Record<string, unknown>) => ({
@@ -286,34 +481,82 @@ export function budgetFromJson(json: string | undefined): BudgetDoc {
     unitCost: num(i.unitCost, 0),
     markupPercent: optNum(i.markupPercent),
     salePriceOverride: optNum(i.salePriceOverride),
+    rateId: optStr(i.rateId),
+    reservePercent: optNum(i.reservePercent),
+    actualQty: optNum(i.actualQty),
+    actualCost: optNum(i.actualCost),
     note: optStr(i.note)
   }));
-  return { groups, items };
+  const rates = (Array.isArray(raw.rates) ? raw.rates : []).map((r: Record<string, unknown>) => ({
+    id: str(r.id) || newBudgetId('s'),
+    name: str(r.name),
+    costRate: num(r.costRate, 0),
+    saleRate: num(r.saleRate, 0)
+  }));
+  return { groups, items, rates };
 }
 
-// --- verze a schvalování ----------------------------------------------------------------
+// --- schvalování ------------------------------------------------------------------------
 
-export enum BudgetVersionStatus {
+export enum BudgetStatus {
   Koncept = 'Koncept',
   KeSchvaleni = 'Ke schválení',
   Schvaleno = 'Schváleno'
 }
 
-export interface BudgetVersion {
+/** Jeden záznam schválení v historii (částky v Kč z okamžiku schválení). */
+export interface BudgetApproval {
+  no: number;
+  at: Date;
+  byName: string;
+  comment?: string;
+  cost: number;
+  sale: number;
+  marginPercent: number;
+}
+
+/** Rozpočet projektu: jeden záznam na projekt, s historií schválení. */
+export interface BudgetRecord {
   id: number;
   projectNumber: string;
-  versionNo: number;
-  status: BudgetVersionStatus;
-  createdByName?: string;
-  approvedByName?: string;
-  approvedAt?: Date;
-  /** Komentář vedení při vrácení; u schválené verze poznámka ke schválení. */
+  /** Koncept = ještě nikdy neschváleno; Ke schválení = čeká na vedení; Schváleno = platí poslední schválení v historii. */
+  status: BudgetStatus;
+  requestedByName?: string;
+  requestedAt?: Date;
+  /** Komentář vedení při posledním vrácení. */
   comment?: string;
-  /** Součty z okamžiku uložení v Kč (kvůli přehledům bez načítání obsahu). */
-  totalCost?: number;
+  approvals: BudgetApproval[];
   created?: Date;
   modified?: Date;
 }
+
+export function approvalsToJson(list: BudgetApproval[]): string {
+  return JSON.stringify(list.map((a) => ({ ...a, at: a.at.toISOString() })));
+}
+
+export function approvalsFromJson(json: string | undefined): BudgetApproval[] {
+  let raw: unknown = [];
+  try {
+    raw = json ? JSON.parse(json) : [];
+  } catch {
+    raw = [];
+  }
+  return (Array.isArray(raw) ? raw : [])
+    .map((a: Record<string, unknown>) => ({
+      no: num(a.no, 0),
+      at: new Date(typeof a.at === 'string' ? a.at : 0),
+      byName: str(a.byName),
+      comment: optStr(a.comment),
+      cost: num(a.cost, 0),
+      sale: num(a.sale, 0),
+      marginPercent: num(a.marginPercent, 0)
+    }))
+    .sort((a, b) => a.no - b.no);
+}
+
+/** Poslední schválení (to platí jako baseline). */
+export const lastApproval = (record: { approvals: BudgetApproval[] } | undefined): BudgetApproval | undefined =>
+  record && record.approvals.length > 0 ? record.approvals[record.approvals.length - 1] : undefined;
 
 function sameLogin(a: string | undefined, b: string | undefined): boolean {
   const x = normalizeLogin(a);
@@ -330,50 +573,46 @@ export function canApproveBudget(actor: Actor): boolean {
   return hasAnyRole(actor.roles, Role.Vedeni, Role.Administrator);
 }
 
-export type BudgetAction = 'edit' | 'submit' | 'approve' | 'return' | 'newVersion';
+export type BudgetAction = 'create' | 'edit' | 'requestApproval' | 'approve' | 'reject' | 'withdraw';
 
-/** Akce, které se u verze nabízejí (rozhodnutí se znovu ověřuje při zápisu). `isLatest` = je to poslední verze projektu. */
-export function availableBudgetActions(version: BudgetVersion | undefined, isLatest: boolean, project: WorkflowProject, actor: Actor): BudgetAction[] {
+/**
+ * Akce, které se nabízejí. Rozpočet se upravuje vždy (nezamyká se). Žádost o schválení jde podat, když nečeká jiná;
+ * schvaluje vedení; vedení vrací s důvodem, žadatel může žádost stáhnout.
+ */
+export function availableBudgetActions(record: BudgetRecord | undefined, project: WorkflowProject, actor: Actor): BudgetAction[] {
   const mayEdit = canEditBudget(project, actor);
-  if (!version) {
-    return mayEdit ? ['newVersion'] : [];
+  if (!record) {
+    return mayEdit ? ['create'] : [];
   }
   const out: BudgetAction[] = [];
-  if (version.status === BudgetVersionStatus.Koncept && mayEdit) {
-    out.push('edit', 'submit');
+  if (mayEdit) {
+    out.push('edit');
   }
-  if (version.status === BudgetVersionStatus.KeSchvaleni && canApproveBudget(actor)) {
-    out.push('approve', 'return');
+  if (record.status !== BudgetStatus.KeSchvaleni && mayEdit) {
+    out.push('requestApproval');
   }
-  if (version.status === BudgetVersionStatus.KeSchvaleni && mayEdit) {
-    // Předkladatel může odeslání stáhnout, dokud vedení nerozhodlo.
-    out.push('return');
+  if (record.status === BudgetStatus.KeSchvaleni) {
+    if (canApproveBudget(actor)) {
+      out.push('approve', 'reject');
+    }
+    if (mayEdit) {
+      out.push('withdraw');
+    }
   }
-  if (version.status === BudgetVersionStatus.Schvaleno && isLatest && mayEdit) {
-    out.push('newVersion');
-  }
-  return out.filter((a, i) => out.indexOf(a) === i);
+  return out;
 }
 
-export function requireBudgetStatus(version: BudgetVersion, allowed: BudgetVersionStatus[], what: string): void {
-  if (allowed.indexOf(version.status) === -1) {
-    throw new WorkflowError(`${what}: verze ${version.versionNo} je ve stavu „${version.status}“, to nejde.`);
-  }
+/** Stav, do kterého se rozpočet vrátí po zamítnutí nebo stažení žádosti. */
+export const statusAfterReject = (record: { approvals: BudgetApproval[] }): BudgetStatus =>
+  record.approvals.length > 0 ? BudgetStatus.Schvaleno : BudgetStatus.Koncept;
+
+/** Změnil se rozpočet od posledního schválení (podle součtů)? */
+export function changedSinceApproval(record: { approvals: BudgetApproval[] }, totalCostCzk: number, totalSaleCzk: number): boolean {
+  const last = lastApproval(record);
+  return !!last && (Math.abs(last.cost - totalCostCzk) > 0.5 || Math.abs(last.sale - totalSaleCzk) > 0.5);
 }
 
-/** Poslední schválená verze = baseline projektu. */
-export function baselineOf(versions: BudgetVersion[]): BudgetVersion | undefined {
-  return versions
-    .filter((v) => v.status === BudgetVersionStatus.Schvaleno)
-    .sort((a, b) => b.versionNo - a.versionNo)[0];
-}
-
-export const latestVersion = (versions: BudgetVersion[]): BudgetVersion | undefined => versions.slice().sort((a, b) => b.versionNo - a.versionNo)[0];
-
-/** Další číslo verze (nejvyšší + 1). */
-export const nextVersionNo = (versions: BudgetVersion[]): number => versions.reduce((m, v) => Math.max(m, v.versionNo), 0) + 1;
-
-// --- import z tabulky (schránka z Excelu, soubor) -------------------------------------------
+// --- import z tabulky (schránka z Excelu) -------------------------------------------------
 
 export interface ImportedRow {
   description: string;

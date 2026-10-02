@@ -71,8 +71,23 @@ export interface ProjectSettings {
   overheadProjectNumber: string;
 }
 
+/** Profese s hodinovými sazbami (Kč/h) — číselník pro vlastní práce v rozpočtech projektů. */
+export interface Profession {
+  id: string;
+  name: string;
+  /** Nákladová sazba (kolik hodina stojí firmu). */
+  costRate: number;
+  /** Prodejní sazba (za kolik se hodina prodává). */
+  saleRate: number;
+}
+
 /** Nastavení rozpočtu a semaforu. */
 export interface BudgetSettings {
+  /**
+   * Číselník profesí pro skupinu Vlastní práce. Při založení rozpočtu si projekt sazby zkopíruje a pak drží vlastní —
+   * pozdější změna zde se do už založených rozpočtů nepromítá.
+   */
+  professions: Profession[];
   /** Kategorie položek realizačního rozpočtu. */
   categories: string[];
   /** Horní hranice žluté v procentech odchylky (výchozí 5 = do +5 % žlutá, nad červená). */
@@ -224,6 +239,18 @@ export const DEFAULT_SETTINGS: AppSettings = {
       'Ostatní',
       'Rezerva'
     ],
+    professions: [
+      'Projektant',
+      'Projektový manažer',
+      'Technik',
+      'Elektromontér',
+      'Revizní technik',
+      'Stavbyvedoucí',
+      'Technik BOZP',
+      'Pomocný pracovník',
+      'Řidič / doprava',
+      'Ostatní'
+    ].map((name, i) => ({ id: `p${i + 1}`, name, costRate: 0, saleRate: 0 })),
     yellowThresholdPercent: 5,
     minimumMarginPercent: 10,
     defaultCurrency: 'CZK'

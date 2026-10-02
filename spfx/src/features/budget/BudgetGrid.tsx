@@ -1,27 +1,33 @@
 /**
- * Tabulka realizačního rozpočtu: skupiny a v nich libovolně přidávané položky. U každé položky: popis, dodavatel, kategorie,
- * měna, množství, nákup (za jednotku a celkem), přirážka, prodej a marže. Výchozí je nákup; přirážka se dědí ze skupiny,
- * dá se přepsat ručně — nebo se rovnou zadá prodejní cena a přirážka se dopočte.
+ * Tabulka realizačního rozpočtu: skupiny a v nich libovolně přidávané položky.
  *
- * Tabulka jen upravuje dokument v paměti (`onChange`); ukládání řeší záložka rozpočtu.
+ *  - běžná skupina: popis, dodavatel, kategorie, měna, množství, MJ, nákup (za jednotku a celkem), přirážka, prodej, marže;
+ *  - vlastní práce: profese a hodiny; sazby (nákladová a prodejní) se berou ze sazeb projektu;
+ *  - rezerva: částka, nebo % z prodeje; nákup = prodej, bez přirážky.
+ *
+ * U všech: skutečnost (koupeno / odpracováno: množství a částka) a zbývá. Nabídka „⋯“ u položky: duplikovat, přesunout,
+ * do kusovníku, objednat, smazat. Tabulka jen upravuje dokument v paměti (`onChange`); ukládání řeší záložka rozpočtu.
  */
 
 import * as React from 'react';
 import { ActionButton, IconButton } from '@fluentui/react/lib/Button';
+import { IContextualMenuItem } from '@fluentui/react/lib/ContextualMenu';
 
 import { RES } from '../../ui/theme';
 import { ReportCurrency } from '../../ui/useReportCurrency';
-import { CurrencyCode, CURRENCY_CODES } from '../../core/currency';
+import { CurrencyCode, CURRENCY_CODES, convertAmount } from '../../core/currency';
 import { formatMoney } from '../../core/format';
 import {
   BudgetDoc,
   BudgetGroup,
   BudgetItem,
+  GROUP_KIND_LABELS,
+  ItemCalc,
   addItem,
-  itemCost,
-  itemMarkup,
-  itemSale,
+  calcItems,
+  duplicateItem,
   marginPercent,
+  moveItem,
   newItem,
   removeItem,
   updateGroup,
@@ -35,6 +41,8 @@ export const pct = (v: number): string => `${v.toLocaleString('cs-CZ', { maximum
 
 const TH: React.CSSProperties = { textAlign: 'left', fontWeight: 600, fontSize: 12, color: RES.gray, padding: '6px 4px', whiteSpace: 'nowrap' };
 const TD: React.CSSProperties = { padding: '3px 3px', verticalAlign: 'middle' };
+const R: React.CSSProperties = { ...TD, textAlign: 'right', fontSize: 13 };
+const COLS = 16;
 
 export interface BudgetGridProps {
   doc: BudgetDoc;
@@ -43,56 +51,133 @@ export interface BudgetGridProps {
   categories: string[];
   report: ReportCurrency;
   onRemoveGroup: (group: BudgetGroup) => void;
+  /** Uložení položky do společného kusovníku; bez něj je volba v nabídce vypnutá. */
+  onSaveToCatalog?: (item: BudgetItem) => void;
+  /** Objednávka z položky; bez ní je volba v nabídce vypnutá. */
+  onOrder?: (item: BudgetItem) => void;
 }
 
-export const BudgetGrid: React.FC<BudgetGridProps> = ({ doc, onChange, editable, categories, report, onRemoveGroup }) => {
+export const BudgetGrid: React.FC<BudgetGridProps> = ({ doc, onChange, editable, categories, report, onRemoveGroup, onSaveToCatalog, onOrder }) => {
   const [collapsed, setCollapsed] = React.useState<string[]>([]);
   const toggle = (id: string): void => setCollapsed((cur) => (cur.indexOf(id) === -1 ? [...cur, id] : cur.filter((x) => x !== id)));
+  const calcs = React.useMemo(() => calcItems(doc, report.rates), [doc, report.rates]);
+  const calcOf = (id: string): ItemCalc => calcs.filter((c) => c.item.id === id)[0];
+  const inReport = (amount: number, from: CurrencyCode): number => convertAmount(amount, from, report.currency, report.rates);
 
   const setItem = (id: string, patch: Partial<BudgetItem>): void => onChange(updateItem(doc, id, patch));
+  const bg = editable ? RES.white : RES.background;
+
+  const menuFor = (item: BudgetItem): IContextualMenuItem[] => [
+    { key: 'dup', text: 'Duplikovat položku', iconProps: { iconName: 'Copy' }, disabled: !editable, onClick: () => onChange(duplicateItem(doc, item.id)) },
+    {
+      key: 'move',
+      text: 'Přesunout do skupiny',
+      iconProps: { iconName: 'MoveToFolder' },
+      disabled: !editable || doc.groups.length < 2,
+      subMenuProps: {
+        items: doc.groups
+          .filter((g) => g.id !== item.groupId)
+          .map((g) => ({ key: g.id, text: g.name, onClick: () => onChange(moveItem(doc, item.id, g.id)) }))
+      }
+    },
+    { key: 'catalog', text: 'Uložit do kusovníku', iconProps: { iconName: 'Library' }, disabled: !onSaveToCatalog, title: onSaveToCatalog ? undefined : 'Připravujeme', onClick: () => onSaveToCatalog && onSaveToCatalog(item) },
+    { key: 'order', text: 'Objednat', iconProps: { iconName: 'ShoppingCart' }, disabled: !onOrder, title: onOrder ? undefined : 'Připravujeme', onClick: () => onOrder && onOrder(item) },
+    { key: 'sep', itemType: 1 },
+    { key: 'del', text: 'Smazat položku', iconProps: { iconName: 'Delete' }, disabled: !editable, onClick: () => onChange(removeItem(doc, item.id)) }
+  ];
+
+  const rowMenu = (item: BudgetItem): JSX.Element => (
+    <IconButton
+      iconProps={{ iconName: 'More' }}
+      title="Další funkce položky"
+      ariaLabel={`Další funkce položky ${item.description || ''}`}
+      menuIconProps={{ iconName: '' }}
+      menuProps={{ items: menuFor(item) }}
+      styles={{ root: { width: 28, height: 28 } }}
+    />
+  );
+
+  const textInput = (label: string, value: string | undefined, onSet: (v: string) => void, placeholder?: string): JSX.Element => (
+    <input aria-label={label} value={value ?? ''} disabled={!editable} placeholder={placeholder} onChange={(e) => onSet(e.target.value)} style={{ ...CELL_INPUT, background: bg }} />
+  );
+
+  const actualCells = (c: ItemCalc, qtyDecimals: number, onQty: (v: number | undefined) => void, onCost?: (v: number | undefined) => void): JSX.Element => (
+    <>
+      <td style={TD}>
+        <NumInput value={c.item.actualQty} ariaLabel="Koupené množství" decimals={qtyDecimals} allowEmpty disabled={!editable} onCommit={onQty} />
+      </td>
+      <td style={TD}>
+        {onCost ? (
+          <NumInput value={c.item.actualCost} ariaLabel="Koupeno za (v měně položky)" allowEmpty disabled={!editable} onCommit={onCost} />
+        ) : (
+          <div style={{ ...R, color: RES.text }}>{formatMoney(c.actualCost, c.currency)}</div>
+        )}
+      </td>
+      <td style={{ ...R, color: c.remainingQty < 0 ? RES.red : RES.text }} title="Zbývá koupit (množství)">
+        {c.remainingQty.toLocaleString('cs-CZ', { maximumFractionDigits: 3 })}
+      </td>
+      <td style={{ ...R, color: c.remainingCost < 0 ? RES.red : RES.text }} title="Zbývá v rozpočtu (částka)">
+        {formatMoney(c.remainingCost, c.currency)}
+      </td>
+    </>
+  );
 
   return (
     <div style={{ overflowX: 'auto', background: RES.white, border: `1px solid ${RES.grayBlue}`, borderRadius: 4 }}>
-      <table style={{ width: '100%', minWidth: 1180, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+      <table style={{ width: '100%', minWidth: 1700, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
         <colgroup>
           <col style={{ width: 'auto' }} />
-          <col style={{ width: 140 }} />
           <col style={{ width: 130 }} />
+          <col style={{ width: 120 }} />
+          <col style={{ width: 62 }} />
+          <col style={{ width: 78 }} />
+          <col style={{ width: 48 }} />
+          <col style={{ width: 100 }} />
+          <col style={{ width: 112 }} />
+          <col style={{ width: 80 }} />
+          <col style={{ width: 112 }} />
           <col style={{ width: 66 }} />
-          <col style={{ width: 82 }} />
-          <col style={{ width: 52 }} />
-          <col style={{ width: 108 }} />
-          <col style={{ width: 118 }} />
-          <col style={{ width: 82 }} />
-          <col style={{ width: 118 }} />
-          <col style={{ width: 70 }} />
-          <col style={{ width: 40 }} />
+          <col style={{ width: 80 }} />
+          <col style={{ width: 106 }} />
+          <col style={{ width: 80 }} />
+          <col style={{ width: 106 }} />
+          <col style={{ width: 36 }} />
         </colgroup>
         <thead>
           <tr style={{ borderBottom: `1px solid ${RES.grayBlue}` }}>
             <th style={TH}>Popis položky</th>
-            <th style={TH}>Dodavatel</th>
+            <th style={TH}>Dodavatel / profese</th>
             <th style={TH}>Kategorie</th>
             <th style={TH}>Měna</th>
             <th style={{ ...TH, textAlign: 'right' }}>Množství</th>
             <th style={TH}>MJ</th>
             <th style={{ ...TH, textAlign: 'right' }}>Nákup / MJ</th>
             <th style={{ ...TH, textAlign: 'right' }}>Nákup celkem</th>
-            <th style={{ ...TH, textAlign: 'right' }} title="Obchodní přirážka k nákupu: prodej = nákup × (1 + přirážka)">
+            <th style={{ ...TH, textAlign: 'right' }} title="Obchodní přirážka k nákupu: prodej = nákup × (1 + přirážka). U rezervy % z prodeje.">
               Přirážka %
             </th>
             <th style={{ ...TH, textAlign: 'right' }}>Prodej celkem</th>
             <th style={{ ...TH, textAlign: 'right' }} title="Podíl zisku na prodejní ceně">
               Marže %
             </th>
+            <th style={{ ...TH, textAlign: 'right', background: RES.bluePale }} title="Skutečnost: koupené množství (u práce odpracované hodiny)">
+              Koupeno ks
+            </th>
+            <th style={{ ...TH, textAlign: 'right', background: RES.bluePale }} title="Skutečnost: za kolik se koupilo">
+              Koupeno za
+            </th>
+            <th style={{ ...TH, textAlign: 'right' }}>Zbývá ks</th>
+            <th style={{ ...TH, textAlign: 'right' }}>Zbývá částka</th>
             <th style={TH} />
           </tr>
         </thead>
         <tbody>
           {doc.groups.map((group) => {
-            const items = doc.items.filter((i) => i.groupId === group.id);
-            const cost = items.reduce((s, i) => s + report.convert(itemCost(i), i.currency), 0);
-            const sale = items.reduce((s, i) => s + report.convert(itemSale(i, group), i.currency), 0);
+            const gItems = doc.items.filter((i) => i.groupId === group.id);
+            const gCalcs = gItems.map((i) => calcOf(i.id)).filter((c) => !!c);
+            const cost = gCalcs.reduce((s, c) => s + inReport(c.cost, c.currency), 0);
+            const sale = gCalcs.reduce((s, c) => s + inReport(c.sale, c.currency), 0);
+            const actual = gCalcs.reduce((s, c) => s + inReport(c.actualCost, c.currency), 0);
             const isCollapsed = collapsed.indexOf(group.id) !== -1;
             return (
               <React.Fragment key={group.id}>
@@ -110,32 +195,44 @@ export const BudgetGrid: React.FC<BudgetGridProps> = ({ doc, onChange, editable,
                           aria-label="Název skupiny"
                           value={group.name}
                           onChange={(e) => onChange(updateGroup(doc, group.id, { name: e.target.value }))}
-                          style={{ ...CELL_INPUT, fontWeight: 600, maxWidth: 320, background: RES.white }}
+                          style={{ ...CELL_INPUT, fontWeight: 600, maxWidth: 300, background: RES.white }}
                         />
                       ) : (
                         <strong>{group.name}</strong>
                       )}
-                      <span style={{ color: RES.gray, fontSize: 12 }}>({items.length})</span>
+                      <span style={{ color: RES.gray, fontSize: 12 }}>
+                        ({gItems.length}) · {GROUP_KIND_LABELS[group.kind]}
+                      </span>
                     </div>
                   </td>
                   <td colSpan={2} style={{ ...TD, textAlign: 'right', fontSize: 12, color: RES.gray }}>
-                    výchozí přirážka skupiny
+                    {group.kind === 'standard' ? 'výchozí přirážka skupiny' : ''}
                   </td>
                   <td style={TD}>
-                    <NumInput
-                      value={group.defaultMarkupPercent}
-                      ariaLabel={`Výchozí přirážka skupiny ${group.name}`}
-                      disabled={!editable}
-                      onCommit={(v) => onChange(updateGroup(doc, group.id, { defaultMarkupPercent: v ?? 0 }))}
-                    />
+                    {group.kind === 'standard' && (
+                      <NumInput
+                        value={group.defaultMarkupPercent}
+                        ariaLabel={`Výchozí přirážka skupiny ${group.name}`}
+                        disabled={!editable}
+                        onCommit={(v) => onChange(updateGroup(doc, group.id, { defaultMarkupPercent: v ?? 0 }))}
+                      />
+                    )}
                   </td>
-                  <td style={{ ...TD, textAlign: 'right', fontWeight: 600, fontSize: 13 }} title={`Nákup skupiny v ${report.label}`}>
+                  <td style={{ ...R, fontWeight: 600 }} title={`Nákup skupiny v ${report.label}`}>
                     {formatMoney(cost, report.currency)}
                   </td>
-                  <td style={{ ...TD, textAlign: 'right', fontWeight: 600, fontSize: 13 }} title={`Prodej skupiny v ${report.label}`}>
+                  <td style={{ ...R, fontWeight: 600 }} title={`Prodej skupiny v ${report.label}`}>
                     {formatMoney(sale, report.currency)}
                   </td>
-                  <td style={{ ...TD, textAlign: 'right', fontSize: 12, color: RES.gray }}>{pct(marginPercent(cost, sale))}</td>
+                  <td style={{ ...R, fontSize: 12, color: RES.gray }}>{pct(marginPercent(cost, sale))}</td>
+                  <td />
+                  <td style={{ ...R, fontWeight: 600 }} title={`Skutečnost skupiny v ${report.label}`}>
+                    {formatMoney(actual, report.currency)}
+                  </td>
+                  <td />
+                  <td style={{ ...R, fontWeight: 600 }} title={`Zbývá ve skupině v ${report.label}`}>
+                    {formatMoney(cost - actual, report.currency)}
+                  </td>
                   <td style={TD}>
                     {editable && (
                       <IconButton
@@ -149,120 +246,142 @@ export const BudgetGrid: React.FC<BudgetGridProps> = ({ doc, onChange, editable,
                   </td>
                 </tr>
                 {!isCollapsed &&
-                  items.map((item) => {
-                    const markup = itemMarkup(item, group);
-                    const inherited = item.markupPercent === undefined && item.salePriceOverride === undefined;
-                    const c = itemCost(item);
-                    const s = itemSale(item, group);
+                  gItems.map((item) => {
+                    const c = calcOf(item.id);
+                    if (!c) {
+                      return null;
+                    }
+                    const inherited = group.kind === 'standard' && item.markupPercent === undefined && item.salePriceOverride === undefined;
                     return (
                       <tr key={item.id} style={{ borderTop: `1px solid ${RES.background}` }}>
-                        <td style={TD}>
-                          <input
-                            aria-label="Popis položky"
-                            value={item.description}
-                            disabled={!editable}
-                            placeholder="Popis položky"
-                            onChange={(e) => setItem(item.id, { description: e.target.value })}
-                            style={{ ...CELL_INPUT, background: editable ? RES.white : RES.background }}
-                          />
-                        </td>
-                        <td style={TD}>
-                          <input
-                            aria-label="Dodavatel"
-                            value={item.supplier ?? ''}
-                            disabled={!editable}
-                            onChange={(e) => setItem(item.id, { supplier: e.target.value || undefined })}
-                            style={{ ...CELL_INPUT, background: editable ? RES.white : RES.background }}
-                          />
-                        </td>
-                        <td style={TD}>
-                          <select
-                            aria-label="Kategorie"
-                            value={item.category ?? ''}
-                            disabled={!editable}
-                            onChange={(e) => setItem(item.id, { category: e.target.value || undefined })}
-                            style={{ ...CELL_INPUT, background: editable ? RES.white : RES.background }}
-                          >
-                            <option value="">—</option>
-                            {categories.map((cat) => (
-                              <option key={cat} value={cat}>
-                                {cat}
-                              </option>
-                            ))}
-                          </select>
-                        </td>
-                        <td style={TD}>
-                          <select
-                            aria-label="Měna"
-                            value={item.currency}
-                            disabled={!editable}
-                            onChange={(e) => setItem(item.id, { currency: e.target.value as CurrencyCode })}
-                            style={{ ...CELL_INPUT, background: editable ? RES.white : RES.background }}
-                          >
-                            {CURRENCY_CODES.map((cur) => (
-                              <option key={cur} value={cur}>
-                                {cur}
-                              </option>
-                            ))}
-                          </select>
-                        </td>
-                        <td style={TD}>
-                          <NumInput value={item.quantity} ariaLabel="Množství" decimals={3} disabled={!editable} onCommit={(v) => setItem(item.id, { quantity: Math.max(0, v ?? 0) })} />
-                        </td>
-                        <td style={TD}>
-                          <input
-                            aria-label="Měrná jednotka"
-                            value={item.unit ?? ''}
-                            disabled={!editable}
-                            onChange={(e) => setItem(item.id, { unit: e.target.value || undefined })}
-                            style={{ ...CELL_INPUT, background: editable ? RES.white : RES.background }}
-                          />
-                        </td>
-                        <td style={TD}>
-                          <NumInput value={item.unitCost} ariaLabel="Nákup za jednotku" disabled={!editable} onCommit={(v) => setItem(item.id, { unitCost: Math.max(0, v ?? 0) })} />
-                        </td>
-                        <td style={{ ...TD, textAlign: 'right', fontSize: 13 }}>{formatMoney(c, item.currency)}</td>
-                        <td style={TD}>
-                          <NumInput
-                            value={markup}
-                            ariaLabel="Přirážka v procentech"
-                            disabled={!editable}
-                            inherited={inherited}
-                            allowEmpty
-                            placeholder={pct(group.defaultMarkupPercent)}
-                            onCommit={(v) => onChange(updateItem(doc, item.id, v === undefined ? { markupPercent: undefined, salePriceOverride: undefined } : withMarkup(item, group, v)))}
-                          />
-                        </td>
-                        <td style={TD}>
-                          <NumInput
-                            value={s}
-                            ariaLabel="Prodej celkem"
-                            disabled={!editable}
-                            onCommit={(v) => onChange(updateItem(doc, item.id, withSale(item, group, v ?? 0)))}
-                          />
-                        </td>
-                        <td style={{ ...TD, textAlign: 'right', fontSize: 13, color: marginPercent(c, s) < 0 ? RES.red : RES.text }}>{pct(marginPercent(c, s))}</td>
-                        <td style={TD}>
-                          {editable && (
-                            <IconButton
-                              iconProps={{ iconName: 'Delete' }}
-                              title="Smazat položku"
-                              ariaLabel={`Smazat položku ${item.description || ''}`}
-                              onClick={() => onChange(removeItem(doc, item.id))}
-                              styles={{ root: { width: 28, height: 28 } }}
-                            />
-                          )}
-                        </td>
+                        <td style={TD}>{textInput('Popis položky', item.description, (v) => setItem(item.id, { description: v }), group.kind === 'prace' ? 'Co se dělá (nepovinné)' : 'Popis položky')}</td>
+
+                        {group.kind === 'prace' ? (
+                          <>
+                            <td style={TD}>
+                              <select
+                                aria-label="Profese"
+                                value={item.rateId ?? ''}
+                                disabled={!editable}
+                                onChange={(e) => setItem(item.id, { rateId: e.target.value || undefined })}
+                                style={{ ...CELL_INPUT, background: bg }}
+                              >
+                                <option value="">— profese —</option>
+                                {doc.rates.map((r) => (
+                                  <option key={r.id} value={r.id}>
+                                    {r.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </td>
+                            <td style={TD} />
+                            <td style={{ ...TD, fontSize: 13 }}>CZK</td>
+                            <td style={TD}>
+                              <NumInput value={item.quantity} ariaLabel="Plánované hodiny" decimals={2} disabled={!editable} onCommit={(v) => setItem(item.id, { quantity: Math.max(0, v ?? 0) })} />
+                            </td>
+                            <td style={{ ...TD, fontSize: 13 }}>h</td>
+                            <td style={{ ...R, color: RES.gray }}>{item.quantity > 0 ? formatMoney(c.cost / item.quantity, 'CZK') : '—'}</td>
+                            <td style={R}>{formatMoney(c.cost, c.currency)}</td>
+                            <td style={{ ...R, color: RES.gray }}>{pct(c.markup)}</td>
+                            <td style={R}>{formatMoney(c.sale, c.currency)}</td>
+                            <td style={{ ...R, color: c.margin < 0 ? RES.red : RES.text }}>{pct(c.margin)}</td>
+                            {actualCells(c, 2, (v) => setItem(item.id, { actualQty: v === undefined ? undefined : Math.max(0, v) }))}
+                          </>
+                        ) : group.kind === 'rezerva' ? (
+                          <>
+                            <td style={TD} />
+                            <td style={TD}>
+                              <select aria-label="Kategorie" value={item.category ?? ''} disabled={!editable} onChange={(e) => setItem(item.id, { category: e.target.value || undefined })} style={{ ...CELL_INPUT, background: bg }}>
+                                <option value="">—</option>
+                                {categories.map((cat) => (
+                                  <option key={cat} value={cat}>
+                                    {cat}
+                                  </option>
+                                ))}
+                              </select>
+                            </td>
+                            <td style={{ ...TD, fontSize: 13 }}>{c.currency}</td>
+                            <td style={TD}>
+                              <NumInput value={item.quantity} ariaLabel="Množství" decimals={3} disabled={!editable || item.reservePercent !== undefined} onCommit={(v) => setItem(item.id, { quantity: Math.max(0, v ?? 0) })} />
+                            </td>
+                            <td style={TD}>{textInput('Měrná jednotka', item.unit, (v) => setItem(item.id, { unit: v || undefined }))}</td>
+                            <td style={TD}>
+                              <NumInput value={item.unitCost} ariaLabel="Částka rezervy za jednotku" disabled={!editable || item.reservePercent !== undefined} onCommit={(v) => setItem(item.id, { unitCost: Math.max(0, v ?? 0) })} />
+                            </td>
+                            <td style={R}>{formatMoney(c.cost, c.currency)}</td>
+                            <td style={TD}>
+                              <NumInput
+                                value={item.reservePercent}
+                                ariaLabel="Rezerva v procentech z prodeje"
+                                placeholder="% z prodeje"
+                                allowEmpty
+                                disabled={!editable}
+                                onCommit={(v) => setItem(item.id, v === undefined ? { reservePercent: undefined } : { reservePercent: Math.min(99, Math.max(0, v)), currency: 'CZK' })}
+                              />
+                            </td>
+                            <td style={R}>{formatMoney(c.sale, c.currency)}</td>
+                            <td style={{ ...R, color: RES.gray }}>—</td>
+                            {actualCells(c, 3, (v) => setItem(item.id, { actualQty: v === undefined ? undefined : Math.max(0, v) }), (v) => setItem(item.id, { actualCost: v === undefined ? undefined : Math.max(0, v) }))}
+                          </>
+                        ) : (
+                          <>
+                            <td style={TD}>{textInput('Dodavatel', item.supplier, (v) => setItem(item.id, { supplier: v || undefined }))}</td>
+                            <td style={TD}>
+                              <select aria-label="Kategorie" value={item.category ?? ''} disabled={!editable} onChange={(e) => setItem(item.id, { category: e.target.value || undefined })} style={{ ...CELL_INPUT, background: bg }}>
+                                <option value="">—</option>
+                                {categories.map((cat) => (
+                                  <option key={cat} value={cat}>
+                                    {cat}
+                                  </option>
+                                ))}
+                              </select>
+                            </td>
+                            <td style={TD}>
+                              <select aria-label="Měna" value={item.currency} disabled={!editable} onChange={(e) => setItem(item.id, { currency: e.target.value as CurrencyCode })} style={{ ...CELL_INPUT, background: bg }}>
+                                {CURRENCY_CODES.map((cur) => (
+                                  <option key={cur} value={cur}>
+                                    {cur}
+                                  </option>
+                                ))}
+                              </select>
+                            </td>
+                            <td style={TD}>
+                              <NumInput value={item.quantity} ariaLabel="Množství" decimals={3} disabled={!editable} onCommit={(v) => setItem(item.id, { quantity: Math.max(0, v ?? 0) })} />
+                            </td>
+                            <td style={TD}>{textInput('Měrná jednotka', item.unit, (v) => setItem(item.id, { unit: v || undefined }))}</td>
+                            <td style={TD}>
+                              <NumInput value={item.unitCost} ariaLabel="Nákup za jednotku" disabled={!editable} onCommit={(v) => setItem(item.id, { unitCost: Math.max(0, v ?? 0) })} />
+                            </td>
+                            <td style={R}>{formatMoney(c.cost, c.currency)}</td>
+                            <td style={TD}>
+                              <NumInput
+                                value={c.markup}
+                                ariaLabel="Přirážka v procentech"
+                                disabled={!editable}
+                                inherited={inherited}
+                                allowEmpty
+                                placeholder={pct(group.defaultMarkupPercent)}
+                                onCommit={(v) => onChange(updateItem(doc, item.id, v === undefined ? { markupPercent: undefined, salePriceOverride: undefined } : withMarkup(item, group, v)))}
+                              />
+                            </td>
+                            <td style={TD}>
+                              <NumInput value={c.sale} ariaLabel="Prodej celkem" disabled={!editable} onCommit={(v) => onChange(updateItem(doc, item.id, withSale(item, group, v ?? 0)))} />
+                            </td>
+                            <td style={{ ...R, color: c.margin < 0 ? RES.red : RES.text }}>{pct(c.margin)}</td>
+                            {actualCells(c, 3, (v) => setItem(item.id, { actualQty: v === undefined ? undefined : Math.max(0, v) }), (v) => setItem(item.id, { actualCost: v === undefined ? undefined : Math.max(0, v) }))}
+                          </>
+                        )}
+                        <td style={TD}>{rowMenu(item)}</td>
                       </tr>
                     );
                   })}
                 {!isCollapsed && editable && (
                   <tr>
-                    <td colSpan={12} style={{ padding: '0 4px 4px' }}>
+                    <td colSpan={COLS} style={{ padding: '0 4px 4px' }}>
                       <ActionButton
                         iconProps={{ iconName: 'Add' }}
-                        text="Přidat položku"
-                        onClick={() => onChange(addItem(doc, newItem(group.id)))}
+                        text={group.kind === 'prace' ? 'Přidat práci' : 'Přidat položku'}
+                        onClick={() => onChange(addItem(doc, newItem(group, doc.rates)))}
                         styles={{ root: { height: 26 } }}
                       />
                     </td>

@@ -19,7 +19,7 @@ import { ApprovalLevel, OrderAttachment, OrderLine, PurchaseOrder } from '../cor
 import { Assignee } from '../core/orderWorkflow';
 import { InvoiceBasis, InvoiceKind } from '../core/invoiceBases';
 import { DiaryEntry, EntryInput, EntryListFilter, SiteDiary } from '../core/siteDiary';
-import { BudgetDoc, BudgetVersion } from '../core/budget';
+import { BudgetDoc, BudgetRecord } from '../core/budget';
 import { StoredRate, StoredRates } from '../core/currency';
 import { ListDef } from './schema';
 
@@ -764,7 +764,7 @@ export interface IProfileRepository {
   removeSignature(actor: CurrentUser): Promise<void>;
 }
 
-/** Součty rozpočtu v Kč, které se ukládají u verze (přehledy je čtou bez načítání obsahu). */
+/** Součty rozpočtu v Kč, které se ukládají u záznamu (přehledy je čtou bez načítání obsahu). */
 export interface BudgetTotalsInput {
   totalCost: number;
   totalSale: number;
@@ -778,26 +778,25 @@ export interface BudgetHistoryEntry {
 }
 
 /**
- * Realizační rozpočet projektu (PRM_BudgetVersions). Obsah verze (skupiny a položky) je jeden JSON; verze má stav
- * Koncept → Ke schválení → Schváleno. Pravidla jsou v `core/budget`, zde se znovu ověřují při zápisu.
+ * Realizační rozpočet projektu (PRM_BudgetVersions). Na projekt je **jeden** rozpočet, který se průběžně upravuje (nezamyká se);
+ * obsah (skupiny, položky, sazby profesí) je jeden JSON. Schválení uloží do historie záznam s náklady, prodejem a marží.
+ * Pravidla jsou v `core/budget`, zde se znovu ověřují při zápisu.
  */
 export interface IBudgetRepository {
-  /** Verze rozpočtu projektu od nejnovější. Bez obsahu. */
-  listVersions(projectNumber: string): Promise<BudgetVersion[]>;
-  /** Verze i s obsahem; `etag` slouží k hlídání souběžné úpravy. */
-  getContent(versionId: number): Promise<{ version: BudgetVersion; doc: BudgetDoc; etag?: string }>;
-  /** Založí novou verzi (první, nebo po schválené) s daným obsahem — prázdným, nebo kopií schválené. */
-  createVersion(projectNumber: string, doc: BudgetDoc, totals: BudgetTotalsInput, actor: CurrentUser): Promise<BudgetVersion>;
-  /** Uloží obsah konceptu. */
-  saveContent(versionId: number, doc: BudgetDoc, totals: BudgetTotalsInput, actor: CurrentUser, etag?: string): Promise<BudgetVersion>;
-  /** Koncept → Ke schválení. */
-  submit(versionId: number, actor: CurrentUser): Promise<BudgetVersion>;
-  /** Ke schválení → Schváleno (vedení); verze se stává baseline. */
-  approve(versionId: number, comment: string | undefined, actor: CurrentUser): Promise<BudgetVersion>;
-  /** Ke schválení → Koncept (vedení s komentářem; předkladatel může stáhnout zpět). */
-  returnToDraft(versionId: number, comment: string, actor: CurrentUser): Promise<BudgetVersion>;
-  /** Historie verze (kdo, kdy, co) od nejstarší. */
-  history(versionId: number): Promise<BudgetHistoryEntry[]>;
+  /** Rozpočet projektu i s obsahem; `undefined`, když ještě není založený. `etag` hlídá souběžnou úpravu. */
+  get(projectNumber: string): Promise<{ record: BudgetRecord; doc: BudgetDoc; etag?: string } | undefined>;
+  /** Založí rozpočet projektu s daným obsahem (jen když ještě žádný není). */
+  create(projectNumber: string, doc: BudgetDoc, totals: BudgetTotalsInput, actor: CurrentUser): Promise<BudgetRecord>;
+  /** Uloží obsah rozpočtu. */
+  save(recordId: number, doc: BudgetDoc, totals: BudgetTotalsInput, actor: CurrentUser, etag?: string): Promise<BudgetRecord>;
+  /** Požádá vedení o schválení (rozpočet se tím nezamyká). */
+  requestApproval(recordId: number, actor: CurrentUser): Promise<BudgetRecord>;
+  /** Schválí (vedení): do historie se uloží záznam s aktuálními náklady, prodejem a marží (v Kč). */
+  approve(recordId: number, totals: BudgetTotalsInput, comment: string | undefined, actor: CurrentUser): Promise<BudgetRecord>;
+  /** Vrátí žádost: vedení s důvodem, žadatel ji stáhne zpět bez důvodu. */
+  reject(recordId: number, comment: string, actor: CurrentUser): Promise<BudgetRecord>;
+  /** Historie (kdo, kdy, co) od nejstarší. */
+  history(recordId: number): Promise<BudgetHistoryEntry[]>;
 }
 
 export interface RepositorySet {

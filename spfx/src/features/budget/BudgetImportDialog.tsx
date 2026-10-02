@@ -33,7 +33,9 @@ export const BudgetImportDialog: React.FC<{
   onClose: () => void;
 }> = ({ doc, onImport, onClose }) => {
   const [text, setText] = React.useState('');
-  const [groupId, setGroupId] = React.useState(doc.groups.length > 0 ? doc.groups[0].id : '');
+  // Vkládat jde jen do běžných skupin (práce má hodiny a sazby, rezerva částku).
+  const targets = doc.groups.filter((g) => g.kind === 'standard');
+  const [groupId, setGroupId] = React.useState(targets.length > 0 ? targets[0].id : '');
   const result = React.useMemo(() => (text.trim() === '' ? undefined : parseBudgetTable(parseClipboardTable(text))), [text]);
 
   return (
@@ -60,7 +62,7 @@ export const BudgetImportDialog: React.FC<{
       />
       <Dropdown
         label="Přidat do skupiny"
-        options={doc.groups.map((g) => ({ key: g.id, text: g.name }))}
+        options={targets.map((g) => ({ key: g.id, text: g.name }))}
         selectedKey={groupId}
         onChange={(_, o) => o && setGroupId(String(o.key))}
         styles={{ root: { marginTop: 8, maxWidth: 320 } }}
