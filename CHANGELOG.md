@@ -5,6 +5,25 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.23.0 — 2. 10. 2026 — Realizační rozpočet (Fáze 3, krok 3a)
+
+**Nové**
+
+- **Záložka Realizační rozpočet** v detailu projektu (dosud „Připravujeme“). Rozpočet se vede **v aplikaci**, ne v cizím Excelu: položky se dají libovolně přidávat a mazat, drží se vazby a historie.
+- **Skupiny a položky.** Rozpočet má skupiny (po založení podle kategorií z Nastavení: Materiál, Subdodávky a služby, Vlastní práce, Doprava, Ostatní, Rezerva; skupiny jde přidávat, přejmenovávat, sbalovat a mazat). Každá skupina má **výchozí přirážku**.
+- **Položka:** popis, dodavatel, kategorie, měna (CZK/EUR/USD), množství, MJ, **nákup** za jednotku a celkem, **přirážka %**, **prodej** celkem a **marže %**. Výchozí je vždy nákup. Přirážka se dědí ze skupiny a u položky jde přepsat; nebo se zadá rovnou prodejní cena a přirážka se dopočte.
+  *Prodej = nákup × (1 + přirážka), např. nákup 100, přirážka 20 % → prodej 120.* **Marže** (podíl zisku na prodeji) se jen ukazuje a je menší: 120 − 100 = 20 → 16,7 %. Pod minimální maržou z Nastavení svítí červeně.
+- **Souhrn** v zobrazené měně (přepínač CZK/EUR/USD, kurz ČNB): nákup, prodej, přirážka, marže a **smluvní cena projektu s plánovanou marží** (smluvní cena − nákup).
+- **Verze a schvalování:** Koncept (PM, asistent upravují) → *Ke schválení* (zamčeno) → *Schváleno* (vedení) = **baseline**. Vedení může vrátit s důvodem, předkladatel stáhnout zpět. Schválená verze se nemění; úprava = **Nová verze** (začíná kopií schválené). Historie každé verze (kdo, kdy, co); souběžnou úpravu hlídá otisk verze.
+- **Vložit z Excelu:** v Excelu označte buňky, zkopírujte a vložte do okna — aplikace pozná nadpisy (Položka/Popis, Plán/Nákup, Dodavatel, Množství, MJ, Cena za MJ, Měna), ukáže náhled a přidá položky do zvolené skupiny. Řádky CELKEM přeskočí.
+  **Export do CSV** (otevře se v Excelu). Plnohodnotný export do Excelu s grafikou přijde s reporty pro Fázi 5.
+
+**Co je potřeba udělat po nasazení:** spustit **Instalace a diagnostika** (schéma 13 — do seznamu verzí rozpočtu přibyly sloupce Obsah a Prodej celkem; nic se nemaže).
+
+**Zatím není** (další kroky Fáze 3): objednáno / uhrazeno / zbývá u položek, semafor rozpočtu a jeho uložení do přehledu projektů, fakturační milníky a cashflow projektu.
+
+---
+
 ## 0.22.0 — 2. 10. 2026 — Protokol v obou směrech, přílohy podkladu, hlášky nad tlačítky, guma v náčrtu, oprava lupy ARES
 
 **Nové**

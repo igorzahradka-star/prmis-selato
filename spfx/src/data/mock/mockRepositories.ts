@@ -8,6 +8,7 @@
  * jiná logika než do ostré implementace, UI by se chovalo jinak na ostro.
  */
 
+import { MockBudgetRepository } from './mockBudgetRepository';
 import { MockProfileRepository } from './mockProfileRepository';
 import type { FolderMap } from '../../core/projectFolders';
 import { BudgetStatus, CurrentUser, Partner, Project, ProjectStatus, ProjectTask, ACTIVE_PROJECT_STATUSES } from '../../core/types';
@@ -1007,6 +1008,7 @@ export function createMockRepositories(): RepositorySet {
     diary: new MockDiaryRepository(projects, settings),
     rates,
     profiles,
+    budgets: new MockBudgetRepository(projects),
     mail: new MockMailRepository(),
     tasks: new MockTaskRepository((projectNumber, next) => projects.setNextDeadline(projectNumber, next)),
     documents: new MockDocumentRepository(),

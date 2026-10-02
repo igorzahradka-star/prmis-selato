@@ -19,6 +19,7 @@ import { ApprovalLevel, OrderAttachment, OrderLine, PurchaseOrder } from '../cor
 import { Assignee } from '../core/orderWorkflow';
 import { InvoiceBasis, InvoiceKind } from '../core/invoiceBases';
 import { DiaryEntry, EntryInput, EntryListFilter, SiteDiary } from '../core/siteDiary';
+import { BudgetDoc, BudgetVersion } from '../core/budget';
 import { StoredRate, StoredRates } from '../core/currency';
 import { ListDef } from './schema';
 
@@ -763,6 +764,42 @@ export interface IProfileRepository {
   removeSignature(actor: CurrentUser): Promise<void>;
 }
 
+/** Součty rozpočtu v Kč, které se ukládají u verze (přehledy je čtou bez načítání obsahu). */
+export interface BudgetTotalsInput {
+  totalCost: number;
+  totalSale: number;
+}
+
+/** Jeden záznam historie rozpočtu. */
+export interface BudgetHistoryEntry {
+  action: string;
+  byName: string;
+  at?: Date;
+}
+
+/**
+ * Realizační rozpočet projektu (PRM_BudgetVersions). Obsah verze (skupiny a položky) je jeden JSON; verze má stav
+ * Koncept → Ke schválení → Schváleno. Pravidla jsou v `core/budget`, zde se znovu ověřují při zápisu.
+ */
+export interface IBudgetRepository {
+  /** Verze rozpočtu projektu od nejnovější. Bez obsahu. */
+  listVersions(projectNumber: string): Promise<BudgetVersion[]>;
+  /** Verze i s obsahem; `etag` slouží k hlídání souběžné úpravy. */
+  getContent(versionId: number): Promise<{ version: BudgetVersion; doc: BudgetDoc; etag?: string }>;
+  /** Založí novou verzi (první, nebo po schválené) s daným obsahem — prázdným, nebo kopií schválené. */
+  createVersion(projectNumber: string, doc: BudgetDoc, totals: BudgetTotalsInput, actor: CurrentUser): Promise<BudgetVersion>;
+  /** Uloží obsah konceptu. */
+  saveContent(versionId: number, doc: BudgetDoc, totals: BudgetTotalsInput, actor: CurrentUser, etag?: string): Promise<BudgetVersion>;
+  /** Koncept → Ke schválení. */
+  submit(versionId: number, actor: CurrentUser): Promise<BudgetVersion>;
+  /** Ke schválení → Schváleno (vedení); verze se stává baseline. */
+  approve(versionId: number, comment: string | undefined, actor: CurrentUser): Promise<BudgetVersion>;
+  /** Ke schválení → Koncept (vedení s komentářem; předkladatel může stáhnout zpět). */
+  returnToDraft(versionId: number, comment: string, actor: CurrentUser): Promise<BudgetVersion>;
+  /** Historie verze (kdo, kdy, co) od nejstarší. */
+  history(versionId: number): Promise<BudgetHistoryEntry[]>;
+}
+
 export interface RepositorySet {
   users: IUserRepository;
   userAdmin: IUserAdminRepository;
@@ -776,6 +813,7 @@ export interface RepositorySet {
   diary: IDiaryRepository;
   rates: IRatesRepository;
   profiles: IProfileRepository;
+  budgets: IBudgetRepository;
   mail: IMailRepository;
   numbering: INumberingRepository;
   install: IInstallRepository;

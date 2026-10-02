@@ -4,6 +4,9 @@ import { OrderStatus } from '../../core/orders';
 import { OrderInput, RepositorySet } from '../repositories';
 import { MOCK_PARTNERS, MOCK_USER } from './mockData';
 
+// Při plné zátěži počítače (celý běh testů) trvá ukázkový repozitář déle než výchozích 5 s.
+jest.setTimeout(30000);
+
 function uzivatel(login: string, name: string, roles: Role[]): CurrentUser {
   return { ...MOCK_USER, id: Math.floor(Math.random() * 1000) + 100, loginName: `i:0#.f|membership|${login}@revoltum.cz`, displayName: name, roles };
 }

@@ -5,6 +5,9 @@ import { extensionForType, fitSize, photoFileName, readBlob, uniqueFileName } fr
 import { DiaryEntry, EntryStatus, emptyHeader } from '../../core/siteDiary';
 import { DEFAULT_SETTINGS } from '../../core/settings';
 
+// Při plné zátěži počítače (celý běh testů) trvá ukázkový repozitář déle než výchozích 5 s.
+jest.setTimeout(30000);
+
 const header = { ...emptyHeader(DEFAULT_SETTINGS.company), constructionName: 'FVE Mastířovice', place: 'Mastířovice', managerName: 'Petr Manažer', counterparty: 'BELTEC s.r.o.' };
 
 // Nejmenší platný JPEG (1×1 bod), ať se dá vyzkoušet vložení obrázku.

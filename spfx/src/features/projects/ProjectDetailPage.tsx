@@ -35,6 +35,7 @@ import { ProjectOrdersTab } from '../orders/ProjectOrdersTab';
 import { ProjectInvoicesTab } from '../invoicing/ProjectInvoicesTab';
 import { ProjectDiaryTab } from '../diary/ProjectDiaryTab';
 import { ProjectHandoverTab } from '../diary/ProjectHandoverTab';
+import { BudgetTab } from '../budget/BudgetTab';
 import { ProjectPhotos } from '../photos/ProjectPhotos';
 
 export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projectNumber }) => {
@@ -287,11 +288,7 @@ export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projec
           />
         </PivotItem>
         <PivotItem headerText="Realizační rozpočet" itemIcon="Table">
-          <ComingSoonPage
-            title="Realizační rozpočet"
-            phase="Fáze 3"
-            description="Editovatelná tabulka rozpočtu, verze a schválení baseline, semafor, import z Excelu."
-          />
+          <BudgetTab project={project} />
         </PivotItem>
         <PivotItem headerText="Cashflow" itemIcon="Money">
           <ComingSoonPage
