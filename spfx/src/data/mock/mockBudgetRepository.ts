@@ -55,6 +55,20 @@ export const MOCK_BUDGET_25001: BudgetDoc = {
     { id: 'i-p2', groupId: 'g-prace', description: 'Montážní práce', currency: 'CZK', quantity: 300, unit: 'h', unitCost: 0, rateId: 's-mont' },
     { id: 'i-4', groupId: 'g-dop', description: 'Doprava Olomouc – Mastířovice', category: 'Doprava', currency: 'CZK', quantity: 1, unitCost: 216571.9, actualQty: 1, actualCost: 216580 },
     { id: 'i-5', groupId: 'g-rez', description: 'Realizační rezerva (3 % z prodeje)', category: 'Rezerva', currency: 'CZK', quantity: 1, unitCost: 0, reservePercent: 3 }
+  ],
+  // Plán plateb a fakturační milníky (ukázka podle vzoru Excelu „Průběh plateb“).
+  payments: [
+    { id: 'p-1', itemId: 'i-1', description: 'Panely – záloha', amount: 12000, currency: 'EUR', vat: 'reverse', invoiceDate: '2026-06-10', dueDate: '2026-06-24', paidDate: '2026-06-24' },
+    { id: 'p-2', itemId: 'i-1', description: 'Panely – 2. platba', amount: 18000, currency: 'EUR', vat: 'reverse', invoiceDate: '2026-07-20', dueDate: '2026-08-03', paidDate: '2026-08-03' },
+    { id: 'p-3', itemId: 'i-1', description: 'Panely – 3. platba', amount: 18000, currency: 'EUR', vat: 'reverse', invoiceDate: '2026-10-15', dueDate: '2026-10-29' },
+    { id: 'p-4', itemId: 'i-1', description: 'Panely – doplatek', amount: 12000, currency: 'EUR', vat: 'reverse', invoiceDate: '2026-12-01', dueDate: '2026-12-15' },
+    { id: 'p-5', itemId: 'i-4', description: 'Doprava Olomouc – Mastířovice', amount: 216571.9, currency: 'CZK', vat: 'dph21', invoiceDate: '2026-07-05', dueDate: '2026-07-19', paidDate: '2026-07-20' },
+    { id: 'p-6', itemId: 'i-2', description: 'Datová komunikace a rozvodnice', amount: 320000, currency: 'CZK', vat: 'dph21', invoiceDate: '2026-11-05', dueDate: '2026-11-19' }
+  ],
+  income: [
+    { id: 'm-1', description: 'Záloha 30 %', plannedDate: '2026-06-01', amount: 1400000, currency: 'CZK', vatRate: 21, dueDays: 14, paidDate: '2026-06-16' },
+    { id: 'm-2', description: 'Dílčí plnění – dodávka panelů', plannedDate: '2026-09-30', amount: 1900000, currency: 'CZK', vatRate: 21, dueDays: 30 },
+    { id: 'm-3', description: 'Předání díla', plannedDate: '2026-12-15', amount: 1550000, currency: 'CZK', vatRate: 21, dueDays: 30 }
   ]
 };
 

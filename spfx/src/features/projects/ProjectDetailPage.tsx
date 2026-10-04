@@ -36,6 +36,7 @@ import { ProjectInvoicesTab } from '../invoicing/ProjectInvoicesTab';
 import { ProjectDiaryTab } from '../diary/ProjectDiaryTab';
 import { ProjectHandoverTab } from '../diary/ProjectHandoverTab';
 import { BudgetTab } from '../budget/BudgetTab';
+import { CashflowTab } from '../cashflow/CashflowTab';
 import { ProjectPhotos } from '../photos/ProjectPhotos';
 
 export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projectNumber }) => {
@@ -291,11 +292,7 @@ export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projec
           <BudgetTab project={project} />
         </PivotItem>
         <PivotItem headerText="Cashflow" itemIcon="Money">
-          <ComingSoonPage
-            title="Cashflow projektu"
-            phase="Fáze 3"
-            description="Měsíční plán příjmů a výdajů projektu, plán proti skutečnosti."
-          />
+          <CashflowTab project={project} />
         </PivotItem>
         <PivotItem headerText="Harmonogram" itemIcon="TimelineProgress">
           <ComingSoonPage

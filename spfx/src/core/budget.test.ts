@@ -240,11 +240,11 @@ describe('uložení jako JSON', () => {
       [item({ supplier: 'BELTEC', markupPercent: 7, note: 'pozn.', actualQty: 1, actualCost: 5 }), item({ id: 'i2', currency: 'EUR', salePriceOverride: 500 }), item({ id: 'i3', groupId: 'gr', reservePercent: 3, rateId: undefined })],
       [g1, gr]
     );
-    expect(budgetFromJson(budgetToJson(d))).toEqual(d);
+    expect(budgetFromJson(budgetToJson(d))).toEqual({ ...d, payments: [], income: [] });
   });
   it('poškozený nebo prázdný JSON dá prázdný rozpočet; chybějící části a druh skupiny se doplní', () => {
-    expect(budgetFromJson('{rozbité')).toEqual({ groups: [], items: [], rates: [] });
-    expect(budgetFromJson(undefined)).toEqual({ groups: [], items: [], rates: [] });
+    expect(budgetFromJson('{rozbité')).toEqual({ groups: [], items: [], rates: [], payments: [], income: [] });
+    expect(budgetFromJson(undefined)).toEqual({ groups: [], items: [], rates: [], payments: [], income: [] });
     const b = budgetFromJson(JSON.stringify({ groups: [{ name: 'Vlastní práce' }], items: [{ groupId: 'x', description: 'D', currency: 'GBP' }] }));
     expect(b.groups[0].id).not.toBe('');
     expect(b.groups[0].kind).toBe('prace');

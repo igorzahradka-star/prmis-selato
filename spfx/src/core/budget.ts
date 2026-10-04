@@ -82,10 +82,63 @@ export interface BudgetItem {
   note?: string;
 }
 
+/** Režim DPH platby: sazba a popisek (podle vzoru Excelu „Průběh plateb“). */
+export type VatRegime = 'dph21' | 'dph12' | 'reverse' | 'neplatce';
+
+export const VAT_REGIMES: Record<VatRegime, { label: string; rate: number }> = {
+  dph21: { label: 'DPH 21 %', rate: 21 },
+  dph12: { label: 'DPH 12 %', rate: 12 },
+  reverse: { label: 'Reverse charge (bez DPH)', rate: 0 },
+  neplatce: { label: 'Neplátce DPH (bez DPH)', rate: 0 }
+};
+
+export const VAT_REGIME_KEYS: VatRegime[] = ['dph21', 'dph12', 'reverse', 'neplatce'];
+
+/** Naplánovaná platba nákladu (plán výdajů v cashflow). Data jsou texty `RRRR-MM-DD`. */
+export interface PlannedPayment {
+  id: string;
+  /** Položka rozpočtu, ke které platba patří (nepovinné). */
+  itemId?: string;
+  description: string;
+  /** Částka bez DPH v měně platby. */
+  amount: number;
+  currency: CurrencyCode;
+  vat: VatRegime;
+  /** Datum faktury dodavatele (náklad v čase). */
+  invoiceDate?: string;
+  /** Splatnost = kdy se platí (výdaj v cashflow). */
+  dueDate?: string;
+  /** Skutečné datum úhrady a případně skutečná částka bez DPH (bez ní platí plánovaná). */
+  paidDate?: string;
+  paidAmount?: number;
+  note?: string;
+}
+
+/** Fakturační milník (plán příjmů v cashflow). */
+export interface IncomeMilestone {
+  id: string;
+  description: string;
+  /** Plánované datum vystavení faktury. */
+  plannedDate?: string;
+  /** Částka bez DPH v měně milníku. */
+  amount: number;
+  currency: CurrencyCode;
+  vatRate: number;
+  dueDays: number;
+  /** Číslo podkladu pro fakturaci (FP…), který milník naplňuje — splatnost a úhrada se pak berou z něj. */
+  invoiceNumber?: string;
+  /** Datum úhrady zadané ručně. */
+  paidDate?: string;
+  note?: string;
+}
+
 export interface BudgetDoc {
   groups: BudgetGroup[];
   items: BudgetItem[];
   rates: LabourRate[];
+  /** Plán plateb nákladů a fakturační milníky (cashflow projektu). Chybí-li, jsou prázdné. */
+  payments?: PlannedPayment[];
+  income?: IncomeMilestone[];
 }
 
 export const round2 = (v: number): number => Math.round((v + Number.EPSILON) * 100) / 100;
@@ -393,7 +446,8 @@ export function updateItem(doc: BudgetDoc, itemId: string, patch: Partial<Budget
 }
 
 export function removeItem(doc: BudgetDoc, itemId: string): BudgetDoc {
-  return { ...doc, items: doc.items.filter((i) => i.id !== itemId) };
+  // Platby smazané položky zůstanou (jsou to plánované peníze), ztratí jen vazbu na položku.
+  return { ...doc, items: doc.items.filter((i) => i.id !== itemId), payments: (doc.payments ?? []).map((p) => (p.itemId === itemId ? { ...p, itemId: undefined } : p)) };
 }
 
 /** Přidá položku na konec její skupiny (položky jsou v jednom seznamu seřazené podle skupin a pořadí). */
@@ -504,6 +558,16 @@ export function validateBudget(doc: BudgetDoc, strict: boolean): BudgetIssue[] {
       out.push({ message: `Řádek ${i + 1} nemá popis.` });
     }
   });
+  (doc.payments ?? []).forEach((p, i) => {
+    if (p.amount < 0 || (p.paidAmount ?? 0) < 0) {
+      out.push({ message: `Platba ${i + 1}: částka nesmí být záporná.` });
+    }
+  });
+  (doc.income ?? []).forEach((m, i) => {
+    if (m.amount < 0 || m.dueDays < 0) {
+      out.push({ message: `Fakturační milník ${i + 1}: částka a splatnost nesmí být záporné.` });
+    }
+  });
   if (strict && doc.items.length === 0) {
     out.push({ message: 'Rozpočet nemá žádnou položku.' });
   }
@@ -524,7 +588,7 @@ const asKind = (v: unknown, name: string): GroupKind => (v === 'prace' || v === 
 
 /** Přečte uložený rozpočet; poškozené nebo chybějící části se nahradí prázdnými, aby šel rozpočet vždy otevřít. */
 export function budgetFromJson(json: string | undefined): BudgetDoc {
-  let raw: { groups?: unknown; items?: unknown; rates?: unknown } = {};
+  let raw: { groups?: unknown; items?: unknown; rates?: unknown; payments?: unknown; income?: unknown } = {};
   try {
     raw = json ? (JSON.parse(json) as typeof raw) : {};
   } catch {
@@ -561,7 +625,42 @@ export function budgetFromJson(json: string | undefined): BudgetDoc {
     costRate: num(r.costRate, 0),
     saleRate: num(r.saleRate, 0)
   }));
-  return { groups, items, rates };
+  const asVat = (v: unknown): VatRegime => (v === 'dph12' || v === 'reverse' || v === 'neplatce' ? v : 'dph21');
+  const day = (v: unknown): string | undefined => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : undefined);
+  const payments: PlannedPayment[] = (Array.isArray(raw.payments) ? raw.payments : []).map((p: Record<string, unknown>) => ({
+    id: str(p.id) || newBudgetId('p'),
+    itemId: optStr(p.itemId),
+    description: str(p.description),
+    amount: num(p.amount, 0),
+    currency: asCurrencyCode(str(p.currency)),
+    vat: asVat(p.vat),
+    invoiceDate: day(p.invoiceDate),
+    dueDate: day(p.dueDate),
+    paidDate: day(p.paidDate),
+    paidAmount: optNum(p.paidAmount),
+    note: optStr(p.note)
+  }));
+  const income: IncomeMilestone[] = (Array.isArray(raw.income) ? raw.income : []).map((m: Record<string, unknown>) => ({
+    id: str(m.id) || newBudgetId('m'),
+    description: str(m.description),
+    plannedDate: day(m.plannedDate),
+    amount: num(m.amount, 0),
+    currency: asCurrencyCode(str(m.currency)),
+    vatRate: num(m.vatRate, 21),
+    dueDays: num(m.dueDays, 30),
+    invoiceNumber: optStr(m.invoiceNumber),
+    paidDate: day(m.paidDate),
+    note: optStr(m.note)
+  }));
+  return { groups, items, rates, payments, income };
+}
+
+export function newPayment(itemId?: string, description: string = '', currency: CurrencyCode = 'CZK'): PlannedPayment {
+  return { id: newBudgetId('p'), itemId, description, amount: 0, currency, vat: currency === 'CZK' ? 'dph21' : 'reverse' };
+}
+
+export function newMilestone(currency: CurrencyCode = 'CZK'): IncomeMilestone {
+  return { id: newBudgetId('m'), description: '', amount: 0, currency, vatRate: 21, dueDays: 30 };
 }
 
 // --- schvalování ------------------------------------------------------------------------

@@ -5,6 +5,22 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.27.0 — 4. 10. 2026 — Cashflow projektu a fakturační milníky (Fáze 3, krok 3c)
+
+**Nové**
+
+- **Záložka Cashflow** v detailu projektu (dosud „Připravujeme“): **graf** (příjmy nahoru, výdaje dolů — plán světle, skutečnost tmavě — a čáry kumulace plán/skutečnost) a **tabulka po měsících nebo týdnech** (příjmy, výdaje, saldo, kumulace — plán i skutečnost; řádek „Náklad v čase“ podle data faktur; sloupec aktuálního období je zvýrazněný). Měnu přepíná společný přepínač CZK/EUR/USD (kurz ČNB), částky jdou **s DPH i bez DPH** (přepínač).
+- **Plán plateb nákladů (výdaje)** podle vzoru Excelu „Průběh plateb“: platba má popis, **položku rozpočtu**, částku bez DPH, měnu, **režim DPH** (21 % / 12 % / reverse charge / neplátce), **datum faktury** (náklad v čase), **splatnost** (kdy se platí = výdaj v cashflow) a **datum úhrady** a případně skutečnou částku (skutečnost). Tlačítko **Rozplánovat položku do plateb** rozloží náklady položky podle podílů (např. 30/40/30 nebo 20/30/30/10/10) do faktur v pravidelných odstupech; součet je vždy přesně celek.
+- **Fakturační milníky (příjmy):** plánované datum faktury, částka bez DPH, měna, sazba DPH, splatnost ve dnech, **navázání na podklad pro fakturaci** (splatnost a úhrada se pak berou z podkladu — úhrada podkladu je skutečný příjem) a ruční datum úhrady.
+- **„Zbývá naplánovat“:** porovnání prognózy nákladů každé položky rozpočtu s už naplánovanými platbami — seznam položek bez rozplánovaných plateb s tlačítkem Rozplánovat. Upozornění na platby a milníky bez data (v cashflow chybí).
+- Platby a milníky jsou součástí rozpočtu projektu (jeden dokument) a ukládají se tlačítkem Uložit plán plateb (hlídá se souběžná úprava). Upravovat smí PM, asistent, vedení a administrátor.
+
+**Bez změny schématu** — Instalaci spouštět nemusíte.
+
+**Ještě není:** napojení na harmonogram (posun termínu posune platbu — Fáze 4), automatické platby z objednávek a import skutečných plateb z účetnictví (Fáze 5), celofiremní cashflow (Fáze 5).
+
+---
+
 ## 0.26.0 — 4. 10. 2026 — Rozpočet: objednáno, prognóza, semafor a Objednat (Fáze 3, krok 3b)
 
 **Nové**
