@@ -18,7 +18,7 @@
  * Verze schématu. Ukládá se do PRM_Settings pod klíčem `schemaVersion`.
  * Průvodce porovná uloženou verzi s touto a nabídne doplnění rozdílu.
  */
-export const SCHEMA_VERSION = 14;
+export const SCHEMA_VERSION = 15;
 
 /** Typ sloupce v SharePointu. */
 export type FieldType =
@@ -608,6 +608,24 @@ const PRM_EXCHANGE_RATES: ListDef = {
   ]
 };
 
+const PRM_CATALOG: ListDef = {
+  name: 'PRM_Catalog',
+  title: 'PRM – Kusovník',
+  description: 'Společná databáze položek pro všechny projekty (know-how pro nabídky a rozpočty). Popis položky je ve sloupci Název.',
+  kind: 'list',
+  site: 'PRM',
+  versioning: true,
+  fields: [
+    { name: 'SupplierName', title: 'Dodavatel', type: 'Text', indexed: true },
+    { name: 'Category', title: 'Kategorie', type: 'Text' },
+    { name: 'ItemCurrency', title: 'Měna', type: 'Choice', choices: ['CZK', 'EUR', 'USD'], defaultValue: 'CZK' },
+    { name: 'Unit', title: 'MJ', type: 'Text' },
+    { name: 'UnitCost', title: 'Nákup za MJ', type: 'Currency', decimals: 2 },
+    { name: 'Note', title: 'Poznámka', type: 'Note' },
+    { name: 'SourceProject', title: 'Z projektu', type: 'Text' }
+  ]
+};
+
 const PRM_USER_PROFILES: ListDef = {
   name: 'PRM_UserProfiles',
   title: 'PRM – Profily uživatelů',
@@ -629,6 +647,7 @@ export const LISTS: ListDef[] = [
   PRM_COUNTERS,
   PRM_EXCHANGE_RATES,
   PRM_USER_PROFILES,
+  PRM_CATALOG,
   PRM_PARTNERS,
   PRM_PROJECTS,
   PRM_TASKS,

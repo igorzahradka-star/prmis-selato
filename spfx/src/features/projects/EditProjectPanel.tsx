@@ -73,6 +73,7 @@ export const EditProjectPanel: React.FC<EditProjectPanelProps> = ({
   const [longitude, setLongitude] = React.useState<number | undefined>(undefined);
   const [shortName, setShortName] = React.useState('');
   const [contractPriceNet, setContractPriceNet] = React.useState('');
+  const [priceFromBudget, setPriceFromBudget] = React.useState(false);
   const [currency, setCurrency] = React.useState<Currency>('CZK');
   const [startDate, setStartDate] = React.useState<Date | undefined>(undefined);
   const [endDatePlanned, setEndDatePlanned] = React.useState<Date | undefined>(undefined);
@@ -107,6 +108,12 @@ export const EditProjectPanel: React.FC<EditProjectPanelProps> = ({
     setShortName(project.shortName ?? '');
     setContractPriceNet(project.contractPriceNet === undefined ? '' : String(project.contractPriceNet));
     setCurrency((project.currency as Currency) || 'CZK');
+    // Po schválení rozpočtu je smluvní cena = prodej rozpočtu; ruční zadání je jen do prvního schválení.
+    setPriceFromBudget(false);
+    repos.budgets
+      .get(project.projectNumber)
+      .then((c) => setPriceFromBudget(!!c && c.record.approvals.length > 0))
+      .catch(() => setPriceFromBudget(false));
     setStartDate(project.startDate);
     setEndDatePlanned(project.endDatePlanned);
     setEndDateActual(project.endDateActual);
@@ -332,6 +339,8 @@ export const EditProjectPanel: React.FC<EditProjectPanelProps> = ({
           <TextField
             label="Cena bez DPH"
             type="number"
+            disabled={priceFromBudget}
+            description={priceFromBudget ? 'Smluvní cena se přebírá z prodeje schváleného rozpočtu (záložka Realizační rozpočet).' : 'Do prvního schválení rozpočtu jde zadat ručně; po schválení ji přepíše prodej rozpočtu.'}
             value={contractPriceNet}
             errorMessage={issueFor('contractPriceNet')}
             onChange={(_, v) => setContractPriceNet(v ?? '')}
@@ -340,6 +349,7 @@ export const EditProjectPanel: React.FC<EditProjectPanelProps> = ({
           <Dropdown
             label="Měna"
             options={CURRENCY_OPTIONS}
+            disabled={priceFromBudget}
             selectedKey={currency}
             onChange={(_, o) => o && setCurrency(o.key as Currency)}
             styles={{ root: { width: 100 } }}

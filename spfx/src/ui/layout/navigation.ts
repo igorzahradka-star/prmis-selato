@@ -51,7 +51,8 @@ export function buildNavigation(flags: NavFlags): NavEntry[] {
           { route: RouteName.Dashboard, label: 'Přehled projektů', icon: 'ViewList' },
           { route: RouteName.Map, label: 'Mapa projektů', icon: 'MapPin' },
           { route: RouteName.Orders, label: 'Objednávky', icon: 'ShoppingCart' },
-          { route: RouteName.Invoicing, label: 'Fakturace', icon: 'M365InvoicingLogo' }
+          { route: RouteName.Invoicing, label: 'Fakturace', icon: 'M365InvoicingLogo' },
+          { route: RouteName.Catalog, label: 'Kusovník', icon: 'Library' }
         ]
       }
     },

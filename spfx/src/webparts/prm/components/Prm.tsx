@@ -3,6 +3,7 @@
  * podle adresy v hashi.
  */
 
+import { CatalogPage } from '../../../features/catalog/CatalogPage';
 import { ProfilePage } from '../../../features/profile/ProfilePage';
 import * as React from 'react';
 import { ThemeProvider } from '@fluentui/react/lib/Theme';
@@ -144,6 +145,8 @@ function renderRoute(route: Route): React.ReactNode {
       return <PhotosPage />;
     case RouteName.Diary:
       return <DiaryPage entryId={orderIdFrom(route.param)} />;
+    case RouteName.Catalog:
+      return <CatalogPage />;
     case RouteName.Invoicing:
       return <InvoicesPage invoiceId={orderIdFrom(route.param)} />;
     case RouteName.Benchmark:

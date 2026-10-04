@@ -18,7 +18,8 @@ describe('buildNavigation', () => {
         RouteName.Dashboard,
         RouteName.Map,
         RouteName.Orders,
-        RouteName.Invoicing
+        RouteName.Invoicing,
+        RouteName.Catalog
       ]);
       // Deník a fotky se otevírají z detailu projektu, ne z nabídky.
       const routes = flattenNavigation(buildNavigation(nic)).map((i) => i.route);

@@ -8,6 +8,7 @@
  * zdroje dat a předá je aplikaci. Veškerá logika je v `core/`, `data/` a `features/`.
  */
 
+import { SpCatalogRepository } from '../../data/sharepoint/spCatalogRepository';
 import { SpBudgetRepository } from '../../data/sharepoint/spBudgetRepository';
 import { SpProfileRepository } from '../../data/sharepoint/spProfileRepository';
 import * as React from 'react';
@@ -101,6 +102,7 @@ export default class PrmWebPart extends BaseClientSideWebPart<IPrmWebPartProps> 
       rates,
       profiles,
       budgets: new SpBudgetRepository(this.context, projects),
+      catalog: new SpCatalogRepository(this.context),
       mail: new SpMailRepository(this.context),
       numbering,
       install: new SpInstallRepository(this.context, financeSiteUrl, settings)

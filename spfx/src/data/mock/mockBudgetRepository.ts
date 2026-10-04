@@ -141,7 +141,7 @@ export class MockBudgetRepository implements IBudgetRepository {
     return delay(clone(s.record));
   }
 
-  public async approve(recordId: number, totals: BudgetTotalsInput, comment: string | undefined, actor: CurrentUser): Promise<BudgetRecord> {
+  public async approve(recordId: number, totals: BudgetTotalsInput, comment: string | undefined, actor: CurrentUser, contractPrice?: { priceNet: number; currency: string }): Promise<BudgetRecord> {
     const s = this.require(recordId);
     if (s.record.status !== BudgetStatus.KeSchvaleni) {
       throw new WorkflowError('Schvalovat jde jen rozpočet, o jehož schválení někdo požádal.');
@@ -161,6 +161,10 @@ export class MockBudgetRepository implements IBudgetRepository {
     };
     s.record = { ...s.record, status: BudgetStatus.Schvaleno, approvals: [...s.record.approvals, approval], requestedByName: undefined, requestedAt: undefined, modified: new Date(Date.now() + 1) };
     this.record(s, actor, `Schváleno (záznam č. ${no})${comment ? `: ${comment}` : ''}`);
+    if (contractPrice) {
+      await this.projects.setContractPrice(s.record.projectNumber, contractPrice.priceNet, contractPrice.currency);
+      this.record(s, actor, `Smluvní cena projektu přepsána prodejem rozpočtu: ${contractPrice.priceNet} ${contractPrice.currency}`);
+    }
     return delay(clone(s.record));
   }
 

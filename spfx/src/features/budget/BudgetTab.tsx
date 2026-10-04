@@ -18,18 +18,21 @@ import { useApp } from '../../ui/AppContext';
 import { RES } from '../../ui/theme';
 import { CurrencySwitch } from '../../ui/components/CurrencySwitch';
 import { useReportCurrency } from '../../ui/useReportCurrency';
-import { Project } from '../../core/types';
+import { Partner, Project } from '../../core/types';
 import { formatDate, formatMoney } from '../../core/format';
+import { asCurrencyCode } from '../../core/currency';
 import { toActor, toWorkflowProject } from '../../core/orderWorkflow';
 import {
   BudgetAction,
   BudgetDoc,
   BudgetGroup,
+  BudgetItem,
   BudgetRecord,
   BudgetStatus,
   GROUP_KIND_LABELS,
   GroupKind,
   addGroup,
+  addItem,
   addRate,
   availableBudgetActions,
   budgetTotals,
@@ -47,6 +50,10 @@ import {
 import { BudgetHistoryEntry } from '../../data/repositories';
 import { BudgetGrid, pct } from './BudgetGrid';
 import { BudgetImportDialog } from './BudgetImportDialog';
+import { NewPartnerDialog } from './NewPartnerDialog';
+import { CatalogItemDialog } from '../catalog/CatalogItemDialog';
+import { CatalogPickerDialog } from '../catalog/CatalogPickerDialog';
+import { CatalogItem, budgetItemFromCatalog, catalogInputFromItem, canWriteCatalog } from '../../core/catalog';
 import { CELL_INPUT, NumInput } from './NumInput';
 
 const STATUS_COLOR: Record<BudgetStatus, { bg: string; fg: string }> = {
@@ -88,6 +95,18 @@ export const BudgetTab: React.FC<{ project: Project }> = ({ project }) => {
   const [dialog, setDialog] = React.useState<DialogState>(undefined);
   const [importOpen, setImportOpen] = React.useState(false);
   const [ratesOpen, setRatesOpen] = React.useState(false);
+  const [partners, setPartners] = React.useState<Partner[]>([]);
+  const [newPartner, setNewPartner] = React.useState<{ name: string; itemId: string } | undefined>(undefined);
+  const [catalogSave, setCatalogSave] = React.useState<BudgetItem | undefined>(undefined);
+  const [catalogCache, setCatalogCache] = React.useState<CatalogItem[]>([]);
+  const [pickOpen, setPickOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    repos.partners
+      .list({})
+      .then(setPartners)
+      .catch(() => setPartners([]));
+  }, [repos]);
 
   const actions: BudgetAction[] = availableBudgetActions(record, wf, actor);
   const editable = actions.indexOf('edit') !== -1;
@@ -205,8 +224,10 @@ export const BudgetTab: React.FC<{ project: Project }> = ({ project }) => {
         if (dirty) {
           await save();
         }
-        await repos.budgets.approve(record.id, czk(doc), d.text.trim() || undefined, user);
-        setNotice('Rozpočet je schválený. Záznam (náklady, prodej, marže) je v historii dole.');
+        // Smluvní cena projektu = prodej schváleného rozpočtu (v měně projektu).
+        const price = budgetTotals(doc, asCurrencyCode(project.currency), report.rates).sale;
+        await repos.budgets.approve(record.id, czk(doc), d.text.trim() || undefined, user, { priceNet: price, currency: asCurrencyCode(project.currency) });
+        setNotice('Rozpočet je schválený. Záznam (náklady, prodej, marže) je v historii dole. Smluvní cena projektu je teď prodej rozpočtu.');
       } else {
         await repos.budgets.reject(record.id, d.text, user);
         setNotice('Rozpočet je vrácený k úpravě.');
@@ -223,6 +244,16 @@ export const BudgetTab: React.FC<{ project: Project }> = ({ project }) => {
         setNotice('Žádost o schválení je stažená zpět.');
       }
     });
+
+  /** Otevře uložení do kusovníku; předtím načte kusovník, aby se poznal duplikát. */
+  const openCatalogSave = (item: BudgetItem): void => {
+    repos.catalog
+      .list()
+      .then((l) => setCatalogCache(l))
+      .catch(() => setCatalogCache([]))
+      .then(() => setCatalogSave(item))
+      .catch(() => setCatalogSave(item));
+  };
 
   const exportCsv = (): void => {
     if (!doc) {
@@ -379,6 +410,7 @@ export const BudgetTab: React.FC<{ project: Project }> = ({ project }) => {
                 <PrimaryButton text={busy ? 'Pracuji…' : dirty ? 'Uložit rozpočet' : 'Uloženo'} disabled={busy || !dirty} onClick={() => run(save)} />
                 <ActionButton iconProps={{ iconName: 'Add' }} text="Přidat skupinu" disabled={busy} onClick={() => setDialog({ kind: 'newGroup', name: '', type: 'standard' })} />
                 <ActionButton iconProps={{ iconName: 'Paste' }} text="Vložit z Excelu" disabled={busy} onClick={() => setImportOpen(true)} />
+                <ActionButton iconProps={{ iconName: 'Library' }} text="Vložit z kusovníku" disabled={busy} onClick={() => setPickOpen(true)} />
               </>
             )}
             <ActionButton iconProps={{ iconName: ratesOpen ? 'ChevronUp' : 'Contact' }} text={`Sazby profesí (${doc.rates.length})`} onClick={() => setRatesOpen((o) => !o)} />
@@ -402,7 +434,17 @@ export const BudgetTab: React.FC<{ project: Project }> = ({ project }) => {
 
           {ratesOpen && <RatesTable doc={doc} onChange={setDoc} editable={editable && !busy} />}
 
-          <BudgetGrid doc={doc} onChange={setDoc} editable={editable && !busy} categories={settings.budget.categories} report={report} onRemoveGroup={(g) => setDialog({ kind: 'group', group: g })} />
+          <BudgetGrid
+            doc={doc}
+            onChange={setDoc}
+            editable={editable && !busy}
+            categories={settings.budget.categories}
+            report={report}
+            onRemoveGroup={(g) => setDialog({ kind: 'group', group: g })}
+            partners={partners}
+            onCreatePartner={(name, itemId) => setNewPartner({ name, itemId })}
+            onSaveToCatalog={canWriteCatalog(actor) ? (item) => openCatalogSave(item) : undefined}
+          />
 
           <div style={{ fontSize: 12, color: RES.gray, marginTop: 8 }}>
             Výchozí je nákup. Prodej = nákup × (1 + přirážka). Přirážku zadáváte u skupiny (platí pro její položky) nebo u položky; místo toho můžete zadat rovnou prodejní cenu a přirážka se dopočte.
@@ -460,6 +502,50 @@ export const BudgetTab: React.FC<{ project: Project }> = ({ project }) => {
             )}
           </div>
         </>
+      )}
+
+      {newPartner && (
+        <NewPartnerDialog
+          suggestedName={newPartner.name}
+          onClose={() => setNewPartner(undefined)}
+          onCreated={(p) => {
+            const target = newPartner;
+            setNewPartner(undefined);
+            setPartners((cur) => [...cur, p]);
+            if (doc && target) {
+              setDoc({ ...doc, items: doc.items.map((i) => (i.id === target.itemId ? { ...i, supplier: p.name } : i)) });
+            }
+            setNotice(`Partner „${p.name}“ je založený a vybraný jako dodavatel. Nezapomeňte rozpočet uložit.`);
+          }}
+        />
+      )}
+
+      {catalogSave && (
+        <CatalogItemDialog
+          initial={catalogInputFromItem(catalogSave, project.projectNumber)}
+          existing={catalogCache}
+          onClose={() => setCatalogSave(undefined)}
+          onSaved={(item, updated) => {
+            setCatalogSave(undefined);
+            setNotice(updated ? `Položka „${item.description}“ už v kusovníku byla — cena a údaje se přepsaly.` : `Položka „${item.description}“ je uložená v kusovníku.`);
+          }}
+        />
+      )}
+
+      {pickOpen && doc && (
+        <CatalogPickerDialog
+          doc={doc}
+          onClose={() => setPickOpen(false)}
+          onPick={(items, groupId) => {
+            setPickOpen(false);
+            let next = doc;
+            items.forEach((c) => {
+              next = addItem(next, budgetItemFromCatalog(c, groupId));
+            });
+            setDoc(next);
+            setNotice(`Vloženo ${items.length} položek z kusovníku. Upravte množství a rozpočet uložte.`);
+          }}
+        />
       )}
 
       {importOpen && doc && (

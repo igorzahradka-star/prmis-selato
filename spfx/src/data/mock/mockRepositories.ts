@@ -8,6 +8,7 @@
  * jiná logika než do ostré implementace, UI by se chovalo jinak na ostro.
  */
 
+import { MockCatalogRepository } from './mockCatalogRepository';
 import { MockBudgetRepository } from './mockBudgetRepository';
 import { MockProfileRepository } from './mockProfileRepository';
 import type { FolderMap } from '../../core/projectFolders';
@@ -324,6 +325,15 @@ export class MockProjectRepository implements IProjectRepository {
     this.projects = this.projects.map((p) => (p.projectNumber === projectNumber ? updated : p));
     this.versions.set(projectNumber, String(Number(version) + 1));
     return delay(updated);
+  }
+
+  public async setContractPrice(projectNumber: string, priceNet: number, currency: string): Promise<void> {
+    const current = this.projects.filter((p) => p.projectNumber === projectNumber)[0];
+    if (!current) {
+      throw new Error(`Projekt ${projectNumber} nebyl nalezen.`);
+    }
+    this.projects = this.projects.map((p) => (p.projectNumber === projectNumber ? { ...p, contractPriceNet: priceNet, currency: currency as Project['currency'] } : p));
+    return delay(undefined);
   }
 
   /** Verze položky pro simulaci optimistického zámku — viz `update`. */
@@ -1009,6 +1019,7 @@ export function createMockRepositories(): RepositorySet {
     rates,
     profiles,
     budgets: new MockBudgetRepository(projects),
+    catalog: new MockCatalogRepository(),
     mail: new MockMailRepository(),
     tasks: new MockTaskRepository((projectNumber, next) => projects.setNextDeadline(projectNumber, next)),
     documents: new MockDocumentRepository(),

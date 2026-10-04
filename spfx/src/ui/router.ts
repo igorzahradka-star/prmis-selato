@@ -16,6 +16,7 @@ export enum RouteName {
   Orders = 'objednavky',
   WaitingForMe = 'ceka-na-me',
   Invoicing = 'fakturace',
+  Catalog = 'kusovnik',
   Diary = 'denik',
   Photos = 'foto',
   Finance = 'firemni-cashflow',

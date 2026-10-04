@@ -5,6 +5,25 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.25.0 — 4. 10. 2026 — Kusovník, dodavatel z partnerů, smluvní cena z rozpočtu
+
+**Nové**
+
+- **Kusovník** — společná databáze položek pro všechny projekty (know-how pro další nabídky a rozpočty). V menu **Projekty → Kusovník**: seznam s hledáním podle písmen (popis, dodavatel, kategorie), nová položka, úprava; smazat smí vedení a administrátor (do koše SharePointu).
+  V rozpočtu: **⋯ u položky → Uložit do kusovníku** (okno s údaji; když tam stejná položka — popis a dodavatel — už je, nabídne **přepsání ceny** místo duplikátu) a tlačítko **Vložit z kusovníku** (hledání, zaškrtnutí více položek, volba skupiny; vloží se s množstvím 1 a cenou z kusovníku).
+- **Dodavatel v rozpočtu = výběr z partnerů.** Píšete a seznam se zužuje podle písmen kdekoli v názvu (i podle IČO, bez ohledu na diakritiku). Není-li dodavatel v seznamu, nabídka **+ Založit nového partnera** (název, IČO s dotažením z ARES, typ, DIČ, adresa) — partner se uloží do Partnerů a hned se vybere.
+- **Vodorovný posuvník rozpočtu je pořád vidět** dole na obrazovce (tabulka má omezenou výšku a rolují se v ní obě osy); záhlaví sloupců zůstává nahoře.
+
+**Změněno**
+
+- **Smluvní cena projektu = prodej schváleného rozpočtu.** Schválením rozpočtu se cena (a měna) projektu **přepíše prodejem rozpočtu**; zapíše se to do historie. Do prvního schválení jde cenu zadat ručně v Upravit projekt; po schválení je pole zamčené s vysvětlením.
+
+**Co je potřeba udělat po nasazení:** spustit **Instalace a diagnostika** (schéma 15 — nový seznam „PRM – Kusovník“; nic se nemaže).
+
+**Zatím vypnuto:** „⋯ → Objednat“ (objednávka z položky rozpočtu přijde s krokem 3b).
+
+---
+
 ## 0.24.0 — 2. 10. 2026 — Rozpočet podruhé: jeden rozpočet na projekt, vlastní práce, rezerva, skutečnost
 
 Podle zkoušení rozpočtu v 0.23.0 přepracováno:

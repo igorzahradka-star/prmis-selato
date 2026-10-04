@@ -20,6 +20,7 @@ import { Assignee } from '../core/orderWorkflow';
 import { InvoiceBasis, InvoiceKind } from '../core/invoiceBases';
 import { DiaryEntry, EntryInput, EntryListFilter, SiteDiary } from '../core/siteDiary';
 import { BudgetDoc, BudgetRecord } from '../core/budget';
+import { CatalogInput, CatalogItem } from '../core/catalog';
 import { StoredRate, StoredRates } from '../core/currency';
 import { ListDef } from './schema';
 
@@ -180,6 +181,8 @@ export interface IProjectRepository {
    * než uživatele otravovat. Bez `expectedVersion` se uloží natvrdo.
    */
   update(projectNumber: string, input: ProjectEditInput, expectedVersion?: string): Promise<Project>;
+  /** Přepíše jen smluvní cenu projektu (bez DPH) a měnu — používá schválení rozpočtu: smluvní cena = prodej schváleného rozpočtu. */
+  setContractPrice(projectNumber: string, priceNet: number, currency: string): Promise<void>;
   /**
    * Smaže projekt **i s tím, co k němu patří** — vše **do koše SharePointu**, ne natrvalo. Odtud to jde 93 dní
    * obnovit; o to se stará správce webu, aplikace na to tlačítko nemá.
@@ -764,6 +767,22 @@ export interface IProfileRepository {
   removeSignature(actor: CurrentUser): Promise<void>;
 }
 
+/**
+ * Kusovník — společná databáze položek pro všechny projekty (PRM_Catalog). Čtení smí každý, kdo vidí web PRM;
+ * zapisuje PM, asistent, vedení, administrátor; maže vedení a administrátor (do koše SharePointu).
+ */
+export interface ICatalogRepository {
+  list(): Promise<CatalogItem[]>;
+  /**
+   * Uloží položku: když v kusovníku už je stejná (popis + dodavatel), přepíše její cenu a údaje (`updated: true`),
+   * jinak založí novou.
+   */
+  save(input: CatalogInput, actor: CurrentUser): Promise<{ item: CatalogItem; updated: boolean }>;
+  /** Úprava existující položky. */
+  update(id: number, input: CatalogInput, actor: CurrentUser): Promise<CatalogItem>;
+  remove(id: number, actor: CurrentUser): Promise<void>;
+}
+
 /** Součty rozpočtu v Kč, které se ukládají u záznamu (přehledy je čtou bez načítání obsahu). */
 export interface BudgetTotalsInput {
   totalCost: number;
@@ -792,7 +811,7 @@ export interface IBudgetRepository {
   /** Požádá vedení o schválení (rozpočet se tím nezamyká). */
   requestApproval(recordId: number, actor: CurrentUser): Promise<BudgetRecord>;
   /** Schválí (vedení): do historie se uloží záznam s aktuálními náklady, prodejem a marží (v Kč). */
-  approve(recordId: number, totals: BudgetTotalsInput, comment: string | undefined, actor: CurrentUser): Promise<BudgetRecord>;
+  approve(recordId: number, totals: BudgetTotalsInput, comment: string | undefined, actor: CurrentUser, contractPrice?: { priceNet: number; currency: string }): Promise<BudgetRecord>;
   /** Vrátí žádost: vedení s důvodem, žadatel ji stáhne zpět bez důvodu. */
   reject(recordId: number, comment: string, actor: CurrentUser): Promise<BudgetRecord>;
   /** Historie (kdo, kdy, co) od nejstarší. */
@@ -813,6 +832,7 @@ export interface RepositorySet {
   rates: IRatesRepository;
   profiles: IProfileRepository;
   budgets: IBudgetRepository;
+  catalog: ICatalogRepository;
   mail: IMailRepository;
   numbering: INumberingRepository;
   install: IInstallRepository;

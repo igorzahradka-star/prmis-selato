@@ -35,11 +35,13 @@ import {
   withMarkup,
   withSale
 } from '../../core/budget';
+import { Partner } from '../../core/types';
 import { CELL_INPUT, NumInput } from './NumInput';
+import { SupplierPicker } from './SupplierPicker';
 
 export const pct = (v: number): string => `${v.toLocaleString('cs-CZ', { maximumFractionDigits: 1 })} %`;
 
-const TH: React.CSSProperties = { textAlign: 'left', fontWeight: 600, fontSize: 12, color: RES.gray, padding: '6px 4px', whiteSpace: 'nowrap' };
+const TH: React.CSSProperties = { textAlign: 'left', fontWeight: 600, fontSize: 12, color: RES.gray, padding: '6px 4px', whiteSpace: 'nowrap', position: 'sticky', top: 0, background: RES.white, zIndex: 1, boxShadow: `0 1px 0 ${RES.grayBlue}` };
 const TD: React.CSSProperties = { padding: '3px 3px', verticalAlign: 'middle' };
 const R: React.CSSProperties = { ...TD, textAlign: 'right', fontSize: 13 };
 const COLS = 16;
@@ -55,9 +57,12 @@ export interface BudgetGridProps {
   onSaveToCatalog?: (item: BudgetItem) => void;
   /** Objednávka z položky; bez ní je volba v nabídce vypnutá. */
   onOrder?: (item: BudgetItem) => void;
+  /** Partneři pro výběr dodavatele a založení nového. */
+  partners: Partner[];
+  onCreatePartner: (suggestedName: string, itemId: string) => void;
 }
 
-export const BudgetGrid: React.FC<BudgetGridProps> = ({ doc, onChange, editable, categories, report, onRemoveGroup, onSaveToCatalog, onOrder }) => {
+export const BudgetGrid: React.FC<BudgetGridProps> = ({ doc, onChange, editable, categories, report, onRemoveGroup, onSaveToCatalog, onOrder, partners, onCreatePartner }) => {
   const [collapsed, setCollapsed] = React.useState<string[]>([]);
   const toggle = (id: string): void => setCollapsed((cur) => (cur.indexOf(id) === -1 ? [...cur, id] : cur.filter((x) => x !== id)));
   const calcs = React.useMemo(() => calcItems(doc, report.rates), [doc, report.rates]);
@@ -123,7 +128,9 @@ export const BudgetGrid: React.FC<BudgetGridProps> = ({ doc, onChange, editable,
   );
 
   return (
-    <div style={{ overflowX: 'auto', background: RES.white, border: `1px solid ${RES.grayBlue}`, borderRadius: 4 }}>
+    // Obal rolují oběma směry a má omezenou výšku, takže vodorovný posuvník je pořád dole na obrazovce (ne na konci dlouhé tabulky);
+    // záhlaví sloupců zůstává nahoře.
+    <div style={{ overflow: 'auto', maxHeight: 'calc(100vh - 150px)', background: RES.white, border: `1px solid ${RES.grayBlue}`, borderRadius: 4 }}>
       <table style={{ width: '100%', minWidth: 1700, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
         <colgroup>
           <col style={{ width: 'auto' }} />
@@ -325,7 +332,9 @@ export const BudgetGrid: React.FC<BudgetGridProps> = ({ doc, onChange, editable,
                           </>
                         ) : (
                           <>
-                            <td style={TD}>{textInput('Dodavatel', item.supplier, (v) => setItem(item.id, { supplier: v || undefined }))}</td>
+                            <td style={TD}>
+                              <SupplierPicker value={item.supplier} partners={partners} disabled={!editable} onChange={(name) => setItem(item.id, { supplier: name })} onCreate={(text) => onCreatePartner(text, item.id)} />
+                            </td>
                             <td style={TD}>
                               <select aria-label="Kategorie" value={item.category ?? ''} disabled={!editable} onChange={(e) => setItem(item.id, { category: e.target.value || undefined })} style={{ ...CELL_INPUT, background: bg }}>
                                 <option value="">—</option>

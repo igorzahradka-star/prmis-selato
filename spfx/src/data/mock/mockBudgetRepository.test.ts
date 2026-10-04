@@ -97,3 +97,19 @@ describe('MockBudgetRepository (jeden rozpočet na projekt)', () => {
     await expect(r.budgets.save(rec.id, naplneny(), TOTALS, jan, c?.etag)).rejects.toThrow(/mezitím/);
   });
 });
+
+describe('Smluvní cena projektu = prodej schváleného rozpočtu', () => {
+  it('schválení s cenou přepíše smluvní cenu a měnu projektu; bez ní se projekt nemění', async () => {
+    const r = createMockRepositories();
+    const before = await r.projects.getByNumber('25003');
+    const rec = await r.budgets.create('25003', naplneny(), TOTALS, jan);
+    await r.budgets.requestApproval(rec.id, jan);
+    await r.budgets.approve(rec.id, TOTALS, undefined, igor);
+    expect((await r.projects.getByNumber('25003'))?.contractPriceNet).toBe(before?.contractPriceNet);
+    await r.budgets.requestApproval(rec.id, jan);
+    await r.budgets.approve(rec.id, TOTALS, undefined, igor, { priceNet: 123456, currency: 'EUR' });
+    const after = await r.projects.getByNumber('25003');
+    expect([after?.contractPriceNet, after?.currency]).toEqual([123456, 'EUR']);
+    expect((await r.budgets.history(rec.id)).some((h) => h.action.startsWith('Smluvní cena projektu přepsána'))).toBe(true);
+  });
+});

@@ -170,7 +170,7 @@ export class SpBudgetRepository implements IBudgetRepository {
     return mapRecord((await this.load(recordId)).item);
   }
 
-  public async approve(recordId: number, totals: BudgetTotalsInput, comment: string | undefined, actor: CurrentUser): Promise<BudgetRecord> {
+  public async approve(recordId: number, totals: BudgetTotalsInput, comment: string | undefined, actor: CurrentUser, contractPrice?: { priceNet: number; currency: string }): Promise<BudgetRecord> {
     const { item, etag } = await this.load(recordId);
     const record = mapRecord(item);
     if (record.status !== BudgetStatus.KeSchvaleni) {
@@ -196,6 +196,11 @@ export class SpBudgetRepository implements IBudgetRepository {
       'Rozpočet se nepodařilo schválit'
     );
     await this.audit(record.projectNumber, actor, `Schváleno (záznam č. ${no})${comment ? `: ${comment}` : ''}`, record.status, BudgetStatus.Schvaleno);
+    if (contractPrice) {
+      // Smluvní cena projektu = prodej schváleného rozpočtu. Selhání zápisu schválení nezruší (ukáže se jako chyba k opravě).
+      await this.projects.setContractPrice(record.projectNumber, contractPrice.priceNet, contractPrice.currency);
+      await this.audit(record.projectNumber, actor, `Smluvní cena projektu přepsána prodejem rozpočtu: ${contractPrice.priceNet} ${contractPrice.currency}`, BudgetStatus.Schvaleno, BudgetStatus.Schvaleno);
+    }
     return mapRecord((await this.load(recordId)).item);
   }
 

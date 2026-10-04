@@ -339,6 +339,19 @@ export class SpProjectRepository implements IProjectRepository {
     return (await this.getByNumber(projectNumber)) ?? existing;
   }
 
+  public async setContractPrice(projectNumber: string, priceNet: number, currency: string): Promise<void> {
+    const existing = await this.getByNumber(projectNumber);
+    if (!existing) {
+      throw new Error(`Projekt ${projectNumber} nebyl nalezen.`);
+    }
+    try {
+      const sp = getSp(this.context);
+      await sp.web.lists.getByTitle(PROJECTS_LIST).items.getById(existing.id).update({ ContractPriceNet: priceNet, Currency: currency }, '*');
+    } catch (error) {
+      throw new Error(describeSpError(error, `Nepodařilo se přepsat smluvní cenu projektu ${projectNumber}`));
+    }
+  }
+
   /**
    * Seznamy, jejichž položky patří k projektu (sloupec Projekt). Pořadí je pořadí mazání: nejdřív to, co visí na jiném
    * (zápisy na deníku), nakonec evidenční položka projektu. Číslované doklady (PRM_Documents) zůstávají — jsou to přidělená čísla.
