@@ -96,6 +96,8 @@ const SELECT_FIELDS = [
   'CancelReason',
   'SentDate',
   'Note',
+  'BudgetItemId',
+  'BudgetItemName',
   'Created',
   'Modified'
 ];
@@ -122,6 +124,8 @@ interface OrderItem {
   CancelReason?: string;
   SentDate?: string;
   Note?: string;
+  BudgetItemId?: string;
+  BudgetItemName?: string;
   Created?: string;
   Modified?: string;
 }
@@ -607,7 +611,9 @@ function toFields(input: OrderInput): Record<string, unknown> {
     Currency: input.currency,
     DeliveryDate: input.deliveryDate ? input.deliveryDate.toISOString() : null,
     PaymentTermDays: input.paymentTermDays ?? null,
-    Note: input.note ?? ''
+    Note: input.note ?? '',
+    BudgetItemId: input.budgetItemId ?? '',
+    BudgetItemName: input.budgetItemName ?? ''
   };
 }
 
@@ -634,6 +640,8 @@ function mapOrder(item: OrderItem): PurchaseOrder {
     currentApprovalLevel: level === 'pm' || level === 'vedeni' || level === 'jednatel' ? (level as ApprovalLevel) : undefined,
     approvalChain: chainFromJson(item.ApprovalChain),
     note: item.Note || undefined,
+    budgetItemId: item.BudgetItemId || undefined,
+    budgetItemName: item.BudgetItemName || undefined,
     cancelReason: item.CancelReason || undefined,
     sentDate: toDate(item.SentDate),
     pdfUrl: item.PdfUrl?.Url || undefined,

@@ -22,6 +22,8 @@ import { Role } from './types';
 import { Actor, WorkflowProject, canIssueOrder } from './orderWorkflow';
 import { parseAmount } from './format';
 import { Profession } from './settings';
+import { BudgetStatus as Semafor } from './types';
+import { OrderStatus, SPENT_ORDER_STATUSES } from './orders';
 
 export type { Profession };
 
@@ -75,6 +77,8 @@ export interface BudgetItem {
   actualQty?: number;
   /** Skutečnost: za kolik se koupilo (v měně položky); u práce se počítá z hodin a nákladové sazby. */
   actualCost?: number;
+  /** Prognóza nákladů položky (v měně položky), zadává PM; bez ní platí plán. Nikdy není nižší než objednáno a koupeno. */
+  forecastCost?: number;
   note?: string;
 }
 
@@ -152,6 +156,10 @@ export interface ItemCalc {
   /** Zbývá koupit: množství a částka (plán − skutečnost; záporné = překročeno). */
   remainingQty: number;
   remainingCost: number;
+  /** Objednáno: součet objednávek navázaných na položku (v měně položky). */
+  ordered: number;
+  /** Prognóza nákladů: ruční (jinak plán), nejméně však objednáno a koupeno. */
+  forecast: number;
 }
 
 export const findRate = (doc: BudgetDoc, id: string | undefined): LabourRate | undefined => doc.rates.filter((r) => r.id === id)[0];
@@ -160,7 +168,7 @@ export const findRate = (doc: BudgetDoc, id: string | undefined): LabourRate | u
  * Vypočte všechny položky. Rezerva v procentech potřebuje prodej ostatních položek v Kč, proto kurzy.
  * `R = p / (100 − Σp) × prodej ostatních`, takže rezerva tvoří Σp % z celkového prodeje (včetně sebe).
  */
-export function calcItems(doc: BudgetDoc, rates: RateTable): ItemCalc[] {
+export function calcItems(doc: BudgetDoc, rates: RateTable, orders: OrderLike[] = []): ItemCalc[] {
   const groups = new Map(doc.groups.map((g) => [g.id, g] as [string, BudgetGroup]));
   const base = (item: BudgetItem): ItemCalc => {
     const group = groups.get(item.groupId);
@@ -182,6 +190,7 @@ export function calcItems(doc: BudgetDoc, rates: RateTable): ItemCalc[] {
       c = { currency: item.currency, cost: itemCost(item), sale: itemSale(item, group), actualQty: item.actualQty ?? 0, actualCost: item.actualCost ?? 0 };
     }
     const markup = group && group.kind === 'standard' ? itemMarkup(item, group) : markupPercentOf(c.cost, c.sale);
+    const ordered = orderedForItem(orders, item.id, c.currency, rates);
     return {
       item,
       group,
@@ -189,7 +198,9 @@ export function calcItems(doc: BudgetDoc, rates: RateTable): ItemCalc[] {
       markup,
       margin: marginPercent(c.cost, c.sale),
       remainingQty: round2(item.quantity - c.actualQty),
-      remainingCost: round2(c.cost - c.actualCost)
+      remainingCost: round2(c.cost - c.actualCost),
+      ordered,
+      forecast: forecastOf(item.forecastCost, c.cost, ordered, c.actualCost)
     };
   };
   const calcs = doc.items.map(base);
@@ -206,6 +217,7 @@ export function calcItems(doc: BudgetDoc, rates: RateTable): ItemCalc[] {
       c.markup = 0;
       c.margin = 0;
       c.remainingCost = round2(amount - c.actualCost);
+      c.forecast = forecastOf(c.item.forecastCost, amount, c.ordered, c.actualCost);
     });
   }
   return calcs;
@@ -218,6 +230,9 @@ export interface BudgetSum {
   /** Skutečnost (koupeno) a zbývá, v nákladech. */
   actual: number;
   remaining: number;
+  /** Objednáno (navázané objednávky) a prognóza nákladů. */
+  ordered: number;
+  forecast: number;
 }
 
 export interface BudgetTotals extends BudgetSum {
@@ -229,11 +244,61 @@ export interface BudgetTotals extends BudgetSum {
   byCategory: Array<BudgetSum & { category: string }>;
 }
 
-const zeroSum = (): BudgetSum => ({ cost: 0, sale: 0, actual: 0, remaining: 0 });
+/** Objednávka, jak ji potřebuje výpočet rozpočtu (objednáno u položky). */
+export interface OrderLike {
+  budgetItemId?: string;
+  status: OrderStatus;
+  amountNet: number;
+  currency: string;
+}
+
+/** Objednáno u položky: součet navázaných objednávek ve stavech, které se počítají jako vystavené, v měně položky. */
+export function orderedForItem(orders: OrderLike[], itemId: string, currency: CurrencyCode, rates: RateTable): number {
+  return round2(
+    orders
+      .filter((o) => o.budgetItemId === itemId && SPENT_ORDER_STATUSES.indexOf(o.status) !== -1)
+      .reduce((s, o) => s + convertAmount(o.amountNet, o.currency, currency, rates), 0)
+  );
+}
+
+/** Prognóza nákladů položky: ruční (jinak plán), nikdy méně než už objednáno nebo koupeno. */
+export function forecastOf(manual: number | undefined, plan: number, ordered: number, actual: number): number {
+  return round2(Math.max(manual !== undefined ? manual : plan, ordered, actual));
+}
+
+/** Výsledek semaforu rozpočtu. */
+export interface SemaphoreResult {
+  status: Semafor;
+  /** Odchylka prognózy nákladů proti baseline v %. */
+  deviationPercent?: number;
+  /** Plánovaná marže: (smluvní cena − prognóza nákladů) / smluvní cena v %. */
+  marginPercent?: number;
+}
+
+/**
+ * Semafor rozpočtu. Baseline = náklady posledního schválení. Zelená: prognóza není nad baseline; žlutá: nad ní do prahu;
+ * červená: nad prahem, nebo plánovaná marže pod minimem. Bez schválení (baseline) je „Bez rozpočtu“. Částky v jedné měně.
+ */
+export function budgetSemaphore(input: { baselineCost?: number; forecastCost: number; contractPrice?: number; yellowThresholdPercent: number; minimumMarginPercent: number }): SemaphoreResult {
+  if (input.baselineCost === undefined || !(input.baselineCost > 0)) {
+    return { status: Semafor.Bez };
+  }
+  const deviation = round2(((input.forecastCost - input.baselineCost) / input.baselineCost) * 100);
+  const margin = input.contractPrice !== undefined && input.contractPrice > 0 ? round2(((input.contractPrice - input.forecastCost) / input.contractPrice) * 100) : undefined;
+  let status = Semafor.Zelena;
+  if (deviation > input.yellowThresholdPercent || (margin !== undefined && margin < input.minimumMarginPercent)) {
+    status = Semafor.Cervena;
+  } else if (deviation > 0) {
+    status = Semafor.Zluta;
+  }
+  return { status, deviationPercent: deviation, marginPercent: margin };
+}
+
+const zeroSum = (): BudgetSum => ({ cost: 0, sale: 0, actual: 0, remaining: 0, ordered: 0, forecast: 0 });
 
 /** Součty rozpočtu v jedné měně (`target`); položky se přepočítají kurzem ČNB. */
-export function budgetTotals(doc: BudgetDoc, target: CurrencyCode, rates: RateTable): BudgetTotals {
-  const calcs = calcItems(doc, rates);
+export function budgetTotals(doc: BudgetDoc, target: CurrencyCode, rates: RateTable, orders: OrderLike[] = []): BudgetTotals {
+  const calcs = calcItems(doc, rates, orders);
   const to = (amount: number, from: CurrencyCode): number => convertAmount(amount, from, target, rates);
   const total = zeroSum();
   const groupSums = new Map<string, BudgetSum & { count: number }>(doc.groups.map((g) => [g.id, { ...zeroSum(), count: 0 }]));
@@ -244,6 +309,8 @@ export function budgetTotals(doc: BudgetDoc, target: CurrencyCode, rates: RateTa
       s.sale += to(c.sale, c.currency);
       s.actual += to(c.actualCost, c.currency);
       s.remaining += to(c.remainingCost, c.currency);
+      s.ordered += to(c.ordered, c.currency);
+      s.forecast += to(c.forecast, c.currency);
     };
     add(total);
     const gs = groupSums.get(c.item.groupId);
@@ -256,7 +323,7 @@ export function budgetTotals(doc: BudgetDoc, target: CurrencyCode, rates: RateTa
     add(cur);
     cats.set(key, cur);
   });
-  const r = (s: BudgetSum): BudgetSum => ({ cost: round2(s.cost), sale: round2(s.sale), actual: round2(s.actual), remaining: round2(s.remaining) });
+  const r = (s: BudgetSum): BudgetSum => ({ cost: round2(s.cost), sale: round2(s.sale), actual: round2(s.actual), remaining: round2(s.remaining), ordered: round2(s.ordered), forecast: round2(s.forecast) });
   const t = r(total);
   return {
     ...t,
@@ -343,7 +410,7 @@ export function duplicateItem(doc: BudgetDoc, itemId: string): BudgetDoc {
   if (idx === -1) {
     return doc;
   }
-  const copy: BudgetItem = { ...doc.items[idx], id: newBudgetId('i'), actualQty: undefined, actualCost: undefined };
+  const copy: BudgetItem = { ...doc.items[idx], id: newBudgetId('i'), actualQty: undefined, actualCost: undefined, forecastCost: undefined };
   const items = doc.items.slice();
   items.splice(idx + 1, 0, copy);
   return { ...doc, items };
@@ -485,6 +552,7 @@ export function budgetFromJson(json: string | undefined): BudgetDoc {
     reservePercent: optNum(i.reservePercent),
     actualQty: optNum(i.actualQty),
     actualCost: optNum(i.actualCost),
+    forecastCost: optNum(i.forecastCost),
     note: optStr(i.note)
   }));
   const rates = (Array.isArray(raw.rates) ? raw.rates : []).map((r: Record<string, unknown>) => ({

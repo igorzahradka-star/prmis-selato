@@ -381,7 +381,9 @@ export class MockOrderRepository implements IOrderRepository {
       currency: input.currency,
       deliveryDate: input.deliveryDate,
       paymentTermDays: input.paymentTermDays,
-      note: input.note
+      note: input.note,
+      budgetItemId: input.budgetItemId,
+      budgetItemName: input.budgetItemName
     };
   }
 

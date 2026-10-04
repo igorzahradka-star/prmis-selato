@@ -21,7 +21,7 @@ import { useReportCurrency } from '../../ui/useReportCurrency';
 import { Partner, Project } from '../../core/types';
 import { formatDate, formatMoney } from '../../core/format';
 import { asCurrencyCode } from '../../core/currency';
-import { toActor, toWorkflowProject } from '../../core/orderWorkflow';
+import { canIssueOrder, toActor, toWorkflowProject } from '../../core/orderWorkflow';
 import {
   BudgetAction,
   BudgetDoc,
@@ -48,6 +48,10 @@ import {
   validateBudget
 } from '../../core/budget';
 import { BudgetHistoryEntry } from '../../data/repositories';
+import { OrderPanel } from '../orders/OrderPanel';
+import { refreshBudgetCache, computeSemaphore } from './budgetCache';
+import { PurchaseOrder } from '../../core/orders';
+import { BudgetStatus as Semafor } from '../../core/types';
 import { BudgetGrid, pct } from './BudgetGrid';
 import { BudgetImportDialog } from './BudgetImportDialog';
 import { NewPartnerDialog } from './NewPartnerDialog';
@@ -100,6 +104,21 @@ export const BudgetTab: React.FC<{ project: Project }> = ({ project }) => {
   const [catalogSave, setCatalogSave] = React.useState<BudgetItem | undefined>(undefined);
   const [catalogCache, setCatalogCache] = React.useState<CatalogItem[]>([]);
   const [pickOpen, setPickOpen] = React.useState(false);
+  const [orders, setOrders] = React.useState<PurchaseOrder[]>([]);
+  const [orderFrom, setOrderFrom] = React.useState<BudgetItem | undefined>(undefined);
+  const [ordersKey, setOrdersKey] = React.useState(0);
+
+  // Objednávky projektu — z navázaných se počítá „Objednáno“ a prognóza.
+  React.useEffect(() => {
+    let cancelled = false;
+    repos.orders
+      .list({ projectNumber: project.projectNumber })
+      .then((l) => !cancelled && setOrders(l))
+      .catch(() => !cancelled && setOrders([]));
+    return () => {
+      cancelled = true;
+    };
+  }, [repos, project.projectNumber, ordersKey]);
 
   React.useEffect(() => {
     repos.partners
@@ -145,6 +164,13 @@ export const BudgetTab: React.FC<{ project: Project }> = ({ project }) => {
       cancelled = true;
     };
   }, [reload]);
+
+  // Semafor se uloží do projektu (přehled projektů), kdykoli se rozpočet nebo objednávky změní.
+  React.useEffect(() => {
+    if (record && doc && !dirty) {
+      refreshBudgetCache(repos, project, settings, report.rates).catch(() => undefined);
+    }
+  }, [record, saved, orders, report.rates]);
 
   const run = (job: () => Promise<void>): void => {
     setBusy(true);
@@ -306,7 +332,8 @@ export const BudgetTab: React.FC<{ project: Project }> = ({ project }) => {
     return <Spinner size={SpinnerSize.medium} label="Načítám rozpočet…" />;
   }
 
-  const totals = doc ? budgetTotals(doc, report.currency, report.rates) : undefined;
+  const totals = doc ? budgetTotals(doc, report.currency, report.rates, orders) : undefined;
+  const semaphore = doc ? computeSemaphore(doc, record, orders, report.rates, settings) : undefined;
   const totalsCzk = doc ? budgetTotals(doc, 'CZK', report.rates) : undefined;
   const contract = project.contractPriceNet !== undefined ? report.convert(project.contractPriceNet, project.currency) : undefined;
   const contractMargin = contract !== undefined && totals ? marginPercent(totals.cost, contract) : undefined;
@@ -392,6 +419,11 @@ export const BudgetTab: React.FC<{ project: Project }> = ({ project }) => {
               />
             )}
           </div>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', margin: '0 0 6px' }}>
+            <Tile label={`Objednáno (${report.label})`} value={formatMoney(totals.ordered, report.currency)} hint="objednávky navázané na položky rozpočtu" />
+            <Tile label={`Prognóza nákladů (${report.label})`} value={formatMoney(totals.forecast, report.currency)} hint="ruční prognóza, jinak plán; min. objednáno a koupeno" />
+            <SemaphoreTile view={semaphore} />
+          </div>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', margin: '0 0 10px' }}>
             <Tile label={`Skutečnost – koupeno (${report.label})`} value={formatMoney(totals.actual, report.currency)} hint="součet koupeného a odpracovaného" />
             <Tile label={`Zbývá (${report.label})`} value={formatMoney(totals.remaining, report.currency)} hint="plán nákupu − skutečnost" warn={totals.remaining < 0} />
@@ -442,6 +474,8 @@ export const BudgetTab: React.FC<{ project: Project }> = ({ project }) => {
             report={report}
             onRemoveGroup={(g) => setDialog({ kind: 'group', group: g })}
             partners={partners}
+            orders={orders}
+            onOrder={canIssueOrder(wf, actor) ? (item) => setOrderFrom(item) : undefined}
             onCreatePartner={(name, itemId) => setNewPartner({ name, itemId })}
             onSaveToCatalog={canWriteCatalog(actor) ? (item) => openCatalogSave(item) : undefined}
           />
@@ -502,6 +536,23 @@ export const BudgetTab: React.FC<{ project: Project }> = ({ project }) => {
             )}
           </div>
         </>
+      )}
+
+      {orderFrom && doc && (
+        <OrderPanel
+          isOpen
+          projectNumber={project.projectNumber}
+          prefill={{
+            subject: orderFrom.description,
+            supplierName: orderFrom.supplier,
+            currency: orderFrom.currency,
+            budgetItemId: orderFrom.id,
+            budgetItemName: orderFrom.description,
+            lines: [{ description: orderFrom.description, quantity: orderFrom.quantity, unit: orderFrom.unit, unitPriceNet: orderFrom.unitCost }]
+          }}
+          onDismiss={() => setOrderFrom(undefined)}
+          onChanged={() => setOrdersKey((k) => k + 1)}
+        />
       )}
 
       {newPartner && (
@@ -614,6 +665,28 @@ export const BudgetTab: React.FC<{ project: Project }> = ({ project }) => {
 };
 
 const round = (v: number): number => Math.round(v * 100) / 100;
+
+/** Semafor rozpočtu: barva i slovo (nespoléhá jen na barvu) a odchylka prognózy proti baseline. */
+const SemaphoreTile: React.FC<{ view: ReturnType<typeof computeSemaphore> | undefined }> = ({ view }) => {
+  if (!view) {
+    return null;
+  }
+  const color = view.status === Semafor.Zelena ? RES.green : view.status === Semafor.Zluta ? '#F2A900' : view.status === Semafor.Cervena ? RES.red : RES.gray;
+  const hint =
+    view.status === Semafor.Bez
+      ? 'rozpočet ještě nebyl schválen — nemá baseline'
+      : `prognóza ${(view.deviationPercent ?? 0) > 0 ? '+' : ''}${(view.deviationPercent ?? 0).toLocaleString('cs-CZ')} % proti schválenému rozpočtu${view.marginPercent !== undefined ? `, plánovaná marže ${pct(view.marginPercent)}` : ''}`;
+  return (
+    <div style={{ background: RES.white, border: `1px solid ${RES.grayBlue}`, borderLeft: `4px solid ${color}`, borderRadius: 4, padding: '8px 12px', minWidth: 150, flex: '2 1 280px' }}>
+      <div style={{ fontSize: 12, color: RES.gray }}>Semafor rozpočtu</div>
+      <div style={{ fontSize: 18, fontWeight: 600, color: RES.navy }}>
+        <span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: 6, background: color, marginRight: 8 }} />
+        {view.status}
+      </div>
+      <div style={{ fontSize: 11, color: RES.gray }}>{hint}</div>
+    </div>
+  );
+};
 
 /** Sazby profesí projektu: kopie z číselníku v Nastavení; projekt si je drží a může upravit. */
 const RatesTable: React.FC<{ doc: BudgetDoc; onChange: (d: BudgetDoc) => void; editable: boolean }> = ({ doc, onChange, editable }) => {

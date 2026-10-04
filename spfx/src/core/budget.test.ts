@@ -12,7 +12,10 @@ import {
   approvalsToJson,
   availableBudgetActions,
   budgetFromJson,
+  budgetSemaphore,
   budgetToJson,
+  forecastOf,
+  orderedForItem,
   budgetTotals,
   calcItems,
   changedSinceApproval,
@@ -38,6 +41,8 @@ import {
   withSale
 } from './budget';
 import { RateTable } from './currency';
+import { BudgetStatus as Semafor } from './types';
+import { OrderStatus } from './orders';
 import { Actor, WorkflowProject } from './orderWorkflow';
 import { Role } from './types';
 
@@ -334,5 +339,62 @@ describe('import z tabulky', () => {
   });
   it('schránka z Excelu: řádky a tabulátory', () => {
     expect(parseClipboardTable('A\t1\r\nB\t2\r\n\r\n')).toEqual([['A', '1'], ['B', '2']]);
+  });
+});
+
+describe('objednáno, prognóza a semafor (krok 3b)', () => {
+  const o = (budgetItemId: string | undefined, status: OrderStatus, amountNet: number, currency = 'CZK'): { budgetItemId: string | undefined; status: OrderStatus; amountNet: number; currency: string } => ({ budgetItemId, status, amountNet, currency });
+
+  it('objednáno u položky: jen navázané objednávky ve stavech „vystaveno“; cizí měna se přepočte do měny položky', () => {
+    const orders = [
+      o('i1', OrderStatus.Schvaleno, 40),
+      o('i1', OrderStatus.KeSchvaleni, 10),
+      o('i1', OrderStatus.Koncept, 999),
+      o('i1', OrderStatus.Storno, 999),
+      o('jina', OrderStatus.Schvaleno, 500),
+      o(undefined, OrderStatus.Schvaleno, 500),
+      o('i1', OrderStatus.Dodano, 1, 'EUR') // 1 EUR = 25 Kč
+    ];
+    expect(orderedForItem(orders, 'i1', 'CZK', RATES)).toBe(75);
+    expect(orderedForItem(orders, 'i1', 'EUR', RATES)).toBe(3);
+    expect(orderedForItem([], 'i1', 'CZK', RATES)).toBe(0);
+  });
+
+  it('prognóza položky: ruční, jinak plán; nikdy méně než objednáno a koupeno', () => {
+    expect(forecastOf(undefined, 100, 0, 0)).toBe(100);
+    expect(forecastOf(80, 100, 0, 0)).toBe(80);
+    expect(forecastOf(80, 100, 120, 0)).toBe(120);
+    expect(forecastOf(undefined, 100, 0, 130)).toBe(130);
+  });
+
+  it('calcItems a součty: objednáno a prognóza z navázaných objednávek', () => {
+    const d = doc([item({ id: 'a', unitCost: 100, forecastCost: 110 }), item({ id: 'b', unitCost: 50 })]);
+    const orders = [o('a', OrderStatus.Schvaleno, 130), o('b', OrderStatus.Odeslano, 20)];
+    const calcs = calcItems(d, RATES, orders);
+    expect(calcs.map((c) => [c.ordered, c.forecast])).toEqual([[130, 130], [20, 50]]);
+    const t = budgetTotals(d, 'CZK', RATES, orders);
+    expect([t.ordered, t.forecast, t.cost]).toEqual([150, 180, 150]);
+    expect(budgetTotals(d, 'CZK', RATES).ordered).toBe(0);
+  });
+
+  it('práce: prognóza z odpracovaných hodin, když překročí plán', () => {
+    const d = doc([item({ id: 'p', groupId: 'gp', quantity: 10, rateId: 's1', actualQty: 12 })], [gp]);
+    const [c] = calcItems(d, RATES);
+    expect([c.cost, c.actualCost, c.forecast]).toEqual([4000, 4800, 4800]);
+  });
+
+  it('semafor: bez baseline šedá; zelená do 0 %; žlutá do prahu; červená nad prahem nebo při nízké marži', () => {
+    const base = { baselineCost: 1000, yellowThresholdPercent: 5, minimumMarginPercent: 10 };
+    expect(budgetSemaphore({ ...base, baselineCost: undefined, forecastCost: 900 }).status).toBe(Semafor.Bez);
+    expect(budgetSemaphore({ ...base, baselineCost: 0, forecastCost: 900 }).status).toBe(Semafor.Bez);
+    expect(budgetSemaphore({ ...base, forecastCost: 900, contractPrice: 1200 }).status).toBe(Semafor.Zelena);
+    expect(budgetSemaphore({ ...base, forecastCost: 1000, contractPrice: 1200 }).status).toBe(Semafor.Zelena);
+    expect(budgetSemaphore({ ...base, forecastCost: 1030, contractPrice: 1300 }).status).toBe(Semafor.Zluta);
+    expect(budgetSemaphore({ ...base, forecastCost: 1060, contractPrice: 1300 }).status).toBe(Semafor.Cervena);
+    const nizkaMarze = budgetSemaphore({ ...base, forecastCost: 1000, contractPrice: 1050 });
+    expect([nizkaMarze.status, nizkaMarze.marginPercent]).toEqual([Semafor.Cervena, 4.76]);
+    expect(budgetSemaphore({ ...base, forecastCost: 1030, contractPrice: 1300 }).deviationPercent).toBe(3);
+    // bez smluvní ceny se marže nehlídá
+    expect(budgetSemaphore({ ...base, forecastCost: 1000 }).status).toBe(Semafor.Zelena);
   });
 });

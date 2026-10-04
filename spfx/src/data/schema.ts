@@ -18,7 +18,7 @@
  * Verze schématu. Ukládá se do PRM_Settings pod klíčem `schemaVersion`.
  * Průvodce porovná uloženou verzi s touto a nabídne doplnění rozdílu.
  */
-export const SCHEMA_VERSION = 15;
+export const SCHEMA_VERSION = 16;
 
 /** Typ sloupce v SharePointu. */
 export type FieldType =
@@ -349,7 +349,9 @@ const PRM_PURCHASE_ORDERS: ListDef = {
     { name: 'CancelReason', title: 'Důvod storna', type: 'Note' },
     { name: 'PdfUrl', title: 'PDF', type: 'Url' },
     { name: 'SentDate', title: 'Odesláno dodavateli', type: 'DateTime' },
-    { name: 'Note', title: 'Poznámka', type: 'Note' }
+    { name: 'Note', title: 'Poznámka', type: 'Note' },
+    { name: 'BudgetItemId', title: 'Položka rozpočtu (id)', type: 'Text', indexed: true, description: 'Stabilní id položky realizačního rozpočtu, na kterou je objednávka navázaná. Zapisuje aplikace.' },
+    { name: 'BudgetItemName', title: 'Položka rozpočtu', type: 'Text', description: 'Popis navázané položky rozpočtu. Zapisuje aplikace.' }
   ]
 };
 

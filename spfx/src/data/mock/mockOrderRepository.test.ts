@@ -355,3 +355,13 @@ describe('MockOrderRepository — úprava po schválení, opakované odeslání,
     expect(hotovo.status).toBe(OrderStatus.Schvaleno);
   });
 });
+
+describe('MockOrderRepository — navázání na položku rozpočtu', () => {
+  it('objednávka si pamatuje položku rozpočtu (id a popis); změna se uloží i při úpravě konceptu', async () => {
+    const r = await repos();
+    const o = await r.orders.create(vstup({ budgetItemId: 'i-1', budgetItemName: 'Panely (NODA)' }), igor);
+    expect([o.budgetItemId, o.budgetItemName]).toEqual(['i-1', 'Panely (NODA)']);
+    const upr = await r.orders.update(o.id, vstup({ budgetItemId: undefined, budgetItemName: undefined }), igor);
+    expect(upr.budgetItemId).toBeUndefined();
+  });
+});

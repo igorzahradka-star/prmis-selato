@@ -92,6 +92,10 @@ export interface PurchaseOrder {
   currentApprovalLevel?: ApprovalLevel;
   approvalChain: ApprovalStep[];
   note?: string;
+  /** Položka realizačního rozpočtu, na kterou je objednávka navázaná (stabilní id položky) — započítá se do „Objednáno“. */
+  budgetItemId?: string;
+  /** Popis položky rozpočtu v okamžiku navázání (pro zobrazení). */
+  budgetItemName?: string;
   cancelReason?: string;
   sentDate?: Date;
   /** Odkaz na PDF objednávky uložené ve složce projektu (vzniká při odeslání dodavateli). */

@@ -5,6 +5,23 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.26.0 — 4. 10. 2026 — Rozpočet: objednáno, prognóza, semafor a Objednat (Fáze 3, krok 3b)
+
+**Nové**
+
+- **Objednávka se dá navázat na položku rozpočtu.** Ve formuláři objednávky je nepovinná volba **Položka rozpočtu** (nabízí položky z běžných skupin rozpočtu projektu). Z rozpočtu: **⋯ u položky → Objednat** otevře novou objednávku předvyplněnou z položky (předmět, dodavatel, měna, řádek s množstvím a cenou) a rovnou ji naváže; množství a cenu upravíte, když objednáváte jen část položky.
+  V detailu objednávky je vidět navázaná položka.
+- **Sloupec Objednáno** v rozpočtu: součet navázaných objednávek (ve stavech Ke schválení, Schváleno, Odesláno, Dodáno, Uzavřeno — stejně jako „Vyčerpáno“ v přehledu projektů), v měně položky. Přečerpání plánu je červeně.
+- **Sloupec Prognóza** (nákladů položky): PM ji může zadat ručně, jinak platí plán; **nikdy není nižší než objednáno a koupeno**. Součty po skupinách i celkem.
+- **Semafor rozpočtu** (dlaždice v rozpočtu): baseline = **náklady posledního schválení**; **zelená** — prognóza není nad baseline, **žlutá** — nad ní do prahu (Nastavení, výchozí 5 %), **červená** — nad prahem, nebo plánovaná marže ((smluvní cena − prognóza) / cena) pod minimem z Nastavení. Bez schválení je „Bez rozpočtu“. Prahy a minimum jsou globální a platí pro všechny projekty (změna se hned projeví). Stav je napsaný slovem, nejen barvou.
+- **Semafor v přehledu projektů:** výsledek se ukládá do projektu (cache) a přepočítá se při otevření a uložení rozpočtu a po změně objednávky; přehled ho čte bez načítání rozpočtů.
+
+**Co je potřeba udělat po nasazení:** spustit **Instalace a diagnostika** (schéma 16 — do seznamu objednávek přibyly sloupce Položka rozpočtu (id) a Položka rozpočtu; nic se nemaže). Do té doby seznam objednávek ohlásí chybějící sloupce.
+
+**Ještě není:** fakturační milníky a cashflow projektu (krok 3c); napojení skutečnosti (Koupeno) na účetnictví (Fáze 5).
+
+---
+
 ## 0.25.0 — 4. 10. 2026 — Kusovník, dodavatel z partnerů, smluvní cena z rozpočtu
 
 **Nové**

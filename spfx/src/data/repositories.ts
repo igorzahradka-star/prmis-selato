@@ -181,6 +181,8 @@ export interface IProjectRepository {
    * než uživatele otravovat. Bez `expectedVersion` se uloží natvrdo.
    */
   update(projectNumber: string, input: ProjectEditInput, expectedVersion?: string): Promise<Project>;
+  /** Uloží výsledek semaforu rozpočtu do projektu (cache pro přehled projektů): stav, baseline a prognóza nákladů (v Kč). */
+  setBudgetCache(projectNumber: string, cache: { status: string; baselineTotal?: number; forecastTotal?: number }): Promise<void>;
   /** Přepíše jen smluvní cenu projektu (bez DPH) a měnu — používá schválení rozpočtu: smluvní cena = prodej schváleného rozpočtu. */
   setContractPrice(projectNumber: string, priceNet: number, currency: string): Promise<void>;
   /**
@@ -537,6 +539,9 @@ export interface OrderInput {
   deliveryDate?: Date;
   paymentTermDays?: number;
   note?: string;
+  /** Navázání na položku rozpočtu (id a popis). */
+  budgetItemId?: string;
+  budgetItemName?: string;
 }
 
 /** Údaje z formuláře podkladu pro fakturaci. */

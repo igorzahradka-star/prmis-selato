@@ -70,14 +70,27 @@ import { ApproverDialog, ApproverRow } from './ApproverDialog';
 import { OrderPdfPreview } from './OrderPdfPreview';
 import { SendOrderDialog, SendPayload } from './SendOrderDialog';
 import { AttachmentsSection } from './AttachmentsSection';
+import { refreshBudgetCache } from '../budget/budgetCache';
 import { orderPdfData, orderPdfFileName, renderOrderPdf } from './orderPdf';
 import { ApprovalRecord, MailAttachment, OrderInput } from '../../data/repositories';
 import { CurrencyCode, StoredRates, describeRates, effectiveRates, toCzk } from '../../core/currency';
 import { fallbackRatesOf } from '../../core/settings';
 import { OrderStatusBadge } from './OrderStatusBadge';
 
+/** Předvyplnění nové objednávky (např. z položky rozpočtu: ⋯ → Objednat). */
+export interface OrderPrefill {
+  subject: string;
+  supplierName?: string;
+  currency: string;
+  lines: { description: string; quantity: number; unit?: string; unitPriceNet: number }[];
+  budgetItemId?: string;
+  budgetItemName?: string;
+}
+
 export interface OrderPanelProps {
   isOpen: boolean;
+  /** Předvyplnění nové objednávky; u existující se nepoužije. */
+  prefill?: OrderPrefill;
   /** Existující objednávka; bez ní se zakládá nová. */
   orderId?: number;
   /** U nové objednávky předvybraný projekt (např. z detailu projektu). */
@@ -117,7 +130,7 @@ const CURRENCY_OPTIONS: IDropdownOption[] = [
   { key: 'USD', text: 'USD' }
 ];
 
-export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, projectNumber, onDismiss, onChanged }) => {
+export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, projectNumber, prefill, onDismiss, onChanged }) => {
   const { repos, settings, user } = useApp();
   const actor = React.useMemo(() => toActor(user), [user]);
 
@@ -153,6 +166,9 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
   const [fDelivery, setFDelivery] = React.useState<Date | undefined>(undefined);
   const [fPayment, setFPayment] = React.useState('30');
   const [fNote, setFNote] = React.useState('');
+  /** Navázání na položku realizačního rozpočtu (nepovinné). */
+  const [fBudgetItem, setFBudgetItem] = React.useState<{ id: string; name: string } | undefined>(undefined);
+  const [budgetItems, setBudgetItems] = React.useState<{ id: string; name: string }[]>([]);
 
   const fillForm = (o: PurchaseOrder | undefined, preset: string | undefined): void => {
     setFProject(o ? o.projectNumber : preset);
@@ -173,6 +189,22 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
     setFDelivery(o?.deliveryDate);
     setFPayment(o?.paymentTermDays !== undefined ? String(o.paymentTermDays) : '30');
     setFNote(o?.note ?? '');
+    setFBudgetItem(o && o.budgetItemId ? { id: o.budgetItemId, name: o.budgetItemName || '' } : undefined);
+    if (!o && prefill) {
+      setFSubject(prefill.subject);
+      setFCurrency((prefill.currency as Currency) || 'CZK');
+      setFLines(
+        prefill.lines.length > 0
+          ? prefill.lines.map((l) => ({
+              description: l.description,
+              quantity: String(l.quantity).replace('.', ','),
+              unit: l.unit ?? '',
+              unitPrice: String(l.unitPriceNet).replace('.', ',')
+            }))
+          : [emptyLine()]
+      );
+      setFBudgetItem(prefill.budgetItemId ? { id: prefill.budgetItemId, name: prefill.budgetItemName || '' } : undefined);
+    }
   };
 
   // Načtení dat při otevření panelu.
@@ -212,6 +244,13 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
         setRoleMembers(membersList);
         setOrder(loaded);
         fillForm(loaded, projectNumber);
+        if (!loaded && prefill && prefill.supplierName) {
+          const wanted = prefill.supplierName.trim().toLocaleLowerCase('cs-CZ');
+          const found = partnerList.filter((p) => p.name.trim().toLocaleLowerCase('cs-CZ') === wanted)[0];
+          if (found) {
+            setFSupplierId(found.id);
+          }
+        }
         setEditing(orderId === undefined);
         setLoading(false);
         if (orderId !== undefined && !loaded) {
@@ -276,13 +315,49 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
     currency: fCurrency,
     deliveryDate: fDelivery,
     paymentTermDays: parseAmount(fPayment),
-    note: fNote.trim() || undefined
+    note: fNote.trim() || undefined,
+    budgetItemId: fBudgetItem ? fBudgetItem.id : undefined,
+    budgetItemName: fBudgetItem ? fBudgetItem.name : undefined
   });
+
+  // Položky rozpočtu vybraného projektu (jen běžné skupiny — práce a rezerva se neobjednávají).
+  React.useEffect(() => {
+    const number = order ? order.projectNumber : fProject;
+    if (!isOpen || !number) {
+      setBudgetItems([]);
+      return undefined;
+    }
+    let cancelled = false;
+    repos.budgets
+      .get(number)
+      .then((b) => {
+        if (cancelled) {
+          return;
+        }
+        const standard = b ? b.doc.groups.filter((g) => g.kind === 'standard') : [];
+        setBudgetItems(
+          b
+            ? b.doc.items
+                .filter((i) => standard.some((g) => g.id === i.groupId) && i.description.trim() !== '')
+                .map((i) => ({ id: i.id, name: `${(standard.filter((g) => g.id === i.groupId)[0] || { name: '' }).name} · ${i.description}` }))
+            : []
+        );
+      })
+      .catch(() => !cancelled && setBudgetItems([]));
+    return () => {
+      cancelled = true;
+    };
+  }, [repos, isOpen, fProject, order]);
 
   const afterChange = (saved: PurchaseOrder): void => {
     setOrder(saved);
     setBusy(false);
     onChanged();
+    // Změna objednávky mění „objednáno“ a prognózu rozpočtu — přepočítá se semafor projektu (best-effort).
+    const proj = projects.filter((p) => p.projectNumber === saved.projectNumber)[0];
+    if (proj) {
+      refreshBudgetCache(repos, proj, settings, rates).catch(() => undefined);
+    }
     repos.orders
       .listApprovals(saved.id)
       .then(setApprovals)
@@ -958,6 +1033,15 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
                 placeholder="Vyberte projekt"
                 styles={{ root: { flex: '1 1 280px' } }}
               />
+              <Dropdown
+                label="Položka rozpočtu (nepovinné)"
+                disabled={!fProject || budgetItems.length === 0}
+                options={[{ key: '', text: '— bez navázání —' }, ...budgetItems.map((b) => ({ key: b.id, text: b.name }))]}
+                selectedKey={fBudgetItem ? fBudgetItem.id : ''}
+                onChange={(_, o) => o && setFBudgetItem(String(o.key) === '' ? undefined : { id: String(o.key), name: String(o.text).replace(/^.*? · /, '') })}
+                placeholder={fProject && budgetItems.length === 0 ? 'Projekt nemá rozpočet' : 'Navázat na položku rozpočtu'}
+                styles={{ root: { flex: '1 1 280px' } }}
+              />
               <ComboBox
                 label="Dodavatel"
                 required
@@ -1300,6 +1384,7 @@ const OrderDetail: React.FC<{
           value={<Link href={buildHash(RouteName.ProjectDetail, order.projectNumber)}>{order.projectNumber}</Link>}
         />
         <Row label="Dodavatel" value={order.supplierName || '—'} />
+        {order.budgetItemName && <Row label="Položka rozpočtu" value={order.budgetItemName} />}
         <Row label="Předmět" value={order.subject || '—'} />
         <Row label="Termín dodání" value={order.deliveryDate ? formatDate(order.deliveryDate) : '—'} />
         <Row label="Splatnost" value={order.paymentTermDays !== undefined ? `${order.paymentTermDays} dnů` : '—'} />

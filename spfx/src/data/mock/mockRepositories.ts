@@ -327,6 +327,13 @@ export class MockProjectRepository implements IProjectRepository {
     return delay(updated);
   }
 
+  public async setBudgetCache(projectNumber: string, cache: { status: string; baselineTotal?: number; forecastTotal?: number }): Promise<void> {
+    this.projects = this.projects.map((p) =>
+      p.projectNumber === projectNumber ? { ...p, budgetStatus: cache.status as Project['budgetStatus'], budgetBaselineTotal: cache.baselineTotal, costForecastTotal: cache.forecastTotal } : p
+    );
+    return delay(undefined);
+  }
+
   public async setContractPrice(projectNumber: string, priceNet: number, currency: string): Promise<void> {
     const current = this.projects.filter((p) => p.projectNumber === projectNumber)[0];
     if (!current) {

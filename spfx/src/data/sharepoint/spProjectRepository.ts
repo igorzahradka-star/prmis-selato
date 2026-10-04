@@ -339,6 +339,22 @@ export class SpProjectRepository implements IProjectRepository {
     return (await this.getByNumber(projectNumber)) ?? existing;
   }
 
+  public async setBudgetCache(projectNumber: string, cache: { status: string; baselineTotal?: number; forecastTotal?: number }): Promise<void> {
+    const existing = await this.getByNumber(projectNumber);
+    if (!existing) {
+      throw new Error(`Projekt ${projectNumber} nebyl nalezen.`);
+    }
+    try {
+      const sp = getSp(this.context);
+      await sp.web.lists
+        .getByTitle(PROJECTS_LIST)
+        .items.getById(existing.id)
+        .update({ BudgetStatus: cache.status, BudgetBaselineTotal: cache.baselineTotal ?? null, CostForecastTotal: cache.forecastTotal ?? null }, '*');
+    } catch (error) {
+      throw new Error(describeSpError(error, `Nepodařilo se uložit semafor rozpočtu projektu ${projectNumber}`));
+    }
+  }
+
   public async setContractPrice(projectNumber: string, priceNet: number, currency: string): Promise<void> {
     const existing = await this.getByNumber(projectNumber);
     if (!existing) {
