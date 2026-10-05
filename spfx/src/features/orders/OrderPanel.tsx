@@ -12,6 +12,7 @@ import { Panel, PanelType } from '@fluentui/react/lib/Panel';
 import { TextField } from '@fluentui/react/lib/TextField';
 import { Dropdown, IDropdownOption } from '@fluentui/react/lib/Dropdown';
 import { ComboBox, IComboBoxOption } from '@fluentui/react/lib/ComboBox';
+import { SelectableOptionMenuItemType } from '@fluentui/react/lib/SelectableOption';
 import { DatePicker } from '@fluentui/react/lib/DatePicker';
 import { PrimaryButton, DefaultButton, IconButton, ActionButton } from '@fluentui/react/lib/Button';
 import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
@@ -72,6 +73,7 @@ import {
 import { ApproverDialog, ApproverRow } from './ApproverDialog';
 import { OrderPdfPreview } from './OrderPdfPreview';
 import { SendOrderDialog, SendPayload } from './SendOrderDialog';
+import { NewPartnerDialog } from '../budget/NewPartnerDialog';
 import { AttachmentsSection } from './AttachmentsSection';
 import { refreshBudgetCache } from '../budget/budgetCache';
 import { orderPdfData, orderPdfFileName, renderOrderPdf } from './orderPdf';
@@ -142,6 +144,7 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
   const [approvals, setApprovals] = React.useState<ApprovalRecord[]>([]);
   const [projects, setProjects] = React.useState<Project[]>([]);
   const [partners, setPartners] = React.useState<Partner[]>([]);
+  const [newSupplier, setNewSupplier] = React.useState(false);
   const [storedRates, setStoredRates] = React.useState<StoredRates>({});
   const [editing, setEditing] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
@@ -296,7 +299,13 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
     .map((p) => ({ key: p.projectNumber, text: `${p.projectNumber} · ${p.shortName || p.title}` }));
 
   const suppliers = partners.filter((p) => p.partnerType !== PartnerType.Zakaznik);
-  const supplierOptions: IComboBoxOption[] = suppliers.map((p) => ({ key: p.id, text: p.name }));
+  const NEW_SUPPLIER_KEY = -1;
+  // Na konci seznamu je volba založit nového partnera (bez opuštění objednávky).
+  const supplierOptions: IComboBoxOption[] = [
+    ...suppliers.map((p) => ({ key: p.id, text: p.name })),
+    { key: 'sep', text: '-', itemType: SelectableOptionMenuItemType.Divider },
+    { key: NEW_SUPPLIER_KEY, text: '+ Založit nového partnera…', styles: { optionText: { color: RES.blue, fontWeight: 600 } } }
+  ];
 
   const buildLines = (): OrderLine[] =>
     fLines
@@ -1078,7 +1087,9 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
                 options={supplierOptions}
                 selectedKey={fSupplierId ?? null}
                 onChange={(_, o) => {
-                  if (o) {
+                  if (o && o.key === NEW_SUPPLIER_KEY) {
+                    setNewSupplier(true);
+                  } else if (o) {
                     const id = o.key as number;
                     setFSupplierId(id);
                     const partner = suppliers.filter((s) => s.id === id)[0];
@@ -1319,6 +1330,20 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
         </Dialog>
       )}
       </Panel>
+      {newSupplier && (
+        <NewPartnerDialog
+          suggestedName=""
+          onClose={() => setNewSupplier(false)}
+          onCreated={(p) => {
+            setNewSupplier(false);
+            setPartners((cur) => [...cur, p]);
+            setFSupplierId(p.id);
+            if (p.paymentTermDays !== undefined) {
+              setFPayment(String(p.paymentTermDays));
+            }
+          }}
+        />
+      )}
     </>
   );
 };

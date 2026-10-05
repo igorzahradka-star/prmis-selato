@@ -1,7 +1,11 @@
 /**
- * Výběr dodavatele do tabulky rozpočtu: píše se, seznam partnerů se zužuje podle písmen kdekoli v názvu (bez ohledu na
- * velikost písmen a diakritiku); když dodavatel v seznamu není, nabídne se jeho založení. Nabídka je v samostatné vrstvě
- * (Callout), aby ji neuřízl vodorovně rolovaný obal tabulky.
+ * Výběr dodavatele ze seznamu partnerů — volné psaní se nepřijímá. Po kliknutí do pole se otevře celý rolovací seznam
+ * partnerů; psaním se zužuje podle písmen kdekoli v názvu nebo IČO (bez ohledu na velikost písmen a diakritiku).
+ * Na konci seznamu je vždy „+ Založit nového partnera“. Co není v seznamu, se po opuštění pole vrátí na původní hodnotu.
+ * Nabídka je v samostatné vrstvě (Callout), aby ji neuřízl vodorovně rolovaný obal tabulky.
+ *
+ * Dodavatel zapsaný dřív jako volný text (např. z importu) se zobrazí, ale oranžově obtažený — nejde o partnera ze
+ * seznamu, tak ať ho uživatel vybere nebo založí.
  */
 
 import * as React from 'react';
@@ -35,10 +39,15 @@ export const SupplierPicker: React.FC<{
   onChange: (name: string | undefined) => void;
   /** Založit nového partnera; text, který uživatel napsal, se předvyplní jako název. */
   onCreate: (suggestedName: string) => void;
-}> = ({ value, partners, disabled, onChange, onCreate }) => {
+  /** Vzhled pole (výchozí: buňka tabulky). */
+  inputStyle?: React.CSSProperties;
+}> = ({ value, partners, disabled, onChange, onCreate, inputStyle }) => {
   const ref = React.useRef<HTMLInputElement>(null);
   const [text, setText] = React.useState(value ?? '');
+  const [typed, setTyped] = React.useState(false);
   const [open, setOpen] = React.useState(false);
+  const latest = React.useRef({ text, value, partners });
+  latest.current = { text, value, partners };
 
   React.useEffect(() => {
     if (!open) {
@@ -46,56 +55,90 @@ export const SupplierPicker: React.FC<{
     }
   }, [value, open]);
 
-  const matches = matchPartners(partners, text);
-  const exact = partners.some((p) => norm(p.name) === norm(text));
+  // Dokud uživatel nezačne psát, ukáže se celý seznam (ne jen právě vybraný partner).
+  const matches = matchPartners(partners, typed ? text : '', 500);
+  const exactPartner = (t: string): Partner | undefined => partners.filter((p) => norm(p.name) === norm(t))[0];
+  const unknown = !!value && partners.length > 0 && !exactPartner(value);
 
   const pick = (name: string | undefined): void => {
     onChange(name);
     setText(name ?? '');
+    setTyped(false);
     setOpen(false);
   };
 
   return (
     <>
-      <input
-        ref={ref}
-        aria-label="Dodavatel"
-        value={text}
-        disabled={disabled}
-        placeholder="Dodavatel"
-        autoComplete="off"
-        onFocus={() => setOpen(true)}
-        onChange={(e) => {
-          setText(e.target.value);
-          setOpen(true);
-        }}
-        onBlur={() => {
-          // Klik do nabídky nesmí zavřít seznam dřív, než se vybere (viz onMouseDown níže); volný text se ponechá.
-          window.setTimeout(() => {
-            setOpen(false);
-            const t = text.trim();
-            if (t !== (value ?? '')) {
-              onChange(t === '' ? undefined : t);
+      <div style={{ position: 'relative' }}>
+        <input
+          ref={ref}
+          aria-label="Dodavatel"
+          value={text}
+          disabled={disabled}
+          placeholder="Vyberte dodavatele"
+          autoComplete="off"
+          title={unknown ? 'Tento dodavatel není v seznamu partnerů — vyberte ho ze seznamu, nebo založte nového.' : undefined}
+          onFocus={() => setOpen(true)}
+          onClick={() => setOpen(true)}
+          onChange={(e) => {
+            setText(e.target.value);
+            setTyped(true);
+            setOpen(true);
+          }}
+          onBlur={() => {
+            // Klik do nabídky nesmí zavřít seznam dřív, než se vybere (viz onMouseDown níže).
+            window.setTimeout(() => {
+              setOpen(false);
+              setTyped(false);
+              const cur = latest.current;
+              const t = cur.text.trim();
+              if (t === '') {
+                if (cur.value) {
+                  onChange(undefined);
+                }
+                return;
+              }
+              const found = cur.partners.filter((p) => norm(p.name) === norm(t))[0];
+              if (found) {
+                if (found.name !== cur.value) {
+                  onChange(found.name);
+                }
+                setText(found.name);
+              } else {
+                // Co není v seznamu partnerů, se nepřijme — vrátí se původní hodnota.
+                setText(cur.value ?? '');
+              }
+            }, 150);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              setOpen(false);
+            } else if (e.key === 'Enter') {
+              e.preventDefault();
+              if (typed && matches.length > 0) {
+                pick(matches[0].name);
+              } else {
+                (e.currentTarget as HTMLInputElement).blur();
+              }
             }
-          }, 150);
-        }}
-        onKeyDown={(e) => {
-          if (e.key === 'Escape') {
-            setOpen(false);
-          } else if (e.key === 'Enter') {
-            e.preventDefault();
-            if (matches.length > 0 && !exact) {
-              pick(matches[0].name);
-            } else {
-              (e.currentTarget as HTMLInputElement).blur();
-            }
-          }
-        }}
-        style={{ ...CELL_INPUT, background: disabled ? RES.background : RES.white }}
-      />
+          }}
+          style={{
+            ...CELL_INPUT,
+            paddingRight: 20,
+            background: disabled ? RES.background : RES.white,
+            ...(unknown ? { border: `1px solid ${RES.amber}` } : {}),
+            ...inputStyle
+          }}
+        />
+        {!disabled && (
+          <span aria-hidden="true" style={{ position: 'absolute', right: 7, top: '50%', transform: 'translateY(-50%)', fontSize: 9, color: RES.gray, pointerEvents: 'none' }}>
+            ▼
+          </span>
+        )}
+      </div>
       {open && !disabled && ref.current && (
-        <Callout target={ref.current} isBeakVisible={false} directionalHint={DirectionalHint.bottomLeftEdge} setInitialFocus={false} onDismiss={() => setOpen(false)} styles={{ root: { minWidth: 260, maxWidth: 420 } }}>
-          <div role="listbox" aria-label="Partneři" style={{ maxHeight: 280, overflowY: 'auto', padding: 4 }}>
+        <Callout target={ref.current} isBeakVisible={false} directionalHint={DirectionalHint.bottomLeftEdge} setInitialFocus={false} onDismiss={() => setOpen(false)} styles={{ root: { minWidth: 280, maxWidth: 440 } }}>
+          <div role="listbox" aria-label="Partneři" style={{ maxHeight: 260, overflowY: 'auto', padding: 4 }}>
             {matches.map((p) => (
               <div
                 key={p.id}
@@ -106,32 +149,31 @@ export const SupplierPicker: React.FC<{
                   e.preventDefault();
                   pick(p.name);
                 }}
-                style={{ padding: '6px 8px', cursor: 'pointer', borderRadius: 2, fontSize: 13 }}
+                style={{ padding: '6px 8px', cursor: 'pointer', borderRadius: 2, fontSize: 13, background: p.name === value ? RES.bluePale : 'transparent' }}
                 onMouseEnter={(e) => (e.currentTarget.style.background = RES.bluePale)}
-                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = p.name === value ? RES.bluePale : 'transparent')}
               >
                 <div>{p.name}</div>
-                <div style={{ fontSize: 11, color: RES.gray }}>
-                  {[p.partnerType, p.ico ? `IČO ${p.ico}` : ''].filter((x) => !!x).join(' · ')}
-                </div>
+                <div style={{ fontSize: 11, color: RES.gray }}>{[p.partnerType, p.ico ? `IČO ${p.ico}` : ''].filter((x) => !!x).join(' · ')}</div>
               </div>
             ))}
             {matches.length === 0 && <div style={{ padding: '6px 8px', fontSize: 12, color: RES.gray }}>V seznamu partnerů nikdo takový není.</div>}
-            {!exact && (
-              <div
-                role="option"
-                aria-selected={false}
-                tabIndex={-1}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  setOpen(false);
-                  onCreate(text.trim());
-                }}
-                style={{ padding: '6px 8px', cursor: 'pointer', borderTop: `1px solid ${RES.grayBlue}`, color: RES.blue, fontSize: 13, fontWeight: 600 }}
-              >
-                + Založit nového partnera{text.trim() !== '' ? ` „${text.trim()}“` : ''}
-              </div>
-            )}
+          </div>
+          {/* Pevně na konci seznamu, aby byla volba „nový partner“ vždy po ruce. */}
+          <div style={{ padding: 4, borderTop: `1px solid ${RES.grayBlue}` }}>
+            <div
+              role="option"
+              aria-selected={false}
+              tabIndex={-1}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                setOpen(false);
+                onCreate(typed && !exactPartner(text) ? text.trim() : '');
+              }}
+              style={{ padding: '6px 8px', cursor: 'pointer', color: RES.blue, fontSize: 13, fontWeight: 600 }}
+            >
+              + Založit nového partnera{typed && text.trim() !== '' && !exactPartner(text) ? ` „${text.trim()}“` : ''}
+            </div>
             {value && (
               <div
                 role="option"

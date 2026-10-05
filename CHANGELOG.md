@@ -5,6 +5,15 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.28.1 — 5. 10. 2026 — Jeden posuvník místo dvou a dodavatel jen ze seznamu
+
+**Opraveno**
+
+- **Dvojitý posuvník u rozpočtu už nebliká.** V ostrém provozu se vedle zrcadleného posuvníku u dolního okraje objevoval ještě původní posuvník tabulky a oba se při posouvání přetahovaly. Původní posuvník je teď vypnutý a tabulku posouvá jediný posuvník u dolního okraje; dá se ale posouvat i kolečkem se Shiftem a vodorovným gestem na touchpadu. Oba posuvníky mají stejný rozsah (i když tabulka má svislý posuvník) a drobné zaokrouhlení při zvětšeném písmu je už nepřehazuje. Platí pro všechny široké tabulky v aplikaci.
+- **Dodavatele jde jen vybrat, ne napsat.** Pole Dodavatel v rozpočtu **i v kusovníku** (nová položka, uložení z rozpočtu) je rolovací seznam partnerů: po kliknutí se ukáže celý seznam, psaním se zužuje; co není v seznamu, se po opuštění pole nepřijme. **Na konci seznamu je vždy „+ Založit nového partnera“** (předvyplní napsaný název a po založení partnera rovnou vybere). Stejná volba je i na konci seznamu dodavatelů v **objednávce**. Dodavatel, který v rozpočtu už je zapsaný jako volný text (např. z importu z Excelu), se ukáže **oranžově obtažený** s nápovědou, ať ho uživatel vybere ze seznamu nebo založí. Zákazník v novém projektu zůstává beze změny (nového zákazníka lze zapsat a založí se při uložení).
+
+---
+
 ## 0.28.0 — 5. 10. 2026 — První poznatky z ostrého provozu: nic se neztratí, posuvníky, rozpočet v přehledu a v reportu
 
 **Opraveno / nové (podle připomínek kolegů)**

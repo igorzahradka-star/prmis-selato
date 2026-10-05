@@ -14,6 +14,9 @@ import { useApp } from '../../ui/AppContext';
 import { CURRENCY_CODES, CurrencyCode } from '../../core/currency';
 import { formatMoney, parseAmount } from '../../core/format';
 import { CatalogInput, CatalogItem, findInCatalog, validateCatalogInput } from '../../core/catalog';
+import { Partner } from '../../core/types';
+import { NewPartnerDialog } from '../budget/NewPartnerDialog';
+import { SupplierPicker } from '../budget/SupplierPicker';
 
 export const CatalogItemDialog: React.FC<{
   /** Výchozí údaje (z položky rozpočtu, nebo upravovaná položka kusovníku). */
@@ -35,6 +38,15 @@ export const CatalogItemDialog: React.FC<{
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | undefined>(undefined);
   const [issues, setIssues] = React.useState<string[]>([]);
+  const [partners, setPartners] = React.useState<Partner[]>([]);
+  const [newPartner, setNewPartner] = React.useState<string | undefined>(undefined);
+
+  React.useEffect(() => {
+    repos.partners
+      .list({})
+      .then(setPartners)
+      .catch(() => setPartners([]));
+  }, [repos]);
 
   const input: CatalogInput = {
     description: description.trim(),
@@ -67,8 +79,9 @@ export const CatalogItemDialog: React.FC<{
   };
 
   return (
+    <>
     <Dialog
-      hidden={false}
+      hidden={newPartner !== undefined}
       onDismiss={busy ? undefined : onClose}
       dialogContentProps={{ type: DialogType.normal, title: editId !== undefined ? 'Upravit položku kusovníku' : 'Uložit do kusovníku', subText: 'Kusovník je společný pro všechny projekty — slouží jako know-how pro další nabídky a rozpočty.' }}
       modalProps={{ isBlocking: true }}
@@ -81,7 +94,10 @@ export const CatalogItemDialog: React.FC<{
       )}
       <TextField label="Popis položky" required value={description} onChange={(_, v) => setDescription(v ?? '')} />
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-        <TextField label="Dodavatel" value={supplier} onChange={(_, v) => setSupplier(v ?? '')} styles={{ root: { flex: '2 1 220px' } }} />
+        <div style={{ flex: '2 1 220px' }}>
+          <div style={{ fontSize: 14, fontWeight: 600, padding: '5px 0' }}>Dodavatel</div>
+          <SupplierPicker value={supplier || undefined} partners={partners} onChange={(name) => setSupplier(name ?? '')} onCreate={(name) => setNewPartner(name)} inputStyle={{ height: 32, fontSize: 14 }} />
+        </div>
         <Dropdown label="Kategorie" selectedKey={category} options={[{ key: '', text: '—' }, ...settings.budget.categories.map((c) => ({ key: c, text: c }))]} onChange={(_, o) => o && setCategory(String(o.key))} styles={{ root: { flex: '1 1 160px' } }} />
       </div>
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
@@ -104,5 +120,17 @@ export const CatalogItemDialog: React.FC<{
         <DefaultButton text="Zrušit" disabled={busy} onClick={onClose} />
       </DialogFooter>
     </Dialog>
+    {newPartner !== undefined && (
+      <NewPartnerDialog
+        suggestedName={newPartner}
+        onClose={() => setNewPartner(undefined)}
+        onCreated={(p) => {
+          setNewPartner(undefined);
+          setPartners((cur) => [...cur, p]);
+          setSupplier(p.name);
+        }}
+      />
+    )}
+    </>
   );
 };

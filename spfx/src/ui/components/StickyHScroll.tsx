@@ -2,12 +2,12 @@
  * Široká tabulka s **vodorovným posuvníkem, který je vždy vidět** u dolního okraje obrazovky.
  *
  * Běžný posuvník je až na konci tabulky, takže u dlouhé tabulky (nebo při zvětšeném písmu a nižší šířce okna) se musí sjet
- * dolů, posunout doprava a vrátit se. Tady je nad/pod tabulkou „zrcadlový“ posuvník, který se lepí na dolní okraj okna,
- * dokud je tabulka vidět, a je propojený s tabulkou (posun jedním posune druhý). Funguje myší i dotykem; původní
- * posuvník tabulky se skryje.
+ * dolů, posunout doprava a vrátit se. Tady je pod tabulkou jediný vodorovný posuvník, který se lepí na dolní okraj okna,
+ * dokud je tabulka vidět. Vlastní vodorovný posuvník tabulky je vypnutý (`overflow-x: hidden`) — tabulka se dá posouvat
+ * jen tímto posuvníkem, kolečkem se Shiftem a vodorovným gestem na touchpadu. Dvojice posuvníků se tak nemůže „hádat“.
  *
- * Bez \`scrollSelector\` se obalí \`children\` vlastním rolovacím elementem (pro běžné \`<table>\`). S \`scrollSelector\`
- * (např. \`.ms-DetailsList\` u seznamů Fluent UI) se propojí s rolovacím elementem uvnitř \`children\`.
+ * Bez `scrollSelector` se obalí `children` vlastním rolovacím elementem (pro běžné `<table>`). S `scrollSelector`
+ * (např. `.ms-DetailsList` u seznamů Fluent UI) se propojí s rolovacím elementem uvnitř `children`.
  */
 
 import * as React from 'react';
@@ -22,10 +22,7 @@ function ensureStyle(): void {
   }
   const style = document.createElement('style');
   style.id = STYLE_ID;
-  style.textContent =
-    '.prm-hscroll-own::-webkit-scrollbar:horizontal,.prm-hscroll-host .ms-DetailsList::-webkit-scrollbar:horizontal{height:0}' +
-    '.prm-hscroll-host .ms-DetailsList{scrollbar-width:thin}' +
-    '.prm-hscroll-bar{scrollbar-width:auto}';
+  style.textContent = '.prm-hscroll-host .ms-DetailsList{overflow-x:hidden !important}.prm-hscroll-bar{scrollbar-width:auto}';
   document.head.appendChild(style);
 }
 
@@ -41,7 +38,7 @@ export const StickyHScroll: React.FC<{
   const hostRef = React.useRef<HTMLDivElement>(null);
   const ownRef = React.useRef<HTMLDivElement>(null);
   const barRef = React.useRef<HTMLDivElement>(null);
-  const [sizes, setSizes] = React.useState({ scroll: 0, client: 0 });
+  const [sizes, setSizes] = React.useState({ scroll: 0, client: 0, vbar: 0 });
 
   const scroller = React.useCallback((): HTMLElement | null => {
     if (!scrollSelector) {
@@ -53,7 +50,6 @@ export const StickyHScroll: React.FC<{
   React.useEffect(() => {
     ensureStyle();
     let target: HTMLElement | null = null;
-    let syncing = false;
     const bar = barRef.current;
 
     const measure = (): void => {
@@ -61,23 +57,32 @@ export const StickyHScroll: React.FC<{
       if (!t) {
         return;
       }
-      setSizes((cur) => (cur.scroll === t.scrollWidth && cur.client === t.clientWidth ? cur : { scroll: t.scrollWidth, client: t.clientWidth }));
+      const vbar = Math.max(0, t.offsetWidth - t.clientWidth);
+      setSizes((cur) => (cur.scroll === t.scrollWidth && cur.client === t.clientWidth && cur.vbar === vbar ? cur : { scroll: t.scrollWidth, client: t.clientWidth, vbar }));
     };
+    // Přenáší se jen skutečný rozdíl (víc než 1 px) — zaokrouhlování při zvětšeném písmu by jinak posuvníky přehazovalo sem a tam.
     const fromTarget = (): void => {
-      if (syncing || !target || !bar) {
-        return;
+      if (target && bar && Math.abs(bar.scrollLeft - target.scrollLeft) > 1) {
+        bar.scrollLeft = target.scrollLeft;
       }
-      syncing = true;
-      bar.scrollLeft = target.scrollLeft;
-      window.requestAnimationFrame(() => (syncing = false));
     };
     const fromBar = (): void => {
-      if (syncing || !target || !bar) {
+      if (target && bar && Math.abs(bar.scrollLeft - target.scrollLeft) > 1) {
+        target.scrollLeft = bar.scrollLeft;
+      }
+    };
+    // Vlastní posuvník tabulky je vypnutý, proto se vodorovné gesto (touchpad, Shift + kolečko) předává ručně.
+    const onWheel = (e: WheelEvent): void => {
+      const t = target;
+      if (!t || t.scrollWidth <= t.clientWidth) {
         return;
       }
-      syncing = true;
-      target.scrollLeft = bar.scrollLeft;
-      window.requestAnimationFrame(() => (syncing = false));
+      const dx = e.deltaX !== 0 ? e.deltaX : e.shiftKey ? e.deltaY : 0;
+      if (dx === 0 || (!e.shiftKey && Math.abs(e.deltaY) > Math.abs(e.deltaX))) {
+        return;
+      }
+      t.scrollLeft += dx;
+      e.preventDefault();
     };
     const attach = (): void => {
       const t = scroller();
@@ -86,10 +91,12 @@ export const StickyHScroll: React.FC<{
       }
       if (target) {
         target.removeEventListener('scroll', fromTarget);
+        target.removeEventListener('wheel', onWheel);
       }
       target = t;
       if (target) {
         target.addEventListener('scroll', fromTarget, { passive: true });
+        target.addEventListener('wheel', onWheel, { passive: false });
       }
       measure();
     };
@@ -113,11 +120,21 @@ export const StickyHScroll: React.FC<{
       }
       if (target) {
         target.removeEventListener('scroll', fromTarget);
+        target.removeEventListener('wheel', onWheel);
       }
     };
   }, [scroller]);
 
   const overflowing = sizes.scroll > sizes.client + 1;
+
+  // Když se posuvník objeví, nastaví se na stejné místo jako tabulka.
+  React.useEffect(() => {
+    const t = scroller();
+    if (overflowing && t && barRef.current) {
+      barRef.current.scrollLeft = t.scrollLeft;
+    }
+  }, [overflowing, scroller]);
+
   const frame: React.CSSProperties = { background: RES.white, border: `1px solid ${RES.grayBlue}`, borderRadius: 4, ...frameStyle };
 
   return (
@@ -125,7 +142,7 @@ export const StickyHScroll: React.FC<{
       {scrollSelector ? (
         children
       ) : (
-        <div ref={ownRef} className="prm-hscroll-own" style={{ overflow: 'auto', maxHeight }}>
+        <div ref={ownRef} className="prm-hscroll-own" style={{ overflowX: 'hidden', overflowY: 'auto', maxHeight }}>
           {children}
         </div>
       )}
@@ -140,6 +157,8 @@ export const StickyHScroll: React.FC<{
           zIndex: 6,
           overflowX: 'scroll',
           overflowY: 'hidden',
+          // Svislý posuvník tabulky ubírá šířku — stejně se zkrátí i tento posuvník, aby měly oba stejný rozsah.
+          marginRight: sizes.vbar,
           height: overflowing ? 18 : 0,
           visibility: overflowing ? 'visible' : 'hidden',
           background: RES.white,
