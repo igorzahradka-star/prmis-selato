@@ -135,7 +135,7 @@ export class SpBudgetRepository implements IBudgetRepository {
     return mapRecord((await this.load(newId)).item);
   }
 
-  public async save(recordId: number, doc: BudgetDoc, totals: BudgetTotalsInput, actor: CurrentUser, etag?: string): Promise<BudgetRecord> {
+  public async save(recordId: number, doc: BudgetDoc, totals: BudgetTotalsInput, actor: CurrentUser, etag?: string, options?: { auto?: boolean }): Promise<BudgetRecord> {
     const { item, etag: current } = await this.load(recordId);
     const record = mapRecord(item);
     const project = await this.requireProject(record.projectNumber);
@@ -147,7 +147,9 @@ export class SpBudgetRepository implements IBudgetRepository {
       throw new WorkflowError(issues.map((i) => i.message).join(' '));
     }
     await this.write(recordId, { Content: budgetToJson(doc), TotalCost: totals.totalCost, TotalSale: totals.totalSale }, etag ?? current, 'Rozpočet se nepodařilo uložit');
-    await this.audit(record.projectNumber, actor, 'Rozpočet uložen', record.status, record.status);
+    if (!options || !options.auto) {
+      await this.audit(record.projectNumber, actor, 'Rozpočet uložen', record.status, record.status);
+    }
     return mapRecord((await this.load(recordId)).item);
   }
 

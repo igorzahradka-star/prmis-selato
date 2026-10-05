@@ -182,7 +182,7 @@ export interface IProjectRepository {
    */
   update(projectNumber: string, input: ProjectEditInput, expectedVersion?: string): Promise<Project>;
   /** Uloží výsledek semaforu rozpočtu do projektu (cache pro přehled projektů): stav, baseline a prognóza nákladů (v Kč). */
-  setBudgetCache(projectNumber: string, cache: { status: string; baselineTotal?: number; forecastTotal?: number }): Promise<void>;
+  setBudgetCache(projectNumber: string, cache: BudgetCacheInput): Promise<void>;
   /** Přepíše jen smluvní cenu projektu (bez DPH) a měnu — používá schválení rozpočtu: smluvní cena = prodej schváleného rozpočtu. */
   setContractPrice(projectNumber: string, priceNet: number, currency: string): Promise<void>;
   /**
@@ -788,6 +788,17 @@ export interface ICatalogRepository {
   remove(id: number, actor: CurrentUser): Promise<void>;
 }
 
+/** Cache rozpočtu v projektu (vše v Kč): semafor, baseline, prognóza a součty plánu/prodeje/skutečnosti pro přehledy. */
+export interface BudgetCacheInput {
+  status: string;
+  baselineTotal?: number;
+  forecastTotal?: number;
+  costTotal?: number;
+  saleTotal?: number;
+  actualTotal?: number;
+  approved?: boolean;
+}
+
 /** Součty rozpočtu v Kč, které se ukládají u záznamu (přehledy je čtou bez načítání obsahu). */
 export interface BudgetTotalsInput {
   totalCost: number;
@@ -811,8 +822,11 @@ export interface IBudgetRepository {
   get(projectNumber: string): Promise<{ record: BudgetRecord; doc: BudgetDoc; etag?: string } | undefined>;
   /** Založí rozpočet projektu s daným obsahem (jen když ještě žádný není). */
   create(projectNumber: string, doc: BudgetDoc, totals: BudgetTotalsInput, actor: CurrentUser): Promise<BudgetRecord>;
-  /** Uloží obsah rozpočtu. */
-  save(recordId: number, doc: BudgetDoc, totals: BudgetTotalsInput, actor: CurrentUser, etag?: string): Promise<BudgetRecord>;
+  /**
+   * Uloží obsah rozpočtu. `options.auto` = automatické průběžné uložení: stejná pravidla i hlídání souběhu, ale do
+   * podrobné historie se nezapisuje (jinak by se zaplnila stovkami záznamů „uloženo“).
+   */
+  save(recordId: number, doc: BudgetDoc, totals: BudgetTotalsInput, actor: CurrentUser, etag?: string, options?: { auto?: boolean }): Promise<BudgetRecord>;
   /** Požádá vedení o schválení (rozpočet se tím nezamyká). */
   requestApproval(recordId: number, actor: CurrentUser): Promise<BudgetRecord>;
   /** Schválí (vedení): do historie se uloží záznam s aktuálními náklady, prodejem a marží (v Kč). */

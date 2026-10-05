@@ -10,16 +10,20 @@ import { OrderStatus, ORDER_STATUS_ORDER, PurchaseOrder, SPENT_ORDER_STATUSES, s
 import { InvoiceBasis, InvoiceStatus, INVOICE_STATUS_ORDER, invoiceKindOf, sortInvoicesNewestFirst } from './invoiceBases';
 import { sortDeadlines } from './deadlines';
 import { DiaryEntry, EntryStatus, parseIsoDay } from './siteDiary';
+import { BudgetDoc, BudgetRecord, budgetSemaphore, budgetTotals, changedSinceApproval, lastApproval } from './budget';
+import { RateTable, asCurrencyCode } from './currency';
 
 /** Které části report obsahuje (uživatel je v dialogu zapíná a vypíná). */
 export interface ReportSections {
+  /** Realizační rozpočet: plán, skutečnost, zbývá, semafor. */
+  budget: boolean;
   finance: boolean;
   deadlines: boolean;
   diary: boolean;
   photos: boolean;
 }
 
-export const ALL_REPORT_SECTIONS: ReportSections = { finance: true, deadlines: true, diary: true, photos: true };
+export const ALL_REPORT_SECTIONS: ReportSections = { budget: true, finance: true, deadlines: true, diary: true, photos: true };
 
 /** Kolik řádků se vejde na jednu stránku reportu — víc se zkrátí a řekne se, kolik jich ještě je. */
 export const REPORT_LIMITS = { orders: 8, invoices: 8, deadlines: 7, tasks: 7, entries: 6, photos: 6 };
@@ -88,6 +92,41 @@ export interface ReportPhoto {
   batch: string;
 }
 
+/** Jedna skupina rozpočtu v reportu (částky ve měně reportu, bez DPH). */
+export interface ReportBudgetGroup {
+  name: string;
+  kind: string;
+  cost: number;
+  sale: number;
+  actual: number;
+  remaining: number;
+}
+
+/** Realizační rozpočet v reportu: plán, skutečnost (koupeno), zbývá, prognóza, semafor a stav schválení. */
+export interface ReportBudget {
+  /** Rozpočet někdo aspoň jednou schválil; jinak jsou čísla provizorní. */
+  approved: boolean;
+  approvalNo?: number;
+  approvedAt?: Date;
+  approvedBy?: string;
+  /** Čeká na schválení vedením. */
+  pending: boolean;
+  /** Součty se od posledního schválení změnily. */
+  changedSinceApproval: boolean;
+  cost: number;
+  sale: number;
+  marginPercent: number;
+  ordered: number;
+  forecast: number;
+  actual: number;
+  remaining: number;
+  /** Proinvestováno: skutečnost jako % nákladů plánu. */
+  spentPercent: number;
+  semaphore: string;
+  deviationPercent?: number;
+  groups: ReportBudgetGroup[];
+}
+
 export interface ProjectReportModel {
   generatedAt: Date;
   generatedBy: string;
@@ -108,9 +147,14 @@ export interface ProjectReportModel {
     endActual?: Date;
     budgetStatus: string;
   };
+  /** Rozpočet projektu; chybí, když ho projekt nemá (nebo ho report nemá obsahovat). */
+  budget?: ReportBudget;
   finance: {
-    /** Celková cena projektu (smluvní, bez DPH) ve měně reportu. */
+    /** Celková cena projektu (smluvní, bez DPH) ve měně reportu; má-li projekt rozpočet, je to prodej rozpočtu. */
     price?: number;
+    /** Čísla (cena, vyčerpáno) jsou z rozpočtu / rozpočet zatím není schválený. */
+    fromBudget?: boolean;
+    provisional?: boolean;
     originalPrice?: { amount: number; currency: string };
     /** Vyčerpáno: součet vystavených objednávek bez DPH. */
     spent: number;
@@ -137,6 +181,8 @@ export interface ProjectReportModel {
 
 export interface ReportInput {
   project: Project;
+  /** Rozpočet projektu (obsah, záznam se schválením a kurzy); bez něj se použijí údaje z projektu a objednávky. */
+  budget?: { doc: BudgetDoc; record?: BudgetRecord; rates: RateTable; yellowThresholdPercent?: number; minimumMarginPercent?: number };
   orders: PurchaseOrder[];
   invoices: InvoiceBasis[];
   tasks: ProjectTask[];
@@ -192,7 +238,42 @@ export function buildProjectReportModel(input: ReportInput): ProjectReportModel 
   // --- finance
   const spentOrders = input.orders.filter((o) => SPENT_ORDER_STATUSES.indexOf(o.status) !== -1);
   const spent = round2(spentOrders.reduce((sum, o) => sum + conv(o.amountNet, o.currency), 0));
-  const price = p.contractPriceNet === undefined ? undefined : conv(p.contractPriceNet, p.currency);
+  // --- rozpočet (je-li): cena = prodej, vyčerpáno = skutečnost (koupeno), proinvestování = skutečnost / náklady
+  let budget: ReportBudget | undefined;
+  if (input.budget && input.sections.budget) {
+    const b = input.budget;
+    const cur = asCurrencyCode(input.currency);
+    const totals = budgetTotals(b.doc, cur, b.rates, input.orders);
+    const totalsCzk = budgetTotals(b.doc, 'CZK', b.rates, input.orders);
+    const last = lastApproval(b.record);
+    const sem = budgetSemaphore({
+      baselineCost: last ? last.cost : undefined,
+      forecastCost: totalsCzk.forecast,
+      contractPrice: last ? last.sale : undefined,
+      yellowThresholdPercent: b.yellowThresholdPercent ?? 5,
+      minimumMarginPercent: b.minimumMarginPercent ?? 10
+    });
+    budget = {
+      approved: !!last,
+      approvalNo: last ? last.no : undefined,
+      approvedAt: last ? last.at : undefined,
+      approvedBy: last ? last.byName : undefined,
+      pending: !!b.record && b.record.status === 'Ke schválení',
+      changedSinceApproval: !!b.record && changedSinceApproval(b.record, totalsCzk.cost, totalsCzk.sale),
+      cost: totals.cost,
+      sale: totals.sale,
+      marginPercent: totals.marginPercent,
+      ordered: totals.ordered,
+      forecast: totals.forecast,
+      actual: totals.actual,
+      remaining: totals.remaining,
+      spentPercent: totals.spentPercent,
+      semaphore: sem.status,
+      deviationPercent: sem.deviationPercent,
+      groups: totals.byGroup.map((g) => ({ name: g.name, kind: g.kind, cost: g.cost, sale: g.sale, actual: g.actual, remaining: g.remaining }))
+    };
+  }
+  const price = budget ? budget.sale : p.contractPriceNet === undefined ? undefined : conv(p.contractPriceNet, p.currency);
 
   const ordersSorted = sortOrdersNewestFirst(input.orders);
   const orders: ReportOrderRow[] = ordersSorted.slice(0, REPORT_LIMITS.orders).map((o) => ({
@@ -277,13 +358,16 @@ export function buildProjectReportModel(input: ReportInput): ProjectReportModel 
       start: p.startDate,
       endPlanned: p.endDatePlanned,
       endActual: p.endDateActual,
-      budgetStatus: p.budgetStatus || 'Bez rozpočtu'
+      budgetStatus: budget ? budget.semaphore : p.budgetStatus || 'Bez rozpočtu'
     },
+    budget,
     finance: {
       price,
-      originalPrice: p.contractPriceNet !== undefined && p.currency !== input.currency ? { amount: p.contractPriceNet, currency: p.currency } : undefined,
-      spent,
-      spentPercent: price !== undefined && price > 0 ? Math.round((spent / price) * 1000) / 10 : undefined,
+      fromBudget: !!budget,
+      provisional: budget ? !budget.approved : false,
+      originalPrice: !budget && p.contractPriceNet !== undefined && p.currency !== input.currency ? { amount: p.contractPriceNet, currency: p.currency } : undefined,
+      spent: budget ? budget.actual : spent,
+      spentPercent: budget ? budget.spentPercent : price !== undefined && price > 0 ? Math.round((spent / price) * 1000) / 10 : undefined,
       ordersByStatus: groupByStatus(input.orders, (o) => o.status, (o) => conv(o.amountNet, o.currency), ORDER_STATUS_ORDER as OrderStatus[]),
       ordersTotal: input.orders.length,
       orders,
@@ -328,10 +412,19 @@ export function reportHighlights(m: ProjectReportModel): string[] {
     out.push(`${overdueTasks} ${plural(overdueTasks, 'úkol ze zápisu je', 'úkoly ze zápisů jsou', 'úkolů ze zápisů je')} po termínu.`);
   }
   const pct = m.finance.spentPercent;
+  const base = m.finance.fromBudget ? 'nákladů rozpočtu' : 'celkové ceny';
   if (pct !== undefined && pct > 100) {
-    out.push(`Vyčerpáno ${String(pct).replace('.', ',')} % celkové ceny — objednávky přesahují cenu projektu.`);
+    out.push(`Vyčerpáno ${String(pct).replace('.', ',')} % ${base} — ${m.finance.fromBudget ? 'skutečnost přesahuje plán' : 'objednávky přesahují cenu projektu'}.`);
   } else if (pct !== undefined && pct >= 90) {
-    out.push(`Vyčerpáno už ${String(pct).replace('.', ',')} % celkové ceny.`);
+    out.push(`Vyčerpáno už ${String(pct).replace('.', ',')} % ${base}.`);
+  }
+  if (m.budget && !m.budget.approved) {
+    out.push('Rozpočet zatím nebyl schválen vedením — cena, náklady a čerpání v reportu jsou provizorní.');
+  } else if (m.budget && m.budget.changedSinceApproval) {
+    out.push('Rozpočet byl od posledního schválení upraven — čísla se liší od schválených.');
+  }
+  if (m.budget && m.budget.forecast > m.budget.cost) {
+    out.push('Prognóza nákladů je vyšší než plán rozpočtu.');
   }
   if (m.project.budgetStatus === 'Červená') {
     out.push('Semafor rozpočtu je červený.');

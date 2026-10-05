@@ -28,6 +28,9 @@ import { DocumentFolderButton } from '../../ui/components/DocumentFolderButton';
 import { PanelMessages } from '../../ui/components/PanelMessages';
 import { removeConceptCopy, saveConceptCopy } from '../documents/conceptCopy';
 import { useApp } from '../../ui/AppContext';
+import { useFormDraft } from '../../ui/useFormDraft';
+import { DraftBanner } from '../../ui/components/DraftBanner';
+import { draftKey } from '../../core/drafts';
 import { RES } from '../../ui/theme';
 import { CS_CALENDAR_STRINGS } from '../../ui/csCalendarStrings';
 import { useAutoRefresh } from '../../ui/useAutoRefresh';
@@ -406,6 +409,7 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
       throw new Error(`Nejdřív vyplňte: ${found.map((f) => f.message).join(' ')}`);
     }
     const saved = await repos.diary.createEntry(input, user);
+    draft.clear();
     setEntry(saved);
     onChanged();
     return saved;
@@ -571,6 +575,30 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
     );
   };
 
+  // Rozepsaný zápis / protokol se průběžně ukládá do prohlížeče — když uživatel odskočí jinam a vrátí se, nabídne se obnovení.
+  const draftValue = React.useMemo(
+    () => ({ fProject, fDiary, fDate, fHeader, fParticipants, fPoints, fTasks, fConditions, fResult, fDirection, fWarranty }),
+    [fProject, fDiary, fDate, fHeader, fParticipants, fPoints, fTasks, fConditions, fResult, fDirection, fWarranty]
+  );
+  const draft = useFormDraft({
+    key: isOpen ? draftKey(user.loginName, 'entry', entry ? entry.id : entryId !== undefined ? entryId : `new-${projectNumber || ''}-${kind || 'zapis'}`) : undefined,
+    value: draftValue,
+    active: isOpen && !loading && editing,
+    onRestore: (d) => {
+      setFProject(d.fProject);
+      setFDiary(d.fDiary);
+      setFDate(d.fDate);
+      setFHeader(d.fHeader);
+      setFParticipants(d.fParticipants);
+      setFPoints(d.fPoints);
+      setFTasks(d.fTasks);
+      setFConditions(d.fConditions);
+      setFResult(d.fResult);
+      setFDirection(d.fDirection);
+      setFWarranty(d.fWarranty);
+    }
+  });
+
   const save = async (thenClose: boolean): Promise<void> => {
     setError(undefined);
     let diaryNo: number | undefined;
@@ -592,6 +620,7 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
     setBusy(true);
     try {
       const saved = entry ? await repos.diary.updateEntry(entry.id, input, user) : await repos.diary.createEntry(input, user);
+      draft.clear();
       afterChange(saved);
       setEditing(false);
       if (!entry) {
@@ -1011,6 +1040,7 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
 
         {!loading && editing && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 8 }}>
+            {draft.pending && <DraftBanner savedAt={draft.pending.savedAt} what={protocol ? 'formulář protokolu' : 'formulář zápisu'} onRestore={draft.restore} onDiscard={draft.discard} />}
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
               <Dropdown
                 label="Projekt"

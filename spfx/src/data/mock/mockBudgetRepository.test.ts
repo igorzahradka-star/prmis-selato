@@ -113,3 +113,23 @@ describe('Smluvní cena projektu = prodej schváleného rozpočtu', () => {
     expect((await r.budgets.history(rec.id)).some((h) => h.action.startsWith('Smluvní cena projektu přepsána'))).toBe(true);
   });
 });
+
+describe('Automatické ukládání rozpočtu', () => {
+  it('automatické uložení uloží obsah a hlídá souběh, ale nezaplňuje podrobnou historii', async () => {
+    const r = createMockRepositories();
+    const rec = await r.budgets.create('25003', naplneny(), TOTALS, jan);
+    const pred = (await r.budgets.history(rec.id)).length;
+    const d = naplneny();
+    d.items[0].description = 'Změněno automaticky';
+    await r.budgets.save(rec.id, d, TOTALS, jan, undefined, { auto: true });
+    expect((await r.budgets.get('25003'))?.doc.items[0].description).toBe('Změněno automaticky');
+    expect((await r.budgets.history(rec.id)).length).toBe(pred);
+    // ruční uložení se do historie zapíše
+    await r.budgets.save(rec.id, d, TOTALS, jan);
+    expect((await r.budgets.history(rec.id)).length).toBe(pred + 1);
+    // souběh se hlídá i při automatickém uložení
+    const c = await r.budgets.get('25003');
+    await r.budgets.save(rec.id, d, TOTALS, jan, c?.etag, { auto: true });
+    await expect(r.budgets.save(rec.id, d, TOTALS, jan, c?.etag, { auto: true })).rejects.toThrow(/mezitím/);
+  });
+});

@@ -25,6 +25,9 @@ import { DocumentFolderButton } from '../../ui/components/DocumentFolderButton';
 import { PanelMessages } from '../../ui/components/PanelMessages';
 import { removeConceptCopy, saveConceptCopy } from '../documents/conceptCopy';
 import { useApp } from '../../ui/AppContext';
+import { useFormDraft } from '../../ui/useFormDraft';
+import { DraftBanner } from '../../ui/components/DraftBanner';
+import { draftKey } from '../../core/drafts';
 import { RES } from '../../ui/theme';
 import { CS_CALENDAR_STRINGS } from '../../ui/csCalendarStrings';
 import { useAutoRefresh } from '../../ui/useAutoRefresh';
@@ -402,6 +405,25 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
       );
   };
 
+  // Rozepsaný podklad se průběžně ukládá do prohlížeče — když uživatel odskočí jinam a vrátí se, nabídne se obnovení.
+  const draftValue = React.useMemo(() => ({ fProject, fLines, fVat, fCurrency, fKind, fIssue, fTaxable, fDays, fNote }), [fProject, fLines, fVat, fCurrency, fKind, fIssue, fTaxable, fDays, fNote]);
+  const draft = useFormDraft({
+    key: isOpen ? draftKey(user.loginName, 'invoice', invoice ? invoice.id : invoiceId !== undefined ? invoiceId : `new-${projectNumber || ''}`) : undefined,
+    value: draftValue,
+    active: isOpen && !loading && editing,
+    onRestore: (d) => {
+      setFProject(d.fProject);
+      setFLines(d.fLines);
+      setFVat(d.fVat);
+      setFCurrency(d.fCurrency);
+      setFKind(d.fKind);
+      setFIssue(d.fIssue);
+      setFTaxable(d.fTaxable);
+      setFDays(d.fDays);
+      setFNote(d.fNote);
+    }
+  });
+
   const save = async (thenSubmit: boolean): Promise<void> => {
     const input = buildInput();
     const found = validateInvoiceDraft(input, thenSubmit);
@@ -416,6 +438,7 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
       const saved = invoice ? await repos.invoices.update(invoice.id, input, user) : await repos.invoices.create(input, user);
       // Hned po uložení si podklad pamatujeme — kdyby selhalo předání, další pokus koncept upraví, nezaloží druhý.
       setInvoice(saved);
+      draft.clear();
       onChanged();
       const failedFiles = await uploadPending(saved.id);
       afterChange(saved);
@@ -902,6 +925,7 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
 
         {!loading && editing && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 8 }}>
+            {draft.pending && <DraftBanner savedAt={draft.pending.savedAt} what="formulář podkladu" onRestore={draft.restore} onDiscard={draft.discard} />}
             <Dropdown
               label="Druh dokladu"
               options={KIND_OPTIONS}

@@ -5,6 +5,25 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.28.0 — 5. 10. 2026 — První poznatky z ostrého provozu: nic se neztratí, posuvníky, rozpočet v přehledu a v reportu
+
+**Opraveno / nové (podle připomínek kolegů)**
+
+- **Zadávané údaje se neztratí.** Když někdo uprostřed zadávání odskočí jinam (např. rychle vyřídit objednávku) a vrátí se, o rozepsanou práci nepřijde:
+  - **Rozpočet a plán plateb se ukládají samy** — po krátké pauze od poslední úpravy (do podrobné historie se neukládá, aby se nezaplnila), a **hned při odchodu ze záložky**. Pod tlačítkem Uložit je vidět stav („Automaticky uloženo v 16:52“). Při zavření stránky s neuloženými změnami se prohlížeč zeptá. Rozpočet je pracovní dokument (nezamyká se), automatické uložení nic neschvaluje.
+  - **Objednávka, podklad pro fakturaci, zápis ze stavby a předávací protokol** se průběžně zálohují v prohlížeči; po návratu nabídne okno **„Našli jsme rozepsaný formulář — Obnovit / Zahodit“**. Po úspěšném uložení se záloha smaže; starší než 14 dní se zahodí.
+  - Záloha rozpočtu v prohlížeči slouží navíc jako pojistka, kdyby se automatické uložení nepovedlo (výpadek spojení, souběžná úprava kolegy).
+- **Vodorovný posuvník je pořád vidět** u dolního okraje obrazovky (nikoli až na konci tabulky): rozpočet, cashflow (tabulky plateb a milníků i přehled po obdobích), přehled projektů, objednávky, podklady pro fakturaci, zápisy a protokoly. Zrcadlený posuvník se lepí na dolní okraj okna, dokud je tabulka vidět, a je propojený s tabulkou. (Zvětšené písmo systému a nižší šířka okna dělají širokou tabulku ještě širší — posuvník to řeší.)
+- **Přehled projektů ukazuje čísla z rozpočtu:** sloupec **Celková cena** = prodej rozpočtu, **Náklady** = plán nákupu, **Vyčerpáno** = skutečnost (koupeno). Dokud rozpočet nikdo neschválil, jsou čísla **provizorní — šedá kurzívou se štítkem „neschváleno“**. Projekt bez rozpočtu se chová jako dřív (cena z údajů projektu, čerpání z objednávek). Dlaždice „hodnota aktivních projektů“ počítá také z rozpočtu.
+- **Report projektu (PDF) zahrnuje rozpočet:** nová strana **Realizační rozpočet** (plán, prodej, marže, skutečnost, zbývá, prognóza, objednáno, proinvestováno, semafor, tabulka po skupinách a stav schválení). Přehledová strana ukazuje cenu a vyčerpání z rozpočtu (s upozorněním „neschváleno“), „Na co dát pozor“ upozorní na neschválený či po schválení upravený rozpočet a na prognózu nad plánem. V okně reportu je nová volba **Realizační rozpočet**. Objednávky jsou v reportu prázdné, když projekt žádné objednávky v aplikaci nemá (nákupy zapsané jen v rozpočtu do Koupeno se do objednávek nepromítají).
+
+**Co je potřeba udělat po nasazení**
+
+1. Spustit **Instalace a diagnostika** (schéma 17 — do evidence projektů přibyly uložené součty rozpočtu a příznak schválení; nic se nemaže).
+2. V téže stránce kliknout na **Přepočítat všechny projekty** (karta „Součty rozpočtů v přehledu projektů“) — doplní čísla ze všech už zadaných rozpočtů do přehledu. Dál se aktualizují sama.
+
+---
+
 ## 0.27.0 — 4. 10. 2026 — Cashflow projektu a fakturační milníky (Fáze 3, krok 3c)
 
 **Nové**

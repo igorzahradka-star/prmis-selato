@@ -14,6 +14,7 @@ import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 
 import { useApp } from '../../ui/AppContext';
 import { RES } from '../../ui/theme';
+import { StickyHScroll } from '../../ui/components/StickyHScroll';
 import { useAutoRefresh } from '../../ui/useAutoRefresh';
 import { Project } from '../../core/types';
 import { DiaryEntry, SiteDiary, canWriteDiary, isHandover, isHandoverDiary } from '../../core/siteDiary';
@@ -92,9 +93,9 @@ export const ProjectDiaryTab: React.FC<{ project: Project }> = ({ project }) => 
       )}
       {entries && diaries && diaries.length > 0 && shown.length === 0 && <MessageBar messageBarType={MessageBarType.info}>Zatím tu není žádný zápis.</MessageBar>}
       {shown.length > 0 && (
-        <div style={{ background: RES.white, border: `1px solid ${RES.grayBlue}`, borderRadius: 4 }}>
+        <StickyHScroll scrollSelector=".ms-DetailsList">
           <EntriesTable entries={shown} hideProject onOpen={(id) => setOpenId(id)} />
-        </div>
+        </StickyHScroll>
       )}
 
       <EntryPanel

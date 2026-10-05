@@ -50,7 +50,11 @@ export const MOCK_PROJECTS: Project[] = [
     isOverhead: false,
     budgetStatus: BudgetStatus.Zelena,
     budgetBaselineTotal: 3900000,
-    costForecastTotal: 3820000
+    costForecastTotal: 3820000,
+    budgetCostTotal: 3900000,
+    budgetSaleTotal: 4500000,
+    budgetActualTotal: 1343255,
+    budgetApproved: true
   },
   {
     id: 2,
@@ -73,7 +77,11 @@ export const MOCK_PROJECTS: Project[] = [
     isOverhead: false,
     budgetStatus: BudgetStatus.Zluta,
     budgetBaselineTotal: 9800000,
-    costForecastTotal: 10100000
+    costForecastTotal: 10100000,
+    budgetCostTotal: 8600000,
+    budgetSaleTotal: 9800000,
+    budgetActualTotal: 2150000,
+    budgetApproved: false
   },
   {
     id: 3,

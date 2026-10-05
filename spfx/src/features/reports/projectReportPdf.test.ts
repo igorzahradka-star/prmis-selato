@@ -40,6 +40,7 @@ const model = (extra: Partial<ProjectReportModel> = {}): ProjectReportModel => (
   entries: [{ entryNo: 7, date: new Date(2026, 9, 1), diary: 'Hlavní deník', counterparty: 'BELTEC', status: 'Uzavřeno', pointCount: 3, summary: 'Kabeláž: Položeno 200 m kabelu.' }],
   entriesHidden: 0,
   photos: [{ dataUrl: 'data:image/jpeg;base64,/9j/4AAQ', caption: 'mělký výkop', batch: '2026-10-01 Výkop' }],
+  budget: undefined,
   ...extra
 });
 
@@ -86,7 +87,7 @@ describe('PDF reportu projektu', () => {
   });
 
   it('vypnuté části se nevykreslí (přehled zůstává)', () => {
-    const text = allText(buildProjectReportDocument(model({ sections: { finance: false, deadlines: false, diary: false, photos: false } })).content);
+    const text = allText(buildProjectReportDocument(model({ sections: { budget: false, finance: false, deadlines: false, diary: false, photos: false } })).content);
     expect(text).toContain('Přehled projektu');
     ['Objednávky a vyčerpání', 'Termíny a úkoly', 'Stavební deník', 'Fotodokumentace'].forEach((t) => expect(text).not.toContain(t));
   });
@@ -134,5 +135,50 @@ describe('PDF reportu projektu', () => {
     expect(footer(1, 8)).toBeNull();
     expect(footer(8, 8)).toBeNull();
     expect(JSON.stringify(footer(3, 8))).toContain('Report projektu 26001');
+  });
+});
+
+describe('PDF reportu: realizační rozpočet', () => {
+  const budget = {
+    approved: false,
+    pending: false,
+    changedSinceApproval: false,
+    cost: 3900000,
+    sale: 4500000,
+    marginPercent: 13.33,
+    ordered: 120000,
+    forecast: 3950000,
+    actual: 3411582,
+    remaining: 488418,
+    spentPercent: 87.5,
+    semaphore: 'Bez rozpočtu',
+    groups: [
+      { name: 'Materiál', kind: 'standard', cost: 3000000, sale: 3450000, actual: 2800000, remaining: 200000 },
+      { name: 'Vlastní práce', kind: 'prace', cost: 900000, sale: 1050000, actual: 611582, remaining: 288418 }
+    ]
+  };
+
+  it('s rozpočtem je v PDF strana Realizační rozpočet se skupinami a stavem schválení', () => {
+    const t = allText(buildProjectReportDocument(model({ budget, finance: { ...model().finance, fromBudget: true, provisional: true, price: 4500000, spent: 3411582, spentPercent: 87.5 } })).content);
+    expect(t).toContain('Realizační rozpočet');
+    expect(t).toContain('NESCHVÁLENO');
+    expect(t).toContain('Materiál');
+    expect(t).toContain('Vlastní práce (práce)');
+    expect(t).toContain('Skutečnost');
+    expect(t).toContain('proinvestováno 87,5 %');
+    expect(t).toContain('prodej realizačního rozpočtu');
+  });
+
+  it('schválený rozpočet ukáže číslo záznamu a kdo ho schválil', () => {
+    const t = allText(buildProjectReportDocument(model({ budget: { ...budget, approved: true, approvalNo: 2, approvedBy: 'Igor Zahrádka', approvedAt: new Date(2026, 9, 2), changedSinceApproval: true, semaphore: 'Zelená', deviationPercent: -2.1 } })).content);
+    expect(t).toContain('Schváleno (záznam č. 2');
+    expect(t).toContain('Igor Zahrádka');
+    expect(t).toContain('od té doby upraveno');
+    expect(t).toContain('Semafor rozpočtu: Zelená');
+  });
+
+  it('vypnutá část Rozpočet stranu nevykreslí', () => {
+    const t = allText(buildProjectReportDocument(model({ budget, sections: { ...ALL_REPORT_SECTIONS, budget: false } })).content);
+    expect(t).not.toContain('Plán – nákup');
   });
 });

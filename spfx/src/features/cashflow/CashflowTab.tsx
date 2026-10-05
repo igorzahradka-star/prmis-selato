@@ -41,6 +41,11 @@ import { CfBucket, Granularity, InvoiceLike, buildCashflow, dayText, parsePercen
 import { InvoiceStatus } from '../../core/invoiceBases';
 import { CELL_INPUT, NumInput } from '../budget/NumInput';
 import { CashflowChart } from './CashflowChart';
+import { useAutosave, whenFlushed } from '../budget/useAutosave';
+import { useFormDraft } from '../../ui/useFormDraft';
+import { DraftBanner } from '../../ui/components/DraftBanner';
+import { draftKey } from '../../core/drafts';
+import { StickyHScroll } from '../../ui/components/StickyHScroll';
 
 const Tile: React.FC<{ label: string; value: string; hint?: string; warn?: boolean }> = ({ label, value, hint, warn }) => (
   <div style={{ background: RES.white, border: `1px solid ${RES.grayBlue}`, borderLeft: `4px solid ${warn ? RES.red : RES.green}`, borderRadius: 4, padding: '8px 12px', minWidth: 150, flex: '1 1 150px' }}>
@@ -91,6 +96,7 @@ export const CashflowTab: React.FC<{ project: Project }> = ({ project }) => {
   const why = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 
   const reload = React.useCallback(async (): Promise<void> => {
+    await whenFlushed(project.projectNumber);
     const [b, inv] = await Promise.all([repos.budgets.get(project.projectNumber), repos.invoices.list({ projectNumber: project.projectNumber }).catch(() => [])]);
     setLoaded(true);
     setInvoices(inv.map((i) => ({ number: i.number, status: i.status, amountNet: i.amountNet, vatRate: i.vatRate, currency: i.currency, dueDate: i.dueDate, paidDate: i.paidDate })));
@@ -127,6 +133,49 @@ export const CashflowTab: React.FC<{ project: Project }> = ({ project }) => {
       .then(() => setBusy(false))
       .catch(() => setBusy(false));
   };
+
+  // Průběžné ukládání jako v rozpočtu: plán plateb se po pauze sám uloží; při odchodu z této záložky se uloží hned.
+  const busyRef = React.useRef(false);
+  busyRef.current = busy;
+  const etagRef = React.useRef<string | undefined>(undefined);
+  etagRef.current = etag;
+  const [autoError, setAutoError] = React.useState<string | undefined>(undefined);
+  const autosave = useAutosave<BudgetDoc>({
+    projectNumber: project.projectNumber,
+    enabled: !!record && editable && loaded,
+    dirty,
+    value: doc,
+    busy: () => busyRef.current,
+    persist: async (d) => {
+      if (!record) {
+        return undefined;
+      }
+      const found = validateBudget(d, false);
+      if (found.length > 0) {
+        throw new Error(found[0].message);
+      }
+      const t = budgetTotals(d, 'CZK', report.rates);
+      await repos.budgets.save(record.id, d, { totalCost: t.cost, totalSale: t.sale }, user, etagRef.current, { auto: true });
+      const fresh = await repos.budgets.get(project.projectNumber);
+      return fresh ? fresh.etag : undefined;
+    },
+    onSaved: (d, e) => {
+      setSaved(JSON.stringify(d));
+      setEtag(e);
+      setAutoError(undefined);
+    },
+    onError: (m) => setAutoError(m)
+  });
+  const draft = useFormDraft<BudgetDoc | null>({
+    key: record && editable ? draftKey(user.loginName, 'budget', project.projectNumber) : undefined,
+    value: doc ?? null,
+    active: !!record && editable && !!doc,
+    onRestore: (d) => {
+      if (d) {
+        setDoc(d);
+      }
+    }
+  });
 
   const save = (): void => {
     if (!record || !doc) {
@@ -248,6 +297,7 @@ export const CashflowTab: React.FC<{ project: Project }> = ({ project }) => {
         <CurrencySwitch />
       </div>
 
+      {draft.pending && <DraftBanner savedAt={draft.pending.savedAt} what="plán plateb" onRestore={draft.restore} onDiscard={draft.discard} />}
       {error && (
         <MessageBar messageBarType={MessageBarType.error} isMultiline onDismiss={() => setError(undefined)}>
           {error}
@@ -275,7 +325,7 @@ export const CashflowTab: React.FC<{ project: Project }> = ({ project }) => {
       {cf.buckets.length === 0 && <MessageBar messageBarType={MessageBarType.info}>Zatím není co zobrazit — doplňte platby nákladů a fakturační milníky s daty.</MessageBar>}
 
       {cf.buckets.length > 0 && (
-        <div style={{ overflow: 'auto', maxHeight: 360, background: RES.white, border: `1px solid ${RES.grayBlue}`, borderRadius: 4, marginTop: 10 }}>
+        <StickyHScroll maxHeight={360} frameStyle={{ marginTop: 10 }}>
           <table style={{ borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr>
@@ -299,7 +349,7 @@ export const CashflowTab: React.FC<{ project: Project }> = ({ project }) => {
               {row('Náklad v čase (faktury)', (b) => b.accrual)}
             </tbody>
           </table>
-        </div>
+        </StickyHScroll>
       )}
 
       {cf.coverage.length > 0 && (
@@ -321,7 +371,7 @@ export const CashflowTab: React.FC<{ project: Project }> = ({ project }) => {
       <div style={{ fontSize: 12, color: RES.gray, marginBottom: 6 }}>
         Podle vzoru „Průběh plateb“: částka bez DPH, režim DPH, datum faktury (náklad v čase), splatnost (výdaj — kdy se platí) a datum úhrady (skutečnost).
       </div>
-      <div style={{ overflowX: 'auto', background: RES.white, border: `1px solid ${RES.grayBlue}`, borderRadius: 4 }}>
+      <StickyHScroll>
         <table style={{ width: '100%', minWidth: 1280, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
           <colgroup>
             <col style={{ width: 'auto' }} />
@@ -410,7 +460,7 @@ export const CashflowTab: React.FC<{ project: Project }> = ({ project }) => {
             )}
           </tbody>
         </table>
-      </div>
+      </StickyHScroll>
       {editable && (
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
           <ActionButton iconProps={{ iconName: 'Add' }} text="Přidat platbu" onClick={() => setPayments([...payments, newPayment(undefined, '', report.currency)])} />
@@ -423,7 +473,7 @@ export const CashflowTab: React.FC<{ project: Project }> = ({ project }) => {
       <div style={{ fontSize: 12, color: RES.gray, marginBottom: 6 }}>
         Plánované datum faktury + splatnost určuje, kdy peníze přijdou. Navážete-li milník na podklad pro fakturaci, splatnost a úhrada se berou z něj.
       </div>
-      <div style={{ overflowX: 'auto', background: RES.white, border: `1px solid ${RES.grayBlue}`, borderRadius: 4 }}>
+      <StickyHScroll>
         <table style={{ width: '100%', minWidth: 1180, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
           <colgroup>
             <col style={{ width: 'auto' }} />
@@ -503,7 +553,7 @@ export const CashflowTab: React.FC<{ project: Project }> = ({ project }) => {
             )}
           </tbody>
         </table>
-      </div>
+      </StickyHScroll>
       {editable && (
         <div style={{ marginTop: 4 }}>
           <ActionButton iconProps={{ iconName: 'Add' }} text="Přidat milník" onClick={() => setIncome([...income, newMilestone(report.currency)])} />
@@ -519,7 +569,15 @@ export const CashflowTab: React.FC<{ project: Project }> = ({ project }) => {
             </MessageBar>
           )}
           <PrimaryButton text={busy ? 'Pracuji…' : dirty ? 'Uložit plán plateb' : 'Uloženo'} disabled={busy || !dirty} onClick={save} />
-          {dirty && <span style={{ marginLeft: 10, fontSize: 12, color: RES.gray }}>Změny zatím nejsou uložené.</span>}
+          <span style={{ marginLeft: 10, fontSize: 12, color: autoError ? RES.red : RES.gray }} aria-live="polite">
+            {autoError
+              ? `Automatické uložení čeká: ${autoError}`
+              : dirty
+              ? 'Změny zatím nejsou uložené — uloží se samy za několik sekund.'
+              : autosave.savedAt
+              ? `Automaticky uloženo v ${autosave.savedAt.getHours()}:${String(autosave.savedAt.getMinutes()).padStart(2, '0')}.`
+              : ''}
+          </span>
         </div>
       )}
 

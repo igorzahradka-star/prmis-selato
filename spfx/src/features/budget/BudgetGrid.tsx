@@ -38,6 +38,7 @@ import {
 } from '../../core/budget';
 import { Partner } from '../../core/types';
 import { CELL_INPUT, NumInput } from './NumInput';
+import { StickyHScroll } from '../../ui/components/StickyHScroll';
 import { SupplierPicker } from './SupplierPicker';
 
 export const pct = (v: number): string => `${v.toLocaleString('cs-CZ', { maximumFractionDigits: 1 })} %`;
@@ -151,9 +152,8 @@ export const BudgetGrid: React.FC<BudgetGridProps> = ({ doc, onChange, editable,
   );
 
   return (
-    // Obal rolují oběma směry a má omezenou výšku, takže vodorovný posuvník je pořád dole na obrazovce (ne na konci dlouhé tabulky);
-    // záhlaví sloupců zůstává nahoře.
-    <div style={{ overflow: 'auto', maxHeight: 'calc(100vh - 150px)', background: RES.white, border: `1px solid ${RES.grayBlue}`, borderRadius: 4 }}>
+    // Vodorovný posuvník je zrcadlený a lepí se na dolní okraj okna (viz StickyHScroll); záhlaví sloupců zůstává nahoře.
+    <StickyHScroll maxHeight="calc(100vh - 240px)">
       <table style={{ width: '100%', minWidth: 1950, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
         <colgroup>
           <col style={{ width: 'auto' }} />
@@ -443,6 +443,6 @@ export const BudgetGrid: React.FC<BudgetGridProps> = ({ doc, onChange, editable,
           })}
         </tbody>
       </table>
-    </div>
+    </StickyHScroll>
   );
 };

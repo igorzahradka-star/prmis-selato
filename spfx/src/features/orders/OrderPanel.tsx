@@ -23,6 +23,9 @@ import { DocumentFolderButton } from '../../ui/components/DocumentFolderButton';
 import { PanelMessages } from '../../ui/components/PanelMessages';
 import { removeConceptCopy, saveConceptCopy } from '../documents/conceptCopy';
 import { useApp } from '../../ui/AppContext';
+import { useFormDraft } from '../../ui/useFormDraft';
+import { DraftBanner } from '../../ui/components/DraftBanner';
+import { draftKey } from '../../core/drafts';
 import { useAutoRefresh } from '../../ui/useAutoRefresh';
 import { ExternalLink } from '../../ui/components/ExternalLink';
 import { RES } from '../../ui/theme';
@@ -305,6 +308,29 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
         unitPriceNet: parseAmount(l.unitPrice) ?? 0
       }));
 
+  // Rozepsaná objednávka se průběžně ukládá do prohlížeče — když uživatel odskočí jinam a vrátí se, nabídne se obnovení.
+  const draftValue = React.useMemo(
+    () => ({ fProject, fSupplierId, fSubject, fLines, fVat, fCurrency, fDelivery, fPayment, fNote, fBudgetItem }),
+    [fProject, fSupplierId, fSubject, fLines, fVat, fCurrency, fDelivery, fPayment, fNote, fBudgetItem]
+  );
+  const draft = useFormDraft({
+    key: isOpen ? draftKey(user.loginName, 'order', order ? order.id : orderId !== undefined ? orderId : `new-${projectNumber || ''}-${prefill && prefill.budgetItemId ? prefill.budgetItemId : ''}`) : undefined,
+    value: draftValue,
+    active: isOpen && !loading && editing,
+    onRestore: (d) => {
+      setFProject(d.fProject);
+      setFSupplierId(d.fSupplierId);
+      setFSubject(d.fSubject);
+      setFLines(d.fLines);
+      setFVat(d.fVat);
+      setFCurrency(d.fCurrency);
+      setFDelivery(d.fDelivery);
+      setFPayment(d.fPayment);
+      setFNote(d.fNote);
+      setFBudgetItem(d.fBudgetItem);
+    }
+  });
+
   const buildInput = (): OrderInput => ({
     projectNumber: fProject ?? '',
     supplierId: fSupplierId,
@@ -435,6 +461,7 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
       const saved = order ? await repos.orders.update(order.id, input, user) : await repos.orders.create(input, user);
       // Hned po uložení si objednávku pamatujeme — kdyby selhalo odeslání, další pokus koncept upraví, nezaloží druhý.
       setOrder(saved);
+      draft.clear();
       onChanged();
       const failedFiles = await uploadPending(saved.id);
       afterChange(saved);
@@ -1009,6 +1036,7 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
 
         {!loading && editing && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 8 }}>
+            {draft.pending && <DraftBanner savedAt={draft.pending.savedAt} what="formulář objednávky" onRestore={draft.restore} onDiscard={draft.discard} />}
             {order && editResetsApproval(order) && (
               <MessageBar messageBarType={MessageBarType.warning} isMultiline>
                 Objednávka je {order.status === OrderStatus.Schvaleno ? 'schválená' : 'zamítnutá'}.{' '}

@@ -53,6 +53,10 @@ import { refreshBudgetCache, computeSemaphore } from './budgetCache';
 import { PurchaseOrder } from '../../core/orders';
 import { BudgetStatus as Semafor } from '../../core/types';
 import { BudgetGrid, pct } from './BudgetGrid';
+import { useAutosave, whenFlushed } from './useAutosave';
+import { useFormDraft } from '../../ui/useFormDraft';
+import { DraftBanner } from '../../ui/components/DraftBanner';
+import { draftKey } from '../../core/drafts';
 import { BudgetImportDialog } from './BudgetImportDialog';
 import { NewPartnerDialog } from './NewPartnerDialog';
 import { CatalogItemDialog } from '../catalog/CatalogItemDialog';
@@ -133,6 +137,8 @@ export const BudgetTab: React.FC<{ project: Project }> = ({ project }) => {
   const why = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 
   const reload = React.useCallback(async (): Promise<void> => {
+    // Když se zrovna ukládají změny z předchozí záložky, počká se na ně — ať se nenačte starý stav.
+    await whenFlushed(project.projectNumber);
     const c = await repos.budgets.get(project.projectNumber);
     setLoaded(true);
     if (!c) {
@@ -195,6 +201,49 @@ export const BudgetTab: React.FC<{ project: Project }> = ({ project }) => {
     await repos.budgets.save(record.id, doc, czk(doc), user, etag);
     await reload();
   };
+
+  // Průběžné ukládání: rozpočet se po pauze sám uloží; při odchodu z této záložky se uloží hned.
+  const busyRef = React.useRef(false);
+  busyRef.current = busy;
+  const etagRef = React.useRef<string | undefined>(undefined);
+  etagRef.current = etag;
+  const [autoError, setAutoError] = React.useState<string | undefined>(undefined);
+  const autosave = useAutosave<BudgetDoc>({
+    projectNumber: project.projectNumber,
+    enabled: !!record && editable && loaded,
+    dirty,
+    value: doc,
+    busy: () => busyRef.current,
+    persist: async (d) => {
+      if (!record) {
+        return undefined;
+      }
+      const found = validateBudget(d, false);
+      if (found.length > 0) {
+        throw new Error(found[0].message);
+      }
+      await repos.budgets.save(record.id, d, czk(d), user, etagRef.current, { auto: true });
+      const fresh = await repos.budgets.get(project.projectNumber);
+      return fresh ? fresh.etag : undefined;
+    },
+    onSaved: (d, e) => {
+      setSaved(JSON.stringify(d));
+      setEtag(e);
+      setAutoError(undefined);
+    },
+    onError: (m) => setAutoError(m)
+  });
+  // Záloha v prohlížeči: kdyby se automatické uložení nepovedlo (výpadek spojení, souběh), změny se neztratí.
+  const draft = useFormDraft<BudgetDoc | null>({
+    key: record && editable ? draftKey(user.loginName, 'budget', project.projectNumber) : undefined,
+    value: doc ?? null,
+    active: !!record && editable && !!doc,
+    onRestore: (d) => {
+      if (d) {
+        setDoc(d);
+      }
+    }
+  });
 
   const create = (): void =>
     run(async () => {
@@ -365,6 +414,7 @@ export const BudgetTab: React.FC<{ project: Project }> = ({ project }) => {
         <CurrencySwitch />
       </div>
 
+      {draft.pending && <DraftBanner savedAt={draft.pending.savedAt} what="rozpočet" onRestore={draft.restore} onDiscard={draft.discard} />}
       {error && (
         <MessageBar messageBarType={MessageBarType.error} isMultiline onDismiss={() => setError(undefined)}>
           {error}
@@ -440,6 +490,15 @@ export const BudgetTab: React.FC<{ project: Project }> = ({ project }) => {
             {editable && (
               <>
                 <PrimaryButton text={busy ? 'Pracuji…' : dirty ? 'Uložit rozpočet' : 'Uloženo'} disabled={busy || !dirty} onClick={() => run(save)} />
+                <span style={{ fontSize: 12, color: autoError ? RES.red : RES.gray }} aria-live="polite">
+                  {autoError
+                    ? `Automatické uložení čeká: ${autoError}`
+                    : dirty
+                    ? 'Neuložené změny se uloží samy za několik sekund.'
+                    : autosave.savedAt
+                    ? `Automaticky uloženo v ${autosave.savedAt.getHours()}:${String(autosave.savedAt.getMinutes()).padStart(2, '0')}.`
+                    : ''}
+                </span>
                 <ActionButton iconProps={{ iconName: 'Add' }} text="Přidat skupinu" disabled={busy} onClick={() => setDialog({ kind: 'newGroup', name: '', type: 'standard' })} />
                 <ActionButton iconProps={{ iconName: 'Paste' }} text="Vložit z Excelu" disabled={busy} onClick={() => setImportOpen(true)} />
                 <ActionButton iconProps={{ iconName: 'Library' }} text="Vložit z kusovníku" disabled={busy} onClick={() => setPickOpen(true)} />

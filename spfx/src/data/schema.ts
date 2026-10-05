@@ -18,7 +18,7 @@
  * Verze schématu. Ukládá se do PRM_Settings pod klíčem `schemaVersion`.
  * Průvodce porovná uloženou verzi s touto a nabídne doplnění rozdílu.
  */
-export const SCHEMA_VERSION = 16;
+export const SCHEMA_VERSION = 17;
 
 /** Typ sloupce v SharePointu. */
 export type FieldType =
@@ -222,6 +222,10 @@ const PRM_PROJECTS: ListDef = {
     { name: 'BudgetStatus', title: 'Semafor rozpočtu', type: 'Choice', choices: BUDGET_STATUS_CHOICES, defaultValue: 'Bez rozpočtu', indexed: true, description: 'Uložený výsledek výpočtu – kvůli rychlosti dashboardu.' },
     { name: 'BudgetBaselineTotal', title: 'Baseline rozpočtu', type: 'Currency', decimals: 2 },
     { name: 'CostForecastTotal', title: 'Prognóza nákladů', type: 'Currency', decimals: 2 },
+    { name: 'BudgetCostTotal', title: 'Náklady rozpočtu (Kč)', type: 'Currency', decimals: 2, description: 'Uložený součet nákladů rozpočtu – kvůli rychlosti přehledu. Zapisuje aplikace.' },
+    { name: 'BudgetSaleTotal', title: 'Prodej rozpočtu (Kč)', type: 'Currency', decimals: 2, description: 'Uložený součet prodeje rozpočtu. Zapisuje aplikace.' },
+    { name: 'BudgetActualTotal', title: 'Skutečnost rozpočtu (Kč)', type: 'Currency', decimals: 2, description: 'Uložený součet koupeného/odpracovaného. Zapisuje aplikace.' },
+    { name: 'BudgetApproved', title: 'Rozpočet schválen', type: 'Boolean', defaultValue: '0', description: 'Rozpočet byl aspoň jednou schválen vedením. Zapisuje aplikace.' },
     { name: 'NextDeadline', title: 'Nejbližší termín plnění', type: 'DateTime', indexed: true },
     { name: 'ProjectDescription', title: 'Popis', type: 'Note' },
     { name: 'FolderMap', title: 'Mapa složek', type: 'Note', description: 'Kde má projekt složky objednávek, fakturace, zápisů a fotek (JSON). Nastavuje aplikace při založení projektu a v detailu projektu (Složky projektu).' }

@@ -126,6 +126,11 @@ export interface Project {
   budgetStatus: BudgetStatus;
   budgetBaselineTotal?: number;
   costForecastTotal?: number;
+  /** Součty rozpočtu v Kč (cache): náklady, prodej a skutečnost (koupeno); `budgetApproved` = rozpočet už někdo schválil. */
+  budgetCostTotal?: number;
+  budgetSaleTotal?: number;
+  budgetActualTotal?: number;
+  budgetApproved?: boolean;
 }
 
 /** Typ položky harmonogramu (PRM_Tasks). */

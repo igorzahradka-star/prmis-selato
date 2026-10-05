@@ -170,8 +170,19 @@ function slideOverview(m: ProjectReportModel): Content[] {
     layout: tableLayout
   } as Content;
 
-  const priceNote = f.originalPrice ? `smluvní cena bez DPH (původně ${formatMoney(f.originalPrice.amount, f.originalPrice.currency)})` : 'smluvní cena bez DPH';
-  const spentNote = f.spentPercent !== undefined ? `${String(f.spentPercent).replace('.', ',')} % ceny — vystavené objednávky bez DPH` : 'vystavené objednávky bez DPH';
+  const prov = f.provisional ? ' · NESCHVÁLENO (provizorní)' : '';
+  const priceNote = f.fromBudget
+    ? `prodej realizačního rozpočtu bez DPH${prov}`
+    : f.originalPrice
+    ? `smluvní cena bez DPH (původně ${formatMoney(f.originalPrice.amount, f.originalPrice.currency)})`
+    : 'smluvní cena bez DPH';
+  const spentNote = f.fromBudget
+    ? f.spentPercent !== undefined
+      ? `${String(f.spentPercent).replace('.', ',')} % nákladů rozpočtu — koupeno a odpracováno${prov}`
+      : 'skutečnost z rozpočtu'
+    : f.spentPercent !== undefined
+    ? `${String(f.spentPercent).replace('.', ',')} % ceny — vystavené objednávky bez DPH`
+    : 'vystavené objednávky bez DPH';
   const tiles: Content = {
     table: {
       widths: ['*', '*'],
@@ -201,6 +212,65 @@ function slideOverview(m: ProjectReportModel): Content[] {
   } as Content;
 
   return [slideTitle('Přehled projektu', `${p.number} · ${p.title}`), { columns: [{ width: 360, stack: [facts, attention] }, { width: 24, text: '' }, { width: '*', stack: [tiles] }], margin: [MX, 0, MX, 0] } as Content];
+}
+
+/** Realizační rozpočet: souhrn (plán, prodej, marže, skutečnost, zbývá, prognóza, semafor) a tabulka po skupinách. */
+function slideBudget(m: ProjectReportModel): Content[] {
+  const b = m.budget;
+  if (!b) {
+    return [];
+  }
+  const pctText = (v: number): string => `${String(v).replace('.', ',')} %`;
+  const status = b.approved
+    ? `Schváleno (záznam č. ${b.approvalNo}${b.approvedAt ? `, ${formatDate(b.approvedAt)}` : ''}${b.approvedBy ? `, ${b.approvedBy}` : ''})${b.changedSinceApproval ? ' · od té doby upraveno' : ''}`
+    : 'NESCHVÁLENO — čísla jsou provizorní';
+  const semColor = b.semaphore === 'Zelená' ? GREEN : b.semaphore === 'Žlutá' ? AMBER : b.semaphore === 'Červená' ? RED : GRAY;
+  const kinds: Record<string, string> = { prace: 'práce', rezerva: 'rezerva', standard: '' };
+  const rows = b.groups.map((g) => [
+    td(g.kind !== 'standard' ? `${g.name} (${kinds[g.kind] || ''})` : g.name, 'left', true),
+    td(money(m, g.cost), 'right'),
+    td(money(m, g.sale), 'right'),
+    td(money(m, g.actual), 'right'),
+    td(money(m, g.remaining), 'right'),
+    td(g.cost > 0 ? pctText(Math.round((g.actual / g.cost) * 1000) / 10) : '—', 'right')
+  ]);
+  rows.push([
+    td('Celkem', 'left', true),
+    td(money(m, b.cost), 'right', true),
+    td(money(m, b.sale), 'right', true),
+    td(money(m, b.actual), 'right', true),
+    td(money(m, b.remaining), 'right', true),
+    td(pctText(b.spentPercent), 'right', true)
+  ]);
+  const table: Content = { table: { headerRows: 1, widths: ['*', 90, 90, 90, 90, 60], body: [[th('Skupina'), th('Plán – nákup', 'right'), th('Plán – prodej', 'right'), th('Skutečnost', 'right'), th('Zbývá', 'right'), th('Čerpáno', 'right')], ...rows] }, layout: tableLayout } as Content;
+  return [
+    slideTitle('Realizační rozpočet', `${status} · částky bez DPH`),
+    {
+      stack: [
+        {
+          columns: [
+            { width: '*', stack: [tile('Plán – nákup', money(m, b.cost), `prodej ${money(m, b.sale)}`)] },
+            { width: 12, text: '' },
+            { width: '*', stack: [tile('Marže z prodeje', pctText(b.marginPercent), 'podíl zisku na prodeji')] },
+            { width: 12, text: '' },
+            { width: '*', stack: [tile('Skutečnost', money(m, b.actual), `proinvestováno ${pctText(b.spentPercent)}`, progressBar(140, b.spentPercent))] },
+            { width: 12, text: '' },
+            { width: '*', stack: [tile('Prognóza nákladů', money(m, b.forecast), `objednáno ${money(m, b.ordered)}`)] }
+          ],
+          margin: [0, 0, 0, 10]
+        } as Content,
+        {
+          columns: [
+            { width: 14, canvas: [{ type: 'ellipse', x: 5, y: 7, r1: 4.5, r2: 4.5, color: semColor }] },
+            { width: '*', text: `Semafor rozpočtu: ${b.semaphore}${b.deviationPercent !== undefined ? ` · prognóza ${b.deviationPercent > 0 ? '+' : ''}${String(b.deviationPercent).replace('.', ',')} % proti schválenému rozpočtu` : ''}`, fontSize: 10, bold: true }
+          ],
+          margin: [0, 0, 0, 8]
+        } as Content,
+        table
+      ],
+      margin: [MX, 0, MX, 0]
+    } as Content
+  ];
 }
 
 function slideOrders(m: ProjectReportModel): Content[] {
@@ -401,6 +471,9 @@ export function buildProjectReportDocument(m: ProjectReportModel, assets: Report
 
   // --- obsahové strany
   const slides: Content[][] = [slideOverview(m)];
+  if (m.sections.budget && m.budget) {
+    slides.push(slideBudget(m));
+  }
   if (m.sections.finance) {
     slides.push(slideOrders(m), slideInvoices(m));
   }

@@ -11,6 +11,7 @@ import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 
 import { useApp } from '../../ui/AppContext';
 import { RES } from '../../ui/theme';
+import { StickyHScroll } from '../../ui/components/StickyHScroll';
 import { useAutoRefresh } from '../../ui/useAutoRefresh';
 import { Project } from '../../core/types';
 import { DiaryEntry, canWriteDiary, isHandover } from '../../core/siteDiary';
@@ -61,9 +62,9 @@ export const ProjectHandoverTab: React.FC<{ project: Project }> = ({ project }) 
       {!entries && !error && <Spinner size={SpinnerSize.medium} label="Načítám protokoly…" />}
       {entries && entries.length === 0 && !project.isOverhead && <MessageBar messageBarType={MessageBarType.info}>Tento projekt zatím nemá žádný předávací protokol.</MessageBar>}
       {entries && entries.length > 0 && (
-        <div style={{ background: RES.white, border: `1px solid ${RES.grayBlue}`, borderRadius: 4 }}>
+        <StickyHScroll scrollSelector=".ms-DetailsList">
           <EntriesTable entries={entries} hideProject protocols onOpen={(id) => setOpenId(id)} ariaLabel="Seznam předávacích protokolů" />
-        </div>
+        </StickyHScroll>
       )}
 
       <EntryPanel

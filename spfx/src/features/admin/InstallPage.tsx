@@ -20,6 +20,7 @@ import { PageHeading } from '../../ui/components/PageHeading';
 import { DiagnosticItem, DiagnosticReport, InstallProgress } from '../../data/repositories';
 import { canOpenAdmin } from '../../core/roles';
 import { SpeedCard } from './SpeedCard';
+import { BudgetCacheCard } from './BudgetCacheCard';
 
 export const InstallPage: React.FC = () => {
   const { repos, user, dataSource } = useApp();
@@ -162,6 +163,7 @@ export const InstallPage: React.FC = () => {
       )}
 
       {dataSource !== 'mock' && <SpeedCard />}
+      {dataSource !== 'mock' && <BudgetCacheCard />}
 
       <Dialog
         hidden={!confirmOpen}

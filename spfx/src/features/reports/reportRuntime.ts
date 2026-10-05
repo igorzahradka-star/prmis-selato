@@ -104,6 +104,7 @@ export async function collectProjectReport(
     repos.tasks.listByProject(project.projectNumber),
     repos.diary.listEntries({ projectNumber: project.projectNumber, kind: 'zapis' })
   ]);
+  const budget = sections.budget ? await repos.budgets.get(project.projectNumber).catch(() => undefined) : undefined;
   let photos: ReportPhoto[] = [];
   if (sections.photos) {
     say('Načítám fotky…');
@@ -112,6 +113,7 @@ export async function collectProjectReport(
   say('Skládám report…');
   return buildProjectReportModel({
     project,
+    budget: budget ? { doc: budget.doc, record: budget.record, rates: report.rates, yellowThresholdPercent: settings.budget.yellowThresholdPercent, minimumMarginPercent: settings.budget.minimumMarginPercent } : undefined,
     orders,
     invoices,
     tasks,

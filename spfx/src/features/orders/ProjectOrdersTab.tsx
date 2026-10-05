@@ -9,6 +9,7 @@ import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 
 import { useApp } from '../../ui/AppContext';
 import { RES } from '../../ui/theme';
+import { StickyHScroll } from '../../ui/components/StickyHScroll';
 import { useAutoRefresh } from '../../ui/useAutoRefresh';
 import { Project } from '../../core/types';
 import { PurchaseOrder } from '../../core/orders';
@@ -65,9 +66,9 @@ export const ProjectOrdersTab: React.FC<{ project: Project }> = ({ project }) =>
         <MessageBar messageBarType={MessageBarType.info}>Tento projekt zatím nemá žádnou objednávku.</MessageBar>
       )}
       {orders && orders.length > 0 && (
-        <div style={{ background: RES.white, border: `1px solid ${RES.grayBlue}`, borderRadius: 4 }}>
+        <StickyHScroll scrollSelector=".ms-DetailsList">
           <OrdersTable orders={orders} hideProject onOpen={(id) => setOpenId(id)} />
-        </div>
+        </StickyHScroll>
       )}
 
       <OrderPanel

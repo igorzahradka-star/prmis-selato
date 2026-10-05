@@ -40,8 +40,7 @@ import {
   ImportProjectInput,
   ImportResult,
   FolderLinkRepairResult,
-  FolderLinkCheck
-} from '../repositories';
+  FolderLinkCheck, BudgetCacheInput } from '../repositories';
 import { getSp, getSpForSite, describeSpError, extractStatus } from './spContext';
 import { resolveLibrary } from './spLibrary';
 import { ensureFolder, resolveFolderPath } from './spFolders';
@@ -79,7 +78,11 @@ const SELECT_FIELDS = [
   'IsOverhead',
   'BudgetStatus',
   'BudgetBaselineTotal',
-  'CostForecastTotal'
+  'CostForecastTotal',
+  'BudgetCostTotal',
+  'BudgetSaleTotal',
+  'BudgetActualTotal',
+  'BudgetApproved'
 ];
 
 const EXPAND_FIELDS = ['Customer', 'ProjectManager'];
@@ -137,6 +140,10 @@ interface ProjectItem {
   BudgetStatus?: string;
   BudgetBaselineTotal?: number;
   CostForecastTotal?: number;
+  BudgetCostTotal?: number;
+  BudgetSaleTotal?: number;
+  BudgetActualTotal?: number;
+  BudgetApproved?: boolean;
 }
 
 export class SpProjectRepository implements IProjectRepository {
@@ -339,7 +346,7 @@ export class SpProjectRepository implements IProjectRepository {
     return (await this.getByNumber(projectNumber)) ?? existing;
   }
 
-  public async setBudgetCache(projectNumber: string, cache: { status: string; baselineTotal?: number; forecastTotal?: number }): Promise<void> {
+  public async setBudgetCache(projectNumber: string, cache: BudgetCacheInput): Promise<void> {
     const existing = await this.getByNumber(projectNumber);
     if (!existing) {
       throw new Error(`Projekt ${projectNumber} nebyl nalezen.`);
@@ -349,7 +356,18 @@ export class SpProjectRepository implements IProjectRepository {
       await sp.web.lists
         .getByTitle(PROJECTS_LIST)
         .items.getById(existing.id)
-        .update({ BudgetStatus: cache.status, BudgetBaselineTotal: cache.baselineTotal ?? null, CostForecastTotal: cache.forecastTotal ?? null }, '*');
+        .update(
+          {
+            BudgetStatus: cache.status,
+            BudgetBaselineTotal: cache.baselineTotal ?? null,
+            CostForecastTotal: cache.forecastTotal ?? null,
+            BudgetCostTotal: cache.costTotal ?? null,
+            BudgetSaleTotal: cache.saleTotal ?? null,
+            BudgetActualTotal: cache.actualTotal ?? null,
+            BudgetApproved: cache.approved === true
+          },
+          '*'
+        );
     } catch (error) {
       throw new Error(describeSpError(error, `Nepodařilo se uložit semafor rozpočtu projektu ${projectNumber}`));
     }
@@ -1246,7 +1264,11 @@ export function mapProject(item: ProjectItem): Project {
     isOverhead: item.IsOverhead === true,
     budgetStatus: (item.BudgetStatus as BudgetStatus) ?? BudgetStatus.Bez,
     budgetBaselineTotal: item.BudgetBaselineTotal,
-    costForecastTotal: item.CostForecastTotal
+    costForecastTotal: item.CostForecastTotal,
+    budgetCostTotal: item.BudgetCostTotal ?? undefined,
+    budgetSaleTotal: item.BudgetSaleTotal ?? undefined,
+    budgetActualTotal: item.BudgetActualTotal ?? undefined,
+    budgetApproved: item.BudgetApproved === true
   };
 }
 

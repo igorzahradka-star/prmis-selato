@@ -68,8 +68,7 @@ import {
   DocTypeConfig,
   DiagnosticReport,
   InstallProgress,
-  RepositorySet
-} from '../repositories';
+  RepositorySet, BudgetCacheInput } from '../repositories';
 import { LISTS, ListDef, SCHEMA_VERSION, creationOrder } from '../schema';
 import { MockOrderRepository } from './mockOrderRepository';
 import { MockInvoiceRepository } from './mockInvoiceRepository';
@@ -327,9 +326,20 @@ export class MockProjectRepository implements IProjectRepository {
     return delay(updated);
   }
 
-  public async setBudgetCache(projectNumber: string, cache: { status: string; baselineTotal?: number; forecastTotal?: number }): Promise<void> {
+  public async setBudgetCache(projectNumber: string, cache: BudgetCacheInput): Promise<void> {
     this.projects = this.projects.map((p) =>
-      p.projectNumber === projectNumber ? { ...p, budgetStatus: cache.status as Project['budgetStatus'], budgetBaselineTotal: cache.baselineTotal, costForecastTotal: cache.forecastTotal } : p
+      p.projectNumber === projectNumber
+        ? {
+            ...p,
+            budgetStatus: cache.status as Project['budgetStatus'],
+            budgetBaselineTotal: cache.baselineTotal,
+            costForecastTotal: cache.forecastTotal,
+            budgetCostTotal: cache.costTotal,
+            budgetSaleTotal: cache.saleTotal,
+            budgetActualTotal: cache.actualTotal,
+            budgetApproved: cache.approved === true
+          }
+        : p
     );
     return delay(undefined);
   }

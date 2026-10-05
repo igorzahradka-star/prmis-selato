@@ -16,6 +16,7 @@ import { Link } from '@fluentui/react/lib/Link';
 import { useApp } from '../../ui/AppContext';
 import { loadProjectManagerNames } from './projectManagers';
 import { DEFAULT_SORT, ProjectSortKey, sortProjects } from '../../core/projectSort';
+import { projectFigures } from '../../core/projectFigures';
 import { quickStatusChange } from '../../core/projectStatus';
 import { isCustomOrder, moveColumn, orderColumns } from '../../core/columnOrder';
 import { StatusSelect } from './StatusSelect';
@@ -29,6 +30,7 @@ import { formatDate, formatMoney, dueLabel } from '../../core/format';
 import { PurchaseOrder, SPENT_ORDER_STATUSES, spentByProject } from '../../core/orders';
 import { ReportCurrency, useReportCurrency } from '../../ui/useReportCurrency';
 import { CurrencySwitch } from '../../ui/components/CurrencySwitch';
+import { StickyHScroll } from '../../ui/components/StickyHScroll';
 import { canCreateProject, canEditProject } from '../../core/roles';
 import streakUrl from '../../webparts/prm/assets/res-kpi-streak.png';
 
@@ -325,9 +327,9 @@ export const DashboardPage: React.FC = () => {
       )}
 
       {projects && projects.length > 0 && (
-        <div style={{ background: RES.white, border: `1px solid ${RES.grayBlue}`, borderRadius: 4 }}>
+        <StickyHScroll scrollSelector=".ms-DetailsList">
           <DetailsList
-            items={sortProjects(projects, sort.key, sort.descending, (p) => (p.contractPriceNet === undefined ? undefined : report.convert(p.contractPriceNet, p.currency)))}
+            items={sortProjects(projects, sort.key, sort.descending, (p) => figuresOf(p, report, spent).price)}
             columns={displayedColumns}
             columnReorderOptions={{
               // Přetažením záhlaví si každý uloží pořadí sloupců po svém.
@@ -347,11 +349,21 @@ export const DashboardPage: React.FC = () => {
             isHeaderVisible
             ariaLabelForGrid="Seznam projektů"
           />
-        </div>
+        </StickyHScroll>
       )}
     </>
   );
 };
+
+/** Štítek u provizorních čísel (z dosud neschváleného rozpočtu). */
+const ProvisionalTag: React.FC = () => (
+  <span style={{ display: 'block', fontSize: 10, fontStyle: 'normal', color: RES.gray, lineHeight: '10px' }}>neschváleno</span>
+);
+
+/** Čísla projektu do sloupců přehledu (rozpočet, nebo cena z údajů projektu a objednávky). */
+function figuresOf(p: Project, report: ReportCurrency, spent: Record<string, number> | undefined): ReturnType<typeof projectFigures> {
+  return projectFigures(p, (a) => report.convert(a, 'CZK'), (a, c) => report.convert(a, c), spent ? spent[p.projectNumber] ?? 0 : undefined);
+}
 
 /** Přidá nebo odebere hodnotu ze seznamu vybraných. */
 function toggle(current: string[], value: string, selected: boolean): string[] {
@@ -453,15 +465,26 @@ function buildColumns(ctx: ColumnContext): IColumn[] {
       maxWidth: 130,
       isResizable: true,
       styles: { cellTitle: { justifyContent: 'flex-end' } },
-      onRender: (p: Project) => (
-        <div
-          style={{ textAlign: 'right' }}
-          title={p.currency === ctx.report.currency || p.contractPriceNet === undefined ? undefined : `Původně ${formatMoney(p.contractPriceNet, p.currency)}, přepočteno kurzem ČNB`}
-        >
-          {p.currency !== ctx.report.currency && p.contractPriceNet !== undefined ? '≈ ' : ''}
-          {ctx.report.format(p.contractPriceNet, p.currency)}
-        </div>
-      )
+      onRender: (p: Project) => {
+        const f = figuresOf(p, ctx.report, ctx.spent);
+        const converted = !f.fromBudget && p.currency !== ctx.report.currency && p.contractPriceNet !== undefined;
+        return (
+          <div
+            style={{ textAlign: 'right', color: f.provisional ? RES.gray : undefined, fontStyle: f.provisional ? 'italic' : undefined }}
+            title={
+              f.fromBudget
+                ? `Prodej realizačního rozpočtu${f.provisional ? ' — rozpočet zatím není schválený, čísla jsou provizorní' : ''}.`
+                : converted && p.contractPriceNet !== undefined
+                ? `Původně ${formatMoney(p.contractPriceNet, p.currency)}, přepočteno kurzem ČNB`
+                : undefined
+            }
+          >
+            {converted ? '≈ ' : ''}
+            {f.price === undefined ? '—' : formatMoney(f.price, ctx.report.currency)}
+            {f.provisional && <ProvisionalTag />}
+          </div>
+        );
+      }
     },
     {
       key: 'cost',
@@ -470,11 +493,18 @@ function buildColumns(ctx: ColumnContext): IColumn[] {
       maxWidth: 120,
       isResizable: true,
       styles: { cellTitle: { justifyContent: 'flex-end' } },
-      onRender: () => (
-        <div style={{ textAlign: 'right', color: RES.gray }} title="Plánované náklady doplníme z realizačního rozpočtu (Fáze 3).">
-          —
-        </div>
-      )
+      onRender: (p: Project) => {
+        const f = figuresOf(p, ctx.report, ctx.spent);
+        return (
+          <div
+            style={{ textAlign: 'right', color: f.cost === undefined || f.provisional ? RES.gray : undefined, fontStyle: f.provisional ? 'italic' : undefined }}
+            title={f.cost === undefined ? 'Projekt zatím nemá realizační rozpočet.' : `Plánované náklady (nákup) z realizačního rozpočtu${f.provisional ? ' — rozpočet zatím není schválený, čísla jsou provizorní' : ''}.`}
+          >
+            {f.cost === undefined ? '—' : formatMoney(f.cost, ctx.report.currency)}
+            {f.provisional && f.cost !== undefined && <ProvisionalTag />}
+          </div>
+        );
+      }
     },
     {
       key: 'spent',
@@ -483,14 +513,22 @@ function buildColumns(ctx: ColumnContext): IColumn[] {
       maxWidth: 120,
       isResizable: true,
       styles: { cellTitle: { justifyContent: 'flex-end' } },
-      onRender: (p: Project) => (
-        <div
-          style={{ textAlign: 'right' }}
-          title={`Součet vystavených objednávek projektu bez DPH (${SPENT_ORDER_STATUSES.join(', ')}) ve výchozí měně přehledů.`}
-        >
-          {ctx.spent ? formatMoney(ctx.spent[p.projectNumber] ?? 0, ctx.report.currency) : '…'}
-        </div>
-      )
+      onRender: (p: Project) => {
+        const f = figuresOf(p, ctx.report, ctx.spent);
+        return (
+          <div
+            style={{ textAlign: 'right', color: f.provisional ? RES.gray : undefined, fontStyle: f.provisional ? 'italic' : undefined }}
+            title={
+              f.fromBudget
+                ? `Skutečnost z realizačního rozpočtu (koupeno a odpracováno)${f.provisional ? ' — rozpočet zatím není schválený, čísla jsou provizorní' : ''}.`
+                : `Součet vystavených objednávek projektu bez DPH (${SPENT_ORDER_STATUSES.join(', ')}) ve výchozí měně přehledů.`
+            }
+          >
+            {f.actual === undefined ? '…' : formatMoney(f.actual, ctx.report.currency)}
+            {f.provisional && f.actual !== undefined && <ProvisionalTag />}
+          </div>
+        );
+      }
     },
     {
       key: 'deadline',

@@ -13,6 +13,7 @@ import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 
 import { useApp } from '../../ui/AppContext';
 import { RES } from '../../ui/theme';
+import { StickyHScroll } from '../../ui/components/StickyHScroll';
 import { PageHeading } from '../../ui/components/PageHeading';
 import { CONTROL_HEIGHT, FilterField as Field } from '../../ui/components/FilterField';
 import { useAutoRefresh } from '../../ui/useAutoRefresh';
@@ -123,9 +124,9 @@ export const DiaryPage: React.FC<{ entryId?: number }> = ({ entryId }) => {
       {entries && entries.length > 0 && shown.length === 0 && <MessageBar messageBarType={MessageBarType.info}>Žádný zápis neodpovídá filtru.</MessageBar>}
 
       {shown.length > 0 && (
-        <div style={{ background: RES.white, border: `1px solid ${RES.grayBlue}`, borderRadius: 4 }}>
+        <StickyHScroll scrollSelector=".ms-DetailsList">
           <EntriesTable entries={shown} onOpen={(id) => navigate(RouteName.Diary, String(id))} />
-        </div>
+        </StickyHScroll>
       )}
 
       <EntryPanel

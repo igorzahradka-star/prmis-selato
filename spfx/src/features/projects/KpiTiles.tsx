@@ -51,8 +51,8 @@ export function computeKpi(projects: Project[], today: Date = new Date(), rates?
     // Projekty jsou v různých měnách (Kč, EUR, USD) — součet se dělá ve výchozí měně přehledů podle kurzu ČNB.
     // Bez kurzů (jen v testech) se sečtou holá čísla.
     activeValue: rates
-      ? Math.round(active.reduce((sum, p) => sum + convertAmount(p.contractPriceNet, p.currency, currency, rates), 0) * 100) / 100
-      : active.reduce((sum, p) => sum + (p.contractPriceNet ?? 0), 0),
+      ? Math.round(active.reduce((sum, p) => sum + (p.budgetSaleTotal !== undefined ? convertAmount(p.budgetSaleTotal, 'CZK', currency, rates) : convertAmount(p.contractPriceNet, p.currency, currency, rates)), 0) * 100) / 100
+      : active.reduce((sum, p) => sum + (p.budgetSaleTotal ?? p.contractPriceNet ?? 0), 0),
     redCount: active.filter((p) => p.budgetStatus === BudgetStatus.Cervena).length,
     upcomingDeadlines: upcoming.length,
     overdueDeadlines: overdue.length

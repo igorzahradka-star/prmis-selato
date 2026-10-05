@@ -15,6 +15,7 @@ import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 
 import { useApp } from '../../ui/AppContext';
 import { RES } from '../../ui/theme';
+import { StickyHScroll } from '../../ui/components/StickyHScroll';
 import { PageHeading } from '../../ui/components/PageHeading';
 import { CONTROL_HEIGHT, FilterField as Field } from '../../ui/components/FilterField';
 import { CS_CALENDAR_STRINGS } from '../../ui/csCalendarStrings';
@@ -186,9 +187,9 @@ export const OrdersPage: React.FC<{ orderId?: number }> = ({ orderId }) => {
       )}
 
       {shown.length > 0 && (
-        <div style={{ background: RES.white, border: `1px solid ${RES.grayBlue}`, borderRadius: 4 }}>
+        <StickyHScroll scrollSelector=".ms-DetailsList">
           <OrdersTable orders={shown} onOpen={(id) => navigate(RouteName.Orders, String(id))} />
-        </div>
+        </StickyHScroll>
       )}
 
       <OrderPanel

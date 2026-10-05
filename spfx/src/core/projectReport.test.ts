@@ -1,4 +1,6 @@
-import { ALL_REPORT_SECTIONS, REPORT_LIMITS, ReportInput, buildProjectReportModel, reportFileName, reportHighlights, shorten } from './projectReport';
+import { ALL_REPORT_SECTIONS, REPORT_LIMITS, ProjectReportModel, ReportInput, buildProjectReportModel, reportFileName, reportHighlights, shorten } from './projectReport';
+import { BudgetDoc, BudgetRecord, BudgetStatus as BStatus } from './budget';
+import { RateTable } from './currency';
 import { BudgetStatus, Project, ProjectStatus, ProjectTask, TaskType } from './types';
 import { OrderStatus, PurchaseOrder } from './orders';
 import { InvoiceBasis, InvoiceKind, InvoiceStatus } from './invoiceBases';
@@ -279,5 +281,44 @@ describe('na co dát pozor', () => {
     expect(reportHighlights(m).join(' ')).toContain('Plánované ukončení');
     const done = buildProjectReportModel(vstup({ project: { ...projekt, endDatePlanned: new Date(2026, 8, 1), status: ProjectStatus.Dokonceno } }));
     expect(reportHighlights(done).join(' ')).not.toContain('Plánované ukončení');
+  });
+});
+
+describe('rozpočet v modelu reportu', () => {
+  const doc: BudgetDoc = {
+    groups: [{ id: 'g1', name: 'Materiál', kind: 'standard', defaultMarkupPercent: 20 }],
+    items: [{ id: 'i1', groupId: 'g1', description: 'Panely', currency: 'CZK', quantity: 100, unitCost: 1, actualQty: 60, actualCost: 60 }],
+    rates: []
+  };
+  const rates = { EUR: 25, USD: 20, source: 'test' } as unknown as RateTable;
+  const rec = (approved: boolean): BudgetRecord => ({ id: 1, projectNumber: '26001', status: BStatus.Schvaleno, approvals: approved ? [{ no: 1, at: new Date(2026, 9, 1), byName: 'V', cost: 100, sale: 120, marginPercent: 16.67 }] : [] });
+  const build = (approved: boolean): ProjectReportModel => buildProjectReportModel({ ...vstup(), budget: { doc, record: rec(approved), rates } });
+
+  it('cena = prodej rozpočtu, vyčerpáno = skutečnost, proinvestováno = skutečnost / náklady', () => {
+    const m = build(true);
+    expect(m.budget).toMatchObject({ approved: true, cost: 100, sale: 120, actual: 60, remaining: 40, spentPercent: 60, semaphore: 'Zelená' });
+    expect(m.finance).toMatchObject({ price: 120, spent: 60, spentPercent: 60, fromBudget: true, provisional: false });
+    expect(m.budget?.groups[0]).toMatchObject({ name: 'Materiál', cost: 100, actual: 60 });
+  });
+
+  it('neschválený rozpočet je provizorní, bez baseline je semafor „Bez rozpočtu“ a report na to upozorní', () => {
+    const m = build(false);
+    expect(m.finance.provisional).toBe(true);
+    expect(m.budget?.semaphore).toBe('Bez rozpočtu');
+    expect(reportHighlights(m).join(' ')).toContain('Rozpočet zatím nebyl schválen');
+  });
+
+  it('bez rozpočtu (nebo s vypnutou částí) platí cena z projektu a čerpání z objednávek', () => {
+    const bez = buildProjectReportModel(vstup());
+    expect(bez.budget).toBeUndefined();
+    expect(bez.finance.fromBudget).toBe(false);
+    const vyp = buildProjectReportModel({ ...vstup(), budget: { doc, record: rec(true), rates }, sections: { ...ALL_REPORT_SECTIONS, budget: false } });
+    expect(vyp.budget).toBeUndefined();
+  });
+
+  it('rozpočet upravený po schválení se pozná', () => {
+    const m = buildProjectReportModel({ ...vstup(), budget: { doc: { ...doc, items: [{ ...doc.items[0], unitCost: 2 }] }, record: rec(true), rates } });
+    expect(m.budget?.changedSinceApproval).toBe(true);
+    expect(reportHighlights(m).join(' ')).toContain('upraven');
   });
 });

@@ -89,7 +89,7 @@ export const ProjectReportDialog: React.FC<{ project: Project; onClose: () => vo
         dialogContentProps={{
           type: DialogType.normal,
           title: `Report projektu ${project.projectNumber}`,
-          subText: 'PDF se stavem projektu ve stylu RES prezentace: přehled, finance, objednávky, fakturace, termíny a úkoly, zápisy ze stavby a fotky. Tvoří se z dat aplikace (bez AI).'
+          subText: 'PDF se stavem projektu ve stylu RES prezentace: přehled, realizační rozpočet, objednávky, fakturace, termíny a úkoly, zápisy ze stavby a fotky. Tvoří se z dat aplikace (bez AI).'
         }}
         modalProps={{ isBlocking: true }}
         minWidth={520}
@@ -102,7 +102,8 @@ export const ProjectReportDialog: React.FC<{ project: Project; onClose: () => vo
           )}
           <div style={{ fontSize: 13, fontWeight: 600, color: RES.navy }}>Co má report obsahovat</div>
           <Checkbox label="Přehled projektu (vždy)" checked disabled />
-          <Checkbox label="Finance: objednávky, vyčerpání a fakturace" checked={sections.finance} disabled={busy} onChange={(_, c) => toggle('finance', !!c)} />
+          <Checkbox label="Realizační rozpočet: plán, skutečnost, zbývá, semafor" checked={sections.budget} disabled={busy} onChange={(_, c) => toggle('budget', !!c)} />
+          <Checkbox label="Finance: objednávky a fakturace" checked={sections.finance} disabled={busy} onChange={(_, c) => toggle('finance', !!c)} />
           <Checkbox label="Termíny a úkoly ze zápisů" checked={sections.deadlines} disabled={busy} onChange={(_, c) => toggle('deadlines', !!c)} />
           <Checkbox label="Stavební deník — poslední zápisy" checked={sections.diary} disabled={busy} onChange={(_, c) => toggle('diary', !!c)} />
           <Checkbox label="Fotodokumentace — až 6 fotek z nejnovější dávky" checked={sections.photos} disabled={busy} onChange={(_, c) => toggle('photos', !!c)} />

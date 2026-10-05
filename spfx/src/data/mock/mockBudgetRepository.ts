@@ -117,7 +117,7 @@ export class MockBudgetRepository implements IBudgetRepository {
     return delay(clone(created.record));
   }
 
-  public async save(recordId: number, doc: BudgetDoc, totals: BudgetTotalsInput, actor: CurrentUser, etag?: string): Promise<BudgetRecord> {
+  public async save(recordId: number, doc: BudgetDoc, totals: BudgetTotalsInput, actor: CurrentUser, etag?: string, options?: { auto?: boolean }): Promise<BudgetRecord> {
     const s = this.require(recordId);
     const project = await this.requireProject(s.record.projectNumber);
     if (!canEditBudget(toWorkflowProject(project), toActor(actor))) {
@@ -133,7 +133,9 @@ export class MockBudgetRepository implements IBudgetRepository {
     s.totals = totals;
     s.json = budgetToJson(doc);
     s.record = { ...s.record, modified: new Date(Date.now() + 1) };
-    this.record(s, actor, 'Rozpočet uložen');
+    if (!options || !options.auto) {
+      this.record(s, actor, 'Rozpočet uložen');
+    }
     return delay(clone(s.record));
   }
 
