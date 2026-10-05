@@ -34,11 +34,37 @@ Zapsáno 4. 10. 2026 podle zadání Igora Zahrádky. **Zatím jen zadání a ná
 | Odpověď PRMIS | číslo projektu, odkaz na projekt, odkaz na technickou složku | PRMIS → REVCRM |
 | Kusovník | položky: popis, dodavatel, kategorie, měna, MJ, nákup za MJ | společný (PRMIS `PRM_Catalog`; REVCRM čte) |
 
+## Sdílené seznamy PRM_Partners a PRM_Catalog — dohoda v1 (5. 10. 2026)
+
+Převzato z `C:\Projekty\revcrm\docs\REVCRM.md` (zapsala relace REVCRM, potvrdil Igor). Seznamy **patří PRMIS** — zakládá je jeho *Instalace a diagnostika*; REVCRM je nezakládá, jen je čte, přidává a upravuje. Obě aplikace běží na webu RES se stejnými daty, nic se nekopíruje ani nesynchronizuje (změna je ve druhé aplikaci vidět po obnovení stránky).
+
+| Seznam | Obsah | Zapisuje | Mazání |
+|---|---|---|---|
+| `PRM_Partners` | zákazníci a dodavatelé (název, typ, země, IČO, DIČ, plátce DPH, adresa, kontakt, e-mail, telefon, splatnost, aktivní) | PRMIS i REVCRM | **jen PRMIS**; v REVCRM se partner jen deaktivuje (`IsActive`) |
+| `PRM_Catalog` | kusovník (popis ve sloupci Název, dodavatel `SupplierName`, kategorie, měna `ItemCurrency` CZK/EUR/USD, MJ, nákup za MJ `UnitCost`, poznámka, z projektu `SourceProject`) | PRMIS i REVCRM | **jen PRMIS** (do koše SharePointu) |
+
+Pravidla:
+
+1. **Mazání jen v PRMIS** (rozhodl Igor 5. 10. 2026). REVCRM nic z těchto seznamů nemaže; tlačítko Smazat tam ukáže hlášku, že se to dělá v PRMIS.
+2. **Změny sloupců jen přidávací a po dohodě obou stran.** Nový sloupec = zápis do obou kopií tohoto dokumentu a zvýšení `SCHEMA_VERSION` v PRMIS (ten seznamy zakládá). PRMIS tedy nemění ani nepřejmenovává sloupce těchto seznamů bez zápisu sem.
+3. **Duplicity v kusovníku:** stejný popis a dodavatel (bez ohledu na velikost písmen, diakritiku a mezery) se při uložení **přepíše**, nevznikne duplikát. V PRMIS je to `sameCatalogItem` / `findInCatalog` v `core/catalog.ts` — stejné pravidlo má REVCRM.
+4. **Partner v REVCRM:** případ si ukládá `PartnerId` i `PartnerName` (název v době uložení), takže zůstane čitelný, i kdyby partner zmizel. Seznamy REVCRM se na `PRM_Partners` neodkazují sloupcem Lookup. *Důsledek pro PRMIS:* smazání partnera v PRMIS nehlídá případy v REVCRM — před smazáním partnera, který byl jen v obchodním případu, je lepší ho deaktivovat.
+5. **Oprávnění:** zápis do sdílených seznamů mají skupiny obou aplikací; právo **mazat** se v SharePointu doporučuje omezit na administrátory PRMIS (oprávnění seznamu), aby nikdo nesmazal záznam přímo mimo aplikace. *(Nastavuje Igor v SharePointu — je to jen doporučení, v kódu PRMIS se nemění.)*
+6. **Souběh úprav:** obě aplikace zapisují jako přihlášený uživatel; při souběžné úpravě stejné položky vrátí SharePoint konflikt (412) a aplikace vyzve k opakování.
+
+Role REVCRM, které smí zapisovat do sdílených seznamů: administrátor, obchodník, technik, vedení; čtenář jen čte.
+
+**Poznámky z PRMIS pro REVCRM (5. 10. 2026):**
+- **Země partnera** je dvoupísmenný ISO kód v textovém sloupci `Country` (prázdné = Česko). Od verze 0.28.2 PRMIS nabízí i **země mimo EU** (Čína, Tchaj-wan, USA, Kanada, Velká Británie, Švýcarsko, … přes 45 zemí; seznam `ALL_COUNTRIES` v `core/countries.ts`). REVCRM má v seznamu zemí nabízet stejné kódy a neznámý kód nesmí zahodit ani přepsat. DIČ / VAT ID se mimo EU nekontroluje (ukládá se tak, jak je).
+- **Dodavatel v PRMIS se vybírá jen ze seznamu partnerů** (rozpočet, kusovník, objednávka; od 0.28.1) — dodavatel v kusovníku je tedy název existujícího partnera. REVCRM by měl do `SupplierName` ukládat také název partnera ze seznamu, ne volný text (PRMIS jinak zvýrazní dodavatele „není v seznamu partnerů“).
+
 ## Rozhodnuto 4. 10. 2026
 
 Odpovědi Igora na otevřené otázky jsou v [`REVCRM_ZAHAJENI.md`](REVCRM_ZAHAJENI.md): jeden společný tenant, REVCRM běží na webu RES (na matce jen odkaz a případně komerční data), partneři zůstávají v seznamu **PRM_Partners** (žádné stěhování), číslo případu **N26-0001**, kalkulace nabídek se odděluje do REVCRM; fáze nabídky se rozebírají ve vlastní relaci.
 
 ## Zbývá upřesnit (v relaci REVCRM)
+
+- **Čeká na dohodu (společně):** předávací obálka vyhraného případu → projekt v PRMIS (Fáze D) a formát kalkulace `BudgetDoc` při technické fázi (Fáze C). Funkce „založit projekt z vyhraného případu“ v PRMIS se začne dělat až po zapsání obálky.
 
 - Komerční část případu na webu matky: co přesně tam leží (dokumenty, data) a jak se k ní z RES přistupuje (odkaz, nebo čtení přes API).
 - Fáze nabídky, stavy případu, role a oprávnění, složková struktura případu (komerční / technická).
