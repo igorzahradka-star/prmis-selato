@@ -1,7 +1,8 @@
 /**
  * Země partnerů a kontrola zahraničního DIČ — čistá logika.
  *
- * Zatím jen členské státy EU. Partner bez vyplněné země je český (tak vznikli
+ * Členské státy EU (s kontrolou tvaru DIČ) a nejčastější země mimo EU (bez kontroly DIČ — tvary čísel se liší
+ * a dodavatelé např. z Číny, USA nebo Tchaj-wanu mají vlastní systémy). Partner bez vyplněné země je český (tak vznikli
  * partneři před zavedením tohoto sloupce).
  *
  * Formát DIČ se kontroluje jen jako **upozornění**, ne jako zákaz uložení:
@@ -13,18 +14,24 @@ export interface Country {
   /** Dvoupísmenný kód ISO 3166 — ukládá se do seznamu. */
   code: string;
   name: string;
-  /** Předpona DIČ. Liší se od ISO jen u Řecka (`EL`). */
+  /** Předpona DIČ. Liší se od ISO jen u Řecka (`EL`); u zemí mimo EU je prázdná. */
   vatPrefix: string;
-  /** Tvar DIČ **včetně** předpony. */
+  /** Tvar DIČ **včetně** předpony (jen země EU — u ostatních se tvar nekontroluje). */
+  vatPattern?: RegExp;
+  /** Ukázka DIČ pro nápovědu ve formuláři (jen země EU). */
+  vatExample?: string;
+}
+
+/** Země s kontrolou DIČ (členské státy EU). */
+export interface EuCountry extends Country {
   vatPattern: RegExp;
-  /** Ukázka DIČ pro nápovědu ve formuláři. */
   vatExample: string;
 }
 
 export const DEFAULT_COUNTRY = 'CZ';
 
 /** Členské státy EU, česky seřazené podle názvu. */
-export const EU_COUNTRIES: Country[] = [
+export const EU_COUNTRIES: EuCountry[] = [
   { code: 'BE', name: 'Belgie', vatPrefix: 'BE', vatPattern: /^BE[01]\d{9}$/, vatExample: 'BE0123456789' },
   { code: 'BG', name: 'Bulharsko', vatPrefix: 'BG', vatPattern: /^BG\d{9,10}$/, vatExample: 'BG123456789' },
   { code: 'CY', name: 'Kypr', vatPrefix: 'CY', vatPattern: /^CY\d{8}[A-Z]$/, vatExample: 'CY12345678X' },
@@ -54,10 +61,68 @@ export const EU_COUNTRIES: Country[] = [
   { code: 'SE', name: 'Švédsko', vatPrefix: 'SE', vatPattern: /^SE\d{12}$/, vatExample: 'SE123456789012' }
 ];
 
+const other = (code: string, name: string): Country => ({ code, name, vatPrefix: '' });
+
+/** Nejčastější země mimo EU, česky seřazené podle názvu. DIČ / VAT ID se u nich nekontroluje. */
+export const OTHER_COUNTRIES: Country[] = [
+  other('AL', 'Albánie'),
+  other('AR', 'Argentina'),
+  other('AM', 'Arménie'),
+  other('AU', 'Austrálie'),
+  other('AZ', 'Ázerbájdžán'),
+  other('BD', 'Bangladéš'),
+  other('BY', 'Bělorusko'),
+  other('BA', 'Bosna a Hercegovina'),
+  other('BR', 'Brazílie'),
+  other('CL', 'Chile'),
+  other('CN', 'Čína'),
+  other('ME', 'Černá Hora'),
+  other('PH', 'Filipíny'),
+  other('GE', 'Gruzie'),
+  other('HK', 'Hongkong'),
+  other('ID', 'Indonésie'),
+  other('IN', 'Indie'),
+  other('IS', 'Island'),
+  other('IL', 'Izrael'),
+  other('JP', 'Japonsko'),
+  other('ZA', 'Jižní Afrika'),
+  other('KR', 'Jižní Korea'),
+  other('CA', 'Kanada'),
+  other('KZ', 'Kazachstán'),
+  other('CO', 'Kolumbie'),
+  other('QA', 'Katar'),
+  other('LI', 'Lichtenštejnsko'),
+  other('MY', 'Malajsie'),
+  other('MA', 'Maroko'),
+  other('MX', 'Mexiko'),
+  other('MD', 'Moldavsko'),
+  other('EG', 'Egypt'),
+  other('NZ', 'Nový Zéland'),
+  other('NO', 'Norsko'),
+  other('PK', 'Pákistán'),
+  other('RU', 'Rusko'),
+  other('AE', 'Spojené arabské emiráty'),
+  other('SA', 'Saúdská Arábie'),
+  other('SG', 'Singapur'),
+  other('MK', 'Severní Makedonie'),
+  other('RS', 'Srbsko'),
+  other('TW', 'Tchaj-wan'),
+  other('TH', 'Thajsko'),
+  other('TR', 'Turecko'),
+  other('UA', 'Ukrajina'),
+  other('US', 'USA'),
+  other('GB', 'Velká Británie'),
+  other('VN', 'Vietnam'),
+  other('CH', 'Švýcarsko')
+].sort((a, b) => a.name.localeCompare(b.name, 'cs-CZ'));
+
+/** Všechny nabízené země: nejdřív EU, pak ostatní. */
+export const ALL_COUNTRIES: Country[] = [...EU_COUNTRIES, ...OTHER_COUNTRIES];
+
 /** Země podle kódu; prázdný kód znamená Česko. Neznámý kód vrátí `undefined`. */
 export function findCountry(code: string | undefined): Country | undefined {
   const wanted = (code || DEFAULT_COUNTRY).trim().toUpperCase();
-  return EU_COUNTRIES.filter((c) => c.code === wanted)[0];
+  return ALL_COUNTRIES.filter((c) => c.code === wanted)[0];
 }
 
 /** Název země pro zobrazení. Neznámý kód se ukáže tak, jak je — lepší než prázdno. */
@@ -79,7 +144,7 @@ export function isDomestic(code: string | undefined): boolean {
 export function normalizeVatId(raw: string, countryCode: string | undefined): string {
   const cleaned = (raw || '').replace(/[\s.\-/]/g, '').toUpperCase();
   const country = findCountry(countryCode);
-  if (!cleaned || !country) {
+  if (!cleaned || !country || !country.vatPrefix) {
     return cleaned;
   }
   return cleaned.indexOf(country.vatPrefix) === 0 ? cleaned : country.vatPrefix + cleaned;
@@ -91,7 +156,7 @@ export function normalizeVatId(raw: string, countryCode: string | undefined): st
  */
 export function vatIdWarning(raw: string | undefined, countryCode: string | undefined): string | undefined {
   const country = findCountry(countryCode);
-  if (!raw || !raw.trim() || !country) {
+  if (!raw || !raw.trim() || !country || !country.vatPattern) {
     return undefined;
   }
   const normalized = normalizeVatId(raw, countryCode);

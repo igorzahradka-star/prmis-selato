@@ -1,5 +1,7 @@
 import {
+  ALL_COUNTRIES,
   EU_COUNTRIES,
+  OTHER_COUNTRIES,
   countryName,
   findCountry,
   isDomestic,
@@ -25,6 +27,23 @@ describe('EU_COUNTRIES', () => {
   });
 });
 
+describe('země mimo EU', () => {
+  it('obsahuje Čínu, Tchaj-wan, USA, Kanadu a další; kódy jsou jedinečné a nekolidují s EU', () => {
+    const kody = ALL_COUNTRIES.map((c) => c.code);
+    expect(new Set(kody).size).toBe(kody.length);
+    ['CN', 'TW', 'US', 'CA', 'GB', 'CH', 'JP', 'KR', 'TH'].forEach((k) => expect(findCountry(k)).toBeDefined());
+    expect(countryName('tw')).toBe('Tchaj-wan');
+    expect(countryName('US')).toBe('USA');
+    OTHER_COUNTRIES.forEach((c) => expect(c.code).toMatch(/^[A-Z]{2}$/));
+  });
+
+  it('DIČ zahraničního dodavatele mimo EU se jen uklidí (bez předpony) a nikdy nevaruje', () => {
+    expect(normalizeVatId(' 91-1144442 ', 'US')).toBe('911144442');
+    expect(vatIdWarning('cokoli 123', 'CN')).toBeUndefined();
+    expect(isDomestic('CN')).toBe(false);
+  });
+});
+
 describe('findCountry / countryName / isDomestic', () => {
   it('prázdná země je Česko', () => {
     expect(findCountry(undefined)?.code).toBe('CZ');
@@ -40,8 +59,8 @@ describe('findCountry / countryName / isDomestic', () => {
   });
 
   it('neznámý kód zobrazí tak, jak je, ne prázdno', () => {
-    expect(findCountry('US')).toBeUndefined();
-    expect(countryName('us')).toBe('US');
+    expect(findCountry('ZZ')).toBeUndefined();
+    expect(countryName('zz')).toBe('ZZ');
   });
 });
 
@@ -86,6 +105,6 @@ describe('vatIdWarning', () => {
   });
 
   it('pro neznámou zemi nehlásí nic — není proti čemu kontrolovat', () => {
-    expect(vatIdWarning('US12345', 'US')).toBeUndefined();
+    expect(vatIdWarning('ZZ12345', 'ZZ')).toBeUndefined();
   });
 });

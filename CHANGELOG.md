@@ -5,6 +5,13 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.28.2 — 5. 10. 2026 — Partneři i mimo EU
+
+- **Země partnera nejsou jen EU.** V seznamu Země je nově za členskými státy EU skupina **Ostatní země**: Čína, Tchaj-wan, USA, Kanada, Velká Británie, Švýcarsko, Norsko, Japonsko, Jižní Korea, Thajsko, Vietnam, Indie, Turecko, Ukrajina, Spojené arabské emiráty, Austrálie, Brazílie a další (celkem přes 45 zemí). Země se ukládá dvoupísmenným kódem do stávajícího sloupce, takže se nemění schéma a nic se nemusí spouštět.
+- U zemí mimo EU se **DIČ / VAT ID nekontroluje** (tvary čísel se liší a dodavatel např. z Číny nebo USA má vlastní systém) — jen se uklidí mezery; předpona se nedoplňuje. U zemí EU zůstává kontrola tvaru jako upozornění beze změny.
+
+---
+
 ## 0.28.1 — 5. 10. 2026 — Jeden posuvník místo dvou a dodavatel jen ze seznamu
 
 **Opraveno**

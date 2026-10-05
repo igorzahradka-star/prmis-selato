@@ -14,7 +14,7 @@ import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
 import { Panel, PanelType } from '@fluentui/react/lib/Panel';
 import { TextField } from '@fluentui/react/lib/TextField';
-import { Dropdown, IDropdownOption } from '@fluentui/react/lib/Dropdown';
+import { Dropdown, DropdownMenuItemType, IDropdownOption } from '@fluentui/react/lib/Dropdown';
 import { Toggle } from '@fluentui/react/lib/Toggle';
 import { Link } from '@fluentui/react/lib/Link';
 import { TooltipHost } from '@fluentui/react/lib/Tooltip';
@@ -30,6 +30,7 @@ import { lookupCompanyByIco } from '../../data/ares';
 import {
   DEFAULT_COUNTRY,
   EU_COUNTRIES,
+  OTHER_COUNTRIES,
   countryName,
   findCountry,
   isDomestic,
@@ -43,10 +44,13 @@ const PARTNER_TYPE_OPTIONS: IDropdownOption[] = [
   { key: PartnerType.Oboji, text: PartnerType.Oboji }
 ];
 
-const COUNTRY_OPTIONS: IDropdownOption[] = EU_COUNTRIES.map((c) => ({
-  key: c.code,
-  text: c.name + ' (' + c.code + ')'
-}));
+const COUNTRY_OPTIONS: IDropdownOption[] = [
+  { key: 'hdr-eu', text: 'Evropská unie', itemType: DropdownMenuItemType.Header },
+  ...EU_COUNTRIES.map((c) => ({ key: c.code, text: c.name + ' (' + c.code + ')' })),
+  { key: 'hdr-div', text: '', itemType: DropdownMenuItemType.Divider },
+  { key: 'hdr-other', text: 'Ostatní země', itemType: DropdownMenuItemType.Header },
+  ...OTHER_COUNTRIES.map((c) => ({ key: c.code, text: c.name + ' (' + c.code + ')' }))
+];
 
 const EMPTY_DRAFT: Omit<Partner, 'id'> = {
   name: '',
@@ -345,7 +349,9 @@ export const PartnersPage: React.FC = () => {
                 description={
                   isDomestic(editing.country)
                     ? undefined
-                    : 'S předponou země, např. ' + (findCountry(editing.country)?.vatExample ?? '')
+                    : findCountry(editing.country)?.vatExample
+                    ? 'S předponou země, např. ' + findCountry(editing.country)?.vatExample
+                    : 'Tak, jak je uvedeno na dokladech partnera (mimo EU se tvar nekontroluje).'
                 }
                 value={editing.dic ?? ''}
                 onChange={(_, v) => setEditing({ ...editing, dic: v })}
