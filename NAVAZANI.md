@@ -5,6 +5,8 @@
 > a co se od Claudea čeká. **Aktualizuj se po každé větší dávce práce.**
 >
 > Poslední aktualizace: **23. 9. 2026**
+>
+> **Přečteno z deníku druhé strany do: R-005 (6. 10. 2026)** — deník REVCRM je `C:\Projekty\revcrm\docs\DENIK.md`, náš `docs/DENIK.md`. Na začátku relace přečti novější záznamy REVCRM a toto místo aktualizuj; záznam s AKCE vyřiď odpovědí v našem deníku.
 
 ---
 

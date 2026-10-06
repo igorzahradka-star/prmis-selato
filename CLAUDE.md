@@ -29,6 +29,7 @@ jediná paměť projektu.** Na začátku každé relace:
 0. **Začni souborem [`NAVAZANI.md`](NAVAZANI.md)** — předávka mezi relacemi:
    kde jsme skončili, co je další na řadě, co blokuje postup, na co si dát pozor.
 1. Přečti tento soubor, `docs/ZADANI.md`, `docs/ROZHODNUTI.md` a `CHANGELOG.md`.
+1b. **Přečti nové záznamy deníku druhé strany** `C:\Projekty\revcrm\docs\DENIK.md` (jen ty novější než „Přečteno z deníku druhé strany do“ v `NAVAZANI.md`), pak toto místo aktualizuj. Záznam s **AKCE** vyřiď a odpověz vlastním záznamem v `docs/DENIK.md` (`Reaguje na: R-…`). Do repozitáře REVCRM se nezapisuje. Vlastní deník `docs/DENIK.md` doplň po každé změně, která se může týkat REVCRM (sdílené seznamy a sloupce, oprávnění, verze balíčku, rozhraní, rozhodnutí Igora).
 2. Podívej se na `git log --oneline` — co se dělalo naposledy.
 3. Stav fází je v kapitole 9, otevřené otázky v `docs/ROZHODNUTI.md`.
 4. Node.js 22 musí být v PATH (`node --version` → `v22.x`). Pokud není, viz kap. 3.
