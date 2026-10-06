@@ -20,6 +20,7 @@ import {
   canManageProjectAccess
 } from '../../core/projectAccess';
 import { buildProjectFolderPlan, projectFolderName, projectFolderRoot } from '../../core/folders';
+import { ProjectOverview, overviewFromJson, overviewToJson } from '../../core/projectOverview';
 import { FolderMap, analyzeFolderLink, defaultFolderMap, folderMapFromJson, folderMapToJson } from '../../core/projectFolders';
 import { ProjectRemovalPreview, ProjectRemovalResult, RemovalCount, projectFolderRemovalTarget } from '../../core/projectDeletion';
 import {
@@ -1105,6 +1106,33 @@ export class SpProjectRepository implements IProjectRepository {
       throw new Error(describeSpError(error, `Nepodařilo se uložit složky projektu ${projectNumber}`));
     }
     return (await this.getByNumber(projectNumber)) ?? { ...project, folderMap: map };
+  }
+
+  public async getOverview(project: Project): Promise<ProjectOverview> {
+    try {
+      const item: { OverviewData?: string } = await getSp(this.context).web.lists.getByTitle(PROJECTS_LIST).items.getById(project.id).select('OverviewData')();
+      return overviewFromJson(item.OverviewData, project);
+    } catch (error) {
+      if (extractStatus(error) === 400) {
+        // Sloupec přibyl ve schématu 18 — dokud ho web nezná, přehled začíná z výchozích hodnot.
+        return overviewFromJson(undefined, project);
+      }
+      throw new Error(describeSpError(error, `Nepodařilo se načíst Project overview projektu ${project.projectNumber}`));
+    }
+  }
+
+  public async saveOverview(project: Project, overview: ProjectOverview, actor: CurrentUser): Promise<void> {
+    if (!canEditProject(actor.roles, actor.loginName, { projectManagerLogin: project.projectManagerLogin, assistantLogins: project.assistantLogins })) {
+      throw new Error('Project overview smí upravovat projektový manažer projektu, asistent, vedení a administrátor.');
+    }
+    try {
+      await getSp(this.context).web.lists.getByTitle(PROJECTS_LIST).items.getById(project.id).update({ OverviewData: overviewToJson(overview) });
+    } catch (error) {
+      if (extractStatus(error) === 400) {
+        throw new Error('Project overview se nepodařilo uložit — v seznamu projektů chybí sloupec „Project overview“. Spusťte Instalaci a diagnostiku a zkuste to znovu.');
+      }
+      throw new Error(describeSpError(error, `Nepodařilo se uložit Project overview projektu ${project.projectNumber}`));
+    }
   }
 
   public async checkFolderLink(projectNumber: string): Promise<FolderLinkCheck> {

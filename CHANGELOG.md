@@ -5,6 +5,23 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.30.0 — 6. 10. 2026 — Project overview (marketingový přehled realizace)
+
+**Nové:** v detailu projektu tlačítko **Project overview** (vidí PM projektu, asistent, vedení a administrátor). Vytvoří **1–3 stránkové PDF** ve stylu RES prezentace — marketingový přehled realizace, kterým se představujeme zákazníkům jako reference (use case). Obsah je jiný než v reportu projektu:
+
+- **Úvodní strana:** předmět realizace (např. „Realizace bateriového úložiště“), lokalita, rok, instalovaný výkon a kapacita, titulní fotka.
+- **O projektu:** popis realizace, údaje (zákazník, lokalita, rok, výkon, kapacita), technické parametry a **mapa umístění**.
+- **Fotogalerie:** další vybrané fotky (do 6 celkem, první je titulní) z fotodokumentace projektu.
+- **Česky i anglicky:** jazyk se volí při vytvoření PDF; texty a technické parametry se zadávají v obou jazycích, pevné popisky jsou přeložené.
+- **Bez cen, nákladů a marže.** **Zákazník** je uvedený jménem jen při zaškrtnutém **souhlasu se zveřejněním**; jinak obecně („průmyslová společnost“, text lze upravit).
+- **Text s pomocí AI bez napojení:** tlačítko **Návrh ze šablony** složí text z údajů (bez AI), tlačítko **Zkopírovat zadání pro AI** zkopíruje hotové zadání (fakta o projektu a pokyny), které vložíte do Copilota nebo Clauda; hotový text vložíte zpět. Zadání neobsahuje ceny a jméno zákazníka jen se souhlasem. Přímé volání AI z aplikace vyžaduje serverový mezičlánek (Azure) a je případným dalším krokem.
+- Údaje (předmět, rok, výkon, kapacita, parametry, texty, fotky, souhlas) se ukládají k projektu a průběžně se zálohují v prohlížeči; hotové PDF jde prohlédnout a uložit do složky reportů projektu.
+- Mapa se skládá z dlaždic OpenStreetMap; nepodaří-li se je načíst, přehled vznikne bez mapy.
+
+**Co je potřeba udělat po nasazení:** spustit **Instalace a diagnostika** (schéma 18 — nový sloupec „Project overview“ v seznamu projektů; nic se nemaže).
+
+---
+
 ## 0.29.2 — 6. 10. 2026
 
 - Web part na webu má nadpis **„Běžící projekty Revoltum Engineering & Services“**. Už vložený web part s původním nadpisem „Běžící projekty“ ho dostane sám (stránku není třeba upravovat); vlastní nadpis zadaný v nastavení web partu zůstává.

@@ -30,6 +30,7 @@ import { AccessBar } from './AccessBar';
 import { DeleteProjectDialog } from './DeleteProjectDialog';
 import { ProjectFoldersDialog } from './ProjectFoldersDialog';
 import { ProjectReportDialog } from '../reports/ProjectReportDialog';
+import { ProjectOverviewDialog } from '../reports/ProjectOverviewDialog';
 import { EXTERNAL_LINK_PROPS } from '../../ui/components/ExternalLink';
 import { ProjectOrdersTab } from '../orders/ProjectOrdersTab';
 import { ProjectInvoicesTab } from '../invoicing/ProjectInvoicesTab';
@@ -46,6 +47,7 @@ export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projec
   const [editOpen, setEditOpen] = React.useState(false);
   const [deleteOpen, setDeleteOpen] = React.useState(false);
   const [reportOpen, setReportOpen] = React.useState(false);
+  const [overviewOpen, setOverviewOpen] = React.useState(false);
   const [foldersDialog, setFoldersDialog] = React.useState(false);
   const [overheadBusy, setOverheadBusy] = React.useState(false);
   const [foldersMessage, setFoldersMessage] = React.useState<{ ok: boolean; text: string } | undefined>(undefined);
@@ -178,6 +180,14 @@ export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projec
                 onClick={() => setReportOpen(true)}
               />
             )}
+            {!project.isOverhead && mayEdit && (
+              <DefaultButton
+                iconProps={{ iconName: 'ReportDocument' }}
+                text="Project overview"
+                title="Marketingový přehled realizace pro zákazníky (PDF, česky nebo anglicky)"
+                onClick={() => setOverviewOpen(true)}
+              />
+            )}
             {project.folderUrl && (
               <DefaultButton
                 iconProps={{ iconName: 'FolderHorizontal' }}
@@ -219,6 +229,7 @@ export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projec
       )}
 
       {reportOpen && <ProjectReportDialog project={project} onClose={() => setReportOpen(false)} />}
+      {overviewOpen && <ProjectOverviewDialog project={project} onClose={() => setOverviewOpen(false)} />}
 
       {deleteOpen && (
         <DeleteProjectDialog

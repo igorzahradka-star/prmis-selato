@@ -59,10 +59,12 @@ const PickerThumb: React.FC<{ file: ProjectFile; checked: boolean; onToggle: (on
   );
 };
 
-export const PhotoPickerDialog: React.FC<{ project: Project; onPick: (photos: PickedPhoto[]) => void; onClose: () => void }> = ({
+export const PhotoPickerDialog: React.FC<{ project: Project; onPick: (photos: PickedPhoto[]) => void; onClose: () => void; title?: string; confirmText?: string }> = ({
   project,
   onPick,
-  onClose
+  onClose,
+  title,
+  confirmText
 }) => {
   const { repos, settings } = useApp();
   const base = folderFor(project, 'photos', settings.folders);
@@ -120,7 +122,7 @@ export const PhotoPickerDialog: React.FC<{ project: Project; onPick: (photos: Pi
     <Dialog
       hidden={false}
       onDismiss={onClose}
-      dialogContentProps={{ type: DialogType.normal, title: `Fotky z galerie projektu ${project.projectNumber}` }}
+      dialogContentProps={{ type: DialogType.normal, title: title || `Fotky z galerie projektu ${project.projectNumber}` }}
       modalProps={{ isBlocking: true }}
       minWidth={620}
       maxWidth={900}
@@ -171,7 +173,7 @@ export const PhotoPickerDialog: React.FC<{ project: Project; onPick: (photos: Pi
       </div>
       <DialogFooter>
         <PrimaryButton
-          text={count > 0 ? `Přiložit vybrané (${count})` : 'Přiložit vybrané'}
+          text={count > 0 ? `${confirmText || 'Přiložit vybrané'} (${count})` : confirmText || 'Přiložit vybrané'}
           disabled={count === 0}
           onClick={() => onPick(Object.keys(chosen).map((k) => chosen[k]))}
         />

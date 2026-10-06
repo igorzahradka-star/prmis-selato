@@ -8,6 +8,7 @@
 
 import type { UserSignature } from '../core/signatures';
 import type { FolderMap } from '../core/projectFolders';
+import type { ProjectOverview } from '../core/projectOverview';
 import { ProjectRemovalPreview, ProjectRemovalResult } from '../core/projectDeletion';
 import { CurrentUser, Currency, Partner, Project, ProjectStatus, ProjectTask, TaskType } from '../core/types';
 import { AppSettings } from '../core/settings';
@@ -246,6 +247,10 @@ export interface IProjectRepository {
    * Smí PM, asistent a administrátor; ověřuje se i v datové vrstvě.
    */
   saveFolderMap(projectNumber: string, map: FolderMap, actor: CurrentUser): Promise<Project>;
+  /** Údaje Project overview (marketingový přehled); dosud neuložené = výchozí podle projektu. */
+  getOverview(project: Project): Promise<ProjectOverview>;
+  /** Uloží údaje Project overview. Smí PM, asistent, vedení a administrátor; ověřuje se i v datové vrstvě. */
+  saveOverview(project: Project, overview: ProjectOverview, actor: CurrentUser): Promise<void>;
   /** Zkontroluje, jestli odkaz „Otevřít složku projektu“ míří na kořen složky projektu (a ne do podsložky). Nic nemění. */
   checkFolderLink(projectNumber: string): Promise<FolderLinkCheck>;
   /**

@@ -8,6 +8,7 @@
  * jiná logika než do ostré implementace, UI by se chovalo jinak na ostro.
  */
 
+import { ProjectOverview, overviewFromJson, overviewToJson } from '../../core/projectOverview';
 import { MockCatalogRepository } from './mockCatalogRepository';
 import { MockBudgetRepository } from './mockBudgetRepository';
 import { MockProfileRepository } from './mockProfileRepository';
@@ -363,6 +364,20 @@ export class MockProjectRepository implements IProjectRepository {
     this.projects = this.projects.map((p) =>
       p.projectNumber === projectNumber ? { ...p, nextDeadline: next } : p
     );
+  }
+
+  private overviews = new Map<string, string>();
+
+  public async getOverview(project: Project): Promise<ProjectOverview> {
+    return delay(overviewFromJson(this.overviews.get(project.projectNumber), project));
+  }
+
+  public async saveOverview(project: Project, overview: ProjectOverview, actor: CurrentUser): Promise<void> {
+    if (!canEditProject(actor.roles, actor.loginName, { projectManagerLogin: project.projectManagerLogin, assistantLogins: project.assistantLogins })) {
+      throw new Error('Project overview smí upravovat projektový manažer projektu, asistent, vedení a administrátor.');
+    }
+    this.overviews.set(project.projectNumber, overviewToJson(overview));
+    return delay(undefined);
   }
 
   public async saveFolderMap(projectNumber: string, map: FolderMap, actor: CurrentUser): Promise<Project> {
