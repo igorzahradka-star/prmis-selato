@@ -16,7 +16,17 @@ import * as ReactDom from 'react-dom';
 
 import { PrmApp } from '../spfx/lib/webparts/prm/components/Prm';
 import { createMockRepositories } from '../spfx/lib/data/mock/mockRepositories';
+import { ProjectsList } from '../spfx/lib/webparts/projects/components/ProjectsList';
+import { MockWebProjectsRepository } from '../spfx/lib/data/mock/mockWebProjectsRepository';
 
+// Adresa s ?web=projekty ukáže web part „Běžící projekty“ (kompaktní seznam pro stránky webu).
+if (/[?&]web=projekty/.test(window.location.search)) {
+  const m = createMockRepositories();
+  ReactDom.render(
+    React.createElement(ProjectsList, { repo: new MockWebProjectsRepository(m.projects, m.settings), title: 'Běžící projekty', appPageUrl: 'index.html' }),
+    document.getElementById('app')
+  );
+} else
 ReactDom.render(
   React.createElement(PrmApp, {
     repos: createMockRepositories(),

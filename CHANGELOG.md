@@ -5,6 +5,18 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.29.0 — 6. 10. 2026 — Web part „Běžící projekty“ pro stránky webu
+
+- **Nový web part „Běžící projekty (PRM)“** — kompaktní seznam pro úvodní stránku RES a později pro stránku Revoltum. Sloupce: **Název** (odkaz na detail projektu v PRMIS), **Projektový manažer**, **Lokalita**, **Celková cena** (prodej z rozpočtu; neschválený rozpočet šedě se štítkem „neschváleno“, projekt bez rozpočtu ukáže smluvní cenu) a **Stav**. Bez součtových okének.
+- **Řídí se jen stavem projektu**: výchozí je **Příprava a Realizace**, ostatní stavy (Nabídka, Pozastaveno, Reklamace, Dokončeno, Storno) a Režie se na web nedostanou. Řazení: nejdřív Realizace, pak Příprava, nejnovější číslo první.
+- **Nastavení z PRMIS:** nová záložka **Nastavení → Projekty na webu** (stavy k zobrazení, počet řádků před „Zobrazit vše“, zapnutí sloupce Celková cena). Změna platí po obnovení stránky s web partem, není potřeba nic nahrávat.
+- **Marže a náklady se do web partu nenačítají** (dotaz bere jen název, PM, lokalitu, prodejní cenu, stav).
+- **Kopie na jiném webu** (Revoltum): v nastavení web partu se vyplní adresa webu s PRMIS; odkazy vedou na stránku `SitePages/PRM.aspx` toho webu (lze změnit).
+- Web part je samostatný a lehký (nenačítá celou aplikaci). Bez změny schématu — po nahrání balíčku se nic nespouští.
+- Náhled: `index.html?web=projekty`.
+
+---
+
 ## 0.28.2 — 5. 10. 2026 — Partneři i mimo EU
 
 - **Země partnera nejsou jen EU.** V seznamu Země je nově za členskými státy EU skupina **Ostatní země**: Čína, Tchaj-wan, USA, Kanada, Velká Británie, Švýcarsko, Norsko, Japonsko, Jižní Korea, Thajsko, Vietnam, Indie, Turecko, Ukrajina, Spojené arabské emiráty, Austrálie, Brazílie a další (celkem přes 45 zemí). Země se ukládá dvoupísmenným kódem do stávajícího sloupce, takže se nemění schéma a nic se nemusí spouštět.

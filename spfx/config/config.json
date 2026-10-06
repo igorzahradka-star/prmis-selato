@@ -2,6 +2,14 @@
   "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/config.2.0.schema.json",
   "version": "2.0",
   "bundles": {
+    "prm-projects-web-part": {
+      "components": [
+        {
+          "entrypoint": "./lib/webparts/projects/ProjectsWebPart.js",
+          "manifest": "./src/webparts/projects/ProjectsWebPart.manifest.json"
+        }
+      ]
+    },
     "prm-web-part": {
       "components": [
         {

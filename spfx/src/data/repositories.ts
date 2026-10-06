@@ -11,6 +11,7 @@ import type { FolderMap } from '../core/projectFolders';
 import { ProjectRemovalPreview, ProjectRemovalResult } from '../core/projectDeletion';
 import { CurrentUser, Currency, Partner, Project, ProjectStatus, ProjectTask, TaskType } from '../core/types';
 import { AppSettings } from '../core/settings';
+import type { WebListSettings } from '../core/webProjects';
 import { RoleGroupMapping } from '../core/roles';
 import { Person, RoleMembership } from '../core/userAdmin';
 import { AccessGroup, ProjectAccessState } from '../core/projectAccess';
@@ -817,6 +818,16 @@ export interface BudgetHistoryEntry {
  * obsah (skupiny, položky, sazby profesí) je jeden JSON. Schválení uloží do historie záznam s náklady, prodejem a marží.
  * Pravidla jsou v `core/budget`, zde se znovu ověřují při zápisu.
  */
+/** Data pro web part „Běžící projekty“: nastavení z PRMIS a projekty (jen veřejné údaje — bez nákladů a marže). */
+export interface WebProjectsData {
+  settings: WebListSettings;
+  projects: Project[];
+}
+
+export interface IWebProjectsRepository {
+  load(): Promise<WebProjectsData>;
+}
+
 export interface IBudgetRepository {
   /** Rozpočet projektu i s obsahem; `undefined`, když ještě není založený. `etag` hlídá souběžnou úpravu. */
   get(projectNumber: string): Promise<{ record: BudgetRecord; doc: BudgetDoc; etag?: string } | undefined>;

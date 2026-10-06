@@ -9,6 +9,7 @@
 
 import { CURRENCY_CODES, CurrencyCode } from './currency';
 import { DEFAULT_ROLE_GROUPS, RoleGroupMapping } from './roles';
+import { DEFAULT_WEB_LIST, WebListSettings, validateWebList, webListWithDefaults } from './webProjects';
 
 /** Klíče v seznamu PRM_Settings. Jeden klíč = jedna položka seznamu. */
 export enum SettingKey {
@@ -18,7 +19,8 @@ export enum SettingKey {
   Budget = 'budget',
   Approvals = 'approvals',
   Roles = 'roles',
-  Company = 'company'
+  Company = 'company',
+  WebList = 'webList'
 }
 
 /** Uzel stromu šablony složek projektu. */
@@ -162,6 +164,8 @@ export interface AppSettings {
   approvals: ApprovalSettings;
   roles: RoleGroupMapping;
   company: CompanySettings;
+  /** Seznam běžících projektů na webu (web part „Běžící projekty“). */
+  webList: WebListSettings;
 }
 
 /**
@@ -276,7 +280,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
     dic: '',
     accountingEmail: '',
     claim: 'Revoltujte s námi za moderní decentralizovanou energetiku'
-  }
+  },
+  webList: DEFAULT_WEB_LIST
 };
 
 /**
@@ -295,7 +300,8 @@ export function withDefaults(stored: Partial<AppSettings> | undefined): AppSetti
     budget: { ...DEFAULT_SETTINGS.budget, ...(s.budget ?? {}) },
     approvals: { ...DEFAULT_SETTINGS.approvals, ...(s.approvals ?? {}) },
     roles: { ...DEFAULT_SETTINGS.roles, ...(s.roles ?? {}) },
-    company: { ...DEFAULT_SETTINGS.company, ...(s.company ?? {}) }
+    company: { ...DEFAULT_SETTINGS.company, ...(s.company ?? {}) },
+    webList: webListWithDefaults(s.webList)
   };
 }
 
@@ -304,7 +310,7 @@ export function withDefaults(stored: Partial<AppSettings> | undefined): AppSetti
  * Prázdné pole = nastavení je v pořádku.
  */
 export function validateSettings(settings: AppSettings): string[] {
-  const problems: string[] = [];
+  const problems: string[] = [...validateWebList(settings.webList)];
 
   if (!settings.folders.libraryTitle.trim()) {
     problems.push('Není vyplněn název knihovny, kam se zakládají složky projektů.');

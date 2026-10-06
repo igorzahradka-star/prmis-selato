@@ -1,0 +1,28 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx/client-side-web-part-manifest.schema.json",
+  "id": "f81eb6e5-4e13-4f45-886d-d9572c7f973d",
+  "alias": "ProjectsWebPart",
+  "componentType": "WebPart",
+
+  // Verze se přebírá z package.json.
+  "version": "*",
+  "manifestVersion": 2,
+
+  "requiresCustomScript": false,
+  "supportedHosts": ["SharePointWebPart", "TeamsTab"],
+  "supportsThemeVariants": false,
+
+  "preconfiguredEntries": [{
+    "groupId": "5c03119e-3074-46fd-976b-c60198311f70",
+    "group": { "default": "Pokročilé" },
+    "title": { "default": "Běžící projekty (PRM)" },
+    "description": { "default": "Kompaktní seznam běžících projektů z PRMIS: název, projektový manažer, lokalita, celková cena a stav." },
+    "officeFabricIconFontName": "ViewList",
+    "properties": {
+      "dataSource": "sharepoint",
+      "title": "Běžící projekty",
+      "dataSiteUrl": "",
+      "appPageUrl": ""
+    }
+  }]
+}

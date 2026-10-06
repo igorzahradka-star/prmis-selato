@@ -13,6 +13,8 @@ import * as React from 'react';
 import { Pivot, PivotItem } from '@fluentui/react/lib/Pivot';
 import { TextField } from '@fluentui/react/lib/TextField';
 import { Toggle } from '@fluentui/react/lib/Toggle';
+import { Checkbox } from '@fluentui/react/lib/Checkbox';
+import { MAX_WEB_LIST_ROWS, WEB_LIST_STATUS_CHOICES } from '../../core/webProjects';
 import { SpinButton } from '@fluentui/react/lib/SpinButton';
 import { PrimaryButton, DefaultButton } from '@fluentui/react/lib/Button';
 import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
@@ -74,7 +76,8 @@ export const SettingsPage: React.FC = () => {
         'budget',
         'approvals',
         'roles',
-        'company'
+        'company',
+        'webList'
       ];
       for (const key of keys) {
         if (JSON.stringify(draft[key]) !== JSON.stringify(settings[key])) {
@@ -240,6 +243,52 @@ export const SettingsPage: React.FC = () => {
               values={draft.projects.projectTypes}
               onChange={(projectTypes) => patch('projects', { projectTypes })}
             />
+          </Panel>
+        </PivotItem>
+
+        <PivotItem headerText="Projekty na webu" itemIcon="Globe">
+          <Panel>
+            <Hint>
+              Řídí web part <strong>Běžící projekty</strong> na úvodní stránce RES (a jeho kopii na webu Revoltum). Seznam se řídí{' '}
+              <strong>jen stavem projektu</strong>: ukáže projekty ve stavech zaškrtnutých níže, ostatní se filtrují. Projekt Režie se neukazuje nikdy.
+              Na webu je vidět název, projektový manažer, lokalita, celková cena a stav — <strong>náklady a marže se na web nikdy nenačítají</strong>.
+              Změna platí hned po obnovení stránky s web partem.
+            </Hint>
+            <div>
+              <div style={{ fontWeight: 600, marginBottom: 6 }}>Stavy projektů, které se na webu ukazují</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {WEB_LIST_STATUS_CHOICES.map((s) => (
+                  <Checkbox
+                    key={s}
+                    label={s}
+                    checked={draft.webList.statuses.indexOf(s) !== -1}
+                    onChange={(_, checked) =>
+                      patch('webList', { statuses: checked ? [...draft.webList.statuses, s] : draft.webList.statuses.filter((x) => x !== s) })
+                    }
+                  />
+                ))}
+              </div>
+            </div>
+            <SpinButton
+              label="Kolik řádků se ukáže hned (zbytek po kliknutí na „Zobrazit vše“)"
+              min={1}
+              max={MAX_WEB_LIST_ROWS}
+              step={5}
+              value={String(draft.webList.maxRows)}
+              onChange={(_, v) => patch('webList', { maxRows: Math.round(Number(v)) || 1 })}
+              styles={{ root: { maxWidth: 160 } }}
+            />
+            <Toggle
+              label="Ukazovat sloupec Celková cena"
+              checked={draft.webList.showPrice}
+              onChange={(_, checked) => patch('webList', { showPrice: !!checked })}
+              onText="Ano"
+              offText="Ne"
+            />
+            <Hint>
+              Web part se na stránku přidá v úpravách stránky (+ → <strong>Běžící projekty (PRM)</strong>). U kopie na webu Revoltum se v nastavení web partu
+              vyplní adresa webu s PRMIS. Čtení seznamu projektů musí mít na webu PRMIS povolené všichni, kdo seznam uvidí (SharePoint → oprávnění).
+            </Hint>
           </Panel>
         </PivotItem>
 
