@@ -61,17 +61,11 @@ export function validateWebList(s: WebListSettings): string[] {
   return problems;
 }
 
-/** Pořadí stavů v seznamu: nejdřív probíhající realizace, pak příprava, ostatní podle nabídky v Nastavení. */
-function statusRank(status: string): number {
-  const i = WEB_LIST_STATUS_CHOICES.map((s) => String(s)).indexOf(status);
-  return i === -1 ? WEB_LIST_STATUS_CHOICES.length : i;
-}
-
-/** Vybere projekty pro web podle stavu (bez Režie), řazené stav → číslo projektu sestupně. */
+/** Vybere projekty pro web podle stavu (bez Režie), řazené podle čísla projektu vzestupně (stav na pořadí nemá vliv). */
 export function selectWebProjects(projects: Project[], settings: WebListSettings): Project[] {
   return projects
     .filter((p) => !p.isOverhead && settings.statuses.indexOf(String(p.status)) !== -1)
-    .sort((a, b) => statusRank(a.status) - statusRank(b.status) || b.projectNumber.localeCompare(a.projectNumber, 'cs-CZ', { numeric: true }));
+    .sort((a, b) => a.projectNumber.localeCompare(b.projectNumber, 'cs-CZ', { numeric: true }));
 }
 
 export interface WebPrice {

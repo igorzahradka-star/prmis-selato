@@ -5,6 +5,12 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.29.1 — 6. 10. 2026
+
+- Web part **Běžící projekty** je zatím **seřazený podle čísla projektu** (vzestupně, 26001 nahoře); stav na pořadí nemá vliv.
+
+---
+
 ## 0.29.0 — 6. 10. 2026 — Web part „Běžící projekty“ pro stránky webu
 
 - **Nový web part „Běžící projekty (PRM)“** — kompaktní seznam pro úvodní stránku RES a později pro stránku Revoltum. Sloupce: **Název** (odkaz na detail projektu v PRMIS), **Projektový manažer**, **Lokalita**, **Celková cena** (prodej z rozpočtu; neschválený rozpočet šedě se štítkem „neschváleno“, projekt bez rozpočtu ukáže smluvní cenu) a **Stav**. Bez součtových okének.

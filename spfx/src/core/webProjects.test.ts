@@ -27,7 +27,7 @@ describe('seznam projektů na webu', () => {
     expect(DEFAULT_WEB_LIST.statuses).toEqual([ProjectStatus.Priprava, ProjectStatus.Realizace]);
   });
 
-  it('filtruje podle stavu, vynechá Režii a řadí: realizace, příprava, v rámci stavu nejnovější číslo první', () => {
+  it('filtruje podle stavu, vynechá Režii a řadí podle čísla projektu vzestupně bez ohledu na stav', () => {
     const list = [
       project({ projectNumber: '25001', status: ProjectStatus.Dokonceno }),
       project({ projectNumber: '25005', status: ProjectStatus.Priprava }),
@@ -36,13 +36,13 @@ describe('seznam projektů na webu', () => {
       project({ projectNumber: '99901', status: ProjectStatus.Realizace, isOverhead: true }),
       project({ projectNumber: '26020', status: ProjectStatus.Nabidka })
     ];
-    expect(selectWebProjects(list, DEFAULT_WEB_LIST).map((p) => p.projectNumber)).toEqual(['26010', '26001', '25005']);
+    expect(selectWebProjects(list, DEFAULT_WEB_LIST).map((p) => p.projectNumber)).toEqual(['25005', '26001', '26010']);
   });
 
   it('po zaškrtnutí dalšího stavu se projekty v něm objeví', () => {
     const list = [project({ projectNumber: '25001', status: ProjectStatus.Reklamace }), project({ projectNumber: '26001' })];
     const s = { ...DEFAULT_WEB_LIST, statuses: [ProjectStatus.Realizace, ProjectStatus.Reklamace] };
-    expect(selectWebProjects(list, s).map((p) => p.projectNumber)).toEqual(['26001', '25001']);
+    expect(selectWebProjects(list, s).map((p) => p.projectNumber)).toEqual(['25001', '26001']);
   });
 
   it('cena: prodej z rozpočtu v Kč (provizorní, dokud není schválený), jinak smluvní cena v měně projektu, jinak nic', () => {
