@@ -27,6 +27,10 @@ export interface IProjectsWebPartProps {
   appPageUrl: string;
 }
 
+/** Výchozí nadpis. Web part vložený ještě s původním nadpisem „Běžící projekty“ dostane nový nadpis sám, bez úpravy stránky. */
+const DEFAULT_TITLE = 'Běžící projekty Revoltum Engineering & Services';
+const OLD_DEFAULT_TITLE = 'Běžící projekty';
+
 export default class ProjectsWebPart extends BaseClientSideWebPart<IProjectsWebPartProps> {
   public render(): void {
     const siteUrl = (this.properties.dataSiteUrl || '').trim().replace(/\/+$/, '');
@@ -40,7 +44,7 @@ export default class ProjectsWebPart extends BaseClientSideWebPart<IProjectsWebP
         : new SpWebProjectsRepository(this.context, siteUrl);
     const element = React.createElement(ProjectsList, {
       repo,
-      title: this.properties.title === undefined ? 'Běžící projekty' : this.properties.title,
+      title: this.properties.title === undefined || this.properties.title === OLD_DEFAULT_TITLE ? DEFAULT_TITLE : this.properties.title,
       appPageUrl: (this.properties.appPageUrl || '').trim() || defaultAppPageUrl(webUrl)
     });
     ReactDom.render(element, this.domElement);

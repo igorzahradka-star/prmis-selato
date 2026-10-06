@@ -23,7 +23,7 @@ import { MockWebProjectsRepository } from '../spfx/lib/data/mock/mockWebProjects
 if (/[?&]web=projekty/.test(window.location.search)) {
   const m = createMockRepositories();
   ReactDom.render(
-    React.createElement(ProjectsList, { repo: new MockWebProjectsRepository(m.projects, m.settings), title: 'Běžící projekty', appPageUrl: 'index.html' }),
+    React.createElement(ProjectsList, { repo: new MockWebProjectsRepository(m.projects, m.settings), title: 'Běžící projekty Revoltum Engineering & Services', appPageUrl: 'index.html' }),
     document.getElementById('app')
   );
 } else

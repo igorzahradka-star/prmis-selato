@@ -5,6 +5,12 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.29.2 — 6. 10. 2026
+
+- Web part na webu má nadpis **„Běžící projekty Revoltum Engineering & Services“**. Už vložený web part s původním nadpisem „Běžící projekty“ ho dostane sám (stránku není třeba upravovat); vlastní nadpis zadaný v nastavení web partu zůstává.
+
+---
+
 ## 0.29.1 — 6. 10. 2026
 
 - Web part **Běžící projekty** je zatím **seřazený podle čísla projektu** (vzestupně, 26001 nahoře); stav na pořadí nemá vliv.
