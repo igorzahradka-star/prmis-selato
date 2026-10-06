@@ -13,6 +13,7 @@ import { TextField } from '@fluentui/react/lib/TextField';
 
 import { useApp } from '../../ui/AppContext';
 import { isValidIco, normalizeIco } from '../../core/ico';
+import { checkPartner, similarWarning } from '../../core/partnerDuplicates';
 import { Partner, PartnerType } from '../../core/types';
 import { lookupCompanyByIco } from '../../data/ares';
 
@@ -31,6 +32,7 @@ export const NewPartnerDialog: React.FC<{
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | undefined>(undefined);
   const [missing, setMissing] = React.useState(false);
+  const [similarWarn, setSimilarWarn] = React.useState<string | undefined>(undefined);
 
   const normalized = normalizeIco(ico);
 
@@ -55,16 +57,34 @@ export const NewPartnerDialog: React.FC<{
       });
   };
 
-  const create = (): void => {
+  const create = (force: boolean = false): void => {
     if (name.trim() === '') {
       setMissing(true);
       return;
     }
     setBusy(true);
     setError(undefined);
+    setSimilarWarn(undefined);
+    const input = { name: name.trim(), partnerType: type, country: 'CZ', ico: normalized || undefined, dic: dic.trim() || undefined, isVatPayer: vat, address: address.trim() || undefined, isActive: true };
+    // Stejné IČO se neuloží; stejné nebo podobné jméno jen upozorní a založení potvrdí uživatel.
     repos.partners
-      .create({ name: name.trim(), partnerType: type, country: 'CZ', ico: normalized || undefined, dic: dic.trim() || undefined, isVatPayer: vat, address: address.trim() || undefined, isActive: true })
+      .list({ includeInactive: true })
+      .then((all) => {
+        const check = checkPartner(all, input);
+        if (check.blocking) {
+          throw new Error(check.blocking);
+        }
+        if (!force && check.similar.length > 0) {
+          setSimilarWarn(similarWarning(check.similar));
+          setBusy(false);
+          return undefined;
+        }
+        return repos.partners.create(input);
+      })
       .then((p) => {
+        if (!p) {
+          return;
+        }
         setBusy(false);
         onCreated(p);
       })
@@ -79,6 +99,11 @@ export const NewPartnerDialog: React.FC<{
       {error && (
         <MessageBar messageBarType={MessageBarType.warning} isMultiline onDismiss={() => setError(undefined)}>
           {error}
+        </MessageBar>
+      )}
+      {similarWarn && (
+        <MessageBar messageBarType={MessageBarType.warning} isMultiline>
+          {similarWarn} Jde o jinou firmu? Jinak vyberte stávajícího partnera.
         </MessageBar>
       )}
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
@@ -107,7 +132,8 @@ export const NewPartnerDialog: React.FC<{
       <TextField label="DIČ" value={dic} onChange={(_, v) => setDic(v ?? '')} />
       <TextField label="Adresa" multiline rows={2} value={address} onChange={(_, v) => setAddress(v ?? '')} />
       <DialogFooter>
-        <PrimaryButton text="Založit partnera" disabled={busy} onClick={create} />
+        <PrimaryButton text="Založit partnera" disabled={busy} onClick={() => create(false)} />
+        {similarWarn && <DefaultButton text="Přesto založit" disabled={busy} onClick={() => create(true)} />}
         <DefaultButton text="Zrušit" disabled={busy} onClick={onClose} />
       </DialogFooter>
     </Dialog>

@@ -3,8 +3,10 @@
  */
 
 import { WebPartContext } from '@microsoft/sp-webpart-base';
-import { Partner, PartnerType } from '../../core/types';
+import { CurrentUser, Partner, PartnerType } from '../../core/types';
 import { isDomestic } from '../../core/countries';
+import { checkPartner } from '../../core/partnerDuplicates';
+import { PartnerUsage, canDeletePartner, describeUsage, usageTotal } from '../../core/partnerDelete';
 import { IPartnerRepository, PartnerFilter } from '../repositories';
 import { getSp, describeSpError, extractStatus } from './spContext';
 
@@ -101,7 +103,61 @@ export class SpPartnerRepository implements IPartnerRepository {
     }
   }
 
+  /** Stejné IČO ve stejné zemi (i u deaktivovaného partnera) = neuloží se. Čte se celý seznam, ne jen aktivní. */
+  private async assertNoIcoDuplicate(partner: Omit<Partner, 'id'>, excludeId?: number): Promise<void> {
+    if (!partner.ico || !partner.ico.trim()) {
+      return;
+    }
+    const all = await this.list({ includeInactive: true });
+    const found = checkPartner(all, partner, excludeId);
+    if (found.blocking) {
+      throw new Error(found.blocking);
+    }
+  }
+
+  public async usage(id: number): Promise<PartnerUsage> {
+    const count = async (list: string, field: string, optional: boolean): Promise<number> => {
+      try {
+        const items: { Id: number }[] = await getSp(this.context).web.lists.getByTitle(list).items.filter(`${field} eq ${id}`).select('Id').top(500)();
+        return items.length;
+      } catch (error) {
+        // Seznam RES CRM nemusí na webu být (aplikace nenainstalovaná) — pak se v něm partner nepoužívá.
+        if (optional) {
+          return 0;
+        }
+        throw error;
+      }
+    };
+    try {
+      const [projects, orders, invoices, cases] = await Promise.all([
+        count('PRM_Projects', 'CustomerId', false),
+        count('PRM_PurchaseOrders', 'SupplierId', false),
+        count('PRM_InvoiceBases', 'CustomerId', false),
+        count('REV_Cases', 'PartnerId', true)
+      ]);
+      return { projects, orders, invoices, cases };
+    } catch (error) {
+      throw new Error(describeSpError(error, 'Nepodařilo se zjistit, kde je partner použit'));
+    }
+  }
+
+  public async remove(id: number, actor: CurrentUser): Promise<void> {
+    if (!canDeletePartner(actor.roles)) {
+      throw new Error('Partnera smí smazat jen vedení a administrátor.');
+    }
+    const used = await this.usage(id);
+    if (usageTotal(used) > 0) {
+      throw new Error(`Partner je použit (${describeUsage(used)}), proto se nesmaže. Nastavte ho jako neaktivního.`);
+    }
+    try {
+      await getSp(this.context).web.lists.getByTitle(PARTNERS_LIST).items.getById(id).recycle();
+    } catch (error) {
+      throw new Error(describeSpError(error, 'Nepodařilo se smazat partnera'));
+    }
+  }
+
   public async create(partner: Omit<Partner, 'id'>): Promise<Partner> {
+    await this.assertNoIcoDuplicate(partner);
     try {
       const sp = getSp(this.context);
       const result = await writeWithCountryFallback(partner, (payload) =>
@@ -116,6 +172,7 @@ export class SpPartnerRepository implements IPartnerRepository {
   }
 
   public async update(id: number, partner: Omit<Partner, 'id'>): Promise<void> {
+    await this.assertNoIcoDuplicate(partner, id);
     try {
       const sp = getSp(this.context);
       await writeWithCountryFallback(partner, (payload) =>

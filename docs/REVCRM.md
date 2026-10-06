@@ -58,6 +58,10 @@ Role REVCRM, které smí zapisovat do sdílených seznamů: administrátor, obch
 - **Země partnera** je dvoupísmenný ISO kód v textovém sloupci `Country` (prázdné = Česko). Od verze 0.28.2 PRMIS nabízí i **země mimo EU** (Čína, Tchaj-wan, USA, Kanada, Velká Británie, Švýcarsko, … přes 45 zemí; seznam `ALL_COUNTRIES` v `core/countries.ts`). REVCRM má v seznamu zemí nabízet stejné kódy a neznámý kód nesmí zahodit ani přepsat. DIČ / VAT ID se mimo EU nekontroluje (ukládá se tak, jak je).
 - **Dodavatel v PRMIS se vybírá jen ze seznamu partnerů** (rozpočet, kusovník, objednávka; od 0.28.1) — dodavatel v kusovníku je tedy název existujícího partnera. REVCRM by měl do `SupplierName` ukládat také název partnera ze seznamu, ne volný text (PRMIS jinak zvýrazní dodavatele „není v seznamu partnerů“).
 
+## Kontrola duplicit partnerů a mazání (6. 10. 2026, rozhodl Igor; převzato z REVCRM)
+
+Platí pro obě aplikace, protože sdílejí `PRM_Partners`: (1) **stejné IČO ve stejné zemi nelze uložit** (včetně deaktivovaných; v UI i v repozitáři); (2) **stejné nebo podobné jméno jen upozorní** a uložení potvrdí uživatel; (3) **mazání je jen v PRMIS** (vedení a administrátor, do koše SharePointu), **použitého partnera nelze smazat** (projekty, objednávky, podklady, případy RES CRM `REV_Cases.PartnerId`) — nabídne se deaktivace. V PRMIS: `core/partnerDuplicates.ts`, `core/partnerDelete.ts` (verze 0.30.1). Referenční implementace podobnosti je v `revcrm/spfx/src/core/partnerDuplicates.ts`; odchylka PRMIS: zahraniční IČO se porovnává jako písmena a číslice. Podrobnosti v deníku (R-011, P-006).
+
 ## Rozhodnuto 4. 10. 2026
 
 Odpovědi Igora na otevřené otázky jsou v [`REVCRM_ZAHAJENI.md`](REVCRM_ZAHAJENI.md): jeden společný tenant, REVCRM běží na webu RES (na matce jen odkaz a případně komerční data), partneři zůstávají v seznamu **PRM_Partners** (žádné stěhování), číslo případu **N26-0001**, kalkulace nabídek se odděluje do REVCRM; fáze nabídky se rozebírají ve vlastní relaci.

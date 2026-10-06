@@ -5,6 +5,18 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.30.1 — 6. 10. 2026 — Partneři: kontrola duplicit a mazání
+
+Podle dohody s RES CRM (společný seznam `PRM_Partners`, rozhodl Igor 6. 10. 2026):
+
+- **Stejné IČO ve stejné zemi se neuloží.** Platí všude, kde se partner zakládá nebo mění: stránka Partneři, rychlé založení partnera z rozpočtu, kusovníku a objednávky. Porovnává se i s deaktivovanými partnery; IČO se čte „po lidsku“ (mezery, chybějící nuly). Zahraniční registrační číslo (např. HRB 12345) se porovnává jako písmena a číslice. Kontrola je **i v datové vrstvě** — i kdyby ji formulář vynechal, zápis se stejným IČO selže.
+- **Stejné nebo podobné jméno jen upozorní** („Partner se stejným nebo podobným jménem už existuje: … Jde o jinou firmu?“) a uložení se potvrdí tlačítkem **Přesto uložit** (u rychlého založení **Přesto založit**). Podobnost ignoruje diakritiku, velikost písmen, interpunkci a právní formu (s.r.o., a.s., GmbH…) a toleruje drobný překlep.
+- **Zákazník napsaný přímo v novém projektu nebo v úpravě projektu:** má-li podobné jméno jako existující partner, aplikace to ohlásí a nechá vybrat ze seznamu; jinou firmu je třeba založit v Partnerech (tam se podobnost potvrzuje).
+- **Smazání partnera:** na stránce Partneři je u každého řádku **Smazat** (jen vedení a administrátor). Před smazáním aplikace ukáže, kde je partner použit (projekty, objednávky, podklady pro fakturaci, případy RES CRM). **Použitého partnera nelze smazat** — nabídne se **Nastavit jako neaktivního**. Nepoužitý partner jde do koše SharePointu (lze obnovit). Pravidlo se znovu ověřuje v datové vrstvě. Mazání položek **kusovníku** už existuje (Kusovník → Smazat, vedení a administrátor).
+- Bez změny schématu; po nahrání balíčku se nic nespouští.
+
+---
+
 ## 0.30.0 — 6. 10. 2026 — Project overview (marketingový přehled realizace)
 
 **Nové:** v detailu projektu tlačítko **Project overview** (vidí PM projektu, asistent, vedení a administrátor). Vytvoří **1–3 stránkové PDF** ve stylu RES prezentace — marketingový přehled realizace, kterým se představujeme zákazníkům jako reference (use case). Obsah je jiný než v reportu projektu:

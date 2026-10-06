@@ -16,6 +16,7 @@ import { Panel, PanelType } from '@fluentui/react/lib/Panel';
 import { TextField } from '@fluentui/react/lib/TextField';
 import { Dropdown, DropdownMenuItemType, IDropdownOption } from '@fluentui/react/lib/Dropdown';
 import { Toggle } from '@fluentui/react/lib/Toggle';
+import { Dialog, DialogFooter, DialogType } from '@fluentui/react/lib/Dialog';
 import { Link } from '@fluentui/react/lib/Link';
 import { TooltipHost } from '@fluentui/react/lib/Tooltip';
 
@@ -24,6 +25,8 @@ import { RES } from '../../ui/theme';
 import { PageHeading } from '../../ui/components/PageHeading';
 import { Partner, PartnerType } from '../../core/types';
 import { canManagePartners } from '../../core/roles';
+import { checkPartner, similarWarning } from '../../core/partnerDuplicates';
+import { PartnerUsage, canDeletePartner, describeUsage, usageTotal } from '../../core/partnerDelete';
 import { isValidIco, normalizeIco } from '../../core/ico';
 import { PanelMessages } from '../../ui/components/PanelMessages';
 import { lookupCompanyByIco } from '../../data/ares';
@@ -70,6 +73,7 @@ const EMPTY_DRAFT: Omit<Partner, 'id'> = {
 export const PartnersPage: React.FC = () => {
   const { repos, user } = useApp();
   const canManage = canManagePartners(user.roles);
+  const canDelete = canDeletePartner(user.roles);
 
   const [partners, setPartners] = React.useState<Partner[] | undefined>(undefined);
   const [error, setError] = React.useState<string | undefined>(undefined);
@@ -81,6 +85,10 @@ export const PartnersPage: React.FC = () => {
   /** Co chybí k uložení a co se při ukládání nepovedlo — ukazuje se nad tlačítky v patě panelu. */
   const [saveIssues, setSaveIssues] = React.useState<string[]>([]);
   const [saveError, setSaveError] = React.useState<string | undefined>(undefined);
+  /** Upozornění na podobné jméno — uložení potvrdí uživatel („Přesto uložit“). */
+  const [similarWarn, setSimilarWarn] = React.useState<string | undefined>(undefined);
+  /** Partner, kterého uživatel chce smazat, a kde je použit. */
+  const [removing, setRemoving] = React.useState<{ partner: Partner; usage?: PartnerUsage; error?: string; busy?: boolean } | undefined>(undefined);
   // Chrání proti tomu, aby pomalejší starší odpověď (např. při rychlém psaní
   // do hledání) přepsala výsledek novějšího dotazu.
   const requestId = React.useRef(0);
@@ -113,6 +121,7 @@ export const PartnersPage: React.FC = () => {
     setAresError(undefined);
     setSaveIssues([]);
     setSaveError(undefined);
+    setSimilarWarn(undefined);
   };
 
   const openEdit = (partner: Partner): void => {
@@ -121,6 +130,7 @@ export const PartnersPage: React.FC = () => {
     setAresError(undefined);
     setSaveIssues([]);
     setSaveError(undefined);
+    setSimilarWarn(undefined);
   };
 
   const close = (): void => setEditing(undefined);
@@ -166,7 +176,51 @@ export const PartnersPage: React.FC = () => {
       });
   };
 
-  const save = (): void => {
+  React.useEffect(() => {
+    if (!removing || removing.usage || removing.error) {
+      return undefined;
+    }
+    let cancelled = false;
+    repos.partners
+      .usage(removing.partner.id)
+      .then((usage) => !cancelled && setRemoving((cur) => (cur ? { ...cur, usage } : cur)))
+      .catch((e: Error) => !cancelled && setRemoving((cur) => (cur ? { ...cur, error: e.message } : cur)));
+    return () => {
+      cancelled = true;
+    };
+  }, [removing, repos]);
+
+  const doRemove = (): void => {
+    if (!removing) {
+      return;
+    }
+    const p = removing.partner;
+    setRemoving({ ...removing, busy: true });
+    repos.partners
+      .remove(p.id, user)
+      .then(() => {
+        setRemoving(undefined);
+        return reload();
+      })
+      .catch((e: Error) => setRemoving((cur) => (cur ? { ...cur, busy: false, error: e.message } : cur)));
+  };
+
+  const deactivate = (): void => {
+    if (!removing) {
+      return;
+    }
+    const { id, ...data } = removing.partner;
+    setRemoving({ ...removing, busy: true });
+    repos.partners
+      .update(id, { ...data, isActive: false })
+      .then(() => {
+        setRemoving(undefined);
+        return reload();
+      })
+      .catch((e: Error) => setRemoving((cur) => (cur ? { ...cur, busy: false, error: e.message } : cur)));
+  };
+
+  const save = (force: boolean = false): void => {
     if (!editing) {
       return;
     }
@@ -176,12 +230,26 @@ export const PartnersPage: React.FC = () => {
     }
     setSaveIssues([]);
     setSaveError(undefined);
+    setSimilarWarn(undefined);
     const { id, ...data } = editing;
-    const request = isNew ? repos.partners.create(data) : repos.partners.update(id, data);
-    request
-      .then(() => {
-        close();
-        return reload();
+    // Stejné IČO ve stejné zemi se neuloží; stejné nebo podobné jméno jen upozorní a uložení potvrdí uživatel.
+    repos.partners
+      .list({ includeInactive: true })
+      .then((all) => {
+        const check = checkPartner(all, data, isNew ? undefined : id);
+        if (check.blocking) {
+          setSaveError(check.blocking);
+          return undefined;
+        }
+        if (!force && check.similar.length > 0) {
+          setSimilarWarn(similarWarning(check.similar));
+          return undefined;
+        }
+        const request = isNew ? repos.partners.create(data) : repos.partners.update(id, data);
+        return request.then(() => {
+          close();
+          return reload();
+        });
       })
       .catch((e: Error) => setSaveError(e.message));
   };
@@ -220,7 +288,7 @@ export const PartnersPage: React.FC = () => {
         <div style={{ background: RES.white, border: `1px solid ${RES.grayBlue}`, borderRadius: 4 }}>
           <DetailsList
             items={partners}
-            columns={buildColumns(canManage, openEdit)}
+            columns={buildColumns(canManage, openEdit, canDelete ? (p) => setRemoving({ partner: p }) : undefined)}
             selectionMode={SelectionMode.none}
             layoutMode={DetailsListLayoutMode.justified}
             compact
@@ -228,6 +296,35 @@ export const PartnersPage: React.FC = () => {
             ariaLabelForGrid="Seznam partnerů"
           />
         </div>
+      )}
+
+      {removing && (
+        <Dialog
+          hidden={false}
+          onDismiss={removing.busy ? undefined : () => setRemoving(undefined)}
+          dialogContentProps={{ type: DialogType.normal, title: `Smazat partnera „${removing.partner.name}“` }}
+          modalProps={{ isBlocking: true }}
+        >
+          {!removing.usage && !removing.error && <Spinner size={SpinnerSize.small} label="Zjišťuji, kde je partner použit…" labelPosition="right" />}
+          {removing.error && (
+            <MessageBar messageBarType={MessageBarType.error} isMultiline>
+              {removing.error}
+            </MessageBar>
+          )}
+          {removing.usage && usageTotal(removing.usage) > 0 && (
+            <MessageBar messageBarType={MessageBarType.warning} isMultiline>
+              Partner je použit: {describeUsage(removing.usage)}. Použitého partnera nelze smazat — nastavte ho jako neaktivního, přestane se nabízet, ale doklady zůstanou čitelné.
+            </MessageBar>
+          )}
+          {removing.usage && usageTotal(removing.usage) === 0 && (
+            <div style={{ fontSize: 13 }}>Partner není nikde použit. Smaže se do koše SharePointu (jde obnovit).</div>
+          )}
+          <DialogFooter>
+            {removing.usage && usageTotal(removing.usage) === 0 && <PrimaryButton text={removing.busy ? 'Mažu…' : 'Smazat'} disabled={removing.busy} onClick={doRemove} />}
+            {removing.usage && usageTotal(removing.usage) > 0 && removing.partner.isActive && <PrimaryButton text={removing.busy ? 'Ukládám…' : 'Nastavit jako neaktivního'} disabled={removing.busy} onClick={deactivate} />}
+            <DefaultButton text="Zavřít" disabled={removing.busy} onClick={() => setRemoving(undefined)} />
+          </DialogFooter>
+        </Dialog>
       )}
 
       <Panel
@@ -240,8 +337,14 @@ export const PartnersPage: React.FC = () => {
         onRenderFooterContent={() => (
           <div>
             <PanelMessages issues={saveIssues} error={saveError} onDismissError={() => setSaveError(undefined)} />
+            {similarWarn && (
+              <MessageBar messageBarType={MessageBarType.warning} isMultiline styles={{ root: { marginBottom: 8 } }}>
+                {similarWarn} Jde o jinou firmu?
+              </MessageBar>
+            )}
             <div style={{ display: 'flex', gap: 8 }}>
-              <PrimaryButton text="Uložit" onClick={save} />
+              <PrimaryButton text="Uložit" onClick={() => save(false)} />
+              {similarWarn && <DefaultButton text="Přesto uložit" onClick={() => save(true)} />}
               <DefaultButton text="Zrušit" onClick={close} />
             </div>
           </div>
@@ -414,7 +517,7 @@ export const PartnersPage: React.FC = () => {
   );
 };
 
-function buildColumns(canManage: boolean, onEdit: (p: Partner) => void): IColumn[] {
+function buildColumns(canManage: boolean, onEdit: (p: Partner) => void, onDelete?: (p: Partner) => void): IColumn[] {
   const columns: IColumn[] = [
     {
       key: 'name',
@@ -473,5 +576,14 @@ function buildColumns(canManage: boolean, onEdit: (p: Partner) => void): IColumn
       onRender: (p: Partner) => (p.isActive ? 'Ano' : <span style={{ color: RES.gray }}>Ne</span>)
     }
   ];
+  if (onDelete) {
+    columns.push({
+      key: 'actions',
+      name: '',
+      minWidth: 40,
+      maxWidth: 40,
+      onRender: (p: Partner) => <IconButton iconProps={{ iconName: 'Delete' }} title="Smazat partnera" ariaLabel={`Smazat partnera ${p.name}`} onClick={() => onDelete(p)} />
+    });
+  }
   return columns;
 }

@@ -8,6 +8,8 @@
  * jiná logika než do ostré implementace, UI by se chovalo jinak na ostro.
  */
 
+import { checkPartner } from '../../core/partnerDuplicates';
+import { NO_USAGE, PartnerUsage, canDeletePartner, describeUsage, usageTotal } from '../../core/partnerDelete';
 import { ProjectOverview, overviewFromJson, overviewToJson } from '../../core/projectOverview';
 import { MockCatalogRepository } from './mockCatalogRepository';
 import { MockBudgetRepository } from './mockBudgetRepository';
@@ -870,14 +872,45 @@ class MockPartnerRepository implements IPartnerRepository {
     return delay(this.partners.filter((p) => p.id === id)[0]);
   }
 
+  /** Odkud se zjistí použití partnera (projekty, objednávky, podklady) — doplní se po sestavení ostatních repozitářů. */
+  public usageSource: ((partner: Partner) => Promise<PartnerUsage>) | undefined;
+
   public create(partner: Omit<Partner, 'id'>): Promise<Partner> {
+    const found = checkPartner(this.partners, partner);
+    if (found.blocking) {
+      return Promise.reject(new Error(found.blocking));
+    }
     const created: Partner = { ...partner, id: this.nextId++ };
     this.partners = [...this.partners, created];
     return delay(created);
   }
 
   public update(id: number, partner: Omit<Partner, 'id'>): Promise<void> {
+    const found = checkPartner(this.partners, partner, id);
+    if (found.blocking) {
+      return Promise.reject(new Error(found.blocking));
+    }
     this.partners = this.partners.map((p) => (p.id === id ? { ...partner, id } : p));
+    return delay(undefined);
+  }
+
+  public async usage(id: number): Promise<PartnerUsage> {
+    const partner = this.partners.filter((p) => p.id === id)[0];
+    if (!partner || !this.usageSource) {
+      return NO_USAGE;
+    }
+    return this.usageSource(partner);
+  }
+
+  public async remove(id: number, actor: CurrentUser): Promise<void> {
+    if (!canDeletePartner(actor.roles)) {
+      throw new Error('Partnera smí smazat jen vedení a administrátor.');
+    }
+    const used = await this.usage(id);
+    if (usageTotal(used) > 0) {
+      throw new Error(`Partner je použit (${describeUsage(used)}), proto se nesmaže. Nastavte ho jako neaktivního.`);
+    }
+    this.partners = this.partners.filter((p) => p.id !== id);
     return delay(undefined);
   }
 }
@@ -1038,6 +1071,17 @@ export function createMockRepositories(): RepositorySet {
   const projects = new MockProjectRepository(numbering, settings);
   const partners = new MockPartnerRepository();
   const rates = new MockRatesRepository();
+  const orderRepo = new MockOrderRepository(numbering, projects, settings, partners, rates);
+  const invoiceRepo = new MockInvoiceRepository(numbering, projects);
+  partners.usageSource = async (p) => {
+    const [prj, ord, inv] = await Promise.all([projects.list({ includeOverhead: true }), orderRepo.list({}), invoiceRepo.list({})]);
+    return {
+      projects: prj.filter((x) => x.customerName === p.name).length,
+      orders: ord.filter((x) => x.supplierId === p.id).length,
+      invoices: inv.filter((x) => x.customerId === p.id).length,
+      cases: 0
+    };
+  };
   const profiles = new MockProfileRepository();
   return {
     users: new MockUserRepository(),
@@ -1045,8 +1089,8 @@ export function createMockRepositories(): RepositorySet {
     settings,
     projects,
     partners,
-    orders: new MockOrderRepository(numbering, projects, settings, partners, rates),
-    invoices: new MockInvoiceRepository(numbering, projects),
+    orders: orderRepo,
+    invoices: invoiceRepo,
     diary: new MockDiaryRepository(projects, settings),
     rates,
     profiles,

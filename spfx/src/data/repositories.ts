@@ -9,6 +9,7 @@
 import type { UserSignature } from '../core/signatures';
 import type { FolderMap } from '../core/projectFolders';
 import type { ProjectOverview } from '../core/projectOverview';
+import type { PartnerUsage } from '../core/partnerDelete';
 import { ProjectRemovalPreview, ProjectRemovalResult } from '../core/projectDeletion';
 import { CurrentUser, Currency, Partner, Project, ProjectStatus, ProjectTask, TaskType } from '../core/types';
 import { AppSettings } from '../core/settings';
@@ -432,8 +433,17 @@ export interface PartnerFilter {
 export interface IPartnerRepository {
   list(filter?: PartnerFilter): Promise<Partner[]>;
   getById(id: number): Promise<Partner | undefined>;
+  /** Založí partnera. Stejné IČO ve stejné zemi (i u deaktivovaného partnera) se neuloží — pravidlo platí i v datové vrstvě. */
   create(partner: Omit<Partner, 'id'>): Promise<Partner>;
+  /** Uloží změny partnera; stejné IČO jako má jiný partner se neuloží. */
   update(id: number, partner: Omit<Partner, 'id'>): Promise<void>;
+  /** Kde je partner použit (projekty, objednávky, podklady, případy RES CRM). */
+  usage(id: number): Promise<PartnerUsage>;
+  /**
+   * Smaže partnera (do koše SharePointu). Smí vedení a administrátor; partner, který je někde použit, se nesmaže
+   * (nabídne se deaktivace). Ověřuje se i v datové vrstvě.
+   */
+  remove(id: number, actor: CurrentUser): Promise<void>;
 }
 
 /** Jedna číselná řada z PRM_DocTypes (viz zadání kap. 7). */

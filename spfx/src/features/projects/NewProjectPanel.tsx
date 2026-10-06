@@ -7,6 +7,7 @@
  * projekt zůstane uložený s tlačítkem na nový pokus.
  */
 
+import { findSimilarNames, similarWarning } from '../../core/partnerDuplicates';
 import * as React from 'react';
 import { Panel, PanelType } from '@fluentui/react/lib/Panel';
 import { TextField } from '@fluentui/react/lib/TextField';
@@ -192,6 +193,12 @@ export const NewProjectPanel: React.FC<NewProjectPanelProps> = ({ isOpen, onDism
     const existing = partners.filter((p) => p.name.toLocaleLowerCase('cs-CZ') === name.toLocaleLowerCase('cs-CZ'))[0];
     if (existing) {
       return existing.id;
+    }
+    // Zákazník s podobným jménem už existuje? Pak ho uživatel vybere ze seznamu; jinou firmu založí v Partnerech (tam se potvrzuje).
+    const all = await repos.partners.list({ includeInactive: true });
+    const similar = findSimilarNames(all, name);
+    if (similar.length > 0) {
+      throw new Error(`${similarWarning(similar)} Vyberte ho ze seznamu zákazníků. Pokud jde opravdu o jinou firmu, založte ji nejdřív v části Partneři (tam se podobné jméno potvrzuje).`);
     }
     const created = await repos.partners.create({
       name,

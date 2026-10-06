@@ -41,3 +41,17 @@ Dopad na druhou stranu: země i dodavatele v REVCRM držet shodně s PRMIS (viz 
 Odpověď na R-003 a R-005: oprávnění seznamů `PRM_*` PRMIS nemění a ve schématu REVCRM nic nehlídá; zápis lidí jen ze skupin REV do `PRM_Partners` a `PRM_Catalog` povolí Igor ručně v SharePointu. Složky případů pod `General/00_OBCHODNI PRILEZITOSTI` PRMIS nijak nepoužívá (kořen složek projektů je v jeho Nastavení, výchozí `General/01_PROJEKTY`).
 Dopad na druhou stranu: žádný.
 Reaguje na: R-003, R-005
+
+### P-004 · 2026-10-06 · INFO
+PRMIS 0.29.0 až 0.30.0: web part **Běžící projekty** (kompaktní seznam projektů ve stavech Příprava a Realizace pro stránky webu RES a kopii na webu Revoltum; nastavení stavů v Nastavení → Projekty na webu; marže a náklady se nenačítají), **Project overview** (marketingové PDF realizace, česky i anglicky; sloupec `OverviewData` v `PRM_Projects`, **schéma PRMIS 18**), nadpis web partu. Aktuální balíček PRMIS **0.30.1.0**.
+Dopad na druhou stranu: žádný na RES CRM data. K R-007 (lidé z REVOLTUM a.s. mají vidět základní údaje projektů RES): web part Běžící projekty to pokrývá pro **seznam projektů** (název, PM, lokalita, cena, stav) na jiném webu — stačí kopie web partu s adresou webu RES a právo čtení seznamu projektů; o oprávnění rozhodne Igor.
+
+### P-005 · 2026-10-06 · INFO
+Odpověď na R-006 až R-010 a R-012: vzato na vědomí. K R-008: **PRMIS nikde neukládá odkaz na složku obchodního případu** (složky projektů jsou pod `General/01_PROJEKTY`, odkaz na ně je ve sloupci `FolderUrl` projektu), přejmenování složek `NS26-…` se PRMIS netýká — AKCE z R-008 se neuplatňuje. Typy nabídek RES CRM (R-012) se v PRMIS nepoužívají (PRMIS má vlastní číselník typů projektů).
+Dopad na druhou stranu: žádný.
+Reaguje na: R-008
+
+### P-006 · 2026-10-06 · INFO
+PRMIS **0.30.1.0**: kontrola duplicit partnerů a mazání zavedené podle R-011. **(1)** Stejné IČO ve stejné zemi se neuloží (stránka Partneři, rychlé založení z rozpočtu/kusovníku/objednávky; i v datové vrstvě, včetně deaktivovaných partnerů); stejné nebo podobné jméno jen upozorní a uložení se potvrdí („Přesto uložit“). Podobnost je převzatá z `revcrm/.../partnerDuplicates.ts` (v PRMIS `core/partnerDuplicates.ts` + testy). Jediná odchylka: IČO **zahraničního** partnera (registrační číslo) se porovnává jako velká písmena a číslice, ne jen číslice (jinak by se „HRB 123“ a „123“ slily); české IČO se porovnává stejně jako u vás. **(2)** Tlačítko **Smazat** partnera (vedení a administrátor, do koše SharePointu) přibylo na stránku Partneři; partner, který je použit (`PRM_Projects.Customer`, `PRM_PurchaseOrders.Supplier`, `PRM_InvoiceBases.Customer` a případy RES CRM — `REV_Cases.PartnerId`, když seznam existuje), se **nesmaže**, nabídne se deaktivace. Smazání položky kusovníku v PRMIS už existovalo (Kusovník → Smazat). **(3)** SharePointové „jedinečné hodnoty“ na sloupci IČO jsem **nenasadil** (zahraniční partneři bez IČO); jednoznačnost IČO hlídají obě aplikace.
+Dopad na druhou stranu: žádný další. Doporučení: v RES CRM držet stejnou normalizaci zahraničního IČO, aby se obě kontroly shodovaly.
+Reaguje na: R-011
