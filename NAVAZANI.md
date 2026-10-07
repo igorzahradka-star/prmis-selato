@@ -179,6 +179,10 @@ od projektů).
 - **3c: HOTOVO v 0.27.0.0** (zadání původně: fakturační milníky a **cashflow projektu** (plán vs. skutečnost, týdně/měsíčně, graf, kumulace); platební plán podle vzoru Excelu „Průběh plateb“; skutečnost ručně / z úhrady podkladů). Zbývá: import skutečných plateb z účetnictví (Fáze 5), vazba na harmonogram (Fáze 4).
 - Vzorový Excel projektu 26001 (Realizační rozpočet, Průběh plateb, týdenní CF v EUR s grafem) je referenční příklad; kurz je denní ČNB.
 
+### Pozastaveno
+
+- **Project overview** (7. 10. 2026, Igor: práce se přerušuje, trvá dlouho a není důležitá). Stav: verze 0.30.3 je v aplikaci použitelná (titulní fotka, dvě fotky na zadní straně, mapa na první straně, hlášení nenačtených fotek). Nezjištěno: proč se u projektu 26001 občas ukázaly jiné fotky na zadní straně než vybrané. Dál na tom nepracovat, dokud Igor neřekne.
+
 ### Zadáno k pozdější iteraci (nezačato)
 
 - **Smazat partnera i z okna úprav / detailu partnera** (6. 10. 2026, Igor: „v další iteraci, až budou další úkoly“): dnes je Smazat jen ikona v řádku seznamu na stránce Partneři (0.30.1). Přidat tlačítko Smazat do panelu Upravit partnera se stejným postupem (kde je použit → smazat, nebo nastavit jako neaktivního; jen vedení a administrátor). Logika je hotová (`core/partnerDelete.ts`, `IPartnerRepository.usage/remove`), jde jen o UI — dialog z `PartnersPage` je dobré vytáhnout do samostatné komponenty. Totéž případně u detailu zákazníka, pokud vznikne.
