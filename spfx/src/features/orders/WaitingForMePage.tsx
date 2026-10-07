@@ -20,6 +20,10 @@ import { Project } from '../../core/types';
 import { InvoiceBasis, InvoiceStatus } from '../../core/invoiceBases';
 import { isWaitingForCheck } from '../../core/invoiceWorkflow';
 import { InvoicesTable } from '../invoicing/InvoicesTable';
+import { BudgetRecord, canApproveBudget } from '../../core/budget';
+import { formatDate } from '../../core/format';
+import { buildHash } from '../../ui/router';
+import { Link } from '@fluentui/react/lib/Link';
 import { OrdersTable } from './OrdersTable';
 import { CurrencySwitch } from '../../ui/components/CurrencySwitch';
 import { OrderPanel } from './OrderPanel';
@@ -29,6 +33,7 @@ export const WaitingForMePage: React.FC<{ orderId?: number }> = ({ orderId }) =>
   const [orders, setOrders] = React.useState<PurchaseOrder[] | undefined>(undefined);
   const [projects, setProjects] = React.useState<Project[]>([]);
   const [invoices, setInvoices] = React.useState<InvoiceBasis[]>([]);
+  const [budgets, setBudgets] = React.useState<BudgetRecord[]>([]);
   const [error, setError] = React.useState<string | undefined>(undefined);
   const [reloadKey, setReloadKey] = React.useState(0);
 
@@ -39,13 +44,16 @@ export const WaitingForMePage: React.FC<{ orderId?: number }> = ({ orderId }) =>
       repos.orders.list({ statuses: [OrderStatus.KeSchvaleni] }),
       repos.projects.list({ includeOverhead: true }),
       // Podklady ke kontrole; když seznam podkladů na webu ještě není (neběžela Instalace), stránka objednávek nespadne.
-      repos.invoices.list({ statuses: [InvoiceStatus.KeKontrole] }).catch((): InvoiceBasis[] => [])
+      repos.invoices.list({ statuses: [InvoiceStatus.KeKontrole] }).catch((): InvoiceBasis[] => []),
+      // Rozpočty ke schválení vidí jen ten, kdo je smí schvalovat (vedení, administrátor).
+      canApproveBudget(toActor(user)) ? repos.budgets.listPendingApproval().catch((): BudgetRecord[] => []) : Promise.resolve([] as BudgetRecord[])
     ])
-      .then(([o, p, i]) => {
+      .then(([o, p, i, b]) => {
         if (!cancelled) {
           setOrders(o);
           setProjects(p);
           setInvoices(i);
+          setBudgets(b);
         }
       })
       .catch((e: Error) => {
@@ -56,7 +64,7 @@ export const WaitingForMePage: React.FC<{ orderId?: number }> = ({ orderId }) =>
     return () => {
       cancelled = true;
     };
-  }, [repos, reloadKey]);
+  }, [repos, user, reloadKey]);
 
   useAutoRefresh(() => setReloadKey((k) => k + 1), orderId !== undefined);
 
@@ -73,7 +81,7 @@ export const WaitingForMePage: React.FC<{ orderId?: number }> = ({ orderId }) =>
 
   return (
     <>
-      <PageHeading title="Čeká na mě" subtitle="Objednávky čekající na vaše schválení a podklady pro fakturaci čekající na vaši kontrolu." />
+      <PageHeading title="Čeká na mě" subtitle="Objednávky a rozpočty čekající na vaše schválení a podklady pro fakturaci čekající na vaši kontrolu." />
 
       {error && (
         <MessageBar messageBarType={MessageBarType.error} isMultiline>
@@ -81,10 +89,10 @@ export const WaitingForMePage: React.FC<{ orderId?: number }> = ({ orderId }) =>
         </MessageBar>
       )}
       {!orders && !error && <Spinner size={SpinnerSize.large} label="Načítám…" />}
-      {orders && mine.length === 0 && invoicesToCheck.length === 0 && !error && (
+      {orders && mine.length === 0 && invoicesToCheck.length === 0 && budgets.length === 0 && !error && (
         <MessageBar messageBarType={MessageBarType.success}>Nic na vás nečeká.</MessageBar>
       )}
-      {(mine.length > 0 || invoicesToCheck.length > 0) && (
+      {(mine.length > 0 || invoicesToCheck.length > 0 || budgets.length > 0) && (
         <div style={{ display: 'flex', justifyContent: 'flex-end', margin: '4px 0' }}>
           <CurrencySwitch />
         </div>
@@ -98,6 +106,41 @@ export const WaitingForMePage: React.FC<{ orderId?: number }> = ({ orderId }) =>
             ariaLabel="Objednávky čekající na mě"
           />
         </div>
+      )}
+
+      {budgets.length > 0 && (
+        <>
+          <h2 style={{ fontSize: 15, margin: '16px 0 8px', color: RES.navy }}>Realizační rozpočty ke schválení</h2>
+          <div style={{ background: RES.white, border: `1px solid ${RES.grayBlue}`, borderRadius: 4, padding: '4px 12px' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr style={{ textAlign: 'left', color: RES.gray, fontSize: 12 }}>
+                  <th style={{ padding: '6px 4px' }}>Projekt</th>
+                  <th style={{ padding: '6px 4px' }}>Žádost podal</th>
+                  <th style={{ padding: '6px 4px' }}>Kdy</th>
+                </tr>
+              </thead>
+              <tbody>
+                {budgets.map((b) => {
+                  const p = projects.filter((x) => x.projectNumber === b.projectNumber)[0];
+                  return (
+                    <tr key={b.id} style={{ borderTop: `1px solid ${RES.background}` }}>
+                      <td style={{ padding: '6px 4px' }}>
+                        <Link href={buildHash(RouteName.ProjectDetail, b.projectNumber)} style={{ fontWeight: 600 }}>
+                          {b.projectNumber}
+                          {p ? ` · ${p.shortName || p.title}` : ''}
+                        </Link>
+                      </td>
+                      <td style={{ padding: '6px 4px' }}>{b.requestedByName || '—'}</td>
+                      <td style={{ padding: '6px 4px' }}>{b.requestedAt ? formatDate(b.requestedAt) : '—'}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <div style={{ fontSize: 12, color: RES.gray, padding: '6px 4px' }}>Rozpočet se schvaluje v detailu projektu, záložka Realizační rozpočet (tlačítko Schválit nebo Vrátit k úpravě).</div>
+          </div>
+        </>
       )}
 
       {invoicesToCheck.length > 0 && (

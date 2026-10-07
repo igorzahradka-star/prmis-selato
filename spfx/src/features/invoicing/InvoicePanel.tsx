@@ -23,6 +23,7 @@ import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 import { Link } from '@fluentui/react/lib/Link';
 
 import { DocumentFolderButton } from '../../ui/components/DocumentFolderButton';
+import { ApproveButton, ReturnButton } from '../../ui/components/ApprovalButtons';
 import { PanelMessages } from '../../ui/components/PanelMessages';
 import { removeConceptCopy, saveConceptCopy } from '../documents/conceptCopy';
 import { useApp } from '../../ui/AppContext';
@@ -863,7 +864,7 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
           <PrimaryButton text="Předat ke kontrole" disabled={busy} onClick={() => run(() => repos.invoices.submit(invoice.id, user), notifyChecker)} />
         )}
         {has('handover') && (
-          <PrimaryButton
+          <ApproveButton
             text="Předat účtárně"
             disabled={busy}
             onClick={() => {
@@ -873,7 +874,7 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
           />
         )}
         {has('return') && (
-          <DefaultButton
+          <ReturnButton
             text={invoice.requestedByLogin.toLowerCase() === user.loginName.toLowerCase() ? 'Stáhnout zpět' : 'Vrátit do konceptu'}
             disabled={busy}
             onClick={() => setDialog({ kind: 'return', text: '' })}

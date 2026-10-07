@@ -8,6 +8,7 @@
 
 import * as React from 'react';
 import { ActionButton, DefaultButton, PrimaryButton } from '@fluentui/react/lib/Button';
+import { ApproveButton, ReturnButton } from '../../ui/components/ApprovalButtons';
 import { Dialog, DialogFooter, DialogType } from '@fluentui/react/lib/Dialog';
 import { Dropdown } from '@fluentui/react/lib/Dropdown';
 import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
@@ -18,7 +19,8 @@ import { useApp } from '../../ui/AppContext';
 import { RES } from '../../ui/theme';
 import { CurrencySwitch } from '../../ui/components/CurrencySwitch';
 import { useReportCurrency } from '../../ui/useReportCurrency';
-import { Partner, Project } from '../../core/types';
+import { Partner, Project, Role } from '../../core/types';
+import { RoleMembership } from '../../core/userAdmin';
 import { formatDate, formatMoney } from '../../core/format';
 import { asCurrencyCode } from '../../core/currency';
 import { canIssueOrder, toActor, toWorkflowProject } from '../../core/orderWorkflow';
@@ -123,6 +125,18 @@ export const BudgetTab: React.FC<{ project: Project }> = ({ project }) => {
       cancelled = true;
     };
   }, [repos, project.projectNumber, ordersKey]);
+
+  const [approvers, setApprovers] = React.useState<RoleMembership[]>([]);
+  const waiting = !!record && record.status === BudgetStatus.KeSchvaleni;
+  React.useEffect(() => {
+    if (!waiting) {
+      return;
+    }
+    repos.userAdmin
+      .listRoleMembers(settings.roles)
+      .then(setApprovers)
+      .catch(() => setApprovers([]));
+  }, [repos, settings.roles, waiting]);
 
   React.useEffect(() => {
     repos.partners
@@ -388,6 +402,16 @@ export const BudgetTab: React.FC<{ project: Project }> = ({ project }) => {
   const contractMargin = contract !== undefined && totals ? marginPercent(totals.cost, contract) : undefined;
   const minMargin = settings.budget.minimumMarginPercent;
   const last = lastApproval(record);
+  // Rozpočet schvaluje vedení nebo administrátor (bez určeného jednoho schvalovatele) — ukážou se jejich jména.
+  const approverNames = React.useMemo(() => {
+    const names: string[] = [];
+    approvers.forEach((m) => {
+      if (m.role === Role.Vedeni || m.role === Role.Administrator) {
+        m.members.forEach((p) => names.indexOf(p.displayName) === -1 && names.push(p.displayName));
+      }
+    });
+    return names.length > 0 ? `vedení (${names.slice(0, 6).join(', ')}${names.length > 6 ? ' a další' : ''})` : 'vedení nebo administrátor PRM';
+  }, [approvers]);
   const changed = !!record && !!totalsCzk && changedSinceApproval(record, totalsCzk.cost, totalsCzk.sale);
 
   return (
@@ -398,6 +422,8 @@ export const BudgetTab: React.FC<{ project: Project }> = ({ project }) => {
           <span style={{ fontSize: 12, color: RES.gray }}>
             žádost podal {record.requestedByName || '—'}
             {record.requestedAt ? `, ${formatDate(record.requestedAt)}` : ''}
+            {' · čeká na schválení: '}
+            <strong>{approverNames}</strong>
           </span>
         )}
         {last && (
@@ -507,11 +533,15 @@ export const BudgetTab: React.FC<{ project: Project }> = ({ project }) => {
             <ActionButton iconProps={{ iconName: ratesOpen ? 'ChevronUp' : 'Contact' }} text={`Sazby profesí (${doc.rates.length})`} onClick={() => setRatesOpen((o) => !o)} />
             <ActionButton iconProps={{ iconName: 'Download' }} text="Export do CSV" onClick={exportCsv} />
             <span style={{ flex: '1 1 auto' }} />
-            {actions.indexOf('requestApproval') !== -1 && <DefaultButton text="Požádat o schválení" disabled={busy} onClick={requestApproval} />}
-            {actions.indexOf('approve') !== -1 && <PrimaryButton text="Schválit" disabled={busy} onClick={() => setDialog({ kind: 'approve', text: '' })} />}
-            {actions.indexOf('reject') !== -1 && <DefaultButton text="Vrátit k úpravě" disabled={busy} onClick={() => setDialog({ kind: 'reject', text: '' })} />}
-            {actions.indexOf('withdraw') !== -1 && !canApproveBudget(actor) && <DefaultButton text="Stáhnout žádost" disabled={busy} onClick={withdraw} />}
           </div>
+          {(actions.indexOf('requestApproval') !== -1 || actions.indexOf('approve') !== -1 || actions.indexOf('reject') !== -1 || (actions.indexOf('withdraw') !== -1 && !canApproveBudget(actor))) && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap', margin: '0 0 10px' }}>
+              {actions.indexOf('requestApproval') !== -1 && <DefaultButton text="Požádat o schválení" disabled={busy} onClick={requestApproval} />}
+              {actions.indexOf('withdraw') !== -1 && !canApproveBudget(actor) && <DefaultButton text="Stáhnout žádost" disabled={busy} onClick={withdraw} />}
+              {actions.indexOf('reject') !== -1 && <ReturnButton text="Vrátit k úpravě" disabled={busy} onClick={() => setDialog({ kind: 'reject', text: '' })} />}
+              {actions.indexOf('approve') !== -1 && <ApproveButton text="Schválit" disabled={busy} onClick={() => setDialog({ kind: 'approve', text: '' })} />}
+            </div>
+          )}
           {issues.length > 0 && (
             <MessageBar messageBarType={MessageBarType.warning} isMultiline onDismiss={() => setIssues([])}>
               <strong>Nejde požádat o schválení — něco chybí:</strong>
@@ -710,11 +740,13 @@ export const BudgetTab: React.FC<{ project: Project }> = ({ project }) => {
             </>
           )}
           <DialogFooter>
-            <PrimaryButton
-              text={dialog.kind === 'approve' ? 'Schválit' : dialog.kind === 'reject' ? 'Vrátit' : dialog.kind === 'group' ? 'Smazat' : 'Přidat'}
-              disabled={(dialog.kind === 'reject' && dialog.text.trim() === '') || (dialog.kind === 'newGroup' && dialog.name.trim() === '')}
-              onClick={confirmDialog}
-            />
+            {dialog.kind === 'approve' ? (
+              <ApproveButton text="Schválit" onClick={confirmDialog} />
+            ) : dialog.kind === 'reject' ? (
+              <ReturnButton text="Vrátit k úpravě" disabled={dialog.text.trim() === ''} onClick={confirmDialog} />
+            ) : (
+              <PrimaryButton text={dialog.kind === 'group' ? 'Smazat' : 'Přidat'} disabled={dialog.kind === 'newGroup' && dialog.name.trim() === ''} onClick={confirmDialog} />
+            )}
             <DefaultButton text="Zpět" onClick={() => setDialog(undefined)} />
           </DialogFooter>
         </Dialog>

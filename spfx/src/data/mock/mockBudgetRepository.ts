@@ -96,6 +96,10 @@ export class MockBudgetRepository implements IBudgetRepository {
     return s;
   }
 
+  public async listPendingApproval(): Promise<BudgetRecord[]> {
+    return this.stored.filter((x) => x.record.status === BudgetStatus.KeSchvaleni).map((x) => clone(x.record));
+  }
+
   public async get(projectNumber: string): Promise<{ record: BudgetRecord; doc: BudgetDoc; etag?: string } | undefined> {
     const s = this.stored.filter((x) => x.record.projectNumber === projectNumber)[0];
     if (!s) {

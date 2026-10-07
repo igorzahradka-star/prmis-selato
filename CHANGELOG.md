@@ -5,6 +5,16 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.32.1 — 8. 10. 2026 — Schvalování: jednotné barvy, rozpočty v „Čeká na mě“, u koho žádost je
+
+- **U koho je žádost o schválení rozpočtu:** u rozpočtu ve stavu Ke schválení je teď napsáno „čeká na schválení: vedení (jména)“. Rozpočet nemá jednoho určeného schvalovatele — schvalují ho všichni z role **Vedení** a **Administrátor PRM**, ukážou se jejich jména.
+- **Čeká na mě:** vedení a administrátor tam nově vidí **Realizační rozpočty ke schválení** (všech projektů: projekt, kdo žádal, kdy) s odkazem na detail projektu.
+- **Tlačítka u rozpočtu:** **Vrátit k úpravě** (žluté) a **Schválit** (zelené) jsou vpravo v samostatném řádku pod nástroji, společně s Požádat o schválení / Stáhnout žádost; už se nezalamují vlevo pod ně. Rozpočet se nezamítá — jen schvaluje nebo vrací k úpravě (vrácený rozpočet jde upravit a znovu předložit; už schválený rozpočet zůstává platný).
+- **Jednotné barvy v celé aplikaci:** **Schválit = zelené**, **Vrátit k úpravě = žluté**, Zamítnout (jen u objednávek) = červené. Platí pro tlačítka i potvrzení v oknech u rozpočtů, objednávek a u podkladů pro fakturaci (**Předat účtárně** = zelené, **Vrátit do konceptu / Stáhnout zpět** = žluté).
+- Bez změny schématu.
+
+---
+
 ## 0.32.0 — 7. 10. 2026 — Fáze 4, krok 4a: harmonogram — úkoly, závislosti a kritická cesta
 
 Záložka **Harmonogram** v detailu projektu už není „Připravujeme“. Je v ní tabulka úkolů s výpočtem termínů a kritické cesty (Gantt s grafem přijde v dalším kroku):

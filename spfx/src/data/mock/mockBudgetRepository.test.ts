@@ -133,3 +133,16 @@ describe('Automatické ukládání rozpočtu', () => {
     await expect(r.budgets.save(rec.id, d, TOTALS, jan, c?.etag, { auto: true })).rejects.toThrow(/mezitím/);
   });
 });
+
+describe('Rozpočty čekající na schválení', () => {
+  it('seznam obsahuje jen rozpočty ve stavu Ke schválení (všech projektů) a po schválení z něj zmizí', async () => {
+    const r = createMockRepositories();
+    expect(await r.budgets.listPendingApproval()).toHaveLength(0);
+    const rec = await r.budgets.create('25003', naplneny(), TOTALS, jan);
+    expect(await r.budgets.listPendingApproval()).toHaveLength(0);
+    await r.budgets.requestApproval(rec.id, jan);
+    const pending = await r.budgets.listPendingApproval();
+    expect(pending.map((p) => p.projectNumber)).toEqual(['25003']);
+    expect(pending[0].requestedByName).toBe(jan.displayName);
+  });
+});

@@ -881,6 +881,8 @@ export interface IBudgetRepository {
   reject(recordId: number, comment: string, actor: CurrentUser): Promise<BudgetRecord>;
   /** Historie (kdo, kdy, co) od nejstarší. */
   history(recordId: number): Promise<BudgetHistoryEntry[]>;
+  /** Rozpočty všech projektů, které čekají na schválení (stránka „Čeká na mě“ pro vedení); bez obsahu. */
+  listPendingApproval(): Promise<BudgetRecord[]>;
 }
 
 export interface RepositorySet {

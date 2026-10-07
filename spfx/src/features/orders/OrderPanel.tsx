@@ -21,6 +21,7 @@ import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 import { Link } from '@fluentui/react/lib/Link';
 
 import { DocumentFolderButton } from '../../ui/components/DocumentFolderButton';
+import { ApproveButton, RejectButton, ReturnButton } from '../../ui/components/ApprovalButtons';
 import { PanelMessages } from '../../ui/components/PanelMessages';
 import { removeConceptCopy, saveConceptCopy } from '../documents/conceptCopy';
 import { useApp } from '../../ui/AppContext';
@@ -955,13 +956,13 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
           <PrimaryButton text="Odeslat ke schválení" disabled={busy} onClick={() => beginSubmit(order)} />
         )}
         {actions.indexOf('approve') !== -1 && (
-          <PrimaryButton text="Schválit" disabled={busy} onClick={() => setDialog({ kind: 'approve', comment: '' })} />
+          <ApproveButton text="Schválit" disabled={busy} onClick={() => setDialog({ kind: 'approve', comment: '' })} />
         )}
         {actions.indexOf('return') !== -1 && (
-          <DefaultButton text="Vrátit k úpravě" disabled={busy} onClick={() => setDialog({ kind: 'return', comment: '' })} />
+          <ReturnButton text="Vrátit k úpravě" disabled={busy} onClick={() => setDialog({ kind: 'return', comment: '' })} />
         )}
         {actions.indexOf('reject') !== -1 && (
-          <DefaultButton text="Zamítnout" disabled={busy} onClick={() => setDialog({ kind: 'reject', comment: '' })} />
+          <RejectButton text="Zamítnout" disabled={busy} onClick={() => setDialog({ kind: 'reject', comment: '' })} />
         )}
         {actions.indexOf('reassign') !== -1 && (
           <DefaultButton iconProps={{ iconName: 'Contact' }} text="Změnit schvalovatele" disabled={busy} onClick={beginReassign} />
@@ -1320,11 +1321,19 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
             autoFocus
           />
           <DialogFooter>
-            <PrimaryButton
-              text={DIALOG_TEXT[dialog.kind].confirm}
-              disabled={DIALOG_TEXT[dialog.kind].required && dialog.comment.trim() === ''}
-              onClick={confirmDialog}
-            />
+            {dialog.kind === 'approve' ? (
+              <ApproveButton text={DIALOG_TEXT[dialog.kind].confirm} onClick={confirmDialog} />
+            ) : dialog.kind === 'return' ? (
+              <ReturnButton text={DIALOG_TEXT[dialog.kind].confirm} disabled={dialog.comment.trim() === ''} onClick={confirmDialog} />
+            ) : dialog.kind === 'reject' ? (
+              <RejectButton text={DIALOG_TEXT[dialog.kind].confirm} disabled={dialog.comment.trim() === ''} onClick={confirmDialog} />
+            ) : (
+              <PrimaryButton
+                text={DIALOG_TEXT[dialog.kind].confirm}
+                disabled={DIALOG_TEXT[dialog.kind].required && dialog.comment.trim() === ''}
+                onClick={confirmDialog}
+              />
+            )}
             <DefaultButton text="Zpět" onClick={() => setDialog(undefined)} />
           </DialogFooter>
         </Dialog>

@@ -81,6 +81,21 @@ export class SpBudgetRepository implements IBudgetRepository {
     private readonly projects: IProjectRepository
   ) {}
 
+  public async listPendingApproval(): Promise<BudgetRecord[]> {
+    try {
+      const sp = getSp(this.context);
+      const items: BudgetItem[] = await sp.web.lists
+        .getByTitle(LIST)
+        .items.select(...FIELDS.filter((f) => f !== 'Content'))
+        .expand('Project')
+        .filter(`VersionStatus eq '${escapeODataString(BudgetStatus.KeSchvaleni)}'`)
+        .top(200)();
+      return items.map(mapRecord);
+    } catch (error) {
+      throw new Error(explain(error, 'Nepodařilo se načíst rozpočty ke schválení'));
+    }
+  }
+
   public async get(projectNumber: string): Promise<{ record: BudgetRecord; doc: BudgetDoc; etag?: string } | undefined> {
     const project = await this.requireProject(projectNumber);
     try {
