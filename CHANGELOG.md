@@ -5,6 +5,22 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.33.0 — 8. 10. 2026 — Fáze 4, krok 4b: Ganttův diagram
+
+V záložce **Harmonogram** je pod tabulkou úkolů **Ganttův diagram**, který se překresluje při každé změně v tabulce:
+
+- **Pruhy úkolů** s vyznačenou hotovou částí (% hotovo), **milníky** jako kosočtverce, **šipky závislostí** (FS, SS, FF, SF) vedené lomenými čarami.
+- **Kritická cesta červeně** (pruhy, názvy úkolů i šipky mezi kritickými úkoly).
+- **Časová osa** v měřítku **Dny / Týdny / Měsíce**, záhlaví s měsíci a dny (týdny, roky), **víkendy a české státní svátky** vystínované, **dnešek** zelenou čárkovanou čarou, tlačítko **Dnes** přesune diagram na aktuální datum.
+- **Baseline** jako tenký šedý pruh pod úkolem, **smluvní termín** jako svislá značka u úkolu (žlutá, červená když se nestíhá).
+- Po najetí myší na pruh se ukáže název, termíny, rezerva, % hotovo a případné nestíhání termínu. Vodorovný posuvník je lepený na dolní okraj okna.
+- Vlevo od časové osy zůstávají čísla a názvy úkolů; diagram se upravuje v tabulce nad ním (úpravy tažením myší zatím ne).
+- Bez změny schématu.
+
+**Co dál:** 4c vazba na rozpočet, cashflow a objednávky; 4d export (PDF A3, Excel); později úpravy tažením.
+
+---
+
 ## 0.32.2 — 8. 10. 2026 — Oprava: záložka Realizační rozpočet byla po 0.32.1 bílá
 
 - **Chyba v 0.32.1:** záložka Realizační rozpočet se po načtení nezobrazila (bílá stránka). Příčina: nové „čeká na schválení: …“ bylo v kódu zapsané tak, že se u rozpočtu volalo v jiném pořadí než při prvním vykreslení (React to nepřipustí a stránku shodí). Opraveno; verzi **0.32.1.0 nepoužívejte**.

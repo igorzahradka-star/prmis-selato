@@ -17,6 +17,8 @@ import { useApp } from '../../ui/AppContext';
 import { RES } from '../../ui/theme';
 import { DraftBanner } from '../../ui/components/DraftBanner';
 import { StickyHScroll } from '../../ui/components/StickyHScroll';
+import { GanttChart } from './GanttChart';
+import { GanttItem, linksFromDeps } from '../../core/ganttLayout';
 import { useFormDraft } from '../../ui/useFormDraft';
 import { draftKey } from '../../core/drafts';
 import { canEditProject } from '../../core/roles';
@@ -108,6 +110,33 @@ export const ScheduleTab: React.FC<{ project: Project }> = ({ project }) => {
 
   const dirty = !!original && JSON.stringify(rows) !== saved;
   const model = React.useMemo(() => buildScheduleModel(rows, { defaultStart: project.startDate }), [rows, project.startDate]);
+  // Podklad pro Gantt (hooky musí být nad prvním `return` komponenty).
+  const ganttData = React.useMemo(() => {
+    const items: GanttItem[] = [];
+    const keyOfId: Record<number, string> = {};
+    rows.forEach((r) => {
+      const s = model.result.tasks[model.idOf[r.key]];
+      if (s) {
+        keyOfId[model.idOf[r.key]] = r.key;
+        items.push({
+          key: r.key,
+          wbs: r.wbs,
+          title: r.title,
+          start: s.start,
+          finish: s.finish,
+          milestone: r.taskType === TaskType.Milnik || r.durationDays <= 0,
+          critical: s.critical,
+          percent: r.percentComplete,
+          baselineStart: r.baselineStart,
+          baselineFinish: r.baselineFinish,
+          deadline: r.contractual ? r.deadline : undefined,
+          lateByDays: s.lateByDays,
+          totalFloat: s.totalFloat
+        });
+      }
+    });
+    return { items, links: linksFromDeps(model.deps, (id) => keyOfId[id]) };
+  }, [rows, model]);
 
   const patch = (key: string, p: Partial<ScheduleRow>): void => setRows((cur) => cur.map((r) => (r.key === key ? { ...r, ...p } : r)));
   const addRow = (type: TaskType = TaskType.Cinnost): void =>
@@ -401,6 +430,8 @@ export const ScheduleTab: React.FC<{ project: Project }> = ({ project }) => {
           </table>
         </StickyHScroll>
       )}
+
+      {!hasCycle && ganttData.items.length > 0 && <GanttChart items={ganttData.items} links={ganttData.links} />}
 
       <div style={{ fontSize: 12, color: RES.gray, marginTop: 8, lineHeight: 1.5 }}>
         Trvání je v pracovních dnech (pondělí–pátek mimo české státní svátky). Úkol s předchůdci se řídí jimi (zahájení se vypočítá), úkol bez předchůdců začíná v zadaném datu. Rezerva je o kolik pracovních dnů lze úkol posunout, aniž by
