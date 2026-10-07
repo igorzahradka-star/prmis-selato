@@ -143,7 +143,7 @@ export class MockBudgetRepository implements IBudgetRepository {
     return delay(clone(s.record));
   }
 
-  public async requestApproval(recordId: number, actor: CurrentUser): Promise<BudgetRecord> {
+  public async requestApproval(recordId: number, actor: CurrentUser, approver?: { login: string; name: string }): Promise<BudgetRecord> {
     const s = this.require(recordId);
     const project = await this.requireProject(s.record.projectNumber);
     if (s.record.status === BudgetStatus.KeSchvaleni) {
@@ -156,8 +156,8 @@ export class MockBudgetRepository implements IBudgetRepository {
     if (issues.length > 0) {
       throw new WorkflowError(`O schválení nejde požádat: ${issues.slice(0, 3).map((i) => i.message).join(' ')}`);
     }
-    s.record = { ...s.record, status: BudgetStatus.KeSchvaleni, requestedByName: actor.displayName, requestedAt: new Date(), comment: undefined, modified: new Date(Date.now() + 1) };
-    this.record(s, actor, 'Požádáno o schválení');
+    s.record = { ...s.record, status: BudgetStatus.KeSchvaleni, requestedByName: actor.displayName, requestedAt: new Date(), approverLogin: approver ? approver.login : undefined, approverName: approver ? approver.name : undefined, comment: undefined, modified: new Date(Date.now() + 1) };
+    this.record(s, actor, approver ? `Požádáno o schválení: ${approver.name}` : 'Požádáno o schválení');
     return delay(clone(s.record));
   }
 
@@ -166,8 +166,8 @@ export class MockBudgetRepository implements IBudgetRepository {
     if (s.record.status !== BudgetStatus.KeSchvaleni) {
       throw new WorkflowError('Schvalovat jde jen rozpočet, o jehož schválení někdo požádal.');
     }
-    if (!canApproveBudget(toActor(actor))) {
-      throw new WorkflowError('Rozpočet schvaluje vedení (nebo administrátor).');
+    if (!canApproveBudget(toActor(actor), s.record)) {
+      throw new WorkflowError(s.record.approverName ? `Rozpočet schvaluje ${s.record.approverName} (nebo administrátor).` : 'Rozpočet schvaluje vedení (nebo administrátor).');
     }
     const no = s.record.approvals.length + 1;
     const approval: BudgetApproval = {
@@ -179,7 +179,7 @@ export class MockBudgetRepository implements IBudgetRepository {
       sale: totals.totalSale,
       marginPercent: marginPercent(totals.totalCost, totals.totalSale)
     };
-    s.record = { ...s.record, status: BudgetStatus.Schvaleno, approvals: [...s.record.approvals, approval], requestedByName: undefined, requestedAt: undefined, modified: new Date(Date.now() + 1) };
+    s.record = { ...s.record, status: BudgetStatus.Schvaleno, approvals: [...s.record.approvals, approval], requestedByName: undefined, requestedAt: undefined, approverLogin: undefined, approverName: undefined, modified: new Date(Date.now() + 1) };
     this.record(s, actor, `Schváleno (záznam č. ${no})${comment ? `: ${comment}` : ''}`);
     if (contractPrice) {
       await this.projects.setContractPrice(s.record.projectNumber, contractPrice.priceNet, contractPrice.currency);
@@ -194,7 +194,7 @@ export class MockBudgetRepository implements IBudgetRepository {
     if (s.record.status !== BudgetStatus.KeSchvaleni) {
       throw new WorkflowError('Vracet jde jen rozpočet, který čeká na schválení.');
     }
-    const approver = canApproveBudget(toActor(actor));
+    const approver = canApproveBudget(toActor(actor), s.record);
     if (!approver && !canEditBudget(toWorkflowProject(project), toActor(actor))) {
       throw new WorkflowError('Žádost smí vrátit vedení, nebo ji žadatel stáhnout zpět.');
     }
@@ -202,7 +202,7 @@ export class MockBudgetRepository implements IBudgetRepository {
     if (approver && text === '') {
       throw new WorkflowError('Při vrácení rozpočtu napište důvod.');
     }
-    s.record = { ...s.record, status: statusAfterReject(s.record), comment: approver ? text : undefined, requestedByName: undefined, requestedAt: undefined, modified: new Date(Date.now() + 1) };
+    s.record = { ...s.record, status: statusAfterReject(s.record), comment: approver ? text : undefined, requestedByName: undefined, requestedAt: undefined, approverLogin: undefined, approverName: undefined, modified: new Date(Date.now() + 1) };
     this.record(s, actor, approver ? `Vráceno k úpravě: ${text}` : 'Žádost o schválení stažena zpět');
     return delay(clone(s.record));
   }

@@ -873,8 +873,8 @@ export interface IBudgetRepository {
    * podrobné historie se nezapisuje (jinak by se zaplnila stovkami záznamů „uloženo“).
    */
   save(recordId: number, doc: BudgetDoc, totals: BudgetTotalsInput, actor: CurrentUser, etag?: string, options?: { auto?: boolean }): Promise<BudgetRecord>;
-  /** Požádá vedení o schválení (rozpočet se tím nezamyká). */
-  requestApproval(recordId: number, actor: CurrentUser): Promise<BudgetRecord>;
+  /** Požádá vedení o schválení (rozpočet se tím nezamyká). S `approver` smí schválit jen vybraný člověk (a administrátor). */
+  requestApproval(recordId: number, actor: CurrentUser, approver?: { login: string; name: string }): Promise<BudgetRecord>;
   /** Schválí (vedení): do historie se uloží záznam s aktuálními náklady, prodejem a marží (v Kč). */
   approve(recordId: number, totals: BudgetTotalsInput, comment: string | undefined, actor: CurrentUser, contractPrice?: { priceNet: number; currency: string }): Promise<BudgetRecord>;
   /** Vrátí žádost: vedení s důvodem, žadatel ji stáhne zpět bez důvodu. */

@@ -33,7 +33,7 @@ const LIST = 'PRM_BudgetVersions';
 const AUDIT_LIST = 'PRM_AuditLog';
 const AUDIT_ENTITY = 'Rozpočet';
 
-const FIELDS = ['Id', 'Title', 'Project/Id', 'Project/ProjectNumber', 'VersionNo', 'VersionStatus', 'Comment', 'RequestedByName', 'RequestedAt', 'Created', 'Modified', 'Approvals', 'Content'];
+const FIELDS = ['Id', 'Title', 'Project/Id', 'Project/ProjectNumber', 'VersionNo', 'VersionStatus', 'Comment', 'RequestedByName', 'RequestedAt', 'ApproverLogin', 'ApproverName', 'Created', 'Modified', 'Approvals', 'Content'];
 
 interface BudgetItem {
   Id: number;
@@ -43,6 +43,8 @@ interface BudgetItem {
   Comment?: string;
   RequestedByName?: string;
   RequestedAt?: string;
+  ApproverLogin?: string;
+  ApproverName?: string;
   Approvals?: string;
   Content?: string;
   Created?: string;
@@ -68,6 +70,8 @@ function mapRecord(item: BudgetItem): BudgetRecord {
     status,
     requestedByName: item.RequestedByName || undefined,
     requestedAt: toDate(item.RequestedAt),
+    approverLogin: status === BudgetStatus.KeSchvaleni ? item.ApproverLogin || undefined : undefined,
+    approverName: status === BudgetStatus.KeSchvaleni ? item.ApproverName || undefined : undefined,
     comment: item.Comment || undefined,
     approvals: approvalsFromJson(item.Approvals),
     created: toDate(item.Created),
@@ -168,7 +172,7 @@ export class SpBudgetRepository implements IBudgetRepository {
     return mapRecord((await this.load(recordId)).item);
   }
 
-  public async requestApproval(recordId: number, actor: CurrentUser): Promise<BudgetRecord> {
+  public async requestApproval(recordId: number, actor: CurrentUser, approver?: { login: string; name: string }): Promise<BudgetRecord> {
     const { item, etag } = await this.load(recordId);
     const record = mapRecord(item);
     const project = await this.requireProject(record.projectNumber);
@@ -182,8 +186,8 @@ export class SpBudgetRepository implements IBudgetRepository {
     if (issues.length > 0) {
       throw new WorkflowError(`O schválení nejde požádat: ${issues.slice(0, 3).map((i) => i.message).join(' ')}`);
     }
-    await this.write(recordId, { VersionStatus: BudgetStatus.KeSchvaleni, RequestedByName: actor.displayName, RequestedAt: new Date().toISOString(), Comment: '' }, etag, 'Žádost o schválení se nepodařilo podat');
-    await this.audit(record.projectNumber, actor, 'Požádáno o schválení', record.status, BudgetStatus.KeSchvaleni);
+    await this.write(recordId, { VersionStatus: BudgetStatus.KeSchvaleni, RequestedByName: actor.displayName, RequestedAt: new Date().toISOString(), Comment: '', ApproverLogin: approver ? approver.login : '', ApproverName: approver ? approver.name : '' }, etag, 'Žádost o schválení se nepodařilo podat');
+    await this.audit(record.projectNumber, actor, approver ? `Požádáno o schválení: ${approver.name}` : 'Požádáno o schválení', record.status, BudgetStatus.KeSchvaleni);
     return mapRecord((await this.load(recordId)).item);
   }
 
@@ -193,8 +197,8 @@ export class SpBudgetRepository implements IBudgetRepository {
     if (record.status !== BudgetStatus.KeSchvaleni) {
       throw new WorkflowError('Schvalovat jde jen rozpočet, o jehož schválení někdo požádal.');
     }
-    if (!canApproveBudget(toActor(actor))) {
-      throw new WorkflowError('Rozpočet schvaluje vedení (nebo administrátor).');
+    if (!canApproveBudget(toActor(actor), record)) {
+      throw new WorkflowError(record.approverName ? `Rozpočet schvaluje ${record.approverName} (nebo administrátor).` : 'Rozpočet schvaluje vedení (nebo administrátor).');
     }
     const no = record.approvals.length + 1;
     const approval: BudgetApproval = {
@@ -208,7 +212,7 @@ export class SpBudgetRepository implements IBudgetRepository {
     };
     await this.write(
       recordId,
-      { VersionStatus: BudgetStatus.Schvaleno, Approvals: approvalsToJson([...record.approvals, approval]), ApprovedById: actor.id, ApprovedDate: new Date().toISOString(), Comment: comment || '', RequestedByName: '' },
+      { VersionStatus: BudgetStatus.Schvaleno, Approvals: approvalsToJson([...record.approvals, approval]), ApprovedById: actor.id, ApprovedDate: new Date().toISOString(), Comment: comment || '', RequestedByName: '', ApproverLogin: '', ApproverName: '' },
       etag,
       'Rozpočet se nepodařilo schválit'
     );
@@ -228,7 +232,7 @@ export class SpBudgetRepository implements IBudgetRepository {
     if (record.status !== BudgetStatus.KeSchvaleni) {
       throw new WorkflowError('Vracet jde jen rozpočet, který čeká na schválení.');
     }
-    const approver = canApproveBudget(toActor(actor));
+    const approver = canApproveBudget(toActor(actor), record);
     if (!approver && !canEditBudget(toWorkflowProject(project), toActor(actor))) {
       throw new WorkflowError('Žádost smí vrátit vedení, nebo ji žadatel stáhnout zpět.');
     }
@@ -237,7 +241,7 @@ export class SpBudgetRepository implements IBudgetRepository {
       throw new WorkflowError('Při vrácení rozpočtu napište důvod.');
     }
     const next = statusAfterReject(record);
-    await this.write(recordId, { VersionStatus: next, Comment: approver ? text : '', RequestedByName: '' }, etag, 'Žádost se nepodařilo vrátit');
+    await this.write(recordId, { VersionStatus: next, Comment: approver ? text : '', RequestedByName: '', ApproverLogin: '', ApproverName: '' }, etag, 'Žádost se nepodařilo vrátit');
     await this.audit(record.projectNumber, actor, approver ? `Vráceno k úpravě: ${text}` : 'Žádost o schválení stažena zpět', record.status, next);
     return mapRecord((await this.load(recordId)).item);
   }

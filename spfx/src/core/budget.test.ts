@@ -11,6 +11,8 @@ import {
   approvalsFromJson,
   approvalsToJson,
   availableBudgetActions,
+  budgetApproverCandidates,
+  canApproveBudget,
   budgetFromJson,
   budgetSemaphore,
   budgetToJson,
@@ -284,6 +286,26 @@ describe('žádost o schválení a schválení (rozpočet se nezamyká)', () => 
     // vedení smí upravovat každý projekt, proto i „edit“ a „withdraw“
     expect(availableBudgetActions(r, project, vedeni)).toEqual(['edit', 'approve', 'reject', 'withdraw']);
     expect(availableBudgetActions(r, project, pm)).toEqual(['edit', 'withdraw']);
+  });
+  it('s vybraným schvalovatelem smí schválit jen on a administrátor; ostatní z vedení ne', () => {
+    const druhy: Actor = { login: 'i:0#.f|membership|d@revoltum.cz', displayName: 'D', roles: [Role.Vedeni] };
+    const admin: Actor = { login: 'i:0#.f|membership|a@revoltum.cz', displayName: 'A', roles: [Role.Administrator] };
+    const r = { ...rec(BudgetStatus.KeSchvaleni), approverLogin: vedeni.login, approverName: 'V' };
+    expect(canApproveBudget(vedeni, r)).toBe(true);
+    expect(canApproveBudget(druhy, r)).toBe(false);
+    expect(canApproveBudget(admin, r)).toBe(true);
+    expect(canApproveBudget(pm, r)).toBe(false);
+    expect(availableBudgetActions(r, project, druhy)).toEqual(['edit', 'withdraw']);
+    // bez vybraného schvalovatele smí kdokoli z vedení
+    expect(canApproveBudget(druhy, rec(BudgetStatus.KeSchvaleni))).toBe(true);
+  });
+  it('kandidáti na schvalovatele: vedení a administrátoři bez žadatele, bez duplicit, česky seřazení', () => {
+    const m = [
+      { role: Role.Vedeni, members: [{ loginName: 'b', displayName: 'Čermák' }, { loginName: 'a', displayName: 'Adam' }, { loginName: 'zadatel', displayName: 'Žadatel' }] },
+      { role: Role.Administrator, members: [{ loginName: 'a', displayName: 'Adam' }, { loginName: 'c', displayName: 'Beneš' }] },
+      { role: Role.ProjektovyManazer, members: [{ loginName: 'pm', displayName: 'PM' }] }
+    ];
+    expect(budgetApproverCandidates(m, 'zadatel').map((x) => x.name)).toEqual(['Adam', 'Beneš', 'Čermák']);
   });
   it('bez rozpočtu jde založit; Režie rozpočet nevede', () => {
     expect(availableBudgetActions(undefined, project, pm)).toEqual(['create']);

@@ -5,6 +5,15 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.36.0 — 8. 10. 2026 — Výběr schvalovatele rozpočtu, Smazat partnera v panelu úprav
+
+- **Výběr schvalovatele rozpočtu.** Po kliknutí na „Požádat o schválení“ se otevře okno s výběrem, kdo z vedení rozpočet schválí (nebo „Kdokoli z role“, jako dosud). U vybraného člověka platí: rozpočet vidí na stránce Čeká na mě a smí ho schválit nebo vrátit jen on a administrátor; ostatní z vedení ne. U rozpočtu stojí „čeká na schválení: <jméno>“. Výběr se po schválení, vrácení nebo stažení žádosti zapomene. Pravidlo se hlídá i v datové vrstvě. **E-mail schvalovateli zatím není** (odloženo, čeká na povolení odesílání pošty).
+- **Smazat partnera v panelu Upravit partnera.** Dole vpravo je tlačítko „Smazat partnera…“ (jen pro toho, kdo smí mazat) — otevře stejné okno jako ikona v seznamu: nepoužitého smaže do koše, použitého nabídne nastavit jako neaktivního.
+- **Schéma 20:** do seznamu rozpočtů přibyly sloupce „Vybraný schvalovatel (login)“ a „Vybraný schvalovatel“. Po nahrání balíčku spusťte **Správa → Instalace a diagnostika** (jen přidá sloupce, nic nemaže).
+- Nový soubor `docs/TESTOVANI.md` — kontrolní seznam k vyzkoušení všeho nového (0.31–0.36).
+
+---
+
 ## 0.35.0 — 8. 10. 2026 — Fáze 4, krok 4d: export harmonogramu (Excel, PDF A3)
 
 V záložce **Harmonogram** jsou dvě nová tlačítka (vidí je i ten, kdo harmonogram jen čte):

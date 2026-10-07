@@ -346,6 +346,21 @@ export const PartnersPage: React.FC = () => {
               <PrimaryButton text="Uložit" onClick={() => save(false)} />
               {similarWarn && <DefaultButton text="Přesto uložit" onClick={() => save(true)} />}
               <DefaultButton text="Zrušit" onClick={close} />
+              {!isNew && canDelete && editing && (
+                <>
+                  <span style={{ flex: '1 1 auto' }} />
+                  <DefaultButton
+                    text="Smazat partnera…"
+                    iconProps={{ iconName: 'Delete' }}
+                    title="Zjistí, jestli je partner někde použit, a nabídne smazání nebo nastavení jako neaktivního"
+                    onClick={() => {
+                      const target = editing;
+                      close();
+                      setRemoving({ partner: target });
+                    }}
+                  />
+                </>
+              )}
             </div>
           </div>
         )}

@@ -19,7 +19,7 @@
 import { CurrencyCode, RateTable, asCurrencyCode, convertAmount } from './currency';
 import { hasAnyRole, normalizeLogin } from './roles';
 import { Role } from './types';
-import { Actor, WorkflowProject, canIssueOrder } from './orderWorkflow';
+import { Actor, Assignee, WorkflowProject, canIssueOrder } from './orderWorkflow';
 import { parseAmount } from './format';
 import { Profession } from './settings';
 import { BudgetStatus as Semafor } from './types';
@@ -702,6 +702,9 @@ export interface BudgetRecord {
   status: BudgetStatus;
   requestedByName?: string;
   requestedAt?: Date;
+  /** Vybraný schvalovatel (jen dokud žádost čeká); bez něj smí schválit kdokoli z vedení. */
+  approverLogin?: string;
+  approverName?: string;
   /** Komentář vedení při posledním vrácení. */
   comment?: string;
   approvals: BudgetApproval[];
@@ -747,9 +750,33 @@ export function canEditBudget(project: WorkflowProject, actor: Actor): boolean {
   return !project.isOverhead && (canIssueOrder(project, actor) || sameLogin(project.projectManagerLogin, actor.login));
 }
 
-/** Schvaluje vedení (a administrátor). */
-export function canApproveBudget(actor: Actor): boolean {
-  return hasAnyRole(actor.roles, Role.Vedeni, Role.Administrator);
+/**
+ * Schvaluje vedení (a administrátor). Je-li u žádosti vybraný schvalovatel, smí schválit jen on; administrátor smí vždy
+ * (kdyby byl vybraný člověk nedostupný).
+ */
+export function canApproveBudget(actor: Actor, record?: { approverLogin?: string }): boolean {
+  if (!hasAnyRole(actor.roles, Role.Vedeni, Role.Administrator)) {
+    return false;
+  }
+  if (record && record.approverLogin && !hasAnyRole(actor.roles, Role.Administrator)) {
+    return sameLogin(record.approverLogin, actor.login);
+  }
+  return true;
+}
+
+/** Koho nabídnout jako schvalovatele rozpočtu: členové vedení a administrátoři, bez žadatele; jména se neopakují, řadí se česky. */
+export function budgetApproverCandidates(memberships: { role: Role; members: { loginName: string; displayName: string }[] }[], requesterLogin: string): Assignee[] {
+  const out: Assignee[] = [];
+  memberships
+    .filter((m) => m.role === Role.Vedeni || m.role === Role.Administrator)
+    .forEach((m) =>
+      m.members.forEach((p) => {
+        if (p.loginName && !sameLogin(p.loginName, requesterLogin) && !out.some((o) => sameLogin(o.login, p.loginName))) {
+          out.push({ login: p.loginName, name: p.displayName || p.loginName });
+        }
+      })
+    );
+  return out.sort((a, b) => a.name.localeCompare(b.name, 'cs-CZ'));
 }
 
 export type BudgetAction = 'create' | 'edit' | 'requestApproval' | 'approve' | 'reject' | 'withdraw';
@@ -771,7 +798,7 @@ export function availableBudgetActions(record: BudgetRecord | undefined, project
     out.push('requestApproval');
   }
   if (record.status === BudgetStatus.KeSchvaleni) {
-    if (canApproveBudget(actor)) {
+    if (canApproveBudget(actor, record)) {
       out.push('approve', 'reject');
     }
     if (mayEdit) {

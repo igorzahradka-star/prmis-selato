@@ -57,6 +57,18 @@ describe('MockBudgetRepository (jeden rozpočet na projekt)', () => {
     expect(h.filter((a) => a.startsWith('Schváleno')).length).toBe(2);
   });
 
+  it('žádost s vybraným schvalovatelem: jiný člen vedení neschválí, vybraný ano; po schválení se výběr zapomene', async () => {
+    const r = createMockRepositories();
+    const rec = await r.budgets.create('25003', naplneny(), TOTALS, jan);
+    const druhy = uzivatel('jiny', 'Jiný', [Role.Vedeni]);
+    const waiting = await r.budgets.requestApproval(rec.id, jan, { login: igor.loginName, name: igor.displayName });
+    expect(waiting.approverName).toBe(igor.displayName);
+    await expect(r.budgets.approve(rec.id, { totalCost: 100, totalSale: 120 }, undefined, druhy)).rejects.toThrow(/schvaluje/);
+    const ok = await r.budgets.approve(rec.id, { totalCost: 100, totalSale: 120 }, undefined, igor);
+    expect(ok.status).toBe(BudgetStatus.Schvaleno);
+    expect(ok.approverName).toBeUndefined();
+  });
+
   it('cizí PM nezaloží ani neuloží; Režie rozpočet nevede', async () => {
     const r = createMockRepositories();
     await expect(r.budgets.create('25003', naplneny(), TOTALS, cizi)).rejects.toThrow(/oprávnění/);

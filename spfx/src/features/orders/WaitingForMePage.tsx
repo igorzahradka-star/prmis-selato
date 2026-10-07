@@ -53,7 +53,7 @@ export const WaitingForMePage: React.FC<{ orderId?: number }> = ({ orderId }) =>
           setOrders(o);
           setProjects(p);
           setInvoices(i);
-          setBudgets(b);
+          setBudgets(b.filter((x) => canApproveBudget(toActor(user), x)));
         }
       })
       .catch((e: Error) => {

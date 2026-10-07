@@ -21,6 +21,7 @@ import { CurrencySwitch } from '../../ui/components/CurrencySwitch';
 import { useReportCurrency } from '../../ui/useReportCurrency';
 import { Partner, Project, Role } from '../../core/types';
 import { RoleMembership } from '../../core/userAdmin';
+import { ApproverDialog } from '../orders/ApproverDialog';
 import { formatDate, formatMoney } from '../../core/format';
 import { asCurrencyCode } from '../../core/currency';
 import { canIssueOrder, toActor, toWorkflowProject } from '../../core/orderWorkflow';
@@ -39,6 +40,7 @@ import {
   availableBudgetActions,
   budgetTotals,
   calcItems,
+  budgetApproverCandidates,
   canApproveBudget,
   changedSinceApproval,
   emptyBudget,
@@ -127,16 +129,17 @@ export const BudgetTab: React.FC<{ project: Project }> = ({ project }) => {
   }, [repos, project.projectNumber, ordersKey]);
 
   const [approvers, setApprovers] = React.useState<RoleMembership[]>([]);
-  const waiting = !!record && record.status === BudgetStatus.KeSchvaleni;
+  const [approverOpen, setApproverOpen] = React.useState(false);
+  const hasRecord = !!record;
   React.useEffect(() => {
-    if (!waiting) {
+    if (!hasRecord) {
       return;
     }
     repos.userAdmin
       .listRoleMembers(settings.roles)
       .then(setApprovers)
       .catch(() => setApprovers([]));
-  }, [repos, settings.roles, waiting]);
+  }, [repos, settings.roles, hasRecord]);
 
   React.useEffect(() => {
     repos.partners
@@ -277,14 +280,19 @@ export const BudgetTab: React.FC<{ project: Project }> = ({ project }) => {
       return;
     }
     setIssues([]);
+    setApproverOpen(true);
+  };
+
+  const sendApprovalRequest = (picked: { login: string; name: string } | undefined): void => {
+    setApproverOpen(false);
     run(async () => {
       if (dirty) {
         await save();
       }
       if (record) {
-        await repos.budgets.requestApproval(record.id, user);
+        await repos.budgets.requestApproval(record.id, user, picked);
         await reload();
-        setNotice('Žádost o schválení je odeslaná vedení. Rozpočet můžete dál upravovat; vedení schválí jeho aktuální podobu.');
+        setNotice(`Žádost o schválení je odeslaná${picked ? `: ${picked.name}` : ' vedení'}. Rozpočet můžete dál upravovat; schválí se jeho aktuální podoba.`);
       }
     });
   };
@@ -404,6 +412,9 @@ export const BudgetTab: React.FC<{ project: Project }> = ({ project }) => {
   const last = lastApproval(record);
   // Rozpočet schvaluje vedení nebo administrátor (bez určeného jednoho schvalovatele) — ukážou se jejich jména.
   const approverNames = (() => {
+    if (record && record.approverName) {
+      return record.approverName;
+    }
     const names: string[] = [];
     approvers.forEach((m) => {
       if (m.role === Role.Vedeni || m.role === Role.Administrator) {
@@ -534,10 +545,10 @@ export const BudgetTab: React.FC<{ project: Project }> = ({ project }) => {
             <ActionButton iconProps={{ iconName: 'Download' }} text="Export do CSV" onClick={exportCsv} />
             <span style={{ flex: '1 1 auto' }} />
           </div>
-          {(actions.indexOf('requestApproval') !== -1 || actions.indexOf('approve') !== -1 || actions.indexOf('reject') !== -1 || (actions.indexOf('withdraw') !== -1 && !canApproveBudget(actor))) && (
+          {(actions.indexOf('requestApproval') !== -1 || actions.indexOf('approve') !== -1 || actions.indexOf('reject') !== -1 || (actions.indexOf('withdraw') !== -1 && !canApproveBudget(actor, record))) && (
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap', margin: '0 0 10px' }}>
               {actions.indexOf('requestApproval') !== -1 && <DefaultButton text="Požádat o schválení" disabled={busy} onClick={requestApproval} />}
-              {actions.indexOf('withdraw') !== -1 && !canApproveBudget(actor) && <DefaultButton text="Stáhnout žádost" disabled={busy} onClick={withdraw} />}
+              {actions.indexOf('withdraw') !== -1 && !canApproveBudget(actor, record) && <DefaultButton text="Stáhnout žádost" disabled={busy} onClick={withdraw} />}
               {actions.indexOf('reject') !== -1 && <ReturnButton text="Vrátit k úpravě" disabled={busy} onClick={() => setDialog({ kind: 'reject', text: '' })} />}
               {actions.indexOf('approve') !== -1 && <ApproveButton text="Schválit" disabled={busy} onClick={() => setDialog({ kind: 'approve', text: '' })} />}
             </div>
@@ -685,6 +696,19 @@ export const BudgetTab: React.FC<{ project: Project }> = ({ project }) => {
             setDoc(next);
             setNotice(`Vloženo ${items.length} položek z kusovníku. Upravte množství a rozpočet uložte.`);
           }}
+        />
+      )}
+
+      {approverOpen && (
+        <ApproverDialog
+          key="budget-approver"
+          title="Požádat o schválení"
+          description="Vyberte, kdo z vedení rozpočet schválí. „Kdokoli z role“ znamená, že ho může schválit kterýkoli člen vedení."
+          confirmText="Požádat o schválení"
+          rows={[{ level: 'vedeni', candidates: budgetApproverCandidates(approvers, user.loginName), selected: '' }]}
+          busy={busy}
+          onConfirm={(assignees) => sendApprovalRequest(assignees.vedeni)}
+          onDismiss={() => setApproverOpen(false)}
         />
       )}
 
