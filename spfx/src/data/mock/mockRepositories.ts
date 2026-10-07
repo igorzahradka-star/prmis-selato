@@ -636,6 +636,10 @@ export class MockTaskRepository implements ITaskRepository {
     return delay(undefined);
   }
 
+  public async refreshNextDeadline(projectNumber: string): Promise<void> {
+    this.recalculate(projectNumber);
+  }
+
   private recalculate(projectNumber: string): void {
     const projektove = this.tasks.filter((t) => t.projectNumber === projectNumber);
     this.onDeadlineChange(projectNumber, nextContractualDeadline(projektove));

@@ -115,7 +115,7 @@ balíček 0.2.4.0). Nasazení odhalilo čtyři chyby, které se lokálně nedaly
 hledání lidí (HTTP 400), skupiny rolí bez oprávnění, knihovna „Dokumenty" se
 nenašla podle zobrazeného názvu, oříznuté záložky. Všechny opravené.
 
-**Aktuální balíček je 0.31.0.0** (schéma 19 — spustit Instalaci a diagnostiku: sloupec Objednatel v podkladech) (dohoda se REVCRM o sdílených seznamech `PRM_Partners` a `PRM_Catalog` je zapsaná v `docs/REVCRM.md`, oddíl „Sdílené seznamy … dohoda v1“ — sloupce těchto seznamů se mění jen přidávacím způsobem a po zápisu do dohody) (30. 9. 2026; na ostrém webu běží 0.3.x nebo 0.4.0.0 — ověřit v katalogu). Přidává stavy projektů
+**Aktuální balíček je 0.32.0.0** (Fáze 4 harmonogram, krok 4a hotový — bez změny schématu) (schéma 19 — spustit Instalaci a diagnostiku: sloupec Objednatel v podkladech) (dohoda se REVCRM o sdílených seznamech `PRM_Partners` a `PRM_Catalog` je zapsaná v `docs/REVCRM.md`, oddíl „Sdílené seznamy … dohoda v1“ — sloupce těchto seznamů se mění jen přidávacím způsobem a po zápisu do dohody) (30. 9. 2026; na ostrém webu běží 0.3.x nebo 0.4.0.0 — ověřit v katalogu). Přidává stavy projektů
 (Uzavřeno zrušeno, nově Reklamace), barvy špendlíků podle stavu, legendu mapy. **Po nahrání znovu
 spustit Instalace a diagnostika** — doplní volbu „Reklamace" do sloupce Stav (schéma 5). Pokud
 by automatické doplnění selhalo, přidat volbu ručně: nastavení seznamu PRM – Projekty → sloupec Stav
@@ -167,6 +167,13 @@ od projektů).
 ---
 
 ## 4. Co je další na řadě
+
+### Fáze 4 — Harmonogram (zahájeno 7. 10. 2026)
+
+- **4a — HOTOVO v 0.32.0.0:** záložka Harmonogram (tabulka úkolů, závislosti FS/SS/FF/SF s prodlevou, výpočet termínů v pracovních dnech, kritická cesta, rezervy, smluvní termíny, baseline). Kód: `core/workCalendar.ts`, `core/schedule.ts`, `core/scheduleRows.ts`, `features/schedule/ScheduleTab.tsx`.
+- **4b — další:** Gantt (SVG: časová osa den/týden/měsíc, dnešek, víkendy, šipky závislostí, kritická cesta červeně, baseline vs. plán; úpravy tažením až později).
+- **4c:** vazba položek rozpočtu na úkoly (posun dodávky posune platby v cashflow; termín dodání objednávky → harmonogram; upozornění na dopad na smluvní termíny).
+- **4d:** export (PDF A3 na šířku, Excel), případně import z MS Project později.
 
 ### Fáze 3 — další kroky (rozhodnuto 2. 10. 2026)
 

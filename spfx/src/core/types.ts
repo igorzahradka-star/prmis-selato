@@ -1,3 +1,5 @@
+import type { Dependency } from './schedule';
+
 import type { FolderMap } from './projectFolders';
 /**
  * Doménové typy PRM Revoltum.
@@ -160,6 +162,15 @@ export interface ProjectTask {
   responsibleName?: string;
   /** Pořadí v seznamu. Chybí-li, řadí se podle termínu. */
   sortOrder?: number;
+  /** Harmonogram (Fáze 4): číslo v členění úkolů (WBS), trvání v pracovních dnech, předchůdci a baseline. */
+  wbs?: string;
+  durationDays?: number;
+  predecessors?: Dependency[];
+  baselineStart?: Date;
+  baselineFinish?: Date;
+  /** Uložený výsledek výpočtu kritické cesty a ruční příznak „sledovat jako kritické“. */
+  isCritical?: boolean;
+  watchAsCritical?: boolean;
 }
 
 /** Měna. Výchozí CZK; EUR se ukládá s kurzem k datu. */

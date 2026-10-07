@@ -18,13 +18,13 @@ import { buildHash, navigate, RouteName } from '../../ui/router';
 import { RES } from '../../ui/theme';
 import { PageHeading } from '../../ui/components/PageHeading';
 import { BudgetBadge, StatusBadge } from '../../ui/components/StatusBadge';
-import { ComingSoonPage } from '../../ui/components/ComingSoonPage';
 import { Project } from '../../core/types';
 import { formatDate, formatMoney } from '../../core/format';
 import { canDeleteProject, canEditProject } from '../../core/roles';
 import { canManageProjectAccess } from '../../core/projectAccess';
 import { EditProjectPanel } from './EditProjectPanel';
 import { DeadlinesTab } from './DeadlinesTab';
+import { ScheduleTab } from '../schedule/ScheduleTab';
 import { DocumentsTab } from './DocumentsTab';
 import { AccessBar } from './AccessBar';
 import { DeleteProjectDialog } from './DeleteProjectDialog';
@@ -306,11 +306,7 @@ export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projec
           <CashflowTab project={project} />
         </PivotItem>
         <PivotItem headerText="Harmonogram" itemIcon="TimelineProgress">
-          <ComingSoonPage
-            title="Harmonogram"
-            phase="Fáze 4"
-            description="Gantt se závislostmi, kritickou cestou a baseline. Posun dodávky posune platby v cashflow."
-          />
+          <ScheduleTab project={project} />
         </PivotItem>
       </Pivot>
     </>

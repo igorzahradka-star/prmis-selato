@@ -207,7 +207,7 @@ Testovací scénáře pro každou fázi: [`docs/testy/`](docs/testy/).
 | 1 — Projekty (MVP) | číselné řady a čítače ✅, partneři + ARES ✅, založení projektu ✅, úprava ✅, mazání (admin, do koše + audit) ✅, projekt Režie ({RR}999, jedna na rok) ✅, uživatelé a role ✅, smluvní termíny ✅, dashboard ✅, záložka Dokumenty ✅, export do Excelu ✅ , import stávajících projektů ze složek ✅ | ✅ **kód hotov (23. 9. 2026)** · čeká na nasazení na tenant, 351 testů prochází |
 | 2 — Objednávky, fakturace, dokumenty | objednávky + schvalování, „Čeká na mě", e-maily, PDF, podklady pro fakturaci, protokoly, audit | ⏳ čeká |
 | 3 — Realizační rozpočet a CF projektu | RR editor, verze a baseline, semafor, fakturační milníky, CF projektu | ⏳ čeká |
-| 4 — Harmonogram | Gantt, závislosti, CPM a kritická cesta, baseline, vazba na RR a CF | ⏳ čeká |
+| 4 — Harmonogram | Gantt, závislosti, CPM a kritická cesta, baseline, vazba na RR a CF | ▶ rozpracováno: 4a editor + CPM hotovo (0.32.0), dál 4b Gantt, 4c vazba na RR/CF, 4d export |
 | 5 — Firma a vedení | web PRM-Finance, celofiremní CF, odevzdání CF na FO, Excel report, benchmark | ⏳ čeká |
 | 6+ — Rozvoj | Power Automate připomínky, napojení na účetnictví, nabídky, výkazy práce | ⏳ čeká |
 

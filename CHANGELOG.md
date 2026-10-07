@@ -5,6 +5,23 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.32.0 — 7. 10. 2026 — Fáze 4, krok 4a: harmonogram — úkoly, závislosti a kritická cesta
+
+Záložka **Harmonogram** v detailu projektu už není „Připravujeme“. Je v ní tabulka úkolů s výpočtem termínů a kritické cesty (Gantt s grafem přijde v dalším kroku):
+
+- **Úkoly a milníky:** číslo (WBS), název, typ (Činnost / Dodávka materiálu / Služba / Milník), zahájení, trvání, vypočtené ukončení, % hotovo, odpovědná osoba se zachovává. Pořadí jde měnit šipkami, **Přečíslovat** přečísluje a upraví odkazy.
+- **Závislosti:** sloupec **Předchůdci** se píše jako čísla úkolů — `1, 3SS+2, 5FF-1` (FS = začne po skončení, SS = začne společně, FF = skončí společně, SF = skončí, až předchůdce začne; prodleva v pracovních dnech i záporná). Aplikace hlídá neexistující, dvojité a cyklické závislosti.
+- **Výpočet termínů:** úkol s předchůdci má zahájení vypočtené z nich, úkol bez předchůdců začíná v zadaném datu. Trvání je v **pracovních dnech** (pondělí–pátek mimo české státní svátky včetně Velikonoc). Milník (trvání 0) nastává na konci dne.
+- **Kritická cesta (CPM):** dopředný a zpětný průchod, **rezerva** v pracovních dnech u každého úkolu, kritické úkoly (rezerva 0 nebo záporná) jsou zvýrazněné červeně; navíc ruční příznak **Sledovat jako kritické**. Délka celého harmonogramu je nahoře.
+- **Smluvní termíny:** úkol s příznakem **Smluvní termín** a nejzazším datem; když harmonogram termín nestíhá, aplikace to ohlásí („nestíhá termín o N pracovních dnů“) a dotčené úkoly označí jako kritické. Smluvní termíny ze záložky **Termíny** se v harmonogramu objeví samy a jejich datum se výpočtem nikdy nepřepíše.
+- **Baseline:** tlačítko **Zafixovat baseline** uloží aktuální termíny jako základ; sloupec **Odchylka** pak ukazuje posun konce proti němu.
+- Při uložení se spočtené termíny, trvání, předchůdci, kritičnost a baseline uloží do seznamu úkolů (`PRM_Tasks`, sloupce už ve schématu byly — **bez změny schématu**). Rozepsaný harmonogram se zálohuje v prohlížeči. Upravovat smí PM projektu, asistent, vedení a administrátor.
+- Nejbližší smluvní termín (dashboard) se po uložení harmonogramu přepočítá jednou, ne po každém úkolu.
+
+**Co dál (kroky Fáze 4):** 4b Gantt (časová osa, šipky závislostí, dnes, víkendy, kritická cesta červeně, baseline), 4c vazba na rozpočet a cashflow (posun dodávky posune platby, objednávky → termín dodání), 4d export (PDF A3, Excel).
+
+---
+
 ## 0.31.0 — 7. 10. 2026 — Fakturace: odběratel a objednatel jde změnit
 
 - **Podklad pro fakturaci:** odběratel už není pevně zákazník projektu. Pole **Odběratel (komu se fakturuje)** a nové **Objednatel (kdo plnění objednal)** jsou výběr z partnerů. **Výchozí hodnota je zákazník projektu** (u obou), takže běžný případ se nemění; když je potřeba jiná strana, vyberete ji. Odkaz **Vrátit na zákazníka projektu** vrátí výchozí stav. Při změně projektu se oba výběry vrátí na výchozí. Rozepsaný formulář si strany pamatuje i v záloze v prohlížeči.

@@ -10,6 +10,7 @@ import type { UserSignature } from '../core/signatures';
 import type { FolderMap } from '../core/projectFolders';
 import type { ProjectOverview } from '../core/projectOverview';
 import type { PartnerUsage } from '../core/partnerDelete';
+import type { Dependency } from '../core/schedule';
 import { ProjectRemovalPreview, ProjectRemovalResult } from '../core/projectDeletion';
 import { CurrentUser, Currency, Partner, Project, ProjectStatus, ProjectTask, TaskType } from '../core/types';
 import { AppSettings } from '../core/settings';
@@ -303,6 +304,17 @@ export interface TaskInput {
   responsibleName?: string;
   /** Přihlašovací jméno vybrané osoby z adresáře firmy (u SharePointu se podle něj osoba přidá na web, i když tam ještě nebyla). */
   responsibleLogin?: string;
+  /**
+   * Pole harmonogramu (Fáze 4). Když nejsou zadána, ukládání je nechá beze změny — záložka Termíny je neposílá a nic jim nepřepíše.
+   */
+  sortOrder?: number;
+  wbs?: string;
+  durationDays?: number;
+  predecessors?: Dependency[];
+  baselineStart?: Date;
+  baselineFinish?: Date;
+  isCritical?: boolean;
+  watchAsCritical?: boolean;
 }
 
 /**
@@ -315,9 +327,15 @@ export interface TaskInput {
 export interface ITaskRepository {
   /** Položky jednoho projektu, seřazené podle termínu. */
   listByProject(projectNumber: string): Promise<ProjectTask[]>;
-  create(projectNumber: string, input: TaskInput): Promise<ProjectTask>;
-  update(id: number, input: TaskInput): Promise<ProjectTask>;
-  remove(id: number): Promise<void>;
+  /**
+   * `options.deferRefresh` = nepřepočítávat po této změně nejbližší termín projektu (dělá se až `refreshNextDeadline` po dávce — uložení
+   * celého harmonogramu by jinak po každém úkolu četlo celý seznam znovu).
+   */
+  create(projectNumber: string, input: TaskInput, options?: { deferRefresh?: boolean }): Promise<ProjectTask>;
+  update(id: number, input: TaskInput, options?: { deferRefresh?: boolean }): Promise<ProjectTask>;
+  remove(id: number, options?: { deferRefresh?: boolean }): Promise<void>;
+  /** Přepočítá a uloží nejbližší smluvní termín projektu (cache pro dashboard). */
+  refreshNextDeadline(projectNumber: string): Promise<void>;
 }
 
 /** Soubor ve složce projektu. */

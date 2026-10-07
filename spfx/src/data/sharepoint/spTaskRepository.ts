@@ -12,6 +12,7 @@
 
 import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { ProjectTask, TaskType } from '../../core/types';
+import { dependenciesFromJson, dependenciesToJson } from '../../core/schedule';
 import { toDate } from '../../core/format';
 import { nextContractualDeadline, sortDeadlines } from '../../core/deadlines';
 import { ITaskRepository, TaskInput } from '../repositories';
@@ -32,7 +33,14 @@ const SELECT_FIELDS = [
   'IsContractualDeadline',
   'PercentComplete',
   'Responsible/Title',
-  'SortOrder'
+  'SortOrder',
+  'WBS',
+  'DurationDays',
+  'Predecessors',
+  'BaselineStart',
+  'BaselineFinish',
+  'IsCritical',
+  'WatchAsCritical'
 ];
 
 const EXPAND_FIELDS = ['Project', 'Responsible'];
@@ -48,6 +56,13 @@ interface TaskItem {
   PercentComplete?: number;
   Responsible?: { Title: string };
   SortOrder?: number;
+  WBS?: string;
+  DurationDays?: number;
+  Predecessors?: string;
+  BaselineStart?: string;
+  BaselineFinish?: string;
+  IsCritical?: boolean;
+  WatchAsCritical?: boolean;
 }
 
 export class SpTaskRepository implements ITaskRepository {
@@ -68,7 +83,7 @@ export class SpTaskRepository implements ITaskRepository {
     }
   }
 
-  public async create(projectNumber: string, input: TaskInput): Promise<ProjectTask> {
+  public async create(projectNumber: string, input: TaskInput, options?: { deferRefresh?: boolean }): Promise<ProjectTask> {
     const sp = getSp(this.context);
     const projectId = await this.resolveProjectId(sp, projectNumber);
 
@@ -83,11 +98,13 @@ export class SpTaskRepository implements ITaskRepository {
       throw new Error(describeSpError(error, 'Nepodařilo se uložit termín'));
     }
 
-    await this.refreshNextDeadline(projectNumber);
+    if (!options || !options.deferRefresh) {
+      await this.refreshNextDeadline(projectNumber);
+    }
     return { id: newId ?? 0, projectNumber, ...input };
   }
 
-  public async update(id: number, input: TaskInput): Promise<ProjectTask> {
+  public async update(id: number, input: TaskInput, options?: { deferRefresh?: boolean }): Promise<ProjectTask> {
     const sp = getSp(this.context);
     const projectNumber = await this.projectNumberOf(sp, id);
 
@@ -97,11 +114,13 @@ export class SpTaskRepository implements ITaskRepository {
       throw new Error(describeSpError(error, 'Nepodařilo se uložit změnu termínu'));
     }
 
-    await this.refreshNextDeadline(projectNumber);
+    if (!options || !options.deferRefresh) {
+      await this.refreshNextDeadline(projectNumber);
+    }
     return { id, projectNumber, ...input };
   }
 
-  public async remove(id: number): Promise<void> {
+  public async remove(id: number, options?: { deferRefresh?: boolean }): Promise<void> {
     const sp = getSp(this.context);
     const projectNumber = await this.projectNumberOf(sp, id);
 
@@ -112,7 +131,9 @@ export class SpTaskRepository implements ITaskRepository {
       throw new Error(describeSpError(error, 'Nepodařilo se smazat termín'));
     }
 
-    await this.refreshNextDeadline(projectNumber);
+    if (!options || !options.deferRefresh) {
+      await this.refreshNextDeadline(projectNumber);
+    }
   }
 
   /**
@@ -122,7 +143,7 @@ export class SpTaskRepository implements ITaskRepository {
    * neaktuální cache celou operaci by uživatele mátlo. Dashboard ukáže
    * starou hodnotu do příštího přepočtu.
    */
-  private async refreshNextDeadline(projectNumber: string): Promise<void> {
+  public async refreshNextDeadline(projectNumber: string): Promise<void> {
     try {
       const tasks = await this.listByProject(projectNumber);
       const next = nextContractualDeadline(tasks);
@@ -138,7 +159,7 @@ export class SpTaskRepository implements ITaskRepository {
   }
 
   private async toFields(sp: SPFI, input: TaskInput): Promise<Record<string, unknown>> {
-    return {
+    const fields: Record<string, unknown> = {
       Title: input.title,
       TaskType: input.taskType,
       StartDate: input.startDate ? input.startDate.toISOString() : null,
@@ -147,6 +168,30 @@ export class SpTaskRepository implements ITaskRepository {
       PercentComplete: input.percentComplete,
       ResponsibleId: await this.responsibleId(sp, input)
     };
+    // Pole harmonogramu se zapisují jen když jsou zadána — záložka Termíny je neposílá a nic jim nepřepíše.
+    if (input.sortOrder !== undefined) {
+      fields.SortOrder = input.sortOrder;
+    }
+    if (input.wbs !== undefined) {
+      fields.WBS = input.wbs;
+    }
+    if (input.durationDays !== undefined) {
+      fields.DurationDays = input.durationDays;
+    }
+    if (input.predecessors !== undefined) {
+      fields.Predecessors = dependenciesToJson(input.predecessors);
+    }
+    if ('baselineStart' in input) {
+      fields.BaselineStart = input.baselineStart ? input.baselineStart.toISOString() : null;
+      fields.BaselineFinish = input.baselineFinish ? input.baselineFinish.toISOString() : null;
+    }
+    if (input.isCritical !== undefined) {
+      fields.IsCritical = input.isCritical;
+    }
+    if (input.watchAsCritical !== undefined) {
+      fields.WatchAsCritical = input.watchAsCritical;
+    }
+    return fields;
   }
 
   private async resolveProjectId(sp: SPFI, projectNumber: string): Promise<number> {
@@ -219,7 +264,14 @@ export function mapTask(item: TaskItem): ProjectTask {
     isContractualDeadline: item.IsContractualDeadline === true,
     percentComplete: item.PercentComplete ?? 0,
     responsibleName: item.Responsible?.Title,
-    sortOrder: item.SortOrder
+    sortOrder: item.SortOrder ?? undefined,
+    wbs: item.WBS || undefined,
+    durationDays: item.DurationDays ?? undefined,
+    predecessors: dependenciesFromJson(item.Predecessors),
+    baselineStart: toDate(item.BaselineStart),
+    baselineFinish: toDate(item.BaselineFinish),
+    isCritical: item.IsCritical === true,
+    watchAsCritical: item.WatchAsCritical === true
   };
 }
 
