@@ -93,6 +93,16 @@ describe('zálohová faktura', () => {
     expect(text).toContain('Splatnost');
   });
 
+  it('objednatel se ukáže jen když se liší od odběratele', () => {
+    const t1 = allText(buildInvoiceDocument(invoicePdfData(podklad, 'X', { name: 'Odběratel s.r.o.' }, firma, undefined, { name: 'Objednatel a.s.', ico: '12345678' })).content);
+    expect(t1).toContain('OBJEDNATEL');
+    expect(t1).toContain('Objednatel a.s.');
+    expect(t1).toContain('IČO: 12345678');
+    const t2 = allText(buildInvoiceDocument(invoicePdfData(podklad, 'X', { name: 'Stejný s.r.o.' }, firma, undefined, { name: 'Stejný s.r.o.' })).content);
+    expect(t2).not.toContain('OBJEDNATEL');
+    expect(allText(buildInvoiceDocument(invoicePdfData(podklad, 'X', { name: 'Z' }, firma)).content)).not.toContain('OBJEDNATEL');
+  });
+
   it('běžný podklad (i starší bez druhu) zůstává „Podklad pro fakturaci“ s DUZP', () => {
     const beze = allText(buildInvoiceDocument(invoicePdfData(podklad, 'X', { name: 'Z' }, firma)).content);
     expect(beze).toContain('PODKLAD PRO FAKTURACI č. FP26004');

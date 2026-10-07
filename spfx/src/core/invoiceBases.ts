@@ -60,8 +60,11 @@ export interface InvoiceBasis {
   kind?: InvoiceKind;
   projectNumber: string;
   projectTitle?: string;
+  /** Odběratel — kdo je na dokladu adresátem (výchozí zákazník projektu, jde změnit). */
   customerId?: number;
   customerName?: string;
+  /** Objednatel — kdo plnění objednal, liší-li se od odběratele (výchozí zákazník projektu). */
+  ordererName?: string;
   lines: OrderLine[];
   amountNet: number;
   vatRate: number;
@@ -92,6 +95,7 @@ export interface InvoiceDraft {
   kind?: InvoiceKind;
   customerId?: number;
   customerName?: string;
+  ordererName?: string;
   lines: OrderLine[];
   vatRate: number;
   currency: string;
@@ -164,7 +168,7 @@ export function validateInvoiceDraft(draft: InvoiceDraft, strict: boolean): Invo
   }
   if (strict) {
     if (!draft.customerName || draft.customerName.trim() === '') {
-      issues.push({ field: 'customer', message: 'Projekt nemá zákazníka — doplňte ho v detailu projektu, podklad nemá komu adresovat.' });
+      issues.push({ field: 'customer', message: 'Vyberte odběratele (projekt nemá zákazníka — doplňte ho v detailu projektu, nebo odběratele zvolte ručně), podklad nemá komu adresovat.' });
     }
     if (draft.lines.length === 0) {
       issues.push({ field: 'lines', message: 'Přidejte aspoň jednu položku.' });

@@ -5,6 +5,16 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.31.0 — 7. 10. 2026 — Fakturace: odběratel a objednatel jde změnit
+
+- **Podklad pro fakturaci:** odběratel už není pevně zákazník projektu. Pole **Odběratel (komu se fakturuje)** a nové **Objednatel (kdo plnění objednal)** jsou výběr z partnerů. **Výchozí hodnota je zákazník projektu** (u obou), takže běžný případ se nemění; když je potřeba jiná strana, vyberete ji. Odkaz **Vrátit na zákazníka projektu** vrátí výchozí stav. Při změně projektu se oba výběry vrátí na výchozí. Rozepsaný formulář si strany pamatuje i v záloze v prohlížeči.
+- **Splatnost** se po výběru jiného odběratele předvyplní podle jeho splatnosti v Partnerech.
+- **PDF podkladu:** Odběratel je podle výběru; **Objednatel** se na PDF ukáže jako samostatný blok jen tehdy, když se liší od odběratele. V detailu podkladu je Objednatel vidět také jen při rozdílu.
+- Pokud projekt nemá zákazníka, odběratele teď jde vybrat ručně (dříve to bránilo vystavení).
+- **Co je potřeba udělat po nasazení:** spustit **Instalace a diagnostika** (schéma 19 — nový textový sloupec „Objednatel“ v seznamu podkladů; nic se nemaže). Do té doby se podklady ukládají jako dřív a výběr jiného objednatele hlásí, že je potřeba Instalace.
+
+---
+
 ## 0.30.3 — 7. 10. 2026 — Project overview: titulní fotka zvlášť, dvě fotky na zadní straně
 
 - **Titulní fotka se nahrává samostatně:** v okně Project overview je blok **Titulní fotka** s tlačítky **Nahrát z počítače** (zmenší se a uloží do složky reportů projektu, tam zůstane) a **Vybrat z galerie**.

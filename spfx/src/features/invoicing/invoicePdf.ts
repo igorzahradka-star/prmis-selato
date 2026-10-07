@@ -22,6 +22,8 @@ export interface InvoicePdfData {
   projectTitle: string;
   company: CompanySettings;
   customer: { name: string; address?: string; ico?: string; dic?: string; email?: string };
+  /** Objednatel — ukáže se jako samostatná strana dokladu, jen když se liší od odběratele. */
+  orderer?: { name: string; address?: string; ico?: string; dic?: string; email?: string };
   lines: InvoiceBasis['lines'];
   vatRate: number;
   currency: string;
@@ -56,7 +58,8 @@ export function invoicePdfData(
   projectTitle: string,
   customer: InvoicePdfData['customer'],
   company: CompanySettings,
-  signatures?: SignatureMark[]
+  signatures?: SignatureMark[],
+  orderer?: InvoicePdfData['customer']
 ): InvoicePdfData {
   return {
     number: invoice.number,
@@ -65,6 +68,7 @@ export function invoicePdfData(
     projectTitle,
     company,
     customer,
+    orderer: orderer && orderer.name !== customer.name ? orderer : undefined,
     lines: invoice.lines,
     vatRate: invoice.vatRate,
     currency: invoice.currency,
@@ -129,8 +133,17 @@ export function buildInvoiceDocument(data: InvoicePdfData): TDocumentDefinitions
         party('ODBĚRATEL', customerLines.length > 0 ? customerLines : ['—'])
       ],
       columnGap: 24,
-      margin: [0, 0, 0, 12]
+      margin: [0, 0, 0, data.orderer ? 6 : 12]
     },
+    ...(data.orderer
+      ? [
+          {
+            columns: [party('OBJEDNATEL', [data.orderer.name, data.orderer.address || '', [data.orderer.ico ? `IČO: ${data.orderer.ico}` : '', data.orderer.dic ? `DIČ: ${data.orderer.dic}` : ''].filter((x) => x).join('   ')].filter((x) => x !== '')), { text: '' }],
+            columnGap: 24,
+            margin: [0, 0, 0, 12]
+          } as Content
+        ]
+      : []),
     {
       table: {
         // Záloha nemá datum uskutečnění zdanitelného plnění (DUZP) — to vzniká až u konečné faktury.

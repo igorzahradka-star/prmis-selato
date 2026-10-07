@@ -13,6 +13,7 @@ import { folderFor } from '../../core/projectFolders';
 import * as React from 'react';
 import { Panel, PanelType } from '@fluentui/react/lib/Panel';
 import { TextField } from '@fluentui/react/lib/TextField';
+import { ComboBox } from '@fluentui/react/lib/ComboBox';
 import { Dropdown, IDropdownOption } from '@fluentui/react/lib/Dropdown';
 import { DatePicker } from '@fluentui/react/lib/DatePicker';
 import { PrimaryButton, DefaultButton, IconButton, ActionButton } from '@fluentui/react/lib/Button';
@@ -139,6 +140,9 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
   const [protocols, setProtocols] = React.useState<DiaryEntry[]>([]);
 
   const [fProject, setFProject] = React.useState<string | undefined>(undefined);
+  /** Ručně zvolený odběratel a objednatel; bez hodnoty platí zákazník projektu. */
+  const [fCustomerPick, setFCustomerPick] = React.useState<{ id?: number; name: string } | undefined>(undefined);
+  const [fOrdererPick, setFOrdererPick] = React.useState<{ id?: number; name: string } | undefined>(undefined);
   const [fLines, setFLines] = React.useState<LineForm[]>([emptyLine()]);
   const [fVat, setFVat] = React.useState(21);
   const [fCurrency, setFCurrency] = React.useState<Currency>('CZK');
@@ -150,6 +154,9 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
 
   const fillForm = (inv: InvoiceBasis | undefined, preset: string | undefined): void => {
     setFProject(inv ? inv.projectNumber : preset);
+    const projCustomer = projects.filter((p) => p.projectNumber === (inv ? inv.projectNumber : preset))[0]?.customerName;
+    setFCustomerPick(inv && inv.customerName && inv.customerName !== projCustomer ? { id: inv.customerId, name: inv.customerName } : undefined);
+    setFOrdererPick(inv && inv.ordererName && inv.ordererName !== projCustomer ? { name: inv.ordererName } : undefined);
     setFLines(
       inv && inv.lines.length > 0
         ? inv.lines.map((l) => ({
@@ -249,8 +256,26 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
 
   // Zákazník podkladu = zákazník projektu; údaje o něm (adresa, IČO, splatnost) se berou z partnerů.
   const formProject = projects.filter((p) => p.projectNumber === fProject)[0];
-  const customerName = formProject ? formProject.customerName : undefined;
+  const projectCustomerName = formProject ? formProject.customerName : undefined;
+  const customerName = fCustomerPick ? fCustomerPick.name : projectCustomerName;
   const customer = customerName ? partners.filter((p) => p.name === customerName)[0] : undefined;
+  const ordererName = fOrdererPick ? fOrdererPick.name : projectCustomerName;
+  const partyOf = (name: string | undefined): { name: string; address?: string; ico?: string; dic?: string; email?: string } | undefined => {
+    if (!name) {
+      return undefined;
+    }
+    const p = partners.filter((x) => x.name === name)[0];
+    return { name, address: p ? p.address : undefined, ico: p ? p.ico : undefined, dic: p ? p.dic : undefined, email: p ? p.email : undefined };
+  };
+  const partnerOptions: IDropdownOption[] = partners
+    .filter((p) => p.isActive)
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name, 'cs-CZ'))
+    .map((p) => ({ key: p.id, text: p.name }));
+  const pickPartner = (id: number | string | undefined): { id: number; name: string } | undefined => {
+    const p = partners.filter((x) => x.id === id)[0];
+    return p ? { id: p.id, name: p.name } : undefined;
+  };
 
   const buildLines = (): OrderLine[] =>
     fLines
@@ -270,8 +295,9 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
   const buildInput = (): InvoiceInput => ({
     projectNumber: fProject ?? '',
     kind: fKind,
-    customerId: customer ? customer.id : undefined,
+    customerId: customer ? customer.id : fCustomerPick ? fCustomerPick.id : undefined,
     customerName,
+    ordererName,
     lines: buildLines(),
     vatRate: fVat,
     currency: fCurrency,
@@ -393,7 +419,9 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
         dic: partner ? partner.dic : undefined,
         email: partner ? partner.email : undefined
       },
-      settings.company
+      settings.company,
+      undefined,
+      partyOf(saved.ordererName)
     );
     renderInvoicePdf(data)
       .then((blob) => saveConceptCopy(repos.documents, proj, folderFor(proj, 'invoices', settings.folders), invoicePdfFileName(saved.number), blob))
@@ -406,13 +434,15 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
   };
 
   // Rozepsaný podklad se průběžně ukládá do prohlížeče — když uživatel odskočí jinam a vrátí se, nabídne se obnovení.
-  const draftValue = React.useMemo(() => ({ fProject, fLines, fVat, fCurrency, fKind, fIssue, fTaxable, fDays, fNote }), [fProject, fLines, fVat, fCurrency, fKind, fIssue, fTaxable, fDays, fNote]);
+  const draftValue = React.useMemo(() => ({ fProject, fCustomerPick, fOrdererPick, fLines, fVat, fCurrency, fKind, fIssue, fTaxable, fDays, fNote }), [fProject, fCustomerPick, fOrdererPick, fLines, fVat, fCurrency, fKind, fIssue, fTaxable, fDays, fNote]);
   const draft = useFormDraft({
     key: isOpen ? draftKey(user.loginName, 'invoice', invoice ? invoice.id : invoiceId !== undefined ? invoiceId : `new-${projectNumber || ''}`) : undefined,
     value: draftValue,
     active: isOpen && !loading && editing,
     onRestore: (d) => {
       setFProject(d.fProject);
+      setFCustomerPick(d.fCustomerPick);
+      setFOrdererPick(d.fOrdererPick);
       setFLines(d.fLines);
       setFVat(d.fVat);
       setFCurrency(d.fCurrency);
@@ -619,6 +649,7 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
             kind: fKind,
             projectNumber: fProject ?? '',
             customerName,
+            ordererName,
             lines: buildLines(),
             amountNet: invoiceTotals(buildLines(), fVat).net,
             vatRate: fVat,
@@ -644,7 +675,9 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
         dic: partner ? partner.dic : undefined,
         email: partner ? partner.email : undefined
       },
-      settings.company
+      settings.company,
+      undefined,
+      partyOf(inv.ordererName)
     );
   };
 
@@ -944,6 +977,8 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
                 onChange={(_, o) => {
                   if (o) {
                     setFProject(String(o.key));
+                    setFCustomerPick(undefined);
+                    setFOrdererPick(undefined);
                     const p = projects.filter((x) => x.projectNumber === String(o.key))[0];
                     const c = p && p.customerName ? partners.filter((x) => x.name === p.customerName)[0] : undefined;
                     if (c && c.paymentTermDays !== undefined) {
@@ -954,15 +989,62 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
                 placeholder="Vyberte projekt"
                 styles={{ root: { flex: '1 1 280px' } }}
               />
-              <TextField
-                label="Odběratel (zákazník projektu)"
-                readOnly
-                value={customerName || ''}
-                placeholder="—"
-                errorMessage={fProject && !customerName ? 'Projekt nemá zákazníka — doplňte ho v detailu projektu.' : undefined}
-                styles={{ root: { flex: '1 1 280px' } }}
-              />
             </div>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              <div style={{ flex: '1 1 280px' }}>
+                <ComboBox
+                  label="Odběratel (komu se fakturuje)"
+                  required
+                  allowFreeform={false}
+                  autoComplete="on"
+                  options={partnerOptions}
+                  selectedKey={customer ? customer.id : null}
+                  placeholder={fProject && !projectCustomerName ? 'Projekt nemá zákazníka — vyberte odběratele' : 'Vyberte odběratele'}
+                  onChange={(_, o) => {
+                    const p = o ? pickPartner(o.key as number) : undefined;
+                    if (p) {
+                      setFCustomerPick(p.name === projectCustomerName ? undefined : p);
+                      const full = partners.filter((x) => x.id === p.id)[0];
+                      if (full && full.paymentTermDays !== undefined) {
+                        setFDays(String(full.paymentTermDays));
+                      }
+                    }
+                  }}
+                />
+                {fCustomerPick && (
+                  <Link onClick={() => setFCustomerPick(undefined)} styles={{ root: { fontSize: 12 } }}>
+                    Vrátit na zákazníka projektu{projectCustomerName ? ` (${projectCustomerName})` : ''}
+                  </Link>
+                )}
+              </div>
+              <div style={{ flex: '1 1 280px' }}>
+                <ComboBox
+                  label="Objednatel (kdo plnění objednal)"
+                  allowFreeform={false}
+                  autoComplete="on"
+                  options={partnerOptions}
+                  selectedKey={(() => {
+                    const p = ordererName ? partners.filter((x) => x.name === ordererName)[0] : undefined;
+                    return p ? p.id : null;
+                  })()}
+                  placeholder="Vyberte objednatele"
+                  onChange={(_, o) => {
+                    const p = o ? pickPartner(o.key as number) : undefined;
+                    if (p) {
+                      setFOrdererPick(p.name === projectCustomerName ? undefined : { name: p.name });
+                    }
+                  }}
+                />
+                {fOrdererPick && (
+                  <Link onClick={() => setFOrdererPick(undefined)} styles={{ root: { fontSize: 12 } }}>
+                    Vrátit na zákazníka projektu{projectCustomerName ? ` (${projectCustomerName})` : ''}
+                  </Link>
+                )}
+              </div>
+            </div>
+            {fProject && !customerName && (
+              <MessageBar messageBarType={MessageBarType.warning}>Projekt nemá zákazníka. Vyberte odběratele ručně, nebo zákazníka doplňte v detailu projektu.</MessageBar>
+            )}
 
             <div>
               <div style={{ fontWeight: 600, marginBottom: 4 }}>Položky</div>
@@ -1211,6 +1293,7 @@ const InvoiceDetail: React.FC<{
           }
         />
         <Row label="Odběratel" value={invoice.customerName || '—'} />
+        {invoice.ordererName && invoice.ordererName !== invoice.customerName && <Row label="Objednatel" value={invoice.ordererName} />}
         <Row label="Datum vystavení" value={invoice.issueDate ? formatDate(invoice.issueDate) : '—'} />
         <Row label="Druh dokladu" value={invoiceKindOf(invoice)} />
         {invoiceKindOf(invoice) !== InvoiceKind.Zaloha && <Row label="DUZP" value={invoice.taxableDate ? formatDate(invoice.taxableDate) : '—'} />}

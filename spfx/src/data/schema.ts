@@ -18,7 +18,7 @@
  * Verze schématu. Ukládá se do PRM_Settings pod klíčem `schemaVersion`.
  * Průvodce porovná uloženou verzi s touto a nabídne doplnění rozdílu.
  */
-export const SCHEMA_VERSION = 18;
+export const SCHEMA_VERSION = 19;
 
 /** Typ sloupce v SharePointu. */
 export type FieldType =
@@ -371,6 +371,7 @@ const PRM_INVOICE_BASES: ListDef = {
     { name: 'BasisNumber', title: 'Číslo podkladu', type: 'Text', required: true, indexed: true },
     { name: 'Project', title: 'Projekt', type: 'Lookup', lookupList: 'PRM_Projects', lookupField: 'ProjectNumber', required: true, indexed: true },
     { name: 'Customer', title: 'Zákazník', type: 'Lookup', lookupList: 'PRM_Partners', lookupField: 'Title' },
+    { name: 'OrdererName', title: 'Objednatel', type: 'Text', description: 'Kdo plnění objednal, liší-li se od odběratele (Zákazník). Výchozí zákazník projektu. Zapisuje aplikace.' },
     { name: 'IncomeMilestone', title: 'Fakturační milník', type: 'Lookup', lookupList: 'PRM_IncomePlan', lookupField: 'Title' },
     { name: 'Lines', title: 'Položky (JSON)', type: 'Note' },
     { name: 'AmountNet', title: 'Částka bez DPH', type: 'Currency', decimals: 2 },

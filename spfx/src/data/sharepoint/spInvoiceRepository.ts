@@ -83,6 +83,19 @@ const SELECT_FIELDS = [
   'Modified'
 ];
 const EXPAND_FIELDS = ['Project', 'Customer', 'RequestedBy'];
+/** Sloupec Objednatel přibyl ve schématu 19 — dokud ho web nezná, načte se seznam bez něj. */
+const OPTIONAL_FIELDS = ['OrdererName'];
+
+async function withOptionalFields<T>(run: (fields: string[]) => Promise<T>): Promise<T> {
+  try {
+    return await run([...SELECT_FIELDS, ...OPTIONAL_FIELDS]);
+  } catch (error) {
+    if (extractStatus(error) === 400) {
+      return run(SELECT_FIELDS);
+    }
+    throw error;
+  }
+}
 
 interface InvoiceItem {
   Id: number;
@@ -90,6 +103,7 @@ interface InvoiceItem {
   BasisNumber?: string;
   Project?: { Id: number; ProjectNumber: string };
   Customer?: { Id: number; Title: string };
+  OrdererName?: string;
   Lines?: string;
   AmountNet?: number;
   VATRate?: number;
@@ -124,12 +138,14 @@ export class SpInvoiceRepository implements IInvoiceRepository {
   public async list(filter?: InvoiceFilter): Promise<InvoiceBasis[]> {
     try {
       const sp = getSp(this.context);
-      const items: InvoiceItem[] = await sp.web.lists
-        .getByTitle(LIST)
-        .items.select(...SELECT_FIELDS)
-        .expand(...EXPAND_FIELDS)
-        .orderBy('Id', false)
-        .top(2000)();
+      const items: InvoiceItem[] = await withOptionalFields((fields) =>
+        sp.web.lists
+          .getByTitle(LIST)
+          .items.select(...fields)
+          .expand(...EXPAND_FIELDS)
+          .orderBy('Id', false)
+          .top(2000)()
+      );
       return sortInvoicesNewestFirst(filterInvoices(items.map(mapInvoice), filter));
     } catch (error) {
       throw new Error(explain(error, 'Nepodařilo se načíst podklady pro fakturaci'));
@@ -159,15 +175,17 @@ export class SpInvoiceRepository implements IInvoiceRepository {
     let newId: number | undefined;
     try {
       const sp = getSp(this.context);
-      const added = await sp.web.lists.getByTitle(LIST).items.add({
-        Title: number,
-        BasisNumber: number,
-        ProjectId: project.id,
-        ...toFields(input),
-        BasisStatus: InvoiceStatus.Koncept,
-        RequestedById: actor.id,
-        IssueDate: (input.issueDate ?? new Date()).toISOString()
-      });
+      const added = await withOrdererFallback(toFields(input), (fields) =>
+        sp.web.lists.getByTitle(LIST).items.add({
+          Title: number,
+          BasisNumber: number,
+          ProjectId: project.id,
+          ...fields,
+          BasisStatus: InvoiceStatus.Koncept,
+          RequestedById: actor.id,
+          IssueDate: (input.issueDate ?? new Date()).toISOString()
+        })
+      );
       newId = extractAddedId(added);
     } catch (error) {
       throw new Error(explain(error, `Podklad ${number} se nepodařilo uložit`));
@@ -357,11 +375,13 @@ export class SpInvoiceRepository implements IInvoiceRepository {
 
   private async load(id: number): Promise<{ invoice: InvoiceBasis; etag?: string }> {
     const sp = getSp(this.context);
-    const item: InvoiceItem = await sp.web.lists
-      .getByTitle(LIST)
-      .items.getById(id)
-      .select(...SELECT_FIELDS)
-      .expand(...EXPAND_FIELDS)();
+    const item: InvoiceItem = await withOptionalFields((fields) =>
+      sp.web.lists
+        .getByTitle(LIST)
+        .items.getById(id)
+        .select(...fields)
+        .expand(...EXPAND_FIELDS)()
+    );
     return { invoice: mapInvoice(item), etag: extractEtag(item) };
   }
 
@@ -387,7 +407,7 @@ export class SpInvoiceRepository implements IInvoiceRepository {
   private async write(id: number, fields: Record<string, unknown>, etag: string | undefined, context: string): Promise<void> {
     try {
       const sp = getSp(this.context);
-      await sp.web.lists.getByTitle(LIST).items.getById(id).update(fields, etag ?? '*');
+      await withOrdererFallback(fields, (f) => sp.web.lists.getByTitle(LIST).items.getById(id).update(f, etag ?? '*'));
     } catch (error) {
       if (extractStatus(error) === 412) {
         throw new WorkflowError('Podklad mezitím někdo jiný změnil. Načtěte ho znovu a akci zopakujte — jinak byste přepsali cizí změnu.');
@@ -475,6 +495,7 @@ function assertValid(input: InvoiceInput): void {
 function toFields(input: InvoiceInput): Record<string, unknown> {
   return {
     CustomerId: input.customerId ?? null,
+    OrdererName: input.ordererName ?? '',
     Lines: linesToJson(input.lines),
     AmountNet: invoiceTotals(input.lines, input.vatRate).net,
     VATRate: input.vatRate,
@@ -494,6 +515,7 @@ function mapInvoice(item: InvoiceItem): InvoiceBasis {
     projectNumber: item.Project?.ProjectNumber ?? '',
     customerId: item.Customer?.Id,
     customerName: item.Customer?.Title,
+    ordererName: item.OrdererName || undefined,
     lines: linesFromJson(item.Lines),
     amountNet: item.AmountNet ?? 0,
     vatRate: item.VATRate ?? 21,
@@ -519,6 +541,26 @@ function mapInvoice(item: InvoiceItem): InvoiceBasis {
 function extractAddedId(added: unknown): number | undefined {
   const a = added as { data?: { Id?: number }; Id?: number };
   return a?.data?.Id ?? a?.Id;
+}
+
+/**
+ * Zápis podkladu. Sloupec Objednatel přibyl ve schématu 19; než se schéma doplní, zápis s ním SharePoint odmítne.
+ * Objednatel, který je jen výchozí (prázdný), se pak uloží bez sloupce; ručně zvoleného objednatele bez sloupce uložit nejde.
+ */
+async function withOrdererFallback<T>(fields: Record<string, unknown>, run: (fields: Record<string, unknown>) => Promise<T>): Promise<T> {
+  try {
+    return await run(fields);
+  } catch (error) {
+    if (extractStatus(error) !== 400 || !('OrdererName' in fields)) {
+      throw error;
+    }
+    if (fields.OrdererName) {
+      throw new Error('Objednatele nejde uložit: seznam podkladů na webu nemá sloupec Objednatel. Otevřete Instalace a diagnostika a doplňte chybějící části (přidá jen sloupce, nic nesmaže).');
+    }
+    const rest = { ...fields };
+    delete rest.OrdererName;
+    return run(rest);
+  }
 }
 
 /** Chybu SharePointu převede na větu; HTTP 400 na tomhle seznamu znamená chybějící sloupce. */

@@ -566,6 +566,8 @@ export interface InvoiceInput {
   kind?: InvoiceKind;
   customerId?: number;
   customerName?: string;
+  /** Objednatel (název partnera); výchozí zákazník projektu. */
+  ordererName?: string;
   lines: OrderLine[];
   vatRate: number;
   currency: Currency;

@@ -288,10 +288,11 @@ export class MockInvoiceRepository implements IInvoiceRepository {
     }
   }
 
-  private fromInput(input: InvoiceInput): Pick<InvoiceBasis, 'kind' | 'customerId' | 'customerName' | 'lines' | 'amountNet' | 'vatRate' | 'currency' | 'issueDate' | 'taxableDate' | 'dueDate' | 'note'> {
+  private fromInput(input: InvoiceInput): Pick<InvoiceBasis, 'kind' | 'customerId' | 'customerName' | 'ordererName' | 'lines' | 'amountNet' | 'vatRate' | 'currency' | 'issueDate' | 'taxableDate' | 'dueDate' | 'note'> {
     return {
       customerId: input.customerId,
       customerName: input.customerName,
+      ordererName: input.ordererName,
       lines: input.lines.map((l) => ({ ...l })),
       amountNet: invoiceTotals(input.lines, input.vatRate).net,
       vatRate: input.vatRate,
