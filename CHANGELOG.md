@@ -5,6 +5,14 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.30.3 — 7. 10. 2026 — Project overview: titulní fotka zvlášť, dvě fotky na zadní straně
+
+- **Titulní fotka se nahrává samostatně:** v okně Project overview je blok **Titulní fotka** s tlačítky **Nahrát z počítače** (zmenší se a uloží do složky reportů projektu, tam zůstane) a **Vybrat z galerie**.
+- **Dvě fotky na zadní straně:** místo samostatné fotogalerie je na konci PDF **zadní strana** (tmavý přechod se sloganem), na níž jsou až **dvě fotky, které se částečně překrývají** a zabírají co nejvíc místa (jedna fotka je velká přes celou pravou část). Fotky se vybírají z galerie projektu (**nejvýš 2**, dohromady s titulní 3). Dříve uložených víc fotek se počítá jen prvních 3.
+- **Nenačtená fotka se hlásí:** když se některá vybraná fotka při vytváření PDF nepodaří načíst (soubor přesunutý, smazaný nebo nedostupný), okno to výslovně napíše („Tyto fotky se nepodařilo načíst a v PDF chybí: …“); dříve se fotka tiše vynechala a PDF vypadalo jinak, než se čekalo.
+
+---
+
 ## 0.30.2 — 7. 10. 2026 — Project overview: oprava rozložení mapy
 
 - **Mapa umístění** v Project overview se přesunula na **první stranu** (karta s bílým rámečkem vpravo dole, přes titulní fotku) a má pevné místo. Dřív ležela na druhé straně pod technickými parametry; při delším textu nebo víc parametrech přetekla na další stranu, kde překrývala logo.

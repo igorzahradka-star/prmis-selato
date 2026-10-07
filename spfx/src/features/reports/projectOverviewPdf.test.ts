@@ -19,8 +19,6 @@ const project: Project = {
   endDatePlanned: new Date(2026, 5, 30)
 };
 
-const pixel = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
-
 function model(over: Partial<OverviewModel> = {}): OverviewModel {
   return {
     lang: 'cs',
@@ -63,9 +61,20 @@ describe('PDF Project overview', () => {
     expect(t).not.toContain('REFERENCE');
   });
 
-  it('fotogalerie vznikne jen když jsou kromě titulní další fotky', () => {
-    expect(textOf(model({ photos: [{ dataUrl: pixel }] }))).not.toContain('Fotodokumentace');
-    expect(textOf(model({ photos: [{ dataUrl: pixel }, { dataUrl: pixel, caption: 'Montáž' }] }))).toContain('Fotodokumentace');
+  it('zadní strana: bez fotek jen slogan; s fotkami se objeví obě (druhá překrývá první); fotogalerie už není', () => {
+    const one = textOf(model({ photos: [{ dataUrl: 'data:image/jpeg;base64,COVER' }] }));
+    expect(one).toContain('Revoltujte s námi');
+    expect(one).toContain('COVER');
+    const two = textOf(model({ photos: [{ dataUrl: 'data:image/jpeg;base64,COVER' }, { dataUrl: 'data:image/jpeg;base64,ZADNI1' }, { dataUrl: 'data:image/jpeg;base64,ZADNI2' }] }));
+    expect(two).toContain('ZADNI1');
+    expect(two).toContain('ZADNI2');
+    expect(two).not.toContain('Fotodokumentace');
+    // druhá fotka je v dokumentu až za první, takže ji překrývá
+    expect(two.indexOf('ZADNI2')).toBeGreaterThan(two.indexOf('ZADNI1'));
+    // třetí a další fotky se do PDF nedostanou
+    const more = textOf(model({ photos: [0, 1, 2, 3, 4].map((i) => ({ dataUrl: 'data:image/jpeg;base64,F' + i + 'X' })) }));
+    expect(more).toContain('F2X');
+    expect(more).not.toContain('F3X');
   });
 
   it('mapa je na první straně jen když je zapnutá a načtená; stránka s popisem ji neobsahuje', () => {

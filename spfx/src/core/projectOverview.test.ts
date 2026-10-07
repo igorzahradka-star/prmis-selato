@@ -42,14 +42,14 @@ describe('Project overview — výchozí hodnoty a uložení', () => {
     expect(defaultOverview({ ...bess, projectType: 'Jiné' }).subject.cs).toBe('Realizace energetického projektu');
   });
 
-  it('uloží a přečte JSON; poškozený nebo chybějící se nahradí výchozím; fotek nejvýš 6', () => {
+  it('uloží a přečte JSON; poškozený nebo chybějící se nahradí výchozím; fotek nejvýš 3', () => {
     const o = { ...defaultOverview(bess), power: 2000, capacity: 4400, capacityUnit: 'kWh' as const, customerConsent: true, year: undefined };
     o.photos = Array.from({ length: 8 }, (_, i) => ({ folder: 'FOTO/2026-03-01 Montáž', name: `f${i}.jpg` }));
     const back = overviewFromJson(overviewToJson(o), bess);
     expect(back.power).toBe(2000);
     expect(back.customerConsent).toBe(true);
     expect(back.year).toBeUndefined();
-    expect(back.photos).toHaveLength(6);
+    expect(back.photos).toHaveLength(3);
     expect(overviewFromJson('{rozbité', bess)).toEqual(defaultOverview(bess));
     expect(overviewFromJson(undefined, bess)).toEqual(defaultOverview(bess));
     expect(overviewFromJson(JSON.stringify({ powerUnit: 'GW' }), bess).powerUnit).toBe('kW');

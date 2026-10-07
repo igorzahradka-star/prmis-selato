@@ -32,7 +32,7 @@ import { parseAmount } from '../../core/format';
 import {
   CAPACITY_UNITS,
   CapacityUnit,
-  MAX_OVERVIEW_PHOTOS,
+  MAX_BACK_PHOTOS,
   OverviewLang,
   POWER_UNITS,
   PowerUnit,
@@ -43,6 +43,7 @@ import {
   templateText
 } from '../../core/projectOverview';
 import { OrderPdfPreview } from '../orders/OrderPdfPreview';
+import { photoFileName, resizeImage } from '../diary/imageUtils';
 import { PhotoPickerDialog } from '../photos/PhotoPickerDialog';
 import { loadReportAssets } from './reportRuntime';
 import { collectOverviewModel } from './overviewRuntime';
@@ -64,7 +65,10 @@ export const ProjectOverviewDialog: React.FC<{ project: Project; onClose: () => 
   const [blob, setBlob] = React.useState<Blob | undefined>(undefined);
   const [fileName, setFileName] = React.useState('');
   const [previewOpen, setPreviewOpen] = React.useState(false);
-  const [pickerOpen, setPickerOpen] = React.useState(false);
+  const [pickerFor, setPickerFor] = React.useState<'cover' | 'back' | undefined>(undefined);
+  const [uploading, setUploading] = React.useState(false);
+  const [failedPhotos, setFailedPhotos] = React.useState<string[]>([]);
+  const fileInput = React.useRef<HTMLInputElement>(null);
   const [promptOpen, setPromptOpen] = React.useState(false);
   const [savedUrl, setSavedUrl] = React.useState<string | undefined>(undefined);
   const [saving, setSaving] = React.useState(false);
@@ -145,11 +149,13 @@ export const ProjectOverviewDialog: React.FC<{ project: Project; onClose: () => 
     setNotice(undefined);
     setBlob(undefined);
     setSavedUrl(undefined);
+    setFailedPhotos([]);
     (async (): Promise<void> => {
       if (mayEdit && dirty) {
         await persist();
       }
       const model = await collectOverviewModel(repos, project, data, settings, lang, setProgress);
+      setFailedPhotos(model.failed || []);
       setProgress('Vytvářím PDF…');
       const assets = await loadReportAssets();
       const pdf = await renderProjectOverviewPdf(model, assets);
@@ -197,19 +203,33 @@ export const ProjectOverviewDialog: React.FC<{ project: Project; onClose: () => 
     }
   };
 
-  const movePhoto = (i: number, d: number): void => {
+  const cover = data && data.photos.length > 0 ? data.photos[0] : undefined;
+  const backList = data ? data.photos.slice(1, 1 + MAX_BACK_PHOTOS) : [];
+  const setCover = (ph: { folder: string; name: string; caption?: string } | undefined): void => {
     if (!data) {
       return;
     }
-    const arr = data.photos.slice();
-    const j = i + d;
-    if (j < 0 || j >= arr.length) {
+    patch({ photos: ph ? [ph, ...data.photos.slice(1)] : data.photos.slice(1) });
+  };
+
+  // Titulní fotka z počítače: zmenší se a uloží do složky reportů projektu (tam zůstane, kdyby se přehled dělal znovu).
+  const uploadCover = (file: File | undefined): void => {
+    if (!file || !data) {
       return;
     }
-    const t = arr[i];
-    arr[i] = arr[j];
-    arr[j] = t;
-    patch({ photos: arr });
+    setUploading(true);
+    setError(undefined);
+    const name = photoFileName(new Date(), [], '.jpg', `Project overview ${project.projectNumber} titulni`);
+    resizeImage(file, { maxSide: 2400, quality: 0.88, keepBelowBytes: 0 })
+      .then((blob) => repos.documents.saveProjectFile(project, saveFolder, name, blob))
+      .then(() => {
+        setCover({ folder: saveFolder, name });
+        setUploading(false);
+      })
+      .catch((e: Error) => {
+        setUploading(false);
+        setError(`Titulní fotku se nepodařilo nahrát do složky projektu: ${e.message}`);
+      });
   };
 
   const warnings = data ? overviewWarnings(data, lang) : [];
@@ -218,7 +238,7 @@ export const ProjectOverviewDialog: React.FC<{ project: Project; onClose: () => 
   return (
     <>
       <Dialog
-        hidden={pickerOpen}
+        hidden={pickerFor !== undefined}
         onDismiss={busy || saving ? undefined : onClose}
         dialogContentProps={{
           type: DialogType.normal,
@@ -340,23 +360,32 @@ export const ProjectOverviewDialog: React.FC<{ project: Project; onClose: () => 
             </div>
 
             <div>
-              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Fotky (první je titulní, nejvýš {MAX_OVERVIEW_PHOTOS})</div>
-              {data.photos.length === 0 && <div style={{ fontSize: 13, color: RES.gray }}>Zatím nejsou vybrané žádné fotky.</div>}
-              {data.photos.map((ph, i) => (
+              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Titulní fotka (úvodní strana)</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 13, color: cover ? RES.text : RES.gray, flex: '1 1 200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cover ? cover.name : 'Zatím není vybraná.'}</span>
+                {mayEdit && (
+                  <>
+                    <input ref={fileInput} type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => { uploadCover(e.target.files ? e.target.files[0] : undefined); e.target.value = ''; }} />
+                    <DefaultButton text={uploading ? 'Nahrávám…' : 'Nahrát z počítače'} iconProps={{ iconName: 'Upload' }} disabled={busy || uploading || !maySave} title={maySave ? 'Fotka se uloží do složky reportů projektu' : 'Nahrávat smí jen ten, kdo může ukládat do složky projektu'} onClick={() => fileInput.current && fileInput.current.click()} />
+                    <DefaultButton text="Vybrat z galerie" iconProps={{ iconName: 'Photo2' }} disabled={busy || uploading} onClick={() => setPickerFor('cover')} />
+                    {cover && <IconButton iconProps={{ iconName: 'Delete' }} ariaLabel="Odebrat titulní fotku" disabled={busy || uploading} onClick={() => setCover(undefined)} />}
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Fotky na zadní stranu (nejvýš {MAX_BACK_PHOTOS}, částečně se překrývají)</div>
+              {backList.length === 0 && <div style={{ fontSize: 13, color: RES.gray }}>Zatím nejsou vybrané žádné fotky.</div>}
+              {backList.map((ph, i) => (
                 <div key={`${ph.folder}/${ph.name}`} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, padding: '2px 0' }}>
-                  <span style={{ width: 70, color: i === 0 ? RES.blue : RES.gray, fontWeight: i === 0 ? 600 : 400 }}>{i === 0 ? 'titulní' : `${i + 1}.`}</span>
+                  <span style={{ width: 30, color: RES.gray }}>{i + 1}.</span>
                   <span style={{ flex: '1 1 auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ph.name}</span>
-                  {mayEdit && (
-                    <>
-                      <IconButton iconProps={{ iconName: 'Up' }} ariaLabel="Posunout výš" disabled={i === 0 || busy} onClick={() => movePhoto(i, -1)} />
-                      <IconButton iconProps={{ iconName: 'Down' }} ariaLabel="Posunout níž" disabled={i === data.photos.length - 1 || busy} onClick={() => movePhoto(i, 1)} />
-                      <IconButton iconProps={{ iconName: 'Delete' }} ariaLabel="Odebrat fotku" disabled={busy} onClick={() => patch({ photos: data.photos.filter((_, k) => k !== i) })} />
-                    </>
-                  )}
+                  {mayEdit && <IconButton iconProps={{ iconName: 'Delete' }} ariaLabel="Odebrat fotku" disabled={busy} onClick={() => patch({ photos: data.photos.filter((x) => x !== ph) })} />}
                 </div>
               ))}
               {mayEdit && (
-                <DefaultButton text="Vybrat fotky z galerie projektu" iconProps={{ iconName: 'Photo2' }} disabled={busy || data.photos.length >= MAX_OVERVIEW_PHOTOS} onClick={() => setPickerOpen(true)} styles={{ root: { marginTop: 6 } }} />
+                <DefaultButton text="Vybrat fotky z galerie projektu" iconProps={{ iconName: 'Photo2' }} disabled={busy || backList.length >= MAX_BACK_PHOTOS} onClick={() => setPickerFor('back')} styles={{ root: { marginTop: 6 } }} />
               )}
             </div>
 
@@ -365,6 +394,11 @@ export const ProjectOverviewDialog: React.FC<{ project: Project; onClose: () => 
             <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
               <Dropdown label="Jazyk PDF" selectedKey={lang} options={(['cs', 'en'] as OverviewLang[]).map((l) => ({ key: l, text: LANG_LABEL[l] }))} disabled={busy} onChange={(_, o) => o && setLang(o.key as OverviewLang)} styles={{ root: { width: 160 } }} />
             </div>
+            {failedPhotos.length > 0 && (
+              <MessageBar messageBarType={MessageBarType.severeWarning} isMultiline>
+                <strong>Tyto fotky se nepodařilo načíst a v PDF chybí:</strong> {failedPhotos.join(', ')}. Zkuste je vybrat znovu (soubor mohl být přesunutý nebo smazaný).
+              </MessageBar>
+            )}
             {warnings.length > 0 && (
               <MessageBar messageBarType={MessageBarType.warning} isMultiline>
                 <strong>Pozor, přehled je zatím poloprázdný:</strong> {warnings.join(' ')}
@@ -395,17 +429,26 @@ export const ProjectOverviewDialog: React.FC<{ project: Project; onClose: () => 
           <DefaultButton text="Zavřít" disabled={busy || saving} onClick={onClose} />
         </DialogFooter>
       </Dialog>
-      {pickerOpen && data && (
+      {pickerFor && data && (
         <PhotoPickerDialog
           project={project}
-          title="Vybrat fotky do Project overview"
+          title={pickerFor === 'cover' ? 'Vybrat titulní fotku' : 'Vybrat fotky na zadní stranu'}
           confirmText="Použít vybrané"
-          onClose={() => setPickerOpen(false)}
+          onClose={() => setPickerFor(undefined)}
           onPick={(picked) => {
-            const have = new Set(data.photos.map((x) => `${x.folder}/${x.name}`));
-            const added = picked.filter((x) => !have.has(`${x.folder}/${x.name}`)).map((x) => ({ folder: x.folder, name: x.name, caption: x.note }));
-            patch({ photos: [...data.photos, ...added].slice(0, MAX_OVERVIEW_PHOTOS) });
-            setPickerOpen(false);
+            if (pickerFor === 'cover') {
+              const first = picked[0];
+              if (first) {
+                setCover({ folder: first.folder, name: first.name, caption: first.note });
+              }
+            } else {
+              const have = new Set(data.photos.map((x) => `${x.folder}/${x.name}`));
+              const added = picked.filter((x) => !have.has(`${x.folder}/${x.name}`)).map((x) => ({ folder: x.folder, name: x.name, caption: x.note }));
+              const head = data.photos.slice(0, 1);
+              const back = [...data.photos.slice(1), ...added].slice(0, MAX_BACK_PHOTOS);
+              patch({ photos: [...head, ...back] });
+            }
+            setPickerFor(undefined);
           }}
         />
       )}

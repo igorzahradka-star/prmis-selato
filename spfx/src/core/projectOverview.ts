@@ -50,13 +50,15 @@ export interface ProjectOverview {
   customerConsent: boolean;
   /** Označení zákazníka bez souhlasu (např. „průmyslová společnost“; v 1. pádě). */
   customerAnonymous: Bilingual;
-  /** Vybrané fotky, první je titulní. */
+  /** Fotky: první je titulní (na úvodní straně), další až dvě jdou na zadní stranu. */
   photos: OverviewPhoto[];
   /** Ukázat mapu s polohou projektu. */
   showMap: boolean;
 }
 
-export const MAX_OVERVIEW_PHOTOS = 6;
+/** Titulní fotka + dvě fotky na zadní stranu. */
+export const MAX_OVERVIEW_PHOTOS = 3;
+export const MAX_BACK_PHOTOS = 2;
 
 const SUBJECTS: Record<string, Bilingual> = {
   FVE: { cs: 'Realizace fotovoltaické elektrárny', en: 'Photovoltaic power plant' },

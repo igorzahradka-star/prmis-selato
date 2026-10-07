@@ -1,9 +1,9 @@
 /**
  * PDF „Project overview“ — marketingový přehled realizovaného projektu pro zákazníky (1–3 strany 16:9 ve stylu RES šablony).
  *
- *  1. úvodní strana: tmavý přechod, předmět realizace, lokalita, rok, výkon a titulní fotka,
+ *  1. úvodní strana: tmavý přechod, předmět realizace, lokalita, rok, výkon, titulní fotka a mapa,
  *  2. o projektu: popis, údaje a technické parametry (mapa umístění je na první straně — pevné místo, nikdy nepřetéká),
- *  3. fotogalerie (jen když jsou vybrané další fotky).
+ *  3. zadní strana: tmavý přechod, slogan a až dvě fotky, které se částečně překrývají a zabírají co nejvíc místa.
  *
  * Bez cen, nákladů a marže. Obrázky (fotky, mapa) přicházejí zvenku jako data URL; bez nich se strany sestaví bez nich,
  * takže se dokument dá sestavit i v testech.
@@ -34,6 +34,8 @@ export interface OverviewModel {
   photos: { dataUrl: string; caption?: string }[];
   /** Mapa umístění jako data URL. */
   map?: string;
+  /** Fotky, které se nepodařilo načíst (v PDF chybí). */
+  failed?: string[];
 }
 
 const tableLayout = { hLineColor: () => LINE, vLineColor: () => 'white', hLineWidth: () => 0.5, vLineWidth: () => 0 };
@@ -150,25 +152,31 @@ export function buildOverviewDocument(m: OverviewModel, assets: ReportAssets = {
     margin: [MX, 0, MX, 0]
   } as Content);
 
-  // --- 3. fotogalerie (další fotky, titulní je už na první straně)
-  const rest = m.photos.slice(1, 6);
-  if (rest.length > 0) {
-    const cell = (i: number): Content => {
-      const ph = rest[i];
-      if (!ph) {
-        return { text: '' } as Content;
-      }
-      return {
-        stack: [{ image: ph.dataUrl, fit: [262, 170] }, ...(ph.caption ? [{ text: ph.caption, fontSize: 9, color: GRAY, margin: [0, 3, 0, 0] }] : [])],
-        margin: [0, 0, 12, 10]
-      } as Content;
-    };
-    const rows: Content[][] = [];
-    for (let r = 0; r * 3 < rest.length; r++) {
-      rows.push([cell(r * 3), cell(r * 3 + 1), cell(r * 3 + 2)]);
-    }
-    content.push(slideTitle(L.gallery));
-    content.push({ table: { widths: ['*', '*', '*'], body: rows }, layout: 'noBorders', margin: [MX, 0, MX - 12, 0] } as Content);
+  // --- 3. zadní strana: slogan a až dvě fotky (druhá částečně překrývá první, ať se fotky maximálně využijí)
+  const backPhotos = m.photos.slice(1, 3);
+  content.push({ text: '', pageBreak: 'before' } as Content);
+  content.push(full(assets.gradient));
+  const frame = (x: number, y: number, w: number, h: number, img: string): void => {
+    content.push({ canvas: [{ type: 'rect', x: 0, y: 0, w: w + 10, h: h + 10, color: 'white' }], absolutePosition: { x: x - 5, y: y - 5 } } as unknown as Content);
+    content.push({ image: img, cover: { width: w, height: h }, absolutePosition: { x, y } } as unknown as Content);
+  };
+  if (backPhotos.length === 0 && assets.streak) {
+    content.push({ image: assets.streak, width: 915, absolutePosition: { x: -50, y: 314 } } as Content, { image: assets.streak, width: 915, absolutePosition: { x: 106, y: -16 } } as Content);
+  }
+  if (backPhotos.length === 1) {
+    frame(430, 45, 470, 450, backPhotos[0].dataUrl);
+  } else if (backPhotos.length >= 2) {
+    frame(500, 40, 400, 270, backPhotos[0].dataUrl);
+    frame(320, 240, 400, 260, backPhotos[1].dataUrl);
+  }
+  const slogan = backPhotos.length > 0 ? 28 : 48;
+  content.push({
+    columns: [{ width: backPhotos.length > 0 ? 380 : 780, stack: [{ text: L.contact, fontSize: slogan, bold: true, color: 'white', lineHeight: 0.95 }, { text: L.contact2, fontSize: slogan, bold: true, color: 'white', lineHeight: 0.95, margin: [0, 4, 0, 0] }] }],
+    absolutePosition: { x: backPhotos.length > 0 ? MX : MX + 40, y: backPhotos.length > 0 ? 70 : 120 }
+  } as Content);
+  content.push({ text: m.company, fontSize: 14, color: PALE, absolutePosition: { x: backPhotos.length > 0 ? MX : MX + 40, y: backPhotos.length > 0 ? 474 : 280 } } as Content);
+  if (assets.logoDark) {
+    content.push({ image: assets.logoDark, width: backPhotos.length > 0 ? 200 : 190, absolutePosition: backPhotos.length > 0 ? { x: MX, y: 420 } : { x: 750, y: 24 } } as Content);
   }
 
   return {
@@ -177,8 +185,8 @@ export function buildOverviewDocument(m: OverviewModel, assets: ReportAssets = {
     defaultStyle: { font: 'Roboto', fontSize: 10, color: DARK },
     info: { title: `Project overview ${p.projectNumber}`, author: m.company, subject: subject },
     background: (currentPage: number) => (currentPage === 1 ? null : ({ image: PDF_LOGO_DATA_URL, width: 180, absolutePosition: { x: 754, y: 21 } } as Content)),
-    footer: (currentPage: number) =>
-      currentPage === 1 ? null : ({ text: `${m.company} · ${subject}${p.location ? ` · ${p.location}` : ''}`, fontSize: 8, color: GRAY, margin: [MX, 6, 0, 0] } as Content),
+    footer: (currentPage: number, pageCount: number) =>
+      currentPage === 1 || currentPage === pageCount ? null : ({ text: `${m.company} · ${subject}${p.location ? ` · ${p.location}` : ''}`, fontSize: 8, color: GRAY, margin: [MX, 6, 0, 0] } as Content),
     content
   };
 }

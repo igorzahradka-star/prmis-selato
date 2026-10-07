@@ -81,6 +81,7 @@ export async function collectOverviewModel(
     }
   };
   const photos: OverviewModel['photos'] = [];
+  const failed: string[] = [];
   for (let i = 0; i < overview.photos.length; i++) {
     const ph = overview.photos[i];
     say(`Načítám fotky (${i + 1} z ${overview.photos.length})…`);
@@ -90,7 +91,8 @@ export async function collectOverviewModel(
       const image = await toDataUrl(blob, i === 0 ? 1600 : 1000, 0.82);
       photos.push({ dataUrl: image.dataUrl, caption: ph.caption });
     } catch {
-      // Fotku se nepodařilo načíst nebo zmenšit — přeskočí se.
+      // Fotku se nepodařilo načíst nebo zmenšit — vynechá se a v dialogu se to ohlásí (nevznikne tichá mezera).
+      failed.push(ph.name);
     }
   }
   let map: string | undefined;
@@ -100,5 +102,5 @@ export async function collectOverviewModel(
     map = await renderMapImage(coords.latitude, coords.longitude);
   }
   const text = overview.text[lang].trim() || templateText(overview, project, settings.company.name, lang);
-  return { lang, project, overview, company: settings.company.name, text, photos, map };
+  return { lang, project, overview, company: settings.company.name, text, photos, map, failed };
 }
