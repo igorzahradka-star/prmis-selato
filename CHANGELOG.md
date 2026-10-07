@@ -5,6 +5,17 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.35.0 — 8. 10. 2026 — Fáze 4, krok 4d: export harmonogramu (Excel, PDF A3)
+
+V záložce **Harmonogram** jsou dvě nová tlačítka (vidí je i ten, kdo harmonogram jen čte):
+
+- **Export do Excelu** — stáhne tabulku úkolů jako soubor CSV (středníky, česky, otevře se v Excelu): WBS, úkol, typ, zahájení, dokončení, trvání, předchůdci, rezerva, kritická cesta, % hotovo, baseline, odchylka od baseline, smluvní termín a o kolik se nestíhá. Data jsou ve tvaru RRRR-MM-DD, aby šla v Excelu řadit.
+- **PDF (A3)** — harmonogram na A3 na šířku v grafice RES: vlevo tabulka úkolů, vpravo Ganttův diagram (pruhy s hotovou částí, milníky, šipky závislostí, kritická cesta červeně, baseline, smluvní termíny, víkendy a svátky, čára „dnes“). Měřítko osy se volí podle délky projektu (dny, týdny, měsíce). Dlouhý harmonogram se dělí na strany po 30 řádcích. Soubor se stáhne jako `Harmonogram_číslo-projektu.pdf`.
+- Export vychází z toho, co je právě v tabulce (i neuloženo). Při chybě závislostí (cyklus) jsou tlačítka vypnutá.
+- Bez změny schématu.
+
+---
+
 ## 0.34.0 — 8. 10. 2026 — Fáze 4, krok 4c: vazba harmonogramu na cashflow a objednávky
 
 V záložce **Cashflow**:

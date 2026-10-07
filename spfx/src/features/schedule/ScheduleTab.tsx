@@ -18,6 +18,7 @@ import { RES } from '../../ui/theme';
 import { DraftBanner } from '../../ui/components/DraftBanner';
 import { StickyHScroll } from '../../ui/components/StickyHScroll';
 import { GanttChart } from './GanttChart';
+import { ScheduleExportRow, scheduleCsv, scheduleFileName } from '../../core/scheduleExport';
 import { GanttItem, linksFromDeps } from '../../core/ganttLayout';
 import { useFormDraft } from '../../ui/useFormDraft';
 import { draftKey } from '../../core/drafts';
@@ -64,7 +65,7 @@ let counter = 0;
 const newKey = (): string => `n${Date.now().toString(36)}${counter++}`;
 
 export const ScheduleTab: React.FC<{ project: Project }> = ({ project }) => {
-  const { repos, user } = useApp();
+  const { repos, user, settings } = useApp();
   const mayEdit = canEditProject(user.roles, user.loginName, { projectManagerLogin: project.projectManagerLogin, assistantLogins: project.assistantLogins });
 
   const [original, setOriginal] = React.useState<ProjectTask[] | undefined>(undefined);
@@ -109,6 +110,7 @@ export const ScheduleTab: React.FC<{ project: Project }> = ({ project }) => {
   });
 
   const dirty = !!original && JSON.stringify(rows) !== saved;
+  const [exporting, setExporting] = React.useState(false);
   const model = React.useMemo(() => buildScheduleModel(rows, { defaultStart: project.startDate }), [rows, project.startDate]);
   // Podklad pro Gantt (hooky musí být nad prvním `return` komponenty).
   const ganttData = React.useMemo(() => {
@@ -139,6 +141,33 @@ export const ScheduleTab: React.FC<{ project: Project }> = ({ project }) => {
   }, [rows, model]);
 
   const patch = (key: string, p: Partial<ScheduleRow>): void => setRows((cur) => cur.map((r) => (r.key === key ? { ...r, ...p } : r)));
+  const exportRows = (): ScheduleExportRow[] =>
+    ganttData.items.map((it) => {
+      const r = rows.filter((x) => x.key === it.key)[0];
+      return { ...it, durationDays: r ? r.durationDays : 0, predecessors: r ? r.predText : '' };
+    });
+  const download = (blob: Blob, name: string): void => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+  const exportCsv = (): void => {
+    download(new Blob(['﻿' + scheduleCsv(exportRows())], { type: 'text/csv;charset=utf-8' }), scheduleFileName(project.projectNumber, 'csv'));
+  };
+  const exportPdf = (): void => {
+    setExporting(true);
+    import(/* webpackChunkName: 'schedule-pdf' */ './schedulePdf')
+      .then((m) => m.renderSchedulePdf({ projectNumber: project.projectNumber, projectTitle: project.title, rows: exportRows(), links: ganttData.links, company: settings.company, generatedBy: user.displayName }))
+      .then((blob) => download(blob, scheduleFileName(project.projectNumber, 'pdf')))
+      .catch((e: unknown) => window.alert(`PDF se nepodařilo vytvořit: ${e instanceof Error ? e.message : String(e)}`))
+      .then(() => setExporting(false), () => setExporting(false));
+  };
+
   const addRow = (type: TaskType = TaskType.Cinnost): void =>
     setRows((cur) => [...cur, { key: newKey(), wbs: nextWbs(cur), title: '', taskType: type, durationDays: type === TaskType.Milnik ? 0 : 1, predText: '', percentComplete: 0, contractual: false, watch: false }]);
   const move = (index: number, d: number): void =>
@@ -258,6 +287,8 @@ export const ScheduleTab: React.FC<{ project: Project }> = ({ project }) => {
             />
           </>
         )}
+        <DefaultButton text="Export do Excelu" iconProps={{ iconName: 'ExcelDocument' }} title="Stáhne tabulku harmonogramu jako CSV (otevře se v Excelu) podle toho, co je právě v tabulce" disabled={hasCycle || ganttData.items.length === 0} onClick={() => exportCsv()} />
+        <DefaultButton text={exporting ? 'Vytvářím PDF…' : 'PDF (A3)'} iconProps={{ iconName: 'PDF' }} title="Harmonogram s Ganttovým diagramem na A3 na šířku" disabled={exporting || hasCycle || ganttData.items.length === 0} onClick={() => exportPdf()} />
         {model.result.projectStart && model.result.projectFinish && !hasCycle && (
           <span style={{ fontSize: 13, color: RES.gray }}>
             Harmonogram: {formatDate(model.result.projectStart)} – {formatDate(model.result.projectFinish)} ({workdaysBetween(CZECH_WORKDAYS, model.result.projectStart, model.result.projectFinish) + 1} pracovních dnů)
