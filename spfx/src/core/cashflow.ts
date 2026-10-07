@@ -13,6 +13,7 @@
 import { CurrencyCode, RateTable, convertAmount } from './currency';
 import { BudgetDoc, IncomeMilestone, PlannedPayment, VAT_REGIMES, calcItems, round2, OrderLike } from './budget';
 import { InvoiceStatus } from './invoiceBases';
+import { TaskIndex, applySchedule, resolvePayment } from './scheduleLinks';
 
 export type Granularity = 'tyden' | 'mesic';
 
@@ -158,6 +159,8 @@ export interface CashflowInput {
   granularity: Granularity;
   /** S DPH (peníze) nebo bez DPH. */
   withVat: boolean;
+  /** Termíny úkolů harmonogramu — platby navázané na úkol z nich berou datum faktury a splatnost. */
+  tasks?: TaskIndex;
 }
 
 /** Sestaví cashflow po obdobích. Prázdná období mezi prvním a posledním pohybem se doplní (kvůli plynulé kumulaci). */
@@ -166,7 +169,13 @@ export function buildCashflow(input: CashflowInput): CashflowResult {
   const warnings: string[] = [];
   const conv = (amount: number, from: string): number => convertAmount(amount, from, currency, rates);
   const invoiceByNumber = new Map(input.invoices.map((i) => [i.number, i] as [string, InvoiceLike]));
-  const payments = doc.payments ?? [];
+  const tasks = input.tasks ?? {};
+  const payments = applySchedule(doc.payments ?? [], tasks);
+  (doc.payments ?? []).forEach((p) => {
+    if (p.taskId !== undefined && resolvePayment(p, tasks).brokenLink) {
+      warnings.push(`Platba „${p.description || 'bez popisu'}“ je navázaná na úkol, který v harmonogramu nemá termín — platí ručně zadané datumy.`);
+    }
+  });
   const income = doc.income ?? [];
 
   interface Event {

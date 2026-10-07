@@ -5,6 +5,16 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.34.0 — 8. 10. 2026 — Fáze 4, krok 4c: vazba harmonogramu na cashflow a objednávky
+
+V záložce **Cashflow**:
+
+- **Platba navázaná na úkol harmonogramu.** U každé platby nákladu je nový sloupec „Vazba na harmonogram“: zvolíte úkol, kotvu (zahájení nebo dokončení úkolu), posun ve dnech a splatnost ve dnech. Datum faktury a splatnost se pak spočítají z úkolu a políčka jsou zamčená. **Posune-li se úkol v harmonogramu, posunou se i platby v cashflow.** Zmizí-li úkol nebo nemá termín, platí ručně zadané datumy a cashflow na to upozorní.
+- **Dodávky a harmonogram.** U položky rozpočtu lze zvolit úkol, který ji potřebuje (např. materiál před montáží). Objednávka té položky, která čeká na dodání (ke schválení, schválená, odeslaná) a má **termín dodání po zahájení úkolu**, se ohlásí červeným upozorněním nahoře: číslo objednávky, o kolik pracovních dnů se zpozdí a — je-li úkol na kritické cestě — že se posune konec projektu a může být ohrožen smluvní termín.
+- Vazby se ukládají v rozpočtu projektu (stejně jako plán plateb), **bez změny schématu** — po nahrání balíčku nic nespouštějte.
+
+---
+
 ## 0.33.0 — 8. 10. 2026 — Fáze 4, krok 4b: Ganttův diagram
 
 V záložce **Harmonogram** je pod tabulkou úkolů **Ganttův diagram**, který se překresluje při každé změně v tabulce:

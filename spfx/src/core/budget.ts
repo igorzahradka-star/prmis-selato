@@ -79,6 +79,8 @@ export interface BudgetItem {
   actualCost?: number;
   /** Prognóza nákladů položky (v měně položky), zadává PM; bez ní platí plán. Nikdy není nižší než objednáno a koupeno. */
   forecastCost?: number;
+  /** Úkol harmonogramu, který položku potřebuje (dodávka před zahájením úkolu) — hlídá se termín dodání objednávek. */
+  taskId?: number;
   note?: string;
 }
 
@@ -111,6 +113,11 @@ export interface PlannedPayment {
   /** Skutečné datum úhrady a případně skutečná částka bez DPH (bez ní platí plánovaná). */
   paidDate?: string;
   paidAmount?: number;
+  /** Vazba na úkol harmonogramu: datum faktury = zahájení / dokončení úkolu + posun ve dnech, splatnost = faktura + dny. */
+  taskId?: number;
+  taskAnchor?: 'start' | 'finish';
+  taskOffsetDays?: number;
+  taskDueDays?: number;
   note?: string;
 }
 
@@ -617,6 +624,7 @@ export function budgetFromJson(json: string | undefined): BudgetDoc {
     actualQty: optNum(i.actualQty),
     actualCost: optNum(i.actualCost),
     forecastCost: optNum(i.forecastCost),
+    taskId: optNum(i.taskId),
     note: optStr(i.note)
   }));
   const rates = (Array.isArray(raw.rates) ? raw.rates : []).map((r: Record<string, unknown>) => ({
@@ -638,6 +646,10 @@ export function budgetFromJson(json: string | undefined): BudgetDoc {
     dueDate: day(p.dueDate),
     paidDate: day(p.paidDate),
     paidAmount: optNum(p.paidAmount),
+    taskId: optNum(p.taskId),
+    taskAnchor: p.taskAnchor === 'start' ? 'start' : p.taskAnchor === 'finish' ? 'finish' : undefined,
+    taskOffsetDays: optNum(p.taskOffsetDays),
+    taskDueDays: optNum(p.taskDueDays),
     note: optStr(p.note)
   }));
   const income: IncomeMilestone[] = (Array.isArray(raw.income) ? raw.income : []).map((m: Record<string, unknown>) => ({

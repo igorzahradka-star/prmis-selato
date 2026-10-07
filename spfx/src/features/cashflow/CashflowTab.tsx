@@ -39,6 +39,7 @@ import {
 } from '../../core/budget';
 import { CfBucket, Granularity, InvoiceLike, buildCashflow, dayText, parsePercents, splitPayments } from '../../core/cashflow';
 import { InvoiceStatus } from '../../core/invoiceBases';
+import { DEFAULT_TASK_DUE_DAYS, DeliveryOrder, TaskDates, deliveryConflicts, indexTasks, resolvePayment, taskLabel } from '../../core/scheduleLinks';
 import { CELL_INPUT, NumInput } from '../budget/NumInput';
 import { CashflowChart } from './CashflowChart';
 import { useAutosave, whenFlushed } from '../budget/useAutosave';
@@ -83,6 +84,8 @@ export const CashflowTab: React.FC<{ project: Project }> = ({ project }) => {
   const [saved, setSaved] = React.useState('');
   const [etag, setEtag] = React.useState<string | undefined>(undefined);
   const [invoices, setInvoices] = React.useState<InvoiceLike[]>([]);
+  const [taskList, setTaskList] = React.useState<TaskDates[]>([]);
+  const [deliveries, setDeliveries] = React.useState<DeliveryOrder[]>([]);
   const [granularity, setGranularity] = React.useState<Granularity>('mesic');
   const [withVat, setWithVat] = React.useState(true);
   const [busy, setBusy] = React.useState(false);
@@ -97,8 +100,15 @@ export const CashflowTab: React.FC<{ project: Project }> = ({ project }) => {
 
   const reload = React.useCallback(async (): Promise<void> => {
     await whenFlushed(project.projectNumber);
-    const [b, inv] = await Promise.all([repos.budgets.get(project.projectNumber), repos.invoices.list({ projectNumber: project.projectNumber }).catch(() => [])]);
+    const [b, inv, taskRows, orderRows] = await Promise.all([
+      repos.budgets.get(project.projectNumber),
+      repos.invoices.list({ projectNumber: project.projectNumber }).catch(() => []),
+      repos.tasks.listByProject(project.projectNumber).catch(() => []),
+      repos.orders.list({ projectNumber: project.projectNumber }).catch(() => [])
+    ]);
     setLoaded(true);
+    setTaskList(taskRows.map((t) => ({ id: t.id, title: t.title, wbs: t.wbs, start: t.startDate ?? t.finishDate, finish: t.finishDate ?? t.startDate, critical: t.isCritical })));
+    setDeliveries(orderRows.map((o) => ({ id: o.id, orderNumber: o.orderNumber, status: o.status, budgetItemId: o.budgetItemId, deliveryDate: o.deliveryDate })));
     setInvoices(inv.map((i) => ({ number: i.number, status: i.status, amountNet: i.amountNet, vatRate: i.vatRate, currency: i.currency, dueDate: i.dueDate, paidDate: i.paidDate })));
     if (!b) {
       setRecord(undefined);
@@ -220,13 +230,24 @@ export const CashflowTab: React.FC<{ project: Project }> = ({ project }) => {
   }
 
   const today = new Date();
-  const cf = buildCashflow({ doc, invoices, rates: report.rates, currency: report.currency, granularity, withVat });
+  const taskIdx = indexTasks(taskList);
+  const cf = buildCashflow({ doc, invoices, rates: report.rates, currency: report.currency, granularity, withVat, tasks: taskIdx });
+  const conflicts = deliveryConflicts(doc.items, deliveries, taskIdx);
   const payments = doc.payments ?? [];
   const income = doc.income ?? [];
   const items = doc.items.filter((i) => i.description.trim() !== '');
   const setPayments = (next: PlannedPayment[]): void => setDoc({ ...doc, payments: next });
   const setIncome = (next: IncomeMilestone[]): void => setDoc({ ...doc, income: next });
   const upPayment = (id: string, patch: Partial<PlannedPayment>): void => setPayments(payments.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+  const linkTask = (id: string, value: string): void => {
+    const cur = payments.filter((p) => p.id === id)[0];
+    upPayment(
+      id,
+      value === ''
+        ? { taskId: undefined, taskAnchor: undefined, taskOffsetDays: undefined, taskDueDays: undefined }
+        : { taskId: Number(value), taskAnchor: (cur && cur.taskAnchor) || 'finish', taskOffsetDays: cur && cur.taskOffsetDays !== undefined ? cur.taskOffsetDays : 0, taskDueDays: cur && cur.taskDueDays !== undefined ? cur.taskDueDays : DEFAULT_TASK_DUE_DAYS }
+    );
+  };
   const upMilestone = (id: string, patch: Partial<IncomeMilestone>): void => setIncome(income.map((m) => (m.id === id ? { ...m, ...patch } : m)));
   const peak = cf.buckets.reduce((m, b) => Math.min(m, b.cumPlan), 0);
   const last = cf.buckets[cf.buckets.length - 1];
@@ -308,6 +329,11 @@ export const CashflowTab: React.FC<{ project: Project }> = ({ project }) => {
           {notice}
         </MessageBar>
       )}
+      {conflicts.map((c) => (
+        <MessageBar key={`${c.itemId}-${c.orderNumber}`} messageBarType={MessageBarType.severeWarning} isMultiline>
+          {c.message}
+        </MessageBar>
+      ))}
       {cf.warnings.map((w) => (
         <MessageBar key={w} messageBarType={MessageBarType.warning} isMultiline>
           {w}
@@ -369,13 +395,14 @@ export const CashflowTab: React.FC<{ project: Project }> = ({ project }) => {
       {/* Plán plateb nákladů */}
       <h3 style={{ margin: '18px 0 6px', color: RES.navy, fontSize: 15 }}>Plán plateb nákladů (výdaje)</h3>
       <div style={{ fontSize: 12, color: RES.gray, marginBottom: 6 }}>
-        Podle vzoru „Průběh plateb“: částka bez DPH, režim DPH, datum faktury (náklad v čase), splatnost (výdaj — kdy se platí) a datum úhrady (skutečnost).
+        Podle vzoru „Průběh plateb“: částka bez DPH, režim DPH, datum faktury (náklad v čase), splatnost (výdaj — kdy se platí) a datum úhrady (skutečnost). Platbu lze navázat na úkol harmonogramu — datum faktury se pak řídí úkolem a posune se s ním.
       </div>
       <StickyHScroll>
-        <table style={{ width: '100%', minWidth: 1280, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+        <table style={{ width: '100%', minWidth: 1560, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
           <colgroup>
             <col style={{ width: 'auto' }} />
             <col style={{ width: 170 }} />
+            <col style={{ width: 270 }} />
             <col style={{ width: 104 }} />
             <col style={{ width: 62 }} />
             <col style={{ width: 156 }} />
@@ -389,6 +416,7 @@ export const CashflowTab: React.FC<{ project: Project }> = ({ project }) => {
             <tr style={{ borderBottom: `1px solid ${RES.grayBlue}` }}>
               <th style={TH}>Platba</th>
               <th style={TH}>Položka rozpočtu</th>
+              <th style={TH}>Vazba na harmonogram</th>
               <th style={{ ...TH, textAlign: 'right' }}>Bez DPH</th>
               <th style={TH}>Měna</th>
               <th style={TH}>Režim DPH</th>
@@ -400,7 +428,9 @@ export const CashflowTab: React.FC<{ project: Project }> = ({ project }) => {
             </tr>
           </thead>
           <tbody>
-            {payments.map((p) => (
+            {payments.map((p) => {
+              const rp = resolvePayment(p, taskIdx);
+              return (
               <tr key={p.id} style={{ borderTop: `1px solid ${RES.background}` }}>
                 <td style={TD}>
                   <input aria-label="Popis platby" value={p.description} disabled={!editable} onChange={(e) => upPayment(p.id, { description: e.target.value })} style={CELL_INPUT} />
@@ -414,6 +444,32 @@ export const CashflowTab: React.FC<{ project: Project }> = ({ project }) => {
                       </option>
                     ))}
                   </select>
+                </td>
+                <td style={TD}>
+                  <select aria-label="Úkol harmonogramu" value={p.taskId === undefined ? '' : String(p.taskId)} disabled={!editable} onChange={(e) => linkTask(p.id, e.target.value)} style={{ ...CELL_INPUT, borderColor: rp.brokenLink ? RES.red : RES.grayBlue }}>
+                    <option value="">— bez vazby —</option>
+                    {taskList.map((t) => (
+                      <option key={t.id} value={String(t.id)}>
+                        {taskLabel(t)}
+                      </option>
+                    ))}
+                  </select>
+                  {p.taskId !== undefined && (
+                    <div style={{ display: 'flex', gap: 3, alignItems: 'center', marginTop: 2, fontSize: 11, color: RES.gray }}>
+                      <select aria-label="Kotva vazby" value={p.taskAnchor ?? 'finish'} disabled={!editable} onChange={(e) => upPayment(p.id, { taskAnchor: e.target.value === 'start' ? 'start' : 'finish' })} style={{ ...CELL_INPUT, width: 96, height: 24, fontSize: 12 }}>
+                        <option value="start">zahájení</option>
+                        <option value="finish">dokončení</option>
+                      </select>
+                      <span>+</span>
+                      <div style={{ width: 44 }}>
+                        <NumInput value={p.taskOffsetDays ?? 0} ariaLabel="Posun faktury ve dnech" decimals={0} disabled={!editable} onCommit={(v) => upPayment(p.id, { taskOffsetDays: v ?? 0 })} />
+                      </div>
+                      <span>d, spl.</span>
+                      <div style={{ width: 44 }}>
+                        <NumInput value={p.taskDueDays ?? DEFAULT_TASK_DUE_DAYS} ariaLabel="Splatnost ve dnech" decimals={0} disabled={!editable} onCommit={(v) => upPayment(p.id, { taskDueDays: Math.max(0, v ?? 0) })} />
+                      </div>
+                    </div>
+                  )}
                 </td>
                 <td style={TD}>
                   <NumInput value={p.amount} ariaLabel="Částka bez DPH" disabled={!editable} onCommit={(v) => upPayment(p.id, { amount: Math.max(0, v ?? 0) })} />
@@ -437,10 +493,10 @@ export const CashflowTab: React.FC<{ project: Project }> = ({ project }) => {
                   </select>
                 </td>
                 <td style={TD}>
-                  <input type="date" aria-label="Datum faktury" value={p.invoiceDate ?? ''} disabled={!editable} onChange={(e) => upPayment(p.id, { invoiceDate: e.target.value || undefined })} style={DATE} />
+                  <input type="date" aria-label="Datum faktury" value={(rp.fromSchedule ? rp.invoiceDate : p.invoiceDate) ?? ''} disabled={!editable || rp.fromSchedule} title={rp.fromSchedule ? 'Datum se řídí úkolem harmonogramu' : undefined} onChange={(e) => upPayment(p.id, { invoiceDate: e.target.value || undefined })} style={DATE} />
                 </td>
                 <td style={TD}>
-                  <input type="date" aria-label="Splatnost" value={p.dueDate ?? ''} disabled={!editable} onChange={(e) => upPayment(p.id, { dueDate: e.target.value || undefined })} style={DATE} />
+                  <input type="date" aria-label="Splatnost" value={(rp.fromSchedule ? rp.dueDate : p.dueDate) ?? ''} disabled={!editable || rp.fromSchedule} title={rp.fromSchedule ? 'Splatnost se řídí úkolem harmonogramu' : undefined} onChange={(e) => upPayment(p.id, { dueDate: e.target.value || undefined })} style={DATE} />
                 </td>
                 <td style={TD}>
                   <input type="date" aria-label="Datum úhrady" value={p.paidDate ?? ''} disabled={!editable} onChange={(e) => upPayment(p.id, { paidDate: e.target.value || undefined })} style={{ ...DATE, background: p.paidDate ? '#E4F6EC' : undefined }} />
@@ -450,10 +506,11 @@ export const CashflowTab: React.FC<{ project: Project }> = ({ project }) => {
                 </td>
                 <td style={TD}>{editable && <IconButton iconProps={{ iconName: 'Delete' }} title="Smazat platbu" ariaLabel="Smazat platbu" onClick={() => setPayments(payments.filter((x) => x.id !== p.id))} styles={{ root: { width: 28, height: 28 } }} />}</td>
               </tr>
-            ))}
+              );
+            })}
             {payments.length === 0 && (
               <tr>
-                <td colSpan={10} style={{ padding: 10, fontSize: 13, color: RES.gray }}>
+                <td colSpan={11} style={{ padding: 10, fontSize: 13, color: RES.gray }}>
                   Zatím žádná platba. Přidejte ji ručně, nebo „Rozplánovat“ náklady položky rozpočtu do několika plateb.
                 </td>
               </tr>
@@ -557,6 +614,40 @@ export const CashflowTab: React.FC<{ project: Project }> = ({ project }) => {
       {editable && (
         <div style={{ marginTop: 4 }}>
           <ActionButton iconProps={{ iconName: 'Add' }} text="Přidat milník" onClick={() => setIncome([...income, newMilestone(report.currency)])} />
+        </div>
+      )}
+
+      {/* Vazba položek rozpočtu na harmonogram */}
+      <h3 style={{ margin: '18px 0 6px', color: RES.navy, fontSize: 15 }}>Dodávky a harmonogram</h3>
+      <div style={{ fontSize: 12, color: RES.gray, marginBottom: 6 }}>
+        U položky, kterou potřebuje některý úkol (např. materiál před montáží), zvolte úkol. Objednávka položky s termínem dodání po zahájení úkolu se pak ohlásí nahoře i zde — včetně upozornění, když je úkol na kritické cestě.
+      </div>
+      {taskList.length === 0 ? (
+        <MessageBar messageBarType={MessageBarType.info}>Projekt zatím nemá harmonogram — úkoly založte v záložce Harmonogram.</MessageBar>
+      ) : (
+        <div style={{ background: RES.white, border: `1px solid ${RES.grayBlue}`, borderRadius: 4, padding: '4px 10px' }}>
+          {items.length === 0 && <div style={{ padding: 6, fontSize: 13, color: RES.gray }}>Rozpočet nemá žádné pojmenované položky.</div>}
+          {items.map((i) => {
+            const own = conflicts.filter((c) => c.itemId === i.id);
+            const orderInfo = deliveries.filter((o) => o.budgetItemId === i.id && o.deliveryDate);
+            return (
+              <div key={i.id} style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', borderTop: `1px solid ${RES.background}`, padding: '3px 0', fontSize: 13 }}>
+                <span style={{ flex: '1 1 220px', minWidth: 160 }}>{i.description}</span>
+                <select aria-label="Úkol, který položku potřebuje" value={i.taskId === undefined ? '' : String(i.taskId)} disabled={!editable} onChange={(e) => setDoc({ ...doc, items: doc.items.map((x) => (x.id === i.id ? { ...x, taskId: e.target.value === '' ? undefined : Number(e.target.value) } : x)) })} style={{ ...CELL_INPUT, flex: '0 0 280px', width: 280 }}>
+                  <option value="">— bez vazby —</option>
+                  {taskList.map((t) => (
+                    <option key={t.id} value={String(t.id)}>
+                      {taskLabel(t)}
+                    </option>
+                  ))}
+                </select>
+                <span style={{ flex: '1 1 200px', fontSize: 12, color: own.length > 0 ? RES.red : RES.gray }}>
+                  {orderInfo.length === 0 ? '' : orderInfo.map((o) => `${o.orderNumber}: dodání ${o.deliveryDate ? o.deliveryDate.getDate() + '. ' + (o.deliveryDate.getMonth() + 1) + '.' : ''}`).join('; ')}
+                  {own.length > 0 ? ` — po zahájení úkolu o ${own[0].lateWorkdays} prac. dnů` : ''}
+                </span>
+              </div>
+            );
+          })}
         </div>
       )}
 

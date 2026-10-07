@@ -115,7 +115,7 @@ balíček 0.2.4.0). Nasazení odhalilo čtyři chyby, které se lokálně nedaly
 hledání lidí (HTTP 400), skupiny rolí bez oprávnění, knihovna „Dokumenty" se
 nenašla podle zobrazeného názvu, oříznuté záložky. Všechny opravené.
 
-**Aktuální balíček je 0.33.0.0** (oprava bílé stránky rozpočtu z 0.32.1 — pozor: nepsat React hooky za podmíněný `return`, v `BudgetTab` a podobných komponentách musí být všechny hooky nad prvním `return`) (Fáze 4 harmonogram, krok 4a hotový — bez změny schématu) (schéma 19 — spustit Instalaci a diagnostiku: sloupec Objednatel v podkladech) (dohoda se REVCRM o sdílených seznamech `PRM_Partners` a `PRM_Catalog` je zapsaná v `docs/REVCRM.md`, oddíl „Sdílené seznamy … dohoda v1“ — sloupce těchto seznamů se mění jen přidávacím způsobem a po zápisu do dohody) (30. 9. 2026; na ostrém webu běží 0.3.x nebo 0.4.0.0 — ověřit v katalogu). Přidává stavy projektů
+**Aktuální balíček je 0.34.0.0** (oprava bílé stránky rozpočtu z 0.32.1 — pozor: nepsat React hooky za podmíněný `return`, v `BudgetTab` a podobných komponentách musí být všechny hooky nad prvním `return`) (Fáze 4 harmonogram, krok 4a hotový — bez změny schématu) (schéma 19 — spustit Instalaci a diagnostiku: sloupec Objednatel v podkladech) (dohoda se REVCRM o sdílených seznamech `PRM_Partners` a `PRM_Catalog` je zapsaná v `docs/REVCRM.md`, oddíl „Sdílené seznamy … dohoda v1“ — sloupce těchto seznamů se mění jen přidávacím způsobem a po zápisu do dohody) (30. 9. 2026; na ostrém webu běží 0.3.x nebo 0.4.0.0 — ověřit v katalogu). Přidává stavy projektů
 (Uzavřeno zrušeno, nově Reklamace), barvy špendlíků podle stavu, legendu mapy. **Po nahrání znovu
 spustit Instalace a diagnostika** — doplní volbu „Reklamace" do sloupce Stav (schéma 5). Pokud
 by automatické doplnění selhalo, přidat volbu ručně: nastavení seznamu PRM – Projekty → sloupec Stav
@@ -172,7 +172,7 @@ od projektů).
 
 - **4a — HOTOVO v 0.32.0.0:** záložka Harmonogram (tabulka úkolů, závislosti FS/SS/FF/SF s prodlevou, výpočet termínů v pracovních dnech, kritická cesta, rezervy, smluvní termíny, baseline). Kód: `core/workCalendar.ts`, `core/schedule.ts`, `core/scheduleRows.ts`, `features/schedule/ScheduleTab.tsx`.
 - **4b — HOTOVO v 0.33.0.0:** Gantt (SVG) pod tabulkou: měřítko den/týden/měsíc, dnešek, víkendy a svátky, šipky závislostí, kritická cesta červeně, baseline, smluvní termíny. Kód `core/ganttLayout.ts`, `features/schedule/GanttChart.tsx`. Úpravy tažením myší zatím ne.
-- **4c:** vazba položek rozpočtu na úkoly (posun dodávky posune platby v cashflow; termín dodání objednávky → harmonogram; upozornění na dopad na smluvní termíny).
+- **4c — HOTOVO v 0.34.0.0:** platba v plánu plateb se naváže na úkol (kotva zahájení/dokončení + posun + splatnost), datumy se řídí harmonogramem; položka rozpočtu se naváže na úkol a objednávky s dodáním po zahájení úkolu se hlásí (s dopadem na kritickou cestu). Vazby jsou v JSON rozpočtu (`PlannedPayment.taskId…`, `BudgetItem.taskId`), kód `core/scheduleLinks.ts`, UI v `CashflowTab.tsx`. Zatím ne: automatický posun úkolu podle dodávky, přímé úpravy termínu dodání objednávky z harmonogramu.
 - **4d:** export (PDF A3 na šířku, Excel), případně import z MS Project později.
 
 ### Fáze 3 — další kroky (rozhodnuto 2. 10. 2026)
