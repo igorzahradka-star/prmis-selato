@@ -403,7 +403,7 @@ export const BudgetTab: React.FC<{ project: Project }> = ({ project }) => {
   const minMargin = settings.budget.minimumMarginPercent;
   const last = lastApproval(record);
   // Rozpočet schvaluje vedení nebo administrátor (bez určeného jednoho schvalovatele) — ukážou se jejich jména.
-  const approverNames = React.useMemo(() => {
+  const approverNames = (() => {
     const names: string[] = [];
     approvers.forEach((m) => {
       if (m.role === Role.Vedeni || m.role === Role.Administrator) {
@@ -411,7 +411,7 @@ export const BudgetTab: React.FC<{ project: Project }> = ({ project }) => {
       }
     });
     return names.length > 0 ? `vedení (${names.slice(0, 6).join(', ')}${names.length > 6 ? ' a další' : ''})` : 'vedení nebo administrátor PRM';
-  }, [approvers]);
+  })();
   const changed = !!record && !!totalsCzk && changedSinceApproval(record, totalsCzk.cost, totalsCzk.sale);
 
   return (

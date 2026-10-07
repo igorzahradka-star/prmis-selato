@@ -5,6 +5,12 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.32.2 — 8. 10. 2026 — Oprava: záložka Realizační rozpočet byla po 0.32.1 bílá
+
+- **Chyba v 0.32.1:** záložka Realizační rozpočet se po načtení nezobrazila (bílá stránka). Příčina: nové „čeká na schválení: …“ bylo v kódu zapsané tak, že se u rozpočtu volalo v jiném pořadí než při prvním vykreslení (React to nepřipustí a stránku shodí). Opraveno; verzi **0.32.1.0 nepoužívejte**.
+
+---
+
 ## 0.32.1 — 8. 10. 2026 — Schvalování: jednotné barvy, rozpočty v „Čeká na mě“, u koho žádost je
 
 - **U koho je žádost o schválení rozpočtu:** u rozpočtu ve stavu Ke schválení je teď napsáno „čeká na schválení: vedení (jména)“. Rozpočet nemá jednoho určeného schvalovatele — schvalují ho všichni z role **Vedení** a **Administrátor PRM**, ukážou se jejich jména.
