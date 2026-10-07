@@ -68,15 +68,21 @@ describe('PDF Project overview', () => {
     expect(textOf(model({ photos: [{ dataUrl: pixel }, { dataUrl: pixel, caption: 'Montáž' }] }))).toContain('Fotodokumentace');
   });
 
-  it('mapa se přidá jen když je zapnutá a načtená', () => {
-    const on = model({ map: pixel });
+  it('mapa je na první straně jen když je zapnutá a načtená; stránka s popisem ji neobsahuje', () => {
+    const mapImg = 'data:image/png;base64,MAPA';
+    const on = model({ map: mapImg });
     on.overview = { ...on.overview, showMap: true };
-    expect(textOf(on)).toContain('Umístění');
-    const off = model({ map: pixel });
+    expect(textOf(on)).toContain('MAPA');
+    const off = model({ map: mapImg });
     off.overview = { ...off.overview, showMap: false };
-    expect(textOf(off)).not.toContain('Umístění');
+    expect(textOf(off)).not.toContain('MAPA');
     const noMap = model();
     noMap.overview = { ...noMap.overview, showMap: true };
-    expect(textOf(noMap)).not.toContain('Umístění');
+    expect(textOf(noMap)).not.toContain('MAPA');
+    const content = buildOverviewDocument(on).content as unknown[];
+    const mapIndex = content.findIndex((x) => JSON.stringify(x).indexOf('MAPA') !== -1);
+    const aboutIndex = content.findIndex((x) => JSON.stringify(x).indexOf('O projektu') !== -1);
+    expect(mapIndex).toBeGreaterThanOrEqual(0);
+    expect(mapIndex).toBeLessThan(aboutIndex);
   });
 });

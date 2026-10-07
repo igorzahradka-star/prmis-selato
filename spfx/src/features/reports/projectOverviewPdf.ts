@@ -2,7 +2,7 @@
  * PDF „Project overview“ — marketingový přehled realizovaného projektu pro zákazníky (1–3 strany 16:9 ve stylu RES šablony).
  *
  *  1. úvodní strana: tmavý přechod, předmět realizace, lokalita, rok, výkon a titulní fotka,
- *  2. o projektu: popis, údaje, technické parametry a mapa umístění,
+ *  2. o projektu: popis, údaje a technické parametry (mapa umístění je na první straně — pevné místo, nikdy nepřetéká),
  *  3. fotogalerie (jen když jsou vybrané další fotky).
  *
  * Bez cen, nákladů a marže. Obrázky (fotky, mapa) přicházejí zvenku jako data URL; bez nich se strany sestaví bez nich,
@@ -68,7 +68,8 @@ export function buildOverviewDocument(m: OverviewModel, assets: ReportAssets = {
   const power = formatPower(o, m.lang);
   const capacity = formatCapacity(o, m.lang);
   const subject = o.subject[m.lang] || (m.lang === 'cs' ? 'Realizace energetického projektu' : 'Energy project');
-  const params = paramLines(o, m.lang);
+  const params = paramLines(o, m.lang).slice(0, 8);
+  const textSize = m.text.length > 1300 ? 10 : m.text.length > 900 ? 11 : 12.5;
   const meta = [p.location, o.year ? String(o.year) : undefined].filter((x) => !!x).join('  ·  ');
 
   const full = (image: string | undefined): Content =>
@@ -104,6 +105,14 @@ export function buildOverviewDocument(m: OverviewModel, assets: ReportAssets = {
   if (capacity) {
     bigFacts.push(bigFact(L.capacity, capacity));
   }
+  if (o.showMap && m.map) {
+    const MAP_W = 330;
+    const MAP_H = 198;
+    const mx = heroPhoto ? PAGE_W - 380 + 25 : PAGE_W - MX - MAP_W;
+    const my = PAGE_H - MAP_H - 40;
+    content.push({ canvas: [{ type: 'rect', x: 0, y: 0, w: MAP_W + 8, h: MAP_H + 8, color: 'white' }], absolutePosition: { x: mx - 4, y: my - 4 } } as unknown as Content);
+    content.push({ image: m.map, width: MAP_W, height: MAP_H, absolutePosition: { x: mx, y: my } } as Content);
+  }
   if (bigFacts.length > 0) {
     content.push({ columns: bigFacts.map((c) => ({ width: 'auto', stack: [c] })), margin: [MX, 40, 0, 0] } as Content);
   }
@@ -130,15 +139,11 @@ export function buildOverviewDocument(m: OverviewModel, assets: ReportAssets = {
       layout: tableLayout
     } as Content);
   }
-  if (o.showMap && m.map) {
-    rightColumn.push({ text: L.map, fontSize: 9, bold: true, color: GRAY, margin: [0, 12, 0, 3] } as Content);
-    rightColumn.push({ image: m.map, width: 250 } as Content);
-  }
   const bolt = REPORT_BOLT(14, '#00A857');
   content.push(slideTitle(L.about));
   content.push({
     columns: [
-      { width: 470, stack: [bolt, { text: m.text, fontSize: 12.5, lineHeight: 1.35, color: DARK, margin: [0, 6, 0, 0] } as Content] },
+      { width: 470, stack: [bolt, { text: m.text, fontSize: textSize, lineHeight: 1.3, color: DARK, margin: [0, 6, 0, 0] } as Content] },
       { width: 28, text: '' },
       { width: '*', stack: rightColumn }
     ],

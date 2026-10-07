@@ -5,6 +5,13 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.30.2 — 7. 10. 2026 — Project overview: oprava rozložení mapy
+
+- **Mapa umístění** v Project overview se přesunula na **první stranu** (karta s bílým rámečkem vpravo dole, přes titulní fotku) a má pevné místo. Dřív ležela na druhé straně pod technickými parametry; při delším textu nebo víc parametrech přetekla na další stranu, kde překrývala logo.
+- Dlouhý popis se automaticky zmenší písmem (nad ~900 a ~1300 znaků) a technických parametrů se na stránce ukáže nejvýš 8, aby strana „O projektu“ nepřetékala.
+
+---
+
 ## 0.30.1 — 6. 10. 2026 — Partneři: kontrola duplicit a mazání
 
 Podle dohody s RES CRM (společný seznam `PRM_Partners`, rozhodl Igor 6. 10. 2026):
