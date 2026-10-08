@@ -192,6 +192,8 @@ od projektů).
 
 ### Zadáno k pozdější iteraci (nezačato)
 
+- **Marže a semafor podle cílové marže (rozhodnuto 8. 10. 2026, Igor — dořešit a implementovat; viz `docs/ROZHODNUTI.md`):** Celková cena v přehledu = smluvní cena, Náklady = prognóza, nový sloupec Marže = (smluvní cena − prognóza nákladů) / smluvní cena; semafor podle hranic marže (≥ 15 % světle zelená, ≥ 11 % zelená, ≥ 8 % žlutá, ≥ 0 % světle červená, záporná červená; hranice v Nastavení). Hranice v zadání se překrývají mezi intervaly (např. 10,9 → 11) — implementovat jako „dolní mez včetně“. Zbývá rozhodnout vztah smluvní ceny a prodeje z rozpočtu (kde se mají zobrazit rozdíly, co schvaluje vedení při schválení rozpočtu). Už schválené rozpočty se znovu schvalovat nemají — proto semafor počítat z aktuálních čísel, ne z uložené marže při schválení.
+
 - **Smazat partnera z okna úprav** — HOTOVO v 0.36.0.0.
 
 ### Další nápady
