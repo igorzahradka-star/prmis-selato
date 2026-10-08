@@ -189,7 +189,9 @@ export const DashboardPage: React.FC = () => {
         busyNumber,
         onStatus: changeStatus,
         report,
-        spent
+        spent,
+        minMargin: settings.budget.minimumMarginPercent,
+        yellowPercent: settings.budget.yellowThresholdPercent
       }),
       sort,
       (key) =>
@@ -402,6 +404,9 @@ interface ColumnContext {
   report: ReportCurrency;
   /** Vyčerpáno podle projektu (ve výchozí měně přehledů); `undefined`, dokud se objednávky nenačtou. */
   spent?: Record<string, number>;
+  /** Prahy semaforu z Nastavení (pro vysvětlení v bublině). */
+  minMargin?: number;
+  yellowPercent?: number;
 }
 
 function buildColumns(ctx: ColumnContext): IColumn[] {
@@ -446,15 +451,20 @@ function buildColumns(ctx: ColumnContext): IColumn[] {
     },
     {
       key: 'budget',
-      name: 'Rozpočet',
-      minWidth: 110,
-      maxWidth: 130,
+      name: 'Rozp.',
+      ariaLabel: 'Semafor rozpočtu',
+      minWidth: 44,
+      maxWidth: 52,
       isResizable: true,
       onRender: (p: Project) => (
         <BudgetBadge
+          compact
           status={p.budgetStatus ?? BudgetStatus.Bez}
           baseline={p.budgetBaselineTotal}
           forecast={p.costForecastTotal}
+          sale={p.budgetSaleTotal}
+          minMargin={ctx.minMargin}
+          yellowPercent={ctx.yellowPercent}
         />
       )
     },

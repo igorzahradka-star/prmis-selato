@@ -17,12 +17,28 @@ export interface BudgetBadgeProps {
   status: BudgetStatus;
   baseline?: number;
   forecast?: number;
+  /** Jen barevný terčík bez textu (úzký sloupec v přehledu); význam je v bublině a ve čtečce. */
+  compact?: boolean;
+  /** Prodej rozpočtu, minimální marže a práh žluté (%) — pro vysvětlení v bublině, proč je semafor takový. */
+  sale?: number;
+  minMargin?: number;
+  yellowPercent?: number;
 }
 
 /** Semafor rozpočtu s vysvětlením po najetí myší. */
-export const BudgetBadge: React.FC<BudgetBadgeProps> = ({ status, baseline, forecast }) => {
+export const BudgetBadge: React.FC<BudgetBadgeProps> = ({ status, baseline, forecast, compact, sale, minMargin, yellowPercent }) => {
   const style = SEMAFOR[status] ?? SEMAFOR['Bez rozpočtu'];
-  const tooltip = buildBudgetTooltip(status, baseline, forecast);
+  const tooltip = `${status}. ${buildBudgetTooltip(status, baseline, forecast, sale, minMargin, yellowPercent)}`;
+
+  if (compact) {
+    return (
+      <TooltipHost content={tooltip}>
+        <span role="img" aria-label={`Rozpočet: ${tooltip}`} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, borderRadius: 12, background: style.background, color: style.color }}>
+          <Icon iconName={style.icon} style={{ fontSize: 13 }} />
+        </span>
+      </TooltipHost>
+    );
+  }
 
   return (
     <TooltipHost content={tooltip}>
@@ -52,7 +68,10 @@ export const BudgetBadge: React.FC<BudgetBadgeProps> = ({ status, baseline, fore
 export function buildBudgetTooltip(
   status: BudgetStatus,
   baseline?: number,
-  forecast?: number
+  forecast?: number,
+  sale?: number,
+  minMargin?: number,
+  yellowPercent?: number
 ): string {
   if (status === BudgetStatus.Bez || !baseline) {
     return 'Projekt zatím nemá schválený realizační rozpočet, semafor se nepočítá.';
@@ -61,11 +80,16 @@ export function buildBudgetTooltip(
     return `Schválený rozpočet ${formatMoney(baseline)}, prognóza zatím není zadaná.`;
   }
   const odchylka = (forecast - baseline) / baseline;
-  return (
+  let text =
     `Schválený rozpočet ${formatMoney(baseline)}, ` +
     `prognóza nákladů ${formatMoney(forecast)}. ` +
-    `Odchylka ${formatPercent(odchylka)}.`
-  );
+    `Odchylka ${formatPercent(odchylka)}` +
+    (yellowPercent !== undefined ? ` (červená nad ${yellowPercent} %).` : '.');
+  if (sale !== undefined && sale > 0) {
+    const margin = (sale - forecast) / sale;
+    text += ` Marže při prognóze ${formatPercent(margin)}` + (minMargin !== undefined ? ` (červená pod ${minMargin} %).` : '.');
+  }
+  return text;
 }
 
 /** Barvy štítků stavu projektu — stejná paleta jako špendlíky na mapě (viz `STATUS_STYLE` v core/geo). */
