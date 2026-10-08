@@ -5,6 +5,24 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.37.0 — 8. 10. 2026 — Harmonogram se upravuje přímo v Ganttově diagramu (krok 4e-1) + oprava „rozepsaného harmonogramu“
+
+**Oprava:** po uložení harmonogramu hlásila aplikace při dalším otevření „Našli jsme rozepsaný harmonogram“ (obnovit/zahodit), i když nic rozepsaného nebylo. Příčina: hlídání rozepsaného formuláře si zapamatovalo výchozí stav dřív, než se načetly řádky harmonogramu, a načtená data pak považovalo za rozepsané změny. Opraveno pořadím načítání. **Jednou je potřeba hlášku „Zahodit“** — starý uložený koncept v prohlížeči zůstal.
+
+**Úpravy v diagramu (jako v MS Projectu):**
+- **Gantt je nahoře**, tabulka úkolů se otevře tlačítkem „Tabulka úkolů“ (typ, předchůdci textem, smluvní termíny a další údaje se dál dají zadat ručně).
+- **Přesun pruhu** tažením změní zahájení. U úkolu *bez* předchůdců se nastaví jeho zahájení, u úkolu *s* předchůdci se upraví prodleva za předchůdcem (úkol se dál řídí předchůdci). Posouvá se po pracovních dnech.
+- **Délka:** tažení pravého okraje pruhu mění trvání v pracovních dnech (milník se neprodlužuje). **Hotovo %:** tažení značky v pruhu (po 5 %).
+- **Vazby:** po najetí na pruh se objeví kuličky na začátku a konci; tažením kuličky na jiný pruh vznikne vazba — konec→začátek FS, konec→konec FF, začátek→začátek SS, začátek→konec SF. Vazba, která by udělala smyčku nebo už existuje, se odmítne s vysvětlením. Kliknutím na šipku se vazba upraví (typ, prodleva i záporná = předstih) nebo smaže (Delete); smazáním poslední vazby úkol zachová svůj termín.
+- **Nový úkol:** tažením v prázdném řádku dole (od–do), nebo tlačítky Přidat úkol / milník; název se píše přímo v levém sloupci.
+- **Přeskládání řádků** tažením za úchyt ⋮⋮ vlevo — vazby se zachovají; jednoduchá čísla 1, 2, 3 … se přečíslují podle nového pořadí a odkazy se upraví. Smazání úkolu křížkem vpravo.
+- Během tažení se ukazují nové termíny (bublina) a ostatní úkoly se průběžně přepočítávají; Esc tažení zruší. Tlačítka **Zpět / Znovu** (Ctrl+Z, Ctrl+Y) vrací úpravy z diagramu i tlačítek.
+- Bez změny schématu.
+
+**Zatím není (krok 4e-2):** odsazení řádků do podúkolů se souhrnným úkolem, tažení hotovo % u souhrnných úkolů.
+
+---
+
 ## 0.36.0 — 8. 10. 2026 — Výběr schvalovatele rozpočtu, Smazat partnera v panelu úprav
 
 - **Výběr schvalovatele rozpočtu.** Po kliknutí na „Požádat o schválení“ se otevře okno s výběrem, kdo z vedení rozpočet schválí (nebo „Kdokoli z role“, jako dosud). U vybraného člověka platí: rozpočet vidí na stránce Čeká na mě a smí ho schválit nebo vrátit jen on a administrátor; ostatní z vedení ne. U rozpočtu stojí „čeká na schválení: <jméno>“. Výběr se po schválení, vrácení nebo stažení žádosti zapomene. Pravidlo se hlídá i v datové vrstvě. **E-mail schvalovateli zatím není** (odloženo, čeká na povolení odesílání pošty).

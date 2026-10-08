@@ -20,6 +20,8 @@ import { StickyHScroll } from '../../ui/components/StickyHScroll';
 import { GanttChart } from './GanttChart';
 import { ScheduleExportRow, scheduleCsv, scheduleFileName } from '../../core/scheduleExport';
 import { GanttItem, linksFromDeps } from '../../core/ganttLayout';
+import { GanttOp, addLink, applyOp, linkOf, makeRow, removeLink, reorderRows, updateLink } from '../../core/ganttEdit';
+import { DependencyType } from '../../core/schedule';
 import { useFormDraft } from '../../ui/useFormDraft';
 import { draftKey } from '../../core/drafts';
 import { canEditProject } from '../../core/roles';
@@ -77,6 +79,12 @@ export const ScheduleTab: React.FC<{ project: Project }> = ({ project }) => {
   const [busy, setBusy] = React.useState(false);
   const [confirmDelete, setConfirmDelete] = React.useState<ScheduleRow | undefined>(undefined);
   const [reloadKey, setReloadKey] = React.useState(0);
+  // Zpět / znovu: stavy řádků před úpravami z diagramu a tlačítek (psaní do políček tabulky se do historie nezapisuje).
+  const [hist, setHist] = React.useState<{ past: ScheduleRow[][]; future: ScheduleRow[][] }>({ past: [], future: [] });
+  const [preview, setPreview] = React.useState<GanttOp | null>(null);
+  const [selectedLink, setSelectedLink] = React.useState<{ fromKey: string; toKey: string } | undefined>(undefined);
+  const [focusKey, setFocusKey] = React.useState<string | undefined>(undefined);
+  const [showTable, setShowTable] = React.useState(false);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -88,9 +96,12 @@ export const ScheduleTab: React.FC<{ project: Project }> = ({ project }) => {
           return;
         }
         const r = rowsFromTasks(tasks);
-        setOriginal(tasks);
+        // Pořadí je důležité: `original` se nastavuje jako poslední. Ve chvíli, kdy se zapne hlídání rozepsaného formuláře
+        // (useFormDraft si zapamatuje výchozí stav), už musí být řádky načtené — jinak se načtená data považují za „rozepsané změny“.
         setRows(r);
+        setHist({ past: [], future: [] });
         setSaved(JSON.stringify(r));
+        setOriginal(tasks);
       })
       .catch((e: Error) => !cancelled && setError(e.message));
     return () => {
@@ -112,14 +123,18 @@ export const ScheduleTab: React.FC<{ project: Project }> = ({ project }) => {
   const dirty = !!original && JSON.stringify(rows) !== saved;
   const [exporting, setExporting] = React.useState(false);
   const model = React.useMemo(() => buildScheduleModel(rows, { defaultStart: project.startDate }), [rows, project.startDate]);
+  const editCtx = React.useMemo(() => ({ defaultStart: project.startDate }), [project.startDate]);
+  // Během tažení v diagramu se jen ukazuje náhled; do řádků se úprava zapíše až po puštění myši.
+  const viewRows = React.useMemo(() => (preview ? applyOp(rows, preview, editCtx) : rows), [rows, preview, editCtx]);
+  const viewModel = React.useMemo(() => (preview ? buildScheduleModel(viewRows, { defaultStart: project.startDate }) : model), [preview, viewRows, model, project.startDate]);
   // Podklad pro Gantt (hooky musí být nad prvním `return` komponenty).
   const ganttData = React.useMemo(() => {
     const items: GanttItem[] = [];
     const keyOfId: Record<number, string> = {};
-    rows.forEach((r) => {
-      const s = model.result.tasks[model.idOf[r.key]];
+    viewRows.forEach((r) => {
+      const s = viewModel.result.tasks[viewModel.idOf[r.key]];
       if (s) {
-        keyOfId[model.idOf[r.key]] = r.key;
+        keyOfId[viewModel.idOf[r.key]] = r.key;
         items.push({
           key: r.key,
           wbs: r.wbs,
@@ -137,8 +152,8 @@ export const ScheduleTab: React.FC<{ project: Project }> = ({ project }) => {
         });
       }
     });
-    return { items, links: linksFromDeps(model.deps, (id) => keyOfId[id]) };
-  }, [rows, model]);
+    return { items, links: linksFromDeps(viewModel.deps, (id) => keyOfId[id]) };
+  }, [viewRows, viewModel]);
 
   const patch = (key: string, p: Partial<ScheduleRow>): void => setRows((cur) => cur.map((r) => (r.key === key ? { ...r, ...p } : r)));
   const exportRows = (): ScheduleExportRow[] =>
@@ -168,22 +183,72 @@ export const ScheduleTab: React.FC<{ project: Project }> = ({ project }) => {
       .then(() => setExporting(false), () => setExporting(false));
   };
 
-  const addRow = (type: TaskType = TaskType.Cinnost): void =>
-    setRows((cur) => [...cur, { key: newKey(), wbs: nextWbs(cur), title: '', taskType: type, durationDays: type === TaskType.Milnik ? 0 : 1, predText: '', percentComplete: 0, contractual: false, watch: false }]);
-  const move = (index: number, d: number): void =>
-    setRows((cur) => {
-      const j = index + d;
-      if (j < 0 || j >= cur.length) {
-        return cur;
-      }
-      const next = cur.slice();
-      const t = next[index];
-      next[index] = next[j];
-      next[j] = t;
-      return next;
-    });
+  /** Zapíše změnu řádků a uloží předchozí stav do historie (Zpět). */
+  const commit = (next: ScheduleRow[]): void => {
+    if (next === rows) {
+      return;
+    }
+    setHist((h) => ({ past: [...h.past.slice(-99), rows], future: [] }));
+    setRows(next);
+  };
+  const undo = (): void => {
+    if (hist.past.length === 0) {
+      return;
+    }
+    const prev = hist.past[hist.past.length - 1];
+    setHist({ past: hist.past.slice(0, -1), future: [rows, ...hist.future].slice(0, 100) });
+    setRows(prev);
+  };
+  const redo = (): void => {
+    if (hist.future.length === 0) {
+      return;
+    }
+    const next = hist.future[0];
+    setHist({ past: [...hist.past, rows].slice(-100), future: hist.future.slice(1) });
+    setRows(next);
+  };
+  const addRow = (type: TaskType = TaskType.Cinnost): void => {
+    const key = newKey();
+    commit([...rows, { key, wbs: nextWbs(rows), title: '', taskType: type, durationDays: type === TaskType.Milnik ? 0 : 1, predText: '', percentComplete: 0, contractual: false, watch: false }]);
+    setFocusKey(key);
+  };
+  const onGanttCommit = (op: GanttOp): void => commit(applyOp(rows, op, editCtx));
+  const onGanttLink = (fromKey: string, toKey: string, type: DependencyType): void => {
+    const r = addLink(rows, fromKey, toKey, type, editCtx);
+    if (r.error) {
+      setError(r.error);
+      return;
+    }
+    setError(undefined);
+    commit(r.rows);
+    setSelectedLink({ fromKey, toKey });
+  };
+  const onGanttCreate = (from: Date, to: Date): void => {
+    const key = newKey();
+    commit([...rows, makeRow(rows, key, from, to, TaskType.Cinnost, editCtx)]);
+    setFocusKey(key);
+  };
+  const onGanttKey = (e: React.KeyboardEvent): void => {
+    const tag = (e.target as HTMLElement).tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
+      return;
+    }
+    const k = e.key.toLowerCase();
+    if ((e.ctrlKey || e.metaKey) && k === 'z' && !e.shiftKey) {
+      e.preventDefault();
+      undo();
+    } else if ((e.ctrlKey || e.metaKey) && (k === 'y' || (k === 'z' && e.shiftKey))) {
+      e.preventDefault();
+      redo();
+    } else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedLink && mayEdit) {
+      e.preventDefault();
+      commit(removeLink(rows, selectedLink.fromKey, selectedLink.toKey, editCtx));
+      setSelectedLink(undefined);
+    }
+  };
+  const move = (index: number, d: number): void => commit(reorderRows(rows, index, index + d));
   const doDelete = (r: ScheduleRow): void => {
-    setRows((cur) => removeRowReferences(cur, r));
+    commit(removeRowReferences(rows, r));
     setConfirmDelete(undefined);
   };
 
@@ -239,11 +304,31 @@ export const ScheduleTab: React.FC<{ project: Project }> = ({ project }) => {
   }
 
   const hasCycle = !!model.result.cycle;
+  const selectedDep = selectedLink ? linkOf(rows, selectedLink.fromKey, selectedLink.toKey, editCtx) : undefined;
+  const titleOfKey = (key: string): string => {
+    const r = rows.filter((x) => x.key === key)[0];
+    return r ? r.title || r.wbs : '';
+  };
+  const linkEditInfo =
+    selectedLink && selectedDep
+      ? {
+          fromTitle: titleOfKey(selectedLink.fromKey),
+          toTitle: titleOfKey(selectedLink.toKey),
+          type: selectedDep.type,
+          lagDays: selectedDep.lagDays,
+          onType: (t: DependencyType) => commit(updateLink(rows, selectedLink.fromKey, selectedLink.toKey, { type: t }, editCtx)),
+          onLag: (n: number) => commit(updateLink(rows, selectedLink.fromKey, selectedLink.toKey, { lagDays: n }, editCtx)),
+          onDelete: () => {
+            commit(removeLink(rows, selectedLink.fromKey, selectedLink.toKey, editCtx));
+            setSelectedLink(undefined);
+          }
+        }
+      : undefined;
   const nestiha = model.problems.filter((p) => p.indexOf('nestíhá') !== -1);
   const baselineSet = rows.some((r) => r.baselineFinish);
 
   return (
-    <div style={{ marginTop: 12 }}>
+    <div style={{ marginTop: 12, outline: 'none' }} onKeyDown={onGanttKey}>
       {draft.pending && <DraftBanner savedAt={draft.pending.savedAt} what="harmonogram" onRestore={draft.restore} onDiscard={draft.discard} />}
       {error && (
         <MessageBar messageBarType={MessageBarType.error} isMultiline onDismiss={() => setError(undefined)}>
@@ -276,17 +361,20 @@ export const ScheduleTab: React.FC<{ project: Project }> = ({ project }) => {
         {mayEdit && (
           <>
             <PrimaryButton text={busy ? 'Ukládám…' : dirty ? 'Uložit harmonogram' : 'Uloženo'} disabled={busy || !dirty} onClick={() => save().catch(() => undefined)} />
+            <DefaultButton text="Zpět" iconProps={{ iconName: 'Undo' }} title="Vrátí poslední změnu (Ctrl+Z)" disabled={busy || hist.past.length === 0} onClick={undo} />
+            <DefaultButton text="Znovu" iconProps={{ iconName: 'Redo' }} title="Opakuje vrácenou změnu (Ctrl+Y)" disabled={busy || hist.future.length === 0} onClick={redo} />
             <DefaultButton text="Přidat úkol" iconProps={{ iconName: 'Add' }} disabled={busy} onClick={() => addRow()} />
             <DefaultButton text="Přidat milník" iconProps={{ iconName: 'Flag' }} disabled={busy} onClick={() => addRow(TaskType.Milnik)} />
-            <DefaultButton text="Přečíslovat" title="Přečísluje úkoly podle pořadí (1, 2, 3 …) a upraví odkazy v předchůdcích" disabled={busy} onClick={() => setRows((cur) => renumberRows(cur))} />
+            <DefaultButton text="Přečíslovat" title="Přečísluje úkoly podle pořadí (1, 2, 3 …) a upraví odkazy v předchůdcích" disabled={busy} onClick={() => commit(renumberRows(rows))} />
             <DefaultButton
               text={baselineSet ? 'Znovu zafixovat baseline' : 'Zafixovat baseline'}
               title="Uloží aktuální termíny jako základ pro porovnání (odchylky se pak ukazují ve sloupci Odchylka)"
               disabled={busy || hasCycle || rows.length === 0}
-              onClick={() => setRows((cur) => fixBaseline(cur, model))}
+              onClick={() => commit(fixBaseline(rows, model))}
             />
           </>
         )}
+        {rows.length > 0 && <DefaultButton text={showTable ? 'Skrýt tabulku úkolů' : 'Tabulka úkolů'} iconProps={{ iconName: 'Table' }} title="Tabulka s ručním zadáním typu, předchůdců, smluvních termínů a dalších údajů" onClick={() => setShowTable((v) => !v)} />}
         <DefaultButton text="Export do Excelu" iconProps={{ iconName: 'ExcelDocument' }} title="Stáhne tabulku harmonogramu jako CSV (otevře se v Excelu) podle toho, co je právě v tabulce" disabled={hasCycle || ganttData.items.length === 0} onClick={() => exportCsv()} />
         <DefaultButton text={exporting ? 'Vytvářím PDF…' : 'PDF (A3)'} iconProps={{ iconName: 'PDF' }} title="Harmonogram s Ganttovým diagramem na A3 na šířku" disabled={exporting || hasCycle || ganttData.items.length === 0} onClick={() => exportPdf()} />
         {model.result.projectStart && model.result.projectFinish && !hasCycle && (
@@ -307,11 +395,31 @@ export const ScheduleTab: React.FC<{ project: Project }> = ({ project }) => {
         </MessageBar>
       )}
 
+      {!hasCycle && ganttData.items.length > 0 && (
+        <GanttChart
+          items={ganttData.items}
+          links={ganttData.links}
+          editable={mayEdit && !busy}
+          selectedLink={selectedLink}
+          linkEdit={linkEditInfo}
+          focusKey={focusKey}
+          onFocused={() => setFocusKey(undefined)}
+          onSelectLink={setSelectedLink}
+          onPreview={setPreview}
+          onCommit={onGanttCommit}
+          onLink={onGanttLink}
+          onCreate={onGanttCreate}
+          onReorder={(from, to) => commit(reorderRows(rows, from, to))}
+          onTitle={(key, title) => patch(key, { title })}
+          onDeleteRow={(key) => setConfirmDelete(rows.filter((x) => x.key === key)[0])}
+        />
+      )}
+
       {rows.length === 0 ? (
         <MessageBar messageBarType={MessageBarType.info} isMultiline>
           Harmonogram je zatím prázdný. {mayEdit ? 'Přidejte úkol nebo milník. Smluvní termíny ze záložky Termíny se sem přenesou samy.' : ''}
         </MessageBar>
-      ) : (
+      ) : !showTable ? null : (
         <StickyHScroll maxHeight="calc(100vh - 300px)">
           <table style={{ borderCollapse: 'separate', borderSpacing: 0, width: '100%', minWidth: 1180 }}>
             <thead>
@@ -461,8 +569,6 @@ export const ScheduleTab: React.FC<{ project: Project }> = ({ project }) => {
           </table>
         </StickyHScroll>
       )}
-
-      {!hasCycle && ganttData.items.length > 0 && <GanttChart items={ganttData.items} links={ganttData.links} />}
 
       <div style={{ fontSize: 12, color: RES.gray, marginTop: 8, lineHeight: 1.5 }}>
         Trvání je v pracovních dnech (pondělí–pátek mimo české státní svátky). Úkol s předchůdci se řídí jimi (zahájení se vypočítá), úkol bez předchůdců začíná v zadaném datu. Rezerva je o kolik pracovních dnů lze úkol posunout, aniž by

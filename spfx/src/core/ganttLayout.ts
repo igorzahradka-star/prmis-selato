@@ -67,6 +67,8 @@ export interface GanttBar {
 }
 
 export interface GanttArrow {
+  fromKey: string;
+  toKey: string;
   /** Body lomené čáry; poslední bod je u cílového pruhu. */
   points: { x: number; y: number }[];
   critical: boolean;
@@ -127,7 +129,7 @@ export function arrowPoints(type: DependencyType, from: GanttBar, to: GanttBar, 
 }
 
 /** Sestaví rozložení diagramu. `today` se vykreslí jako svislá čára, když leží v rozsahu. */
-export function ganttLayout(items: GanttItem[], links: GanttLink[], scale: GanttScale, today: Date = new Date(), calendar: WorkCalendar = CZECH_WORKDAYS): GanttLayout {
+export function ganttLayout(items: GanttItem[], links: GanttLink[], scale: GanttScale, today: Date = new Date(), calendar: WorkCalendar = CZECH_WORKDAYS, fixedRange?: { start: Date; end: Date }): GanttLayout {
   const pxPerDay = PX_PER_DAY[scale];
   const dates: Date[] = [today];
   items.forEach((i) => {
@@ -139,7 +141,12 @@ export function ganttLayout(items: GanttItem[], links: GanttLink[], scale: Gantt
   const pad = scale === 'day' ? 3 : scale === 'week' ? 7 : 14;
   let rangeStart = addDays(min, -pad);
   rangeStart = scale === 'month' ? startOfMonth(rangeStart) : mondayOf(rangeStart);
-  const rangeEnd = addDays(max, pad + 1);
+  let rangeEnd = addDays(max, pad + 1);
+  // Při tažení se rozsah osy drží, ať se diagram pod myší neposouvá.
+  if (fixedRange) {
+    rangeStart = fixedRange.start;
+    rangeEnd = fixedRange.end;
+  }
   const totalDays = diffDays(rangeStart, rangeEnd);
   const width = Math.ceil(totalDays * pxPerDay);
   const xOf = (d: Date): number => diffDays(rangeStart, d) * pxPerDay;
@@ -233,7 +240,7 @@ export function ganttLayout(items: GanttItem[], links: GanttLink[], scale: Gantt
     const b = barKey[l.toKey];
     if (a && b) {
       const r = arrowPoints(l.type, a, b);
-      arrows.push({ points: r.points, direction: r.direction, critical: criticalKeys.has(l.fromKey) && criticalKeys.has(l.toKey) });
+      arrows.push({ fromKey: l.fromKey, toKey: l.toKey, points: r.points, direction: r.direction, critical: criticalKeys.has(l.fromKey) && criticalKeys.has(l.toKey) });
     }
   });
 

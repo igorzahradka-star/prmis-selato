@@ -42,6 +42,20 @@ Doporučení: založte si **testovací projekt** (číslo s názvem „TESTOVAC�
 - [ ] Vodorovný posuvník diagramu je lepený na dolní okraj okna.
 - [ ] Termíny z harmonogramu se promítnou do Nejbližšího termínu na přehledu projektu / dashboardu.
 
+## 4a. Úpravy přímo v Ganttově diagramu (0.37)
+- [ ] Po otevření Harmonogramu **nehlásí** „Našli jsme rozepsaný harmonogram“ (jednou stačí kliknout **Zahodit**; po uložení se hláška už nesmí vracet).
+- [ ] **Přesun:** chytněte pruh úkolu a posuňte ho — během tažení se ukáže bublina s daty, po puštění se termín změní (víkendy se přeskočí).
+- [ ] Úkol **s předchůdcem** posunutý doprava: v tabulce předchůdců přibyla prodleva (např. `1FS+2`); posun předchůdce potáhne i tento úkol.
+- [ ] **Délka:** tažení pravého okraje pruhu změní trvání. **Hotovo %:** tažení trojúhelníčku v pruhu.
+- [ ] **Vazba:** najeďte na pruh, chyťte kuličku na konci a pusťte na jiný pruh (na jeho začátek nebo konec) — vznikne šipka, otevře se editor vazby (typ, prodleva, smazat).
+- [ ] Vazba do smyčky nebo duplicitní se odmítne s vysvětlením.
+- [ ] Kliknutí na šipku → změna typu (FS/SS/FF/SF) a prodlevy, tlačítko Smazat vazbu (nebo klávesa Delete).
+- [ ] **Nový úkol:** tažením v prázdném řádku dole; název jde hned psát.
+- [ ] **Přeskládání řádků** za úchyt ⋮⋮ vlevo — vazby se nepřetrhnou, čísla se přečíslují.
+- [ ] **Zpět / Znovu** (tlačítka i Ctrl+Z / Ctrl+Y) vrací všechny úpravy z diagramu.
+- [ ] Po **Uložit harmonogram** a obnovení stránky vše zůstane (pořadí, vazby, termíny).
+- [ ] Tažení myší funguje i na dotykové obrazovce (pokud ji používáte).
+
 ## 5. Cashflow — vazby na harmonogram (0.34)
 - [ ] U platby nákladů zvolte **úkol harmonogramu**, kotvu (zahájení / dokončení), posun a splatnost → datum faktury a splatnost se vyplní samy a jsou zamčené.
 - [ ] Posuňte úkol v harmonogramu a uložte → platba v cashflow se posune.
