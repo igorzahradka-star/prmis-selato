@@ -214,7 +214,7 @@ function slideOverview(m: ProjectReportModel): Content[] {
   return [slideTitle('Přehled projektu', `${p.number} · ${p.title}`), { columns: [{ width: 360, stack: [facts, attention] }, { width: 24, text: '' }, { width: '*', stack: [tiles] }], margin: [MX, 0, MX, 0] } as Content];
 }
 
-/** Realizační rozpočet: souhrn (plán, prodej, marže, skutečnost, zbývá, prognóza, semafor) a tabulka po skupinách. */
+/** Realizační rozpočet: souhrn (plán, smluvní cena, marže, skutečnost, zbývá, prognóza, semafor) a tabulka nákupu po skupinách. */
 function slideBudget(m: ProjectReportModel): Content[] {
   const b = m.budget;
   if (!b) {
@@ -224,12 +224,11 @@ function slideBudget(m: ProjectReportModel): Content[] {
   const status = b.approved
     ? `Schváleno (záznam č. ${b.approvalNo}${b.approvedAt ? `, ${formatDate(b.approvedAt)}` : ''}${b.approvedBy ? `, ${b.approvedBy}` : ''})${b.changedSinceApproval ? ' · od té doby upraveno' : ''}`
     : 'NESCHVÁLENO — čísla jsou provizorní';
-  const semColor = b.semaphore === 'Zelená' ? GREEN : b.semaphore === 'Žlutá' ? AMBER : b.semaphore === 'Červená' ? RED : GRAY;
+  const semColor = b.semaphore === 'Zelená' ? GREEN : b.semaphore === 'Světle zelená' ? '#8BC34A' : b.semaphore === 'Žlutá' ? AMBER : b.semaphore === 'Červená' ? RED : b.semaphore === 'Tmavě červená' ? '#8B0F23' : GRAY;
   const kinds: Record<string, string> = { prace: 'práce', rezerva: 'rezerva', standard: '' };
   const rows = b.groups.map((g) => [
     td(g.kind !== 'standard' ? `${g.name} (${kinds[g.kind] || ''})` : g.name, 'left', true),
     td(money(m, g.cost), 'right'),
-    td(money(m, g.sale), 'right'),
     td(money(m, g.actual), 'right'),
     td(money(m, g.remaining), 'right'),
     td(g.cost > 0 ? pctText(Math.round((g.actual / g.cost) * 1000) / 10) : '—', 'right')
@@ -237,21 +236,20 @@ function slideBudget(m: ProjectReportModel): Content[] {
   rows.push([
     td('Celkem', 'left', true),
     td(money(m, b.cost), 'right', true),
-    td(money(m, b.sale), 'right', true),
     td(money(m, b.actual), 'right', true),
     td(money(m, b.remaining), 'right', true),
     td(pctText(b.spentPercent), 'right', true)
   ]);
-  const table: Content = { table: { headerRows: 1, widths: ['*', 90, 90, 90, 90, 60], body: [[th('Skupina'), th('Plán – nákup', 'right'), th('Plán – prodej', 'right'), th('Skutečnost', 'right'), th('Zbývá', 'right'), th('Čerpáno', 'right')], ...rows] }, layout: tableLayout } as Content;
+  const table: Content = { table: { headerRows: 1, widths: ['*', 110, 110, 100, 60], body: [[th('Skupina'), th('Plán – nákup', 'right'), th('Skutečnost', 'right'), th('Zbývá', 'right'), th('Čerpáno', 'right')], ...rows] }, layout: tableLayout } as Content;
   return [
     slideTitle('Realizační rozpočet', `${status} · částky bez DPH`),
     {
       stack: [
         {
           columns: [
-            { width: '*', stack: [tile('Plán – nákup', money(m, b.cost), `prodej ${money(m, b.sale)}`)] },
+            { width: '*', stack: [tile('Plán – nákup', money(m, b.cost), `smluvní cena ${money(m, b.sale)}`)] },
             { width: 12, text: '' },
-            { width: '*', stack: [tile('Marže z prodeje', pctText(b.marginPercent), 'podíl zisku na prodeji')] },
+            { width: '*', stack: [tile('Marže (prognóza)', b.marginForecastPercent !== undefined ? pctText(b.marginForecastPercent) : '—', b.marginApprovedPercent !== undefined ? `zadání ${pctText(b.marginApprovedPercent)}` : 'zadání zatím není schváleno')] },
             { width: 12, text: '' },
             { width: '*', stack: [tile('Skutečnost', money(m, b.actual), `proinvestováno ${pctText(b.spentPercent)}`, progressBar(140, b.spentPercent))] },
             { width: 12, text: '' },
@@ -262,7 +260,7 @@ function slideBudget(m: ProjectReportModel): Content[] {
         {
           columns: [
             { width: 14, canvas: [{ type: 'ellipse', x: 5, y: 7, r1: 4.5, r2: 4.5, color: semColor }] },
-            { width: '*', text: `Semafor rozpočtu: ${b.semaphore}${b.deviationPercent !== undefined ? ` · prognóza ${b.deviationPercent > 0 ? '+' : ''}${String(b.deviationPercent).replace('.', ',')} % proti schválenému rozpočtu` : ''}`, fontSize: 10, bold: true }
+            { width: '*', text: `Semafor rozpočtu: ${b.semaphore}${b.marginForecastPercent !== undefined ? ` · aktuální marže z prognózy ${pctText(b.marginForecastPercent)}` : ''}`, fontSize: 10, bold: true }
           ],
           margin: [0, 0, 0, 8]
         } as Content,

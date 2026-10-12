@@ -113,7 +113,7 @@ export async function collectProjectReport(
   say('Skládám report…');
   return buildProjectReportModel({
     project,
-    budget: budget ? { doc: budget.doc, record: budget.record, rates: report.rates, yellowThresholdPercent: settings.budget.yellowThresholdPercent, minimumMarginPercent: settings.budget.minimumMarginPercent } : undefined,
+    budget: budget ? { doc: budget.doc, record: budget.record, rates: report.rates, marginThresholds: { green: settings.budget.marginGreenPercent, lightGreen: settings.budget.marginLightGreenPercent, yellow: settings.budget.marginYellowPercent } } : undefined,
     orders,
     invoices,
     tasks,

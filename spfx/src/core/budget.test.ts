@@ -14,7 +14,6 @@ import {
   budgetApproverCandidates,
   canApproveBudget,
   budgetFromJson,
-  budgetSemaphore,
   budgetToJson,
   forecastOf,
   orderedForItem,
@@ -43,7 +42,6 @@ import {
   withSale
 } from './budget';
 import { RateTable } from './currency';
-import { BudgetStatus as Semafor } from './types';
 import { OrderStatus } from './orders';
 import { Actor, WorkflowProject } from './orderWorkflow';
 import { Role } from './types';
@@ -56,7 +54,8 @@ const gr: BudgetGroup = { id: 'gr', name: 'Rezerva', kind: 'rezerva', defaultMar
 const item = (extra: Partial<BudgetItem> = {}): BudgetItem => ({ id: 'i1', groupId: 'g1', description: 'Rozvaděč ABCD', currency: 'CZK', quantity: 1, unitCost: 100, ...extra });
 const doc = (items: BudgetItem[], groups: BudgetGroup[] = [g1, g2]): BudgetDoc => ({ groups, items, rates: [{ id: 's1', name: 'Montér', costRate: 400, saleRate: 600 }] });
 
-describe('přirážka, prodej a marže', () => {
+// Prodej a přirážka u položek se v aplikaci už nepoužívají; výpočty zůstaly kvůli převodu starých rozpočtů (budgetMargin.ensureRevenues).
+describe('přirážka, prodej a marže (starý model, jen pro převod dat)', () => {
   it('příklad: nákup 100, přirážka 20 % → prodej 120, marže z prodeje 16,67 %', () => {
     const i = item();
     expect(itemCost(i)).toBe(100);
@@ -94,10 +93,10 @@ describe('přirážka, prodej a marže', () => {
 });
 
 describe('vlastní práce: hodiny × sazby profese', () => {
-  it('nákup z nákladové sazby, prodej z prodejní; skutečnost z odpracovaných hodin', () => {
+  it('nákup z nákladové sazby; skutečnost z odpracovaných hodin', () => {
     const d = doc([item({ id: 'p', groupId: 'gp', quantity: 10, unit: 'h', rateId: 's1', actualQty: 4 })], [g1, gp]);
     const [c] = calcItems(d, RATES);
-    expect([c.cost, c.sale, c.margin]).toEqual([4000, 6000, 33.33]);
+    expect(c.cost).toBe(4000);
     expect([c.actualQty, c.actualCost, c.remainingQty, c.remainingCost]).toEqual([4, 1600, 6, 2400]);
     expect(c.currency).toBe('CZK');
   });
@@ -105,7 +104,7 @@ describe('vlastní práce: hodiny × sazby profese', () => {
     const d = doc([item({ id: 'p', groupId: 'gp', quantity: 10, rateId: 's1' }), item({ id: 'q', groupId: 'gp', quantity: 10 })], [gp]);
     expect(calcItems(d, RATES).map((c) => c.cost)).toEqual([4000, 0]);
     const up = { ...d, rates: [{ id: 's1', name: 'Montér', costRate: 500, saleRate: 700 }] };
-    expect(calcItems(up, RATES)[0].sale).toBe(7000);
+    expect(calcItems(up, RATES)[0].cost).toBe(5000);
   });
   it('sazby: přidání, odebrání (položka zůstane bez profese)', () => {
     const d = doc([item({ id: 'p', groupId: 'gp', rateId: 's1' })], [gp]);
@@ -114,31 +113,27 @@ describe('vlastní práce: hodiny × sazby profese', () => {
   });
 });
 
-describe('rezerva: nákup = prodej, částkou nebo v % z prodeje', () => {
-  it('částkou: stejná v nákupu i prodeji', () => {
+describe('rezerva: částkou nebo v % z nákupu ostatních položek', () => {
+  it('částkou: nákup je zadaná částka', () => {
     const d = doc([item({ id: 'r', groupId: 'gr', unitCost: 100 })], [gr]);
     const [c] = calcItems(d, RATES);
-    expect([c.cost, c.sale, c.margin]).toEqual([100, 100, 0]);
+    expect(c.cost).toBe(100);
   });
-  it('v %: rezerva je p % z celkového prodeje včetně sebe — R = p/(100−p) × ostatní', () => {
-    // ostatní prodej 970 000 → rezerva 3 % z celku = 30 000 (celek 1 000 000)
-    const d = doc([item({ id: 'a', unitCost: 808333.33 }), item({ id: 'r', groupId: 'gr', reservePercent: 3, unitCost: 0 })], [g1, gr]);
+  it('v %: rezerva je p % z nákupu ostatních položek — R = p/100 × ostatní', () => {
+    const d = doc([item({ id: 'a', unitCost: 970000 }), item({ id: 'r', groupId: 'gr', reservePercent: 3, unitCost: 0 })], [g1, gr]);
     const calcs = calcItems(d, RATES);
-    expect(calcs[0].sale).toBeCloseTo(970000, 0);
-    expect(calcs[1].cost).toBeCloseTo(30000, 0);
-    expect(calcs[1].sale).toBe(calcs[1].cost);
-    const t = budgetTotals(d, 'CZK', RATES);
-    expect(t.sale).toBeCloseTo(1000000, 0);
-    expect((calcs[1].sale / t.sale) * 100).toBeCloseTo(3, 1);
+    expect(calcs[1].cost).toBe(29100);
+    expect(budgetTotals(d, 'CZK', RATES).cost).toBe(999100);
   });
   it('rezerva z cizí měny ostatních položek se počítá přes kurz v Kč', () => {
-    const d = doc([item({ id: 'a', currency: 'EUR', unitCost: 100, markupPercent: 0 }), item({ id: 'r', groupId: 'gr', reservePercent: 50 })], [g1, gr]);
-    // ostatní prodej 100 EUR = 2 500 Kč; 50 % → R = 50/50 × 2500
-    expect(calcItems(d, RATES)[1].cost).toBe(2500);
+    const d = doc([item({ id: 'a', currency: 'EUR', unitCost: 100 }), item({ id: 'r', groupId: 'gr', reservePercent: 50 })], [g1, gr]);
+    // ostatní nákup 100 EUR = 2 500 Kč; 50 % = 1 250 Kč
+    expect(calcItems(d, RATES)[1].cost).toBe(1250);
   });
-  it('procenta rezerv dohromady 100 % a víc se nepřijmou', () => {
-    const d = doc([item({ id: 'r', groupId: 'gr', reservePercent: 100 })], [gr]);
-    expect(validateBudget(d, false).map((i) => i.message)).toContain('Rezerva v procentech z prodeje musí být dohromady pod 100 %.');
+  it('procento rezervy musí být mezi 0 a 100 %', () => {
+    const d = doc([item({ id: 'r', groupId: 'gr', reservePercent: 120 })], [gr]);
+    expect(validateBudget(d, false).map((i) => i.message)).toContain('Rezerva v procentech musí být mezi 0 a 100 % z nákupu ostatních položek.');
+    expect(validateBudget(doc([item({ id: 'r', groupId: 'gr', reservePercent: 100 })], [gr]), false)).toEqual([]);
   });
 });
 
@@ -165,20 +160,19 @@ describe('součty', () => {
   it('po skupinách a kategoriích; cizí měna se přepočítá', () => {
     const d = doc([
       item({ id: 'a', category: 'Materiál', actualCost: 40 }),
-      item({ id: 'b', currency: 'EUR', unitCost: 10, category: 'Materiál' }), // 10 EUR = 250 Kč, přirážka 20 % → 300
+      item({ id: 'b', currency: 'EUR', unitCost: 10, category: 'Materiál' }), // 10 EUR = 250 Kč
       item({ id: 'c', groupId: 'g2', unitCost: 40, category: 'Doprava' })
     ]);
     const t = budgetTotals(d, 'CZK', RATES);
     expect(t.cost).toBe(390);
-    expect(t.sale).toBe(460);
     expect(t.actual).toBe(40);
-    expect(t.byGroup.map((g) => [g.name, g.cost, g.sale, g.count])).toEqual([
-      ['Materiál', 350, 420, 2],
-      ['Doprava', 40, 40, 1]
+    expect(t.byGroup.map((g) => [g.name, g.cost, g.count])).toEqual([
+      ['Materiál', 350, 2],
+      ['Doprava', 40, 1]
     ]);
     expect(t.byCategory.map((c) => c.category)).toEqual(['Materiál', 'Doprava']);
-    expect(t.marginPercent).toBe(15.22);
-    expect(t.markupPercent).toBe(17.95);
+    // bez výnosů není co porovnat: tržby 0, marže nedefinovaná, zisk záporný
+    expect([t.sale, t.forecastMargin.percent]).toEqual([0, undefined]);
   });
   it('v jiné měně: EUR', () => {
     const t = budgetTotals(doc([item({ unitCost: 250 })]), 'EUR', RATES);
@@ -186,7 +180,7 @@ describe('součty', () => {
   });
   it('prázdný rozpočet má nuly', () => {
     const t = budgetTotals({ groups: [g1], items: [], rates: [] }, 'CZK', RATES);
-    expect([t.cost, t.sale, t.marginPercent, t.spentPercent]).toEqual([0, 0, 0, 0]);
+    expect([t.cost, t.sale, t.spentPercent, t.plannedMargin.percent]).toEqual([0, 0, 0, undefined]);
   });
 });
 
@@ -278,7 +272,8 @@ describe('žádost o schválení a schválení (rozpočet se nezamyká)', () => 
 
   it('PM upravuje vždy a může požádat o schválení; cizí PM nic', () => {
     expect(availableBudgetActions(rec(BudgetStatus.Koncept), project, pm)).toEqual(['edit', 'requestApproval']);
-    expect(availableBudgetActions(rec(BudgetStatus.Schvaleno, [ap]), project, pm)).toEqual(['edit', 'requestApproval']);
+    // schválený plán se nejdřív odemkne; žádost o schválení se podává z konceptu
+    expect(availableBudgetActions(rec(BudgetStatus.Schvaleno, [ap]), project, pm)).toEqual(['edit', 'unlock']);
     expect(availableBudgetActions(rec(BudgetStatus.Koncept), project, cizi)).toEqual([]);
   });
   it('ke schválení: vedení schvaluje nebo vrací; PM dál upravuje a smí stáhnout žádost', () => {
@@ -312,9 +307,9 @@ describe('žádost o schválení a schválení (rozpočet se nezamyká)', () => 
     expect(availableBudgetActions(undefined, project, cizi)).toEqual([]);
     expect(availableBudgetActions(undefined, { ...project, isOverhead: true }, vedeni)).toEqual([]);
   });
-  it('po vrácení se stav vrátí na poslední schválený, nebo koncept', () => {
+  it('po vrácení nebo stažení žádosti je rozpočet koncept (plán jde opravit a znovu předložit)', () => {
     expect(statusAfterReject({ approvals: [] })).toBe(BudgetStatus.Koncept);
-    expect(statusAfterReject({ approvals: [ap] })).toBe(BudgetStatus.Schvaleno);
+    expect(statusAfterReject({ approvals: [ap] })).toBe(BudgetStatus.Koncept);
   });
   it('změna od posledního schválení se pozná podle součtů', () => {
     expect(changedSinceApproval({ approvals: [ap] }, 100, 120)).toBe(false);
@@ -405,18 +400,4 @@ describe('objednáno, prognóza a semafor (krok 3b)', () => {
     expect([c.cost, c.actualCost, c.forecast]).toEqual([4000, 4800, 4800]);
   });
 
-  it('semafor: bez baseline šedá; zelená do 0 %; žlutá do prahu; červená nad prahem nebo při nízké marži', () => {
-    const base = { baselineCost: 1000, yellowThresholdPercent: 5, minimumMarginPercent: 10 };
-    expect(budgetSemaphore({ ...base, baselineCost: undefined, forecastCost: 900 }).status).toBe(Semafor.Bez);
-    expect(budgetSemaphore({ ...base, baselineCost: 0, forecastCost: 900 }).status).toBe(Semafor.Bez);
-    expect(budgetSemaphore({ ...base, forecastCost: 900, contractPrice: 1200 }).status).toBe(Semafor.Zelena);
-    expect(budgetSemaphore({ ...base, forecastCost: 1000, contractPrice: 1200 }).status).toBe(Semafor.Zelena);
-    expect(budgetSemaphore({ ...base, forecastCost: 1030, contractPrice: 1300 }).status).toBe(Semafor.Zluta);
-    expect(budgetSemaphore({ ...base, forecastCost: 1060, contractPrice: 1300 }).status).toBe(Semafor.Cervena);
-    const nizkaMarze = budgetSemaphore({ ...base, forecastCost: 1000, contractPrice: 1050 });
-    expect([nizkaMarze.status, nizkaMarze.marginPercent]).toEqual([Semafor.Cervena, 4.76]);
-    expect(budgetSemaphore({ ...base, forecastCost: 1030, contractPrice: 1300 }).deviationPercent).toBe(3);
-    // bez smluvní ceny se marže nehlídá
-    expect(budgetSemaphore({ ...base, forecastCost: 1000 }).status).toBe(Semafor.Zelena);
-  });
 });

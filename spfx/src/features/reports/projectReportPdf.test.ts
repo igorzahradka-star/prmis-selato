@@ -145,7 +145,9 @@ describe('PDF reportu: realizační rozpočet', () => {
     changedSinceApproval: false,
     cost: 3900000,
     sale: 4500000,
-    marginPercent: 13.33,
+    revenueForecast: 4500000,
+    marginForecastPercent: 13.33,
+    marginApprovedPercent: 13.33,
     ordered: 120000,
     forecast: 3950000,
     actual: 3411582,
@@ -153,8 +155,8 @@ describe('PDF reportu: realizační rozpočet', () => {
     spentPercent: 87.5,
     semaphore: 'Bez rozpočtu',
     groups: [
-      { name: 'Materiál', kind: 'standard', cost: 3000000, sale: 3450000, actual: 2800000, remaining: 200000 },
-      { name: 'Vlastní práce', kind: 'prace', cost: 900000, sale: 1050000, actual: 611582, remaining: 288418 }
+      { name: 'Materiál', kind: 'standard', cost: 3000000, actual: 2800000, remaining: 200000 },
+      { name: 'Vlastní práce', kind: 'prace', cost: 900000, actual: 611582, remaining: 288418 }
     ]
   };
 
@@ -170,7 +172,7 @@ describe('PDF reportu: realizační rozpočet', () => {
   });
 
   it('schválený rozpočet ukáže číslo záznamu a kdo ho schválil', () => {
-    const t = allText(buildProjectReportDocument(model({ budget: { ...budget, approved: true, approvalNo: 2, approvedBy: 'Igor Zahrádka', approvedAt: new Date(2026, 9, 2), changedSinceApproval: true, semaphore: 'Zelená', deviationPercent: -2.1 } })).content);
+    const t = allText(buildProjectReportDocument(model({ budget: { ...budget, approved: true, approvalNo: 2, approvedBy: 'Igor Zahrádka', approvedAt: new Date(2026, 9, 2), changedSinceApproval: true, semaphore: 'Zelená' } })).content);
     expect(t).toContain('Schváleno (záznam č. 2');
     expect(t).toContain('Igor Zahrádka');
     expect(t).toContain('od té doby upraveno');

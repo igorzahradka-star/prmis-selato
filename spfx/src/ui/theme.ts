@@ -51,9 +51,11 @@ export const RES_FONT_FAMILY = "'Aptos', 'Segoe UI', system-ui, -apple-system, s
  * (barvoslepost, tisk černobíle).
  */
 export const SEMAFOR = {
-  'Zelená': { color: RES.greenDark, background: '#E7F6EE', icon: 'CompletedSolid' },
+  'Zelená': { color: RES.greenDark, background: '#CDEFDC', icon: 'CompletedSolid' },
+  'Světle zelená': { color: '#4C8A1F', background: '#E6F4D5', icon: 'CompletedSolid' },
   'Žlutá': { color: RES.amber, background: '#FDF3DC', icon: 'WarningSolid' },
   'Červená': { color: RES.red, background: '#FBE8EB', icon: 'StatusErrorFull' },
+  'Tmavě červená': { color: '#FFFFFF', background: '#8B0F23', icon: 'StatusErrorFull' },
   'Bez rozpočtu': { color: RES.gray, background: '#F1F3F5', icon: 'Blocked2Solid' }
 } as const;
 

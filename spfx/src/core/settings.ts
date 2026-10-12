@@ -92,10 +92,13 @@ export interface BudgetSettings {
   professions: Profession[];
   /** Kategorie položek realizačního rozpočtu. */
   categories: string[];
-  /** Horní hranice žluté v procentech odchylky (výchozí 5 = do +5 % žlutá, nad červená). */
-  yellowThresholdPercent: number;
-  /** Minimální plánovaná marže v procentech. Pod ní je semafor červený bez ohledu na odchylku. */
-  minimumMarginPercent: number;
+  /**
+   * Hranice semaforu podle aktuální marže projektu (od nich nahoru): zelená (výchozí 15 %), světle zelená (10 %), žlutá (5 %);
+   * pod žlutou je červená, záporná marže je tmavě červená.
+   */
+  marginGreenPercent: number;
+  marginLightGreenPercent: number;
+  marginYellowPercent: number;
   /**
    * Výchozí měna **přehledů** (seznam projektů, objednávek, podkladů, KPI, grafy). Částky v jiné měně se přepočítají kurzem ČNB.
    * Doklady samotné zůstávají v měně dokladu (CZK, EUR, USD).
@@ -255,8 +258,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
       'Řidič / doprava',
       'Ostatní'
     ].map((name, i) => ({ id: `p${i + 1}`, name, costRate: 0, saleRate: 0 })),
-    yellowThresholdPercent: 5,
-    minimumMarginPercent: 10,
+    marginGreenPercent: 15,
+    marginLightGreenPercent: 10,
+    marginYellowPercent: 5,
     defaultCurrency: 'CZK'
   },
   approvals: {
@@ -345,8 +349,8 @@ export function validateSettings(settings: AppSettings): string[] {
   if (CURRENCY_CODES.indexOf(settings.budget.defaultCurrency) === -1) {
     problems.push('Výchozí měna přehledů musí být CZK, EUR nebo USD.');
   }
-  if (settings.budget.yellowThresholdPercent < 0) {
-    problems.push('Práh žlutého semaforu nesmí být záporný.');
+  if (!(settings.budget.marginGreenPercent > settings.budget.marginLightGreenPercent) || !(settings.budget.marginLightGreenPercent > settings.budget.marginYellowPercent) || settings.budget.marginYellowPercent < 0) {
+    problems.push('Hranice semaforu marže musí jít shora dolů: zelená > světle zelená > žlutá a žlutá nesmí být záporná.');
   }
   const a = settings.approvals;
   if (!(a.eurRateForLimits > 0) || !(a.usdRateForLimits > 0)) {

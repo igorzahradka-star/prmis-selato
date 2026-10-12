@@ -1,5 +1,6 @@
 /**
- * Čísla projektu pro přehledy: celková cena, náklady a čerpání. Má-li projekt rozpočet, berou se z něj (prodej, nákup, skutečnost);
+ * Čísla projektu pro přehledy: celková cena, náklady a čerpání. Má-li projekt rozpočet, berou se z něj (smluvní cena = plán výnosů,
+ * náklady = prognóza nákupu, skutečnost);
  * dokud rozpočet nikdo neschválil, jsou **provizorní** (přehled je ukáže šedě se štítkem „neschváleno“). Bez rozpočtu platí
  * smluvní cena z údajů projektu a čerpání z objednávek. Čistá logika bez Reactu.
  */
@@ -26,7 +27,8 @@ export function projectFigures(p: Project, convertCzk: (amount: number) => numbe
   if (p.budgetSaleTotal !== undefined) {
     return {
       price: convertCzk(p.budgetSaleTotal),
-      cost: p.budgetCostTotal !== undefined ? convertCzk(p.budgetCostTotal) : undefined,
+      // Náklady = aktuální prognóza nákupu (může se odchylovat od plánu); před přepočtem cache platí plán.
+      cost: p.costForecastTotal !== undefined ? convertCzk(p.costForecastTotal) : p.budgetCostTotal !== undefined ? convertCzk(p.budgetCostTotal) : undefined,
       actual: p.budgetActualTotal !== undefined ? convertCzk(p.budgetActualTotal) : undefined,
       fromBudget: true,
       provisional: p.budgetApproved !== true

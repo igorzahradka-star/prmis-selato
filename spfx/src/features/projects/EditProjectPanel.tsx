@@ -109,7 +109,7 @@ export const EditProjectPanel: React.FC<EditProjectPanelProps> = ({
     setShortName(project.shortName ?? '');
     setContractPriceNet(project.contractPriceNet === undefined ? '' : String(project.contractPriceNet));
     setCurrency((project.currency as Currency) || 'CZK');
-    // Po schválení rozpočtu je smluvní cena = prodej rozpočtu; ruční zadání je jen do prvního schválení.
+    // Po schválení rozpočtu je smluvní cena = součet plánu výnosů rozpočtu; ruční zadání je jen do prvního schválení.
     setPriceFromBudget(false);
     repos.budgets
       .get(project.projectNumber)
@@ -347,7 +347,7 @@ export const EditProjectPanel: React.FC<EditProjectPanelProps> = ({
             label="Cena bez DPH"
             type="number"
             disabled={priceFromBudget}
-            description={priceFromBudget ? 'Smluvní cena se přebírá z prodeje schváleného rozpočtu (záložka Realizační rozpočet).' : 'Do prvního schválení rozpočtu jde zadat ručně; po schválení ji přepíše prodej rozpočtu.'}
+            description={priceFromBudget ? 'Smluvní cena je součet plánu výnosů schváleného rozpočtu (záložka Realizační rozpočet, sekce Výnosy); dodatek se přidává tam jako další výnos.' : 'Do prvního schválení rozpočtu jde zadat ručně; po schválení je to součet plánu výnosů z rozpočtu.'}
             value={contractPriceNet}
             errorMessage={issueFor('contractPriceNet')}
             onChange={(_, v) => setContractPriceNet(v ?? '')}

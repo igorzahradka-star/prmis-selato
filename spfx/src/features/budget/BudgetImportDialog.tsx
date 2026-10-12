@@ -31,7 +31,9 @@ export const BudgetImportDialog: React.FC<{
   doc: BudgetDoc;
   onImport: (items: BudgetItem[]) => void;
   onClose: () => void;
-}> = ({ doc, onImport, onClose }) => {
+  /** Režim výnosů: bez výběru skupiny; z řádků vzniknou výnosy (popis a částka). */
+  revenue?: boolean;
+}> = ({ doc, onImport, onClose, revenue }) => {
   const [text, setText] = React.useState('');
   // Vkládat jde jen do běžných skupin (práce má hodiny a sazby, rezerva částku).
   const targets = doc.groups.filter((g) => g.kind === 'standard');
@@ -44,7 +46,7 @@ export const BudgetImportDialog: React.FC<{
       onDismiss={onClose}
       dialogContentProps={{
         type: DialogType.normal,
-        title: 'Vložit položky z Excelu',
+        title: revenue ? 'Vložit výnosy z Excelu' : 'Vložit položky z Excelu',
         subText:
           'V Excelu označte buňky (nadpisy sloupců i řádky položek), zkopírujte je (Ctrl+C) a vložte sem (Ctrl+V). Čte se Položka/Popis, Plán/Nákup/Cena, nepovinně Dodavatel, Množství, MJ, Cena za MJ a Měna. Řádky CELKEM se přeskočí.'
       }}
@@ -60,6 +62,7 @@ export const BudgetImportDialog: React.FC<{
         onChange={(_, v) => setText(v ?? '')}
         styles={{ field: { fontFamily: 'Consolas, monospace', fontSize: 12 } }}
       />
+      {!revenue && (
       <Dropdown
         label="Přidat do skupiny"
         options={targets.map((g) => ({ key: g.id, text: g.name }))}
@@ -67,6 +70,7 @@ export const BudgetImportDialog: React.FC<{
         onChange={(_, o) => o && setGroupId(String(o.key))}
         styles={{ root: { marginTop: 8, maxWidth: 320 } }}
       />
+      )}
       {result && (
         <div style={{ marginTop: 10 }}>
           {result.notes.map((n) => (
@@ -97,8 +101,8 @@ export const BudgetImportDialog: React.FC<{
       )}
       <DialogFooter>
         <PrimaryButton
-          text={result && result.rows.length > 0 ? `Přidat ${result.rows.length} položek` : 'Přidat'}
-          disabled={!result || result.rows.length === 0 || !groupId}
+          text={result && result.rows.length > 0 ? `Přidat ${result.rows.length} ${revenue ? 'výnosů' : 'položek'}` : 'Přidat'}
+          disabled={!result || result.rows.length === 0 || (!revenue && !groupId)}
           onClick={() => result && onImport(rowsToItems(result.rows, groupId))}
         />
         <DefaultButton text="Zrušit" onClick={onClose} />

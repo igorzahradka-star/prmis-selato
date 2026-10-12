@@ -83,15 +83,17 @@ export const ACTIVE_PROJECT_STATUSES: ProjectStatus[] = [
   ProjectStatus.Pozastaveno
 ];
 
-/** Semafor rozpočtu. */
+/**
+ * Semafor rozpočtu podle aktuální marže z prognózy (hranice jsou v Nastavení; výchozí 15 / 10 / 5 %):
+ * zelená od 15 %, světle zelená od 10 %, žlutá od 5 %, červená pod 5 %, tmavě červená při záporné marži.
+ */
 export enum BudgetStatus {
-  /** Odchylka prognózy proti baseline ≤ 0 %. */
   Zelena = 'Zelená',
-  /** Odchylka 0 až +5 %. */
+  SvetleZelena = 'Světle zelená',
   Zluta = 'Žlutá',
-  /** Odchylka > +5 % nebo marže pod minimem. */
   Cervena = 'Červená',
-  /** Projekt nemá schválenou baseline — semafor se nepočítá. */
+  TmaveCervena = 'Tmavě červená',
+  /** Projekt nemá rozpočet nebo výnosy — marže se nedá spočítat. */
   Bez = 'Bez rozpočtu'
 }
 
@@ -133,6 +135,10 @@ export interface Project {
   budgetSaleTotal?: number;
   budgetActualTotal?: number;
   budgetApproved?: boolean;
+  /** Cache marží (Kč): prognóza tržeb (spolu s prognózou nákladů dává aktuální marži) a marže při schválení v % a v Kč. */
+  budgetRevenueForecast?: number;
+  budgetMarginApproved?: number;
+  budgetMarginApprovedAmount?: number;
 }
 
 /** Typ položky harmonogramu (PRM_Tasks). */

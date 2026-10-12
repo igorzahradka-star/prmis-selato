@@ -66,6 +66,20 @@ Doporučení: založte si **testovací projekt** (číslo s názvem „TESTOVAC�
 - [ ] U **konceptu** sekce dodatečných příloh není (soubory se přidávají v bodech); u **stornovaného** zápisu také ne.
 - [ ] Cizí uživatel (nikoli autor, PM, vedení, administrátor) tlačítko nevidí.
 
+## 4c. Realizační rozpočet, výnosy, marže a semafor (0.39)
+Po nahrání: **Instalace a diagnostika** (schéma 21) a na téže stránce **Přepočítat všechny projekty**. Zkoušejte nejdřív na testovacím projektu, potom na jednom skutečném.
+- [ ] **Starý projekt:** po otevření Realizačního rozpočtu je v sekci Výnosy řádek „Smluvní cena“ s dosavadní cenou projektu; **Nákup – plán** vychází stejně jako dřív (žádné číslo nákupu se nezměnilo, ani u procentní rezervy).
+- [ ] Sloupce Přirážka, Prodej a Marže u položek zmizely; zbyl sloupec Rezerva % (jen u rezervy).
+- [ ] **Výnosy:** přidejte řádek, zadejte plán, prognózu a vyfakturováno; součet plánu je smluvní cena; „Vložit výnosy z Excelu“ funguje.
+- [ ] Hlavička ukazuje Tržby plán/prognóza, Nákup plán/prognóza a vedle sebe **Marži zadání** a **Marži prognózu** (v % i v Kč); mění se s přepínačem měny jen částky, ne procenta.
+- [ ] **První schválení:** prognóza se přepíše plánem; v historii schválení je plán nákupu, smluvní cena, marže v % a v Kč. Smluvní cena projektu (Upravit projekt) je součet plánu výnosů a jde jen číst.
+- [ ] Po schválení je **plán uzamčený** (pole plánu jsou šedá, „Přidat výnos“ vypnuté); **prognóza, koupeno a vyfakturováno** jdou měnit dál.
+- [ ] **Odemknout plán ke změně** → rozpočet je koncept, plán jde upravit (např. nový výnos „Dodatek č. 1“); **Požádat o schválení** → po dalším schválení se prognóza **nepřepíše** a smluvní cena se změní.
+- [ ] Zamítnutí / stažení žádosti vrací rozpočet do konceptu.
+- [ ] **Semafor** odpovídá marži z prognózy: od 15 % zelená, 10–15 % světle zelená, 5–10 % žlutá, pod 5 % červená, záporná tmavě červená; hranice jde změnit v Nastavení → Rozpočet a v přehledu se projeví hned.
+- [ ] **Přehled projektů:** sloupec Rozp. je jen terčík (bublina vysvětlí důvod), Celková cena je smluvní, Náklady jsou prognóza, vedle je Marže a vzadu Marže zadání.
+- [ ] Report projektu (PDF) a export rozpočtu do CSV obsahují nové údaje (marže, výnosy) a nemají prodej ani přirážku.
+
 ## 5. Cashflow — vazby na harmonogram (0.34)
 - [ ] U platby nákladů zvolte **úkol harmonogramu**, kotvu (zahájení / dokončení), posun a splatnost → datum faktury a splatnost se vyplní samy a jsou zamčené.
 - [ ] Posuňte úkol v harmonogramu a uložte → platba v cashflow se posune.

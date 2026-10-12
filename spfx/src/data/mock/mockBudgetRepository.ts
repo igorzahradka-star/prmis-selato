@@ -13,10 +13,11 @@ import {
   budgetToJson,
   canApproveBudget,
   canEditBudget,
-  marginPercent,
+  isPlanLocked,
   statusAfterReject,
   validateBudget
 } from '../../core/budget';
+import { buildApproval, planViolations, resetForecastsToPlan } from '../../core/budgetMargin';
 import { WorkflowError, toActor, toWorkflowProject } from '../../core/orderWorkflow';
 import { BudgetHistoryEntry, BudgetTotalsInput, IBudgetRepository, IProjectRepository } from '../repositories';
 
@@ -54,7 +55,12 @@ export const MOCK_BUDGET_25001: BudgetDoc = {
     { id: 'i-p1', groupId: 'g-prace', description: 'Řízení projektu', currency: 'CZK', quantity: 120, unit: 'h', unitCost: 0, rateId: 's-pm', actualQty: 40 },
     { id: 'i-p2', groupId: 'g-prace', description: 'Montážní práce', currency: 'CZK', quantity: 300, unit: 'h', unitCost: 0, rateId: 's-mont' },
     { id: 'i-4', groupId: 'g-dop', description: 'Doprava Olomouc – Mastířovice', category: 'Doprava', currency: 'CZK', quantity: 1, unitCost: 216571.9, actualQty: 1, actualCost: 216580 },
-    { id: 'i-5', groupId: 'g-rez', description: 'Realizační rezerva (3 % z prodeje)', category: 'Rezerva', currency: 'CZK', quantity: 1, unitCost: 0, reservePercent: 3 }
+    { id: 'i-5', groupId: 'g-rez', description: 'Realizační rezerva (3 % z nákupu)', category: 'Rezerva', currency: 'CZK', quantity: 1, unitCost: 0, reservePercent: 3 }
+  ],
+  // Výnosy: smluvní cena a dodatek (součet plánu = smluvní cena projektu).
+  revenues: [
+    { id: 'v-1', description: 'Smluvní cena', currency: 'CZK', plan: 4_200_000, invoiced: 1_400_000 },
+    { id: 'v-2', description: 'Dodatek č. 1 – vícepráce', currency: 'CZK', plan: 300_000, forecast: 350_000 }
   ],
   // Plán plateb a fakturační milníky (ukázka podle vzoru Excelu „Průběh plateb“).
   payments: [
@@ -79,7 +85,7 @@ export class MockBudgetRepository implements IBudgetRepository {
   public constructor(private readonly projects: IProjectRepository) {
     const now = new Date();
     const s = this.add('25001', MOCK_BUDGET_25001, 'Igor Zahrádka');
-    const approval: BudgetApproval = { no: 1, at: now, byName: 'Igor Zahrádka', comment: 'První schválení', cost: 3_900_000, sale: 4_500_000, marginPercent: marginPercent(3_900_000, 4_500_000) };
+    const approval: BudgetApproval = buildApproval({ no: 1, at: now, byName: 'Igor Zahrádka', comment: 'První schválení', totalCost: 3_795_933, totalSale: 4_500_000, firstApproval: true });
     s.record.approvals = [approval];
     s.record.status = BudgetStatus.Schvaleno;
     s.log.push({ action: 'Schváleno (záznam č. 1): První schválení', byName: 'Igor Zahrádka', at: now });
@@ -130,6 +136,12 @@ export class MockBudgetRepository implements IBudgetRepository {
     if (etag !== undefined && etag !== String(s.record.modified ? s.record.modified.getTime() : 0)) {
       throw new WorkflowError('Rozpočet mezitím někdo jiný změnil. Načtěte ho znovu — jinak byste přepsali cizí změnu.');
     }
+    if (isPlanLocked(s.record)) {
+      const violations = planViolations(budgetFromJson(s.json), doc);
+      if (violations.length > 0) {
+        throw new WorkflowError(violations.slice(0, 3).join(' '));
+      }
+    }
     const issues = validateBudget(doc, false);
     if (issues.length > 0) {
       throw new WorkflowError(issues.map((i) => i.message).join(' '));
@@ -170,21 +182,31 @@ export class MockBudgetRepository implements IBudgetRepository {
       throw new WorkflowError(s.record.approverName ? `Rozpočet schvaluje ${s.record.approverName} (nebo administrátor).` : 'Rozpočet schvaluje vedení (nebo administrátor).');
     }
     const no = s.record.approvals.length + 1;
-    const approval: BudgetApproval = {
-      no,
-      at: new Date(),
-      byName: actor.displayName,
-      comment: comment || undefined,
-      cost: totals.totalCost,
-      sale: totals.totalSale,
-      marginPercent: marginPercent(totals.totalCost, totals.totalSale)
-    };
+    const first = s.record.approvals.length === 0;
+    const approval: BudgetApproval = buildApproval({ no, at: new Date(), byName: actor.displayName, comment: comment || undefined, totalCost: totals.totalCost, totalSale: totals.totalSale, forecastCost: totals.forecastCost, forecastSale: totals.forecastSale, firstApproval: first });
+    if (first) {
+      s.json = budgetToJson(resetForecastsToPlan(budgetFromJson(s.json)));
+    }
     s.record = { ...s.record, status: BudgetStatus.Schvaleno, approvals: [...s.record.approvals, approval], requestedByName: undefined, requestedAt: undefined, approverLogin: undefined, approverName: undefined, modified: new Date(Date.now() + 1) };
-    this.record(s, actor, `Schváleno (záznam č. ${no})${comment ? `: ${comment}` : ''}`);
+    this.record(s, actor, `Schváleno (záznam č. ${no}, marže ${approval.marginPercent} %)${first ? ', prognóza = plán' : ''}${comment ? `: ${comment}` : ''}`);
     if (contractPrice) {
       await this.projects.setContractPrice(s.record.projectNumber, contractPrice.priceNet, contractPrice.currency);
       this.record(s, actor, `Smluvní cena projektu přepsána prodejem rozpočtu: ${contractPrice.priceNet} ${contractPrice.currency}`);
     }
+    return delay(clone(s.record));
+  }
+
+  public async unlockPlan(recordId: number, actor: CurrentUser): Promise<BudgetRecord> {
+    const s = this.require(recordId);
+    const project = await this.requireProject(s.record.projectNumber);
+    if (!canEditBudget(toWorkflowProject(project), toActor(actor))) {
+      throw new WorkflowError('Plán smí odemknout projektový manažer, asistent, vedení nebo administrátor.');
+    }
+    if (s.record.status !== BudgetStatus.Schvaleno) {
+      throw new WorkflowError('Odemknout jde jen schválený plán.');
+    }
+    s.record = { ...s.record, status: BudgetStatus.Koncept, comment: undefined, modified: new Date(Date.now() + 1) };
+    this.record(s, actor, 'Plán odemčen ke změně (po úpravě je potřeba nové schválení)');
     return delay(clone(s.record));
   }
 

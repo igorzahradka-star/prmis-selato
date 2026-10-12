@@ -10,7 +10,8 @@ import { OrderStatus, ORDER_STATUS_ORDER, PurchaseOrder, SPENT_ORDER_STATUSES, s
 import { InvoiceBasis, InvoiceStatus, INVOICE_STATUS_ORDER, invoiceKindOf, sortInvoicesNewestFirst } from './invoiceBases';
 import { sortDeadlines } from './deadlines';
 import { DiaryEntry, EntryStatus, parseIsoDay } from './siteDiary';
-import { BudgetDoc, BudgetRecord, budgetSemaphore, budgetTotals, changedSinceApproval, lastApproval } from './budget';
+import { BudgetDoc, BudgetRecord, budgetTotals, lastApproval } from './budget';
+import { DEFAULT_MARGIN_THRESHOLDS, MarginThresholds, approvedMargin, ensureRevenues, marginStatus } from './budgetMargin';
 import { RateTable, asCurrencyCode } from './currency';
 
 /** Které části report obsahuje (uživatel je v dialogu zapíná a vypíná). */
@@ -97,7 +98,6 @@ export interface ReportBudgetGroup {
   name: string;
   kind: string;
   cost: number;
-  sale: number;
   actual: number;
   remaining: number;
 }
@@ -113,9 +113,14 @@ export interface ReportBudget {
   pending: boolean;
   /** Součty se od posledního schválení změnily. */
   changedSinceApproval: boolean;
+  /** Plán nákupu a smluvní cena (plán výnosů). */
   cost: number;
   sale: number;
-  marginPercent: number;
+  /** Prognóza tržeb. */
+  revenueForecast: number;
+  /** Marže: aktuální z prognózy a při posledním schválení (zadání), v %. */
+  marginForecastPercent?: number;
+  marginApprovedPercent?: number;
   ordered: number;
   forecast: number;
   actual: number;
@@ -123,7 +128,6 @@ export interface ReportBudget {
   /** Proinvestováno: skutečnost jako % nákladů plánu. */
   spentPercent: number;
   semaphore: string;
-  deviationPercent?: number;
   groups: ReportBudgetGroup[];
 }
 
@@ -182,7 +186,7 @@ export interface ProjectReportModel {
 export interface ReportInput {
   project: Project;
   /** Rozpočet projektu (obsah, záznam se schválením a kurzy); bez něj se použijí údaje z projektu a objednávky. */
-  budget?: { doc: BudgetDoc; record?: BudgetRecord; rates: RateTable; yellowThresholdPercent?: number; minimumMarginPercent?: number };
+  budget?: { doc: BudgetDoc; record?: BudgetRecord; rates: RateTable; marginThresholds?: MarginThresholds };
   orders: PurchaseOrder[];
   invoices: InvoiceBasis[];
   tasks: ProjectTask[];
@@ -243,34 +247,31 @@ export function buildProjectReportModel(input: ReportInput): ProjectReportModel 
   if (input.budget && input.sections.budget) {
     const b = input.budget;
     const cur = asCurrencyCode(input.currency);
-    const totals = budgetTotals(b.doc, cur, b.rates, input.orders);
-    const totalsCzk = budgetTotals(b.doc, 'CZK', b.rates, input.orders);
+    const doc = ensureRevenues(b.doc, p, b.rates);
+    const totals = budgetTotals(doc, cur, b.rates, input.orders);
+    const totalsCzk = budgetTotals(doc, 'CZK', b.rates, input.orders);
     const last = lastApproval(b.record);
-    const sem = budgetSemaphore({
-      baselineCost: last ? last.cost : undefined,
-      forecastCost: totalsCzk.forecast,
-      contractPrice: last ? last.sale : undefined,
-      yellowThresholdPercent: b.yellowThresholdPercent ?? 5,
-      minimumMarginPercent: b.minimumMarginPercent ?? 10
-    });
+    const approved = approvedMargin(last, totalsCzk.sale);
+    const semaphore = marginStatus(totals.forecastMargin.percent, b.marginThresholds ?? DEFAULT_MARGIN_THRESHOLDS);
     budget = {
       approved: !!last,
       approvalNo: last ? last.no : undefined,
       approvedAt: last ? last.at : undefined,
       approvedBy: last ? last.byName : undefined,
       pending: !!b.record && b.record.status === 'Ke schválení',
-      changedSinceApproval: !!b.record && changedSinceApproval(b.record, totalsCzk.cost, totalsCzk.sale),
+      changedSinceApproval: !!approved && (Math.abs(approved.cost - totalsCzk.cost) > 0.5 || Math.abs(approved.revenue - totalsCzk.sale) > 0.5),
       cost: totals.cost,
       sale: totals.sale,
-      marginPercent: totals.marginPercent,
+      revenueForecast: totals.revenueForecast,
+      marginForecastPercent: totals.forecastMargin.percent,
+      marginApprovedPercent: approved ? approved.percent : undefined,
       ordered: totals.ordered,
       forecast: totals.forecast,
       actual: totals.actual,
       remaining: totals.remaining,
       spentPercent: totals.spentPercent,
-      semaphore: sem.status,
-      deviationPercent: sem.deviationPercent,
-      groups: totals.byGroup.map((g) => ({ name: g.name, kind: g.kind, cost: g.cost, sale: g.sale, actual: g.actual, remaining: g.remaining }))
+      semaphore,
+      groups: totals.byGroup.map((g) => ({ name: g.name, kind: g.kind, cost: g.cost, actual: g.actual, remaining: g.remaining }))
     };
   }
   const price = budget ? budget.sale : p.contractPriceNet === undefined ? undefined : conv(p.contractPriceNet, p.currency);

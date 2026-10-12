@@ -5,6 +5,23 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.39.0 — 12. 10. 2026 — Realizační rozpočet: nákup, výnosy, marže a nový semafor (balíčky A + B)
+
+Velká změna logiky rozpočtu podle rozhodnutí z 12. 10. (podrobně `docs/ROZHODNUTI.md`):
+
+- **Prodej a přirážka u položek zmizely.** Prodejní cenu počítá REVCRM; do projektu přichází smluvní cena a nákup. Nákup zůstal beze změny (plán, prognóza, nakoupeno) a údaje se nemažou. Sloupec Přirážka se změnil na **Rezerva %** (jen u rezervy; je to teď % z nákupu ostatních položek — u starých rozpočtů se procentní rezerva zafixovala na dosavadní částku, aby se žádné číslo nezměnilo).
+- **Nová sekce Výnosy (smluvní tržby).** Řádky s popisem (Smluvní cena, Dodatek č. 1, Vícepráce…), měnou a částkami: **plán**, **prognóza** (bez ní platí plán) a **vyfakturováno** (zatím ručně). **Součet plánu výnosů je smluvní cena projektu** (bez DPH). Jde je vložit z Excelu. Starým projektům vznikl při otevření rozpočtu řádek „Smluvní cena“ s dosavadní cenou projektu.
+- **Marže = (tržby − nákup) / tržby** v % a v Kč (z prognóz). Hlavička rozpočtu ukazuje vedle sebe **Marži zadání** (zafixovanou při schválení) a **Marži prognózu** (aktuální), tržby a nákup v plánu i prognóze. Počítá se kurzem ČNB, takže s kurzem kolísá.
+- **Schválení:** při **prvním** schválení se marže (v % i v Kč) uloží do historie a **prognóza se přepíše plánem**; při dalších se prognóza nepřepisuje. Historie schválení ukazuje plán nákupu, smluvní cenu, marži v % a v Kč (starší záznamy mají marži dopočtenou). Smluvní cena projektu je součet plánu výnosů.
+- **Plán je po schválení uzamčený** (nákup i výnosy), i v datové vrstvě. Tlačítko **Odemknout plán ke změně** vrátí rozpočet do konceptu; po úpravě (např. dodatek) se žádá o nové schválení. Prognózu, nakoupeno a vyfakturováno může PM měnit vždy. Zamítnutí nebo stažení žádosti vrací rozpočet do konceptu.
+- **Semafor podle aktuální marže z prognózy:** od 15 % zelená, od 10 % světle zelená, od 5 % žlutá, pod 5 % červená, záporná tmavě červená. Hranice jsou v **Nastavení → Rozpočet**. Dřívější pravidla (odchylka od schváleného rozpočtu, minimální marže) se ruší.
+- **Přehled projektů:** Celková cena = smluvní cena, **Náklady = prognóza nákupu**, nový sloupec **Marže** (aktuální, zbarvená podle semaforu) a vzadu **Marže zadání**; semafor je jen barevný terčík s vysvětlením v bublině. Detail projektu ukazuje marži prognózy a zadání. Report projektu (PDF) a export rozpočtu do CSV mají nové sloupce.
+- **Schéma 21:** do seznamu projektů přibyly tři sloupce (prognóza tržeb, marže při schválení v % a v Kč). Po nahrání balíčku spusťte **Správa → Instalace a diagnostika** a na téže stránce **Přepočítat všechny projekty**.
+
+**Zatím není (balíček C):** vazba fakturačních milníků v cashflow na řádky výnosů.
+
+---
+
 ## 0.38.0 — 12. 10. 2026 — Stavební deník: autor mezi účastníky, dodatečné přílohy; přehled projektů: semafor jako terčík
 
 - **Autor zápisu je hned mezi účastníky.** Při založení nového zápisu (i předávacího protokolu) je v seznamu účastníků přihlášený uživatel — jméno, firma z Nastavení a role „zapisovatel“, přítomen. Dá se upravit nebo odebrat. Rozepsané a už uložené zápisy se tím nemění.

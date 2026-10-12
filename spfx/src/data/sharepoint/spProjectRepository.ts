@@ -98,7 +98,17 @@ const GEO_FIELDS = ['Latitude', 'Longitude'];
 /** Sloupec s mapou složek přibyl ve schématu 11 — stejný postup: dokud ho web nezná, načte se seznam bez něj. */
 const FOLDER_MAP_FIELDS = ['FolderMap'];
 
+/** Cache marží přibyla ve schématu 21 — stejný postup. */
+const MARGIN_FIELDS = ['BudgetRevenueForecast', 'BudgetMarginApproved', 'BudgetMarginApprovedAmount'];
+
 async function withOptionalGeoFields<T>(run: (fields: string[]) => Promise<T>): Promise<T> {
+  try {
+    return await run([...SELECT_FIELDS, ...GEO_FIELDS, ...FOLDER_MAP_FIELDS, ...MARGIN_FIELDS]);
+  } catch (error) {
+    if (extractStatus(error) !== 400) {
+      throw error;
+    }
+  }
   try {
     return await run([...SELECT_FIELDS, ...GEO_FIELDS, ...FOLDER_MAP_FIELDS]);
   } catch (error) {
@@ -145,6 +155,9 @@ interface ProjectItem {
   BudgetSaleTotal?: number;
   BudgetActualTotal?: number;
   BudgetApproved?: boolean;
+  BudgetRevenueForecast?: number;
+  BudgetMarginApproved?: number;
+  BudgetMarginApprovedAmount?: number;
 }
 
 export class SpProjectRepository implements IProjectRepository {
@@ -352,23 +365,32 @@ export class SpProjectRepository implements IProjectRepository {
     if (!existing) {
       throw new Error(`Projekt ${projectNumber} nebyl nalezen.`);
     }
+    const base = {
+      BudgetStatus: cache.status,
+      BudgetBaselineTotal: cache.baselineTotal ?? null,
+      CostForecastTotal: cache.forecastTotal ?? null,
+      BudgetCostTotal: cache.costTotal ?? null,
+      BudgetSaleTotal: cache.saleTotal ?? null,
+      BudgetActualTotal: cache.actualTotal ?? null,
+      BudgetApproved: cache.approved === true
+    };
+    const margins = {
+      BudgetRevenueForecast: cache.revenueForecast ?? null,
+      BudgetMarginApproved: cache.marginApproved ?? null,
+      BudgetMarginApprovedAmount: cache.marginApprovedAmount ?? null
+    };
     try {
       const sp = getSp(this.context);
-      await sp.web.lists
-        .getByTitle(PROJECTS_LIST)
-        .items.getById(existing.id)
-        .update(
-          {
-            BudgetStatus: cache.status,
-            BudgetBaselineTotal: cache.baselineTotal ?? null,
-            CostForecastTotal: cache.forecastTotal ?? null,
-            BudgetCostTotal: cache.costTotal ?? null,
-            BudgetSaleTotal: cache.saleTotal ?? null,
-            BudgetActualTotal: cache.actualTotal ?? null,
-            BudgetApproved: cache.approved === true
-          },
-          '*'
-        );
+      const item = sp.web.lists.getByTitle(PROJECTS_LIST).items.getById(existing.id);
+      try {
+        await item.update({ ...base, ...margins }, '*');
+      } catch (error) {
+        // Web ještě nemá sloupce marží (chybí Instalace po aktualizaci) — uloží se aspoň zbytek cache.
+        if (extractStatus(error) !== 400) {
+          throw error;
+        }
+        await item.update(base, '*');
+      }
     } catch (error) {
       throw new Error(describeSpError(error, `Nepodařilo se uložit semafor rozpočtu projektu ${projectNumber}`));
     }
@@ -1296,7 +1318,10 @@ export function mapProject(item: ProjectItem): Project {
     budgetCostTotal: item.BudgetCostTotal ?? undefined,
     budgetSaleTotal: item.BudgetSaleTotal ?? undefined,
     budgetActualTotal: item.BudgetActualTotal ?? undefined,
-    budgetApproved: item.BudgetApproved === true
+    budgetApproved: item.BudgetApproved === true,
+    budgetRevenueForecast: item.BudgetRevenueForecast ?? undefined,
+    budgetMarginApproved: item.BudgetMarginApproved ?? undefined,
+    budgetMarginApprovedAmount: item.BudgetMarginApprovedAmount ?? undefined
   };
 }
 

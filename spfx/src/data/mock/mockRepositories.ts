@@ -340,7 +340,10 @@ export class MockProjectRepository implements IProjectRepository {
             budgetCostTotal: cache.costTotal,
             budgetSaleTotal: cache.saleTotal,
             budgetActualTotal: cache.actualTotal,
-            budgetApproved: cache.approved === true
+            budgetApproved: cache.approved === true,
+            budgetRevenueForecast: cache.revenueForecast,
+            budgetMarginApproved: cache.marginApproved,
+            budgetMarginApprovedAmount: cache.marginApprovedAmount
           }
         : p
     );

@@ -379,19 +379,24 @@ export const SettingsPage: React.FC = () => {
               styles={{ root: { marginBottom: 8 } }}
             />
             <Hint>
-              Semafor: <strong>zelená</strong> při odchylce prognózy proti schválenému rozpočtu do 0 %,
-              <strong> žlutá</strong> do zadaného prahu, <strong>červená</strong> nad ním nebo když marže
-              klesne pod minimum.
+              Semafor rozpočtu se řídí <strong>aktuální marží projektu</strong> = (tržby − nákup) / tržby z prognóz. Hranice jsou od zadané
+              hodnoty nahoru: <strong>zelená</strong>, <strong>světle zelená</strong>, <strong>žlutá</strong>; pod žlutou je <strong>červená</strong>
+              a záporná marže je <strong>tmavě červená</strong>.
             </Hint>
             <NumberField
-              label="Práh žluté (% odchylky)"
-              value={draft.budget.yellowThresholdPercent}
-              onChange={(v) => patch('budget', { yellowThresholdPercent: v })}
+              label="Zelená od marže (%) — cíl firmy"
+              value={draft.budget.marginGreenPercent}
+              onChange={(v) => patch('budget', { marginGreenPercent: v })}
             />
             <NumberField
-              label="Minimální plánovaná marže (%)"
-              value={draft.budget.minimumMarginPercent}
-              onChange={(v) => patch('budget', { minimumMarginPercent: v })}
+              label="Světle zelená od marže (%)"
+              value={draft.budget.marginLightGreenPercent}
+              onChange={(v) => patch('budget', { marginLightGreenPercent: v })}
+            />
+            <NumberField
+              label="Žlutá od marže (%)"
+              value={draft.budget.marginYellowPercent}
+              onChange={(v) => patch('budget', { marginYellowPercent: v })}
             />
           </Panel>
         </PivotItem>

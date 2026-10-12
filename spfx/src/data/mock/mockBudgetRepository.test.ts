@@ -84,7 +84,7 @@ describe('MockBudgetRepository (jeden rozpočet na projekt)', () => {
     await expect(r.budgets.approve(rec.id, TOTALS, undefined, igor)).rejects.toThrow(/o jehož schválení někdo požádal/);
   });
 
-  it('vedení vrací jen s důvodem a rozpočet se vrátí do konceptu; žadatel žádost stáhne; po schválení se vrací do „Schváleno“', async () => {
+  it('vedení vrací jen s důvodem a rozpočet se vrátí do konceptu; žadatel žádost stáhne; po schválení a stažení nové žádosti je koncept', async () => {
     const r = createMockRepositories();
     const rec = await r.budgets.create('25003', naplneny(), TOTALS, jan);
     await r.budgets.requestApproval(rec.id, jan);
@@ -94,11 +94,11 @@ describe('MockBudgetRepository (jeden rozpočet na projekt)', () => {
     await r.budgets.requestApproval(rec.id, jan);
     const zpet = await r.budgets.reject(rec.id, '', jan);
     expect([zpet.status, zpet.comment]).toEqual([BudgetStatus.Koncept, undefined]);
-    // po schválení: nová žádost a stažení vrátí stav „Schváleno“
+    // po schválení: nová žádost a její stažení vrátí koncept (plán zůstává odemčený k opravě)
     await r.budgets.requestApproval(rec.id, jan);
     await r.budgets.approve(rec.id, TOTALS, undefined, igor);
     await r.budgets.requestApproval(rec.id, jan);
-    expect((await r.budgets.reject(rec.id, '', jan)).status).toBe(BudgetStatus.Schvaleno);
+    expect((await r.budgets.reject(rec.id, '', jan)).status).toBe(BudgetStatus.Koncept);
   });
 
   it('souběžná úprava: starý otisk se odmítne', async () => {
@@ -107,6 +107,51 @@ describe('MockBudgetRepository (jeden rozpočet na projekt)', () => {
     const c = await r.budgets.get('25003');
     await r.budgets.save(rec.id, naplneny(), TOTALS, jan, c?.etag);
     await expect(r.budgets.save(rec.id, naplneny(), TOTALS, jan, c?.etag)).rejects.toThrow(/mezitím/);
+  });
+});
+
+const sVynosy = (): BudgetDoc => ({ ...naplneny(), revenues: [{ id: 'v1', description: 'Smluvní cena', currency: 'CZK', plan: 150 }] });
+
+describe('Plán, prognóza a marže při schválení', () => {
+  it('první schválení: prognóza se přepíše plánem a do historie jde marže v % i v Kč; další schválení prognózu nemění', async () => {
+    const r = createMockRepositories();
+    const d = sVynosy();
+    d.items[0].forecastCost = 130;
+    d.revenues = [{ ...(d.revenues ?? [])[0], forecast: 170 }];
+    const rec = await r.budgets.create('25003', d, TOTALS, jan);
+    await r.budgets.requestApproval(rec.id, jan);
+    const ok = await r.budgets.approve(rec.id, { totalCost: 100, totalSale: 150, forecastCost: 130, forecastSale: 170 }, undefined, igor);
+    expect(ok.approvals[0]).toMatchObject({ cost: 100, sale: 150, marginPercent: 33.33, marginAmount: 50, forecastCost: 100, forecastSale: 150, basis: 'vynosy' });
+    const po = (await r.budgets.get('25003'))!;
+    expect(po.doc.items[0].forecastCost).toBeUndefined();
+    expect(po.doc.revenues?.[0].forecast).toBeUndefined();
+    // PM zase upraví prognózu; po dalším schválení (např. dodatku) zůstane
+    await r.budgets.unlockPlan(rec.id, jan);
+    const d2 = { ...po.doc, items: po.doc.items.map((i) => ({ ...i, forecastCost: 140 })) };
+    await r.budgets.save(rec.id, d2, TOTALS, jan);
+    await r.budgets.requestApproval(rec.id, jan);
+    await r.budgets.approve(rec.id, { totalCost: 100, totalSale: 150, forecastCost: 140, forecastSale: 150 }, undefined, igor);
+    expect((await r.budgets.get('25003'))!.doc.items[0].forecastCost).toBe(140);
+  });
+
+  it('po schválení je plán uzamčený i v datové vrstvě; prognóza a skutečnost se měnit smí; odemknout plán smí PM a pak jde plán změnit', async () => {
+    const r = createMockRepositories();
+    const rec = await r.budgets.create('25003', sVynosy(), TOTALS, jan);
+    await r.budgets.requestApproval(rec.id, jan);
+    // během čekání na schválení je plán uzamčený
+    await expect(r.budgets.save(rec.id, { ...sVynosy(), revenues: [{ id: 'v1', description: 'Smluvní cena', currency: 'CZK', plan: 999 }] }, TOTALS, jan)).rejects.toThrow(/uzamčený/);
+    await r.budgets.approve(rec.id, { totalCost: 100, totalSale: 150 }, undefined, igor);
+    const c = (await r.budgets.get('25003'))!;
+    const plan = { ...c.doc, items: c.doc.items.map((i) => ({ ...i, unitCost: 5 })) };
+    await expect(r.budgets.save(rec.id, plan, TOTALS, jan)).rejects.toThrow(/uzamčený/);
+    await r.budgets.save(rec.id, { ...c.doc, items: c.doc.items.map((i) => ({ ...i, forecastCost: 120, actualCost: 10 })) }, TOTALS, jan);
+    await expect(r.budgets.unlockPlan(rec.id, cizi)).rejects.toThrow(/Plán smí odemknout/);
+    const odemceny = await r.budgets.unlockPlan(rec.id, jan);
+    expect(odemceny.status).toBe(BudgetStatus.Koncept);
+    expect(odemceny.approvals).toHaveLength(1);
+    await expect(r.budgets.unlockPlan(rec.id, jan)).rejects.toThrow(/jen schválený/);
+    await r.budgets.save(rec.id, { ...c.doc, items: c.doc.items.map((i) => ({ ...i, unitCost: 5 })), revenues: [...(c.doc.revenues ?? []), { id: 'v2', description: 'Dodatek č. 1', currency: 'CZK', plan: 30 }] }, TOTALS, jan);
+    expect((await r.budgets.history(rec.id)).some((h) => h.action.startsWith('Plán odemčen'))).toBe(true);
   });
 });
 

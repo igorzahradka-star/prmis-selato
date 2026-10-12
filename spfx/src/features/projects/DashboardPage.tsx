@@ -23,6 +23,8 @@ import { StatusSelect } from './StatusSelect';
 import { RES, LAYOUT } from '../../ui/theme';
 import { buildHash, RouteName } from '../../ui/router';
 import { BudgetBadge } from '../../ui/components/StatusBadge';
+import { projectMarginView, marginTooltip } from '../../core/projectMargin';
+import { MarginThresholds } from '../../core/budgetMargin';
 import { KpiTiles } from './KpiTiles';
 import { NewProjectPanel } from './NewProjectPanel';
 import { BudgetStatus, Project, ProjectStatus, ACTIVE_PROJECT_STATUSES } from '../../core/types';
@@ -190,8 +192,7 @@ export const DashboardPage: React.FC = () => {
         onStatus: changeStatus,
         report,
         spent,
-        minMargin: settings.budget.minimumMarginPercent,
-        yellowPercent: settings.budget.yellowThresholdPercent
+        thresholds: { green: settings.budget.marginGreenPercent, lightGreen: settings.budget.marginLightGreenPercent, yellow: settings.budget.marginYellowPercent }
       }),
       sort,
       (key) =>
@@ -404,9 +405,8 @@ interface ColumnContext {
   report: ReportCurrency;
   /** Vyčerpáno podle projektu (ve výchozí měně přehledů); `undefined`, dokud se objednávky nenačtou. */
   spent?: Record<string, number>;
-  /** Prahy semaforu z Nastavení (pro vysvětlení v bublině). */
-  minMargin?: number;
-  yellowPercent?: number;
+  /** Hranice semaforu marže z Nastavení. */
+  thresholds: MarginThresholds;
 }
 
 function buildColumns(ctx: ColumnContext): IColumn[] {
@@ -456,17 +456,10 @@ function buildColumns(ctx: ColumnContext): IColumn[] {
       minWidth: 44,
       maxWidth: 52,
       isResizable: true,
-      onRender: (p: Project) => (
-        <BudgetBadge
-          compact
-          status={p.budgetStatus ?? BudgetStatus.Bez}
-          baseline={p.budgetBaselineTotal}
-          forecast={p.costForecastTotal}
-          sale={p.budgetSaleTotal}
-          minMargin={ctx.minMargin}
-          yellowPercent={ctx.yellowPercent}
-        />
-      )
+      onRender: (p: Project) => {
+        const v = projectMarginView(p, ctx.thresholds);
+        return <BudgetBadge compact status={v.status} tooltip={marginTooltip(v, ctx.thresholds)} />;
+      }
     },
     {
       key: 'price',
@@ -508,13 +501,45 @@ function buildColumns(ctx: ColumnContext): IColumn[] {
         return (
           <div
             style={{ textAlign: 'right', color: f.cost === undefined || f.provisional ? RES.gray : undefined, fontStyle: f.provisional ? 'italic' : undefined }}
-            title={f.cost === undefined ? 'Projekt zatím nemá realizační rozpočet.' : `Plánované náklady (nákup) z realizačního rozpočtu${f.provisional ? ' — rozpočet zatím není schválený, čísla jsou provizorní' : ''}.`}
+            title={f.cost === undefined ? 'Projekt zatím nemá realizační rozpočet.' : `Aktuální prognóza nákupu z realizačního rozpočtu (plán se může odchylovat)${f.provisional ? ' — rozpočet zatím není schválený, čísla jsou provizorní' : ''}.`}
           >
             {f.cost === undefined ? '—' : formatMoney(f.cost, ctx.report.currency)}
             {f.provisional && f.cost !== undefined && <ProvisionalTag />}
           </div>
         );
       }
+    },
+    {
+      key: 'margin',
+      name: 'Marže',
+      minWidth: 70,
+      maxWidth: 90,
+      isResizable: true,
+      styles: { cellTitle: { justifyContent: 'flex-end' } },
+      onRender: (p: Project) => {
+        const v = projectMarginView(p, ctx.thresholds);
+        return (
+          <div style={{ textAlign: 'right', fontWeight: 600, color: marginColor(v.status) }} title={marginTooltip(v, ctx.thresholds)}>
+            {v.forecastPercent === undefined ? '—' : `${v.forecastPercent.toLocaleString('cs-CZ', { maximumFractionDigits: 1 })} %`}
+          </div>
+        );
+      }
+    },
+    {
+      key: 'marginApproved',
+      name: 'Marže zadání',
+      minWidth: 80,
+      maxWidth: 100,
+      isResizable: true,
+      styles: { cellTitle: { justifyContent: 'flex-end' } },
+      onRender: (p: Project) => (
+        <div
+          style={{ textAlign: 'right', color: RES.gray }}
+          title={p.budgetMarginApproved === undefined ? 'Rozpočet zatím nebyl schválen.' : `Marže zafixovaná posledním schválením rozpočtu${p.budgetMarginApprovedAmount !== undefined ? ` (zisk ${formatMoney(p.budgetMarginApprovedAmount)})` : ''}.`}
+        >
+          {p.budgetMarginApproved === undefined ? '—' : `${p.budgetMarginApproved.toLocaleString('cs-CZ', { maximumFractionDigits: 1 })} %`}
+        </div>
+      )
     },
     {
       key: 'spent',
@@ -596,7 +621,12 @@ function buildColumns(ctx: ColumnContext): IColumn[] {
 }
 
 /** Výchozí pořadí sloupců: Stav hned za projektovým manažerem. */
-const DEFAULT_COLUMN_ORDER = ['number', 'title', 'pm', 'status', 'budget', 'price', 'cost', 'spent', 'deadline', 'start', 'end'];
+const DEFAULT_COLUMN_ORDER = ['number', 'title', 'pm', 'status', 'budget', 'price', 'cost', 'margin', 'spent', 'deadline', 'start', 'end', 'marginApproved'];
+
+/** Barva čísla marže podle semaforu (tmavě červená text, ne bílá jako v terčíku). */
+function marginColor(status: BudgetStatus): string {
+  return status === BudgetStatus.Zelena ? RES.greenDark : status === BudgetStatus.SvetleZelena ? '#4C8A1F' : status === BudgetStatus.Zluta ? '#B27A00' : status === BudgetStatus.Cervena ? RES.red : status === BudgetStatus.TmaveCervena ? '#8B0F23' : RES.gray;
+}
 
 /** Pořadí sloupců si pamatuje prohlížeč, zvlášť pro každého přihlášeného uživatele. */
 function columnOrderKey(loginName: string): string {

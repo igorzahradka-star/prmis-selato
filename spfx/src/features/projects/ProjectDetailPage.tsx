@@ -14,6 +14,8 @@ import { IContextualMenuItem } from '@fluentui/react/lib/ContextualMenu';
 import { Link } from '@fluentui/react/lib/Link';
 
 import { useApp } from '../../ui/AppContext';
+import { projectMarginView, marginTooltip } from '../../core/projectMargin';
+import { marginThresholdsOf } from '../../core/budgetMargin';
 import { buildHash, navigate, RouteName } from '../../ui/router';
 import { RES } from '../../ui/theme';
 import { PageHeading } from '../../ui/components/PageHeading';
@@ -313,7 +315,9 @@ export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projec
   );
 };
 
-const Overview: React.FC<{ project: Project }> = ({ project }) => (
+const Overview: React.FC<{ project: Project }> = ({ project }) => {
+  const { settings } = useApp();
+  return (
   <div
     style={{
       display: 'grid',
@@ -336,16 +340,23 @@ const Overview: React.FC<{ project: Project }> = ({ project }) => (
       <Row
         label="Rozpočet"
         value={
-          <BudgetBadge
-            status={project.budgetStatus}
-            baseline={project.budgetBaselineTotal}
-            forecast={project.costForecastTotal}
-          />
+          (() => {
+            const t = marginThresholdsOf(settings.budget);
+            const v = projectMarginView(project, t);
+            return <BudgetBadge status={v.status} tooltip={marginTooltip(v, t)} />;
+          })()
         }
       />
-      <Row label="Schválený rozpočet" value={formatMoney(project.budgetBaselineTotal)} />
-      <Row label="Prognóza nákladů" value={formatMoney(project.costForecastTotal)} />
-      <Row label="Marže" value={<Later note="Fáze 3" />} />
+      <Row label="Plán nákupu při schválení" value={formatMoney(project.budgetBaselineTotal)} />
+      <Row label="Prognóza nákupu" value={formatMoney(project.costForecastTotal)} />
+      <Row
+        label="Marže (prognóza / zadání)"
+        value={(() => {
+          const v = projectMarginView(project, marginThresholdsOf(settings.budget));
+          const f = (x: number | undefined): string => (x === undefined ? '—' : `${x.toLocaleString('cs-CZ', { maximumFractionDigits: 1 })} %`);
+          return `${f(v.forecastPercent)} / ${f(v.approvedPercent)}`;
+        })()}
+      />
       <Row label="Vyfakturováno a uhrazeno" value={<Later note="Fáze 2" />} />
     </Card>
 
@@ -356,7 +367,8 @@ const Overview: React.FC<{ project: Project }> = ({ project }) => (
       <Row label="Nejbližší smluvní termín" value={formatDate(project.nextDeadline)} />
     </Card>
   </div>
-);
+  );
+};
 
 const Card: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
   <section

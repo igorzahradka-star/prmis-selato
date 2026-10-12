@@ -1,12 +1,14 @@
 /**
  * Přepočet semaforu rozpočtu a jeho uložení do projektu (cache pro přehled projektů).
  *
- * Semafor se počítá z rozpočtu (baseline = náklady posledního schválení), navázaných objednávek a prognózy; prahy a minimální
- * marže jsou globální v Nastavení. Spouští se při otevření a uložení rozpočtu a po změně objednávky. Je to **best-effort**:
- * kdo nemá právo zapisovat do evidence projektů, jen nic nezapíše — chyba se nikdy nepřenese do práce uživatele.
+ * Semafor se řídí **aktuální marží z prognózy** — (tržby prognóza − nákup prognóza) / tržby prognóza — proti hranicím z Nastavení
+ * (výchozí 15 / 10 / 5 %, záporná marže je tmavě červená). Z posledního schválení se přebírá jen zafixovaná marže (pro porovnání).
+ * Spouští se při otevření a uložení rozpočtu a po změně objednávky. Je to **best-effort**: kdo nemá právo zapisovat do evidence
+ * projektů, jen nic nezapíše — chyba se nikdy nepřenese do práce uživatele.
  */
 
-import { BudgetDoc, BudgetRecord, OrderLike, budgetSemaphore, budgetTotals, lastApproval } from '../../core/budget';
+import { BudgetDoc, BudgetRecord, OrderLike, budgetTotals, lastApproval } from '../../core/budget';
+import { approvedMargin, ensureRevenues, legacyStatusOf, marginStatus, marginThresholdsOf } from '../../core/budgetMargin';
 import { BudgetCacheInput } from '../../data/repositories';
 import { RateTable } from '../../core/currency';
 import { AppSettings } from '../../core/settings';
@@ -14,35 +16,42 @@ import { Project } from '../../core/types';
 import { RepositorySet } from '../../data/repositories';
 
 export interface SemaphoreView {
+  /** Semafor podle aktuální marže (pět stupňů, nebo „Bez rozpočtu“). */
   status: string;
-  deviationPercent?: number;
+  /** Aktuální marže z prognózy: v % (bez tržeb nedefinovaná) a v Kč. */
   marginPercent?: number;
+  marginAmount: number;
+  /** Marže při posledním schválení (zadání): v % a v Kč. */
+  approvedMarginPercent?: number;
+  approvedMarginAmount?: number;
+  /** Plán nákupu při posledním schválení. */
   baselineCost?: number;
+  /** Prognóza nákupu a tržeb v Kč. */
   forecastCost: number;
-  /** Součty v Kč pro přehledy: plán (nákup, prodej) a skutečnost. */
+  revenueForecast: number;
+  /** Součty v Kč pro přehledy: plán nákupu, plán výnosů (smluvní cena) a skutečnost (koupeno). */
   costTotal: number;
   saleTotal: number;
   actualTotal: number;
   approved: boolean;
 }
 
-/** Semafor rozpočtu v Kč: baseline = náklady posledního schválení, smluvní cena = prodej posledního schválení. */
-export function computeSemaphore(doc: BudgetDoc, record: BudgetRecord | undefined, orders: OrderLike[], rates: RateTable, settings: AppSettings): SemaphoreView {
-  const totals = budgetTotals(doc, 'CZK', rates, orders);
+/** Semafor rozpočtu v Kč; starý rozpočet bez výnosů se pro výpočet převede v paměti (`project` dodá smluvní cenu). */
+export function computeSemaphore(doc: BudgetDoc, record: BudgetRecord | undefined, orders: OrderLike[], rates: RateTable, settings: AppSettings, project?: { currency: string; contractPriceNet?: number }): SemaphoreView {
+  const converted = ensureRevenues(doc, project ?? { currency: 'CZK' }, rates);
+  const totals = budgetTotals(converted, 'CZK', rates, orders);
   const last = lastApproval(record);
-  const result = budgetSemaphore({
-    baselineCost: last ? last.cost : undefined,
-    forecastCost: totals.forecast,
-    contractPrice: last ? last.sale : undefined,
-    yellowThresholdPercent: settings.budget.yellowThresholdPercent,
-    minimumMarginPercent: settings.budget.minimumMarginPercent
-  });
+  const approved = approvedMargin(last, totals.sale);
+  const margin = totals.forecastMargin;
   return {
-    status: result.status,
-    deviationPercent: result.deviationPercent,
-    marginPercent: result.marginPercent,
+    status: marginStatus(margin.percent, marginThresholdsOf(settings.budget)),
+    marginPercent: margin.percent,
+    marginAmount: margin.amount,
+    approvedMarginPercent: approved ? approved.percent : undefined,
+    approvedMarginAmount: approved ? approved.amount : undefined,
     baselineCost: last ? last.cost : undefined,
     forecastCost: totals.forecast,
+    revenueForecast: totals.revenueForecast,
     costTotal: totals.cost,
     saleTotal: totals.sale,
     actualTotal: totals.actual,
@@ -58,15 +67,19 @@ export async function refreshBudgetCache(repos: RepositorySet, project: Project,
       return;
     }
     const orders = await repos.orders.list({ projectNumber: project.projectNumber });
-    const view = computeSemaphore(budget.doc, budget.record, orders, rates, settings);
+    const view = computeSemaphore(budget.doc, budget.record, orders, rates, settings, project);
     const next = cacheOf(view);
+    const r = (v: number | undefined): number => Math.round(v ?? -1);
     const same =
-      project.budgetStatus === view.status &&
-      Math.round(project.budgetBaselineTotal ?? -1) === Math.round(next.baselineTotal ?? -1) &&
-      Math.round(project.costForecastTotal ?? -1) === Math.round(next.forecastTotal ?? -1) &&
-      Math.round(project.budgetCostTotal ?? -1) === Math.round(next.costTotal ?? -1) &&
-      Math.round(project.budgetSaleTotal ?? -1) === Math.round(next.saleTotal ?? -1) &&
-      Math.round(project.budgetActualTotal ?? -1) === Math.round(next.actualTotal ?? -1) &&
+      project.budgetStatus === next.status &&
+      r(project.budgetBaselineTotal) === r(next.baselineTotal) &&
+      r(project.costForecastTotal) === r(next.forecastTotal) &&
+      r(project.budgetCostTotal) === r(next.costTotal) &&
+      r(project.budgetSaleTotal) === r(next.saleTotal) &&
+      r(project.budgetActualTotal) === r(next.actualTotal) &&
+      r(project.budgetRevenueForecast) === r(next.revenueForecast) &&
+      (project.budgetMarginApproved === undefined ? -999 : Math.round(project.budgetMarginApproved * 100)) === (next.marginApproved === undefined ? -999 : Math.round(next.marginApproved * 100)) &&
+      r(project.budgetMarginApprovedAmount) === r(next.marginApprovedAmount) &&
       (project.budgetApproved === true) === next.approved;
     if (!same) {
       await repos.projects.setBudgetCache(project.projectNumber, next);
@@ -76,9 +89,20 @@ export async function refreshBudgetCache(repos: RepositorySet, project: Project,
   }
 }
 
-/** Cache pro zápis do projektu z vypočteného semaforu. */
-export function cacheOf(view: SemaphoreView): BudgetCacheInput {
-  return { status: view.status, baselineTotal: view.baselineCost, forecastTotal: view.forecastCost, costTotal: view.costTotal, saleTotal: view.saleTotal, actualTotal: view.actualTotal, approved: view.approved };
+/** Cache pro zápis do projektu z vypočteného semaforu (sloupec semaforu drží původní čtyři hodnoty, přesný stupeň se počítá z marže). */
+export function cacheOf(view: SemaphoreView): BudgetCacheInput & { status: string; approved: boolean } {
+  return {
+    status: legacyStatusOf(view.status as never),
+    baselineTotal: view.baselineCost,
+    forecastTotal: view.forecastCost,
+    costTotal: view.costTotal,
+    saleTotal: view.saleTotal,
+    actualTotal: view.actualTotal,
+    approved: view.approved,
+    revenueForecast: view.revenueForecast,
+    marginApproved: view.approvedMarginPercent,
+    marginApprovedAmount: view.approvedMarginAmount
+  };
 }
 
 export interface RefreshAllResult {
@@ -102,7 +126,7 @@ export async function refreshAllBudgetCaches(repos: RepositorySet, settings: App
       const budget = await repos.budgets.get(p.projectNumber);
       if (budget) {
         result.withBudget += 1;
-        const view = computeSemaphore(budget.doc, budget.record, orders.filter((o) => o.projectNumber === p.projectNumber), rates, settings);
+        const view = computeSemaphore(budget.doc, budget.record, orders.filter((o) => o.projectNumber === p.projectNumber), rates, settings, p);
         await repos.projects.setBudgetCache(p.projectNumber, cacheOf(view));
         result.updated += 1;
       }

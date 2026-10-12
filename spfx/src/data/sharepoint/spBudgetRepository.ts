@@ -19,10 +19,11 @@ import {
   budgetToJson,
   canApproveBudget,
   canEditBudget,
-  marginPercent,
+  isPlanLocked,
   statusAfterReject,
   validateBudget
 } from '../../core/budget';
+import { buildApproval, planViolations, resetForecastsToPlan } from '../../core/budgetMargin';
 import { WorkflowError, toActor, toWorkflowProject } from '../../core/orderWorkflow';
 import { BudgetHistoryEntry, BudgetTotalsInput, IBudgetRepository, IProjectRepository } from '../repositories';
 import { getSp, describeSpError, extractStatus } from './spContext';
@@ -165,6 +166,13 @@ export class SpBudgetRepository implements IBudgetRepository {
     if (issues.length > 0) {
       throw new WorkflowError(issues.map((i) => i.message).join(' '));
     }
+    // Plán je po schválení uzamčený — hlídá se i tady, ne jen v obrazovce.
+    if (isPlanLocked(record)) {
+      const violations = planViolations(budgetFromJson(item.Content), doc);
+      if (violations.length > 0) {
+        throw new WorkflowError(violations.slice(0, 3).join(' '));
+      }
+    }
     await this.write(recordId, { Content: budgetToJson(doc), TotalCost: totals.totalCost, TotalSale: totals.totalSale }, etag ?? current, 'Rozpočet se nepodařilo uložit');
     if (!options || !options.auto) {
       await this.audit(record.projectNumber, actor, 'Rozpočet uložen', record.status, record.status);
@@ -201,27 +209,37 @@ export class SpBudgetRepository implements IBudgetRepository {
       throw new WorkflowError(record.approverName ? `Rozpočet schvaluje ${record.approverName} (nebo administrátor).` : 'Rozpočet schvaluje vedení (nebo administrátor).');
     }
     const no = record.approvals.length + 1;
-    const approval: BudgetApproval = {
-      no,
-      at: new Date(),
-      byName: actor.displayName,
-      comment: comment || undefined,
-      cost: totals.totalCost,
-      sale: totals.totalSale,
-      marginPercent: marginPercent(totals.totalCost, totals.totalSale)
-    };
+    const first = record.approvals.length === 0;
+    const approval: BudgetApproval = buildApproval({ no, at: new Date(), byName: actor.displayName, comment: comment || undefined, totalCost: totals.totalCost, totalSale: totals.totalSale, forecastCost: totals.forecastCost, forecastSale: totals.forecastSale, firstApproval: first });
+    // Při prvním schválení (zahájení projektu) se prognóza přepíše plánem; při dalších schváleních se prognóza nemění.
+    const content = first ? { Content: budgetToJson(resetForecastsToPlan(budgetFromJson(item.Content))) } : {};
     await this.write(
       recordId,
-      { VersionStatus: BudgetStatus.Schvaleno, Approvals: approvalsToJson([...record.approvals, approval]), ApprovedById: actor.id, ApprovedDate: new Date().toISOString(), Comment: comment || '', RequestedByName: '', ApproverLogin: '', ApproverName: '' },
+      { ...content, VersionStatus: BudgetStatus.Schvaleno, Approvals: approvalsToJson([...record.approvals, approval]), ApprovedById: actor.id, ApprovedDate: new Date().toISOString(), Comment: comment || '', RequestedByName: '', ApproverLogin: '', ApproverName: '' },
       etag,
       'Rozpočet se nepodařilo schválit'
     );
-    await this.audit(record.projectNumber, actor, `Schváleno (záznam č. ${no})${comment ? `: ${comment}` : ''}`, record.status, BudgetStatus.Schvaleno);
+    await this.audit(record.projectNumber, actor, `Schváleno (záznam č. ${no}, marže ${approval.marginPercent} %)${first ? ', prognóza = plán' : ''}${comment ? `: ${comment}` : ''}`, record.status, BudgetStatus.Schvaleno);
     if (contractPrice) {
       // Smluvní cena projektu = prodej schváleného rozpočtu. Selhání zápisu schválení nezruší (ukáže se jako chyba k opravě).
       await this.projects.setContractPrice(record.projectNumber, contractPrice.priceNet, contractPrice.currency);
-      await this.audit(record.projectNumber, actor, `Smluvní cena projektu přepsána prodejem rozpočtu: ${contractPrice.priceNet} ${contractPrice.currency}`, BudgetStatus.Schvaleno, BudgetStatus.Schvaleno);
+      await this.audit(record.projectNumber, actor, `Smluvní cena projektu přepsána součtem plánu výnosů: ${contractPrice.priceNet} ${contractPrice.currency}`, BudgetStatus.Schvaleno, BudgetStatus.Schvaleno);
     }
+    return mapRecord((await this.load(recordId)).item);
+  }
+
+  public async unlockPlan(recordId: number, actor: CurrentUser): Promise<BudgetRecord> {
+    const { item, etag } = await this.load(recordId);
+    const record = mapRecord(item);
+    const project = await this.requireProject(record.projectNumber);
+    if (!canEditBudget(toWorkflowProject(project), toActor(actor))) {
+      throw new WorkflowError('Plán smí odemknout projektový manažer, asistent, vedení nebo administrátor.');
+    }
+    if (record.status !== BudgetStatus.Schvaleno) {
+      throw new WorkflowError('Odemknout jde jen schválený plán.');
+    }
+    await this.write(recordId, { VersionStatus: BudgetStatus.Koncept, Comment: '', RequestedByName: '', ApproverLogin: '', ApproverName: '' }, etag, 'Plán se nepodařilo odemknout');
+    await this.audit(record.projectNumber, actor, 'Plán odemčen ke změně (po úpravě je potřeba nové schválení)', BudgetStatus.Schvaleno, BudgetStatus.Koncept);
     return mapRecord((await this.load(recordId)).item);
   }
 

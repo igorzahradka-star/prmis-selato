@@ -89,18 +89,22 @@ export const HelpPage: React.FC = () => {
         <Article title="Co znamená semafor u rozpočtu">
           <ul style={{ margin: '6px 0 0 20px', lineHeight: 1.7 }}>
             <li>
-              <strong>Zelená</strong> — prognóza nákladů nepřekračuje schválený rozpočet.
+              <strong>Zelená</strong> — aktuální marže (tržby − nákup, z prognóz) je od {settings.budget.marginGreenPercent} %.
             </li>
             <li>
-              <strong>Žlutá</strong> — překročení do {settings.budget.yellowThresholdPercent} %.
+              <strong>Světle zelená</strong> — marže od {settings.budget.marginLightGreenPercent} %.
             </li>
             <li>
-              <strong>Červená</strong> — překročení nad {settings.budget.yellowThresholdPercent} %,
-              nebo marže pod {settings.budget.minimumMarginPercent} %.
+              <strong>Žlutá</strong> — marže od {settings.budget.marginYellowPercent} %.
             </li>
             <li>
-              <strong>Bez rozpočtu</strong> — projekt nemá schválený realizační rozpočet, semafor
-              se nepočítá.
+              <strong>Červená</strong> — marže pod {settings.budget.marginYellowPercent} %.
+            </li>
+            <li>
+              <strong>Tmavě červená</strong> — záporná marže (projekt je ve ztrátě).
+            </li>
+            <li>
+              <strong>Bez rozpočtu</strong> — projekt nemá rozpočet nebo výnosy, marže se nedá spočítat.
             </li>
           </ul>
           <p style={{ marginTop: 8 }}>

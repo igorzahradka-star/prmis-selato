@@ -16,7 +16,7 @@ describe('withDefaults', () => {
     // Simuluje starší uložené nastavení, které ještě neznalo sekci `budget`.
     const stare = { folders: DEFAULT_SETTINGS.folders } as Partial<AppSettings>;
     const s = withDefaults(stare);
-    expect(s.budget.yellowThresholdPercent).toBe(5);
+    expect([s.budget.marginGreenPercent, s.budget.marginLightGreenPercent, s.budget.marginYellowPercent]).toEqual([15, 10, 5]);
     expect(s.approvals.pmLimit).toBe(DEFAULT_SETTINGS.approvals.pmLimit);
   });
 });

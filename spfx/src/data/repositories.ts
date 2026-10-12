@@ -838,12 +838,20 @@ export interface BudgetCacheInput {
   saleTotal?: number;
   actualTotal?: number;
   approved?: boolean;
+  /** Prognóza tržeb (Kč) a marže při schválení (% a Kč). */
+  revenueForecast?: number;
+  marginApproved?: number;
+  marginApprovedAmount?: number;
 }
 
 /** Součty rozpočtu v Kč, které se ukládají u záznamu (přehledy je čtou bez načítání obsahu). */
 export interface BudgetTotalsInput {
+  /** Plán nákupu a plán výnosů (smluvní cena) v Kč. */
   totalCost: number;
   totalSale: number;
+  /** Prognóza nákupu a tržeb v Kč (do historie schválení). */
+  forecastCost?: number;
+  forecastSale?: number;
 }
 
 /** Jeden záznam historie rozpočtu. */
@@ -880,6 +888,11 @@ export interface IBudgetRepository {
   save(recordId: number, doc: BudgetDoc, totals: BudgetTotalsInput, actor: CurrentUser, etag?: string, options?: { auto?: boolean }): Promise<BudgetRecord>;
   /** Požádá vedení o schválení (rozpočet se tím nezamyká). S `approver` smí schválit jen vybraný člověk (a administrátor). */
   requestApproval(recordId: number, actor: CurrentUser, approver?: { login: string; name: string }): Promise<BudgetRecord>;
+  /**
+   * Odemkne schválený plán ke změně: rozpočet se vrátí do konceptu (historie schválení zůstává). Po úpravě plánu se žádá o nové schválení.
+   * Smí ten, kdo smí rozpočet upravovat.
+   */
+  unlockPlan(recordId: number, actor: CurrentUser): Promise<BudgetRecord>;
   /** Schválí (vedení): do historie se uloží záznam s aktuálními náklady, prodejem a marží (v Kč). */
   approve(recordId: number, totals: BudgetTotalsInput, comment: string | undefined, actor: CurrentUser, contractPrice?: { priceNet: number; currency: string }): Promise<BudgetRecord>;
   /** Vrátí žádost: vedení s důvodem, žadatel ji stáhne zpět bez důvodu. */

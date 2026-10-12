@@ -288,23 +288,25 @@ describe('rozpočet v modelu reportu', () => {
   const doc: BudgetDoc = {
     groups: [{ id: 'g1', name: 'Materiál', kind: 'standard', defaultMarkupPercent: 20 }],
     items: [{ id: 'i1', groupId: 'g1', description: 'Panely', currency: 'CZK', quantity: 100, unitCost: 1, actualQty: 60, actualCost: 60 }],
-    rates: []
+    rates: [],
+    revenues: [{ id: 'v1', description: 'Smluvní cena', currency: 'CZK', plan: 120 }]
   };
   const rates = { EUR: 25, USD: 20, source: 'test' } as unknown as RateTable;
   const rec = (approved: boolean): BudgetRecord => ({ id: 1, projectNumber: '26001', status: BStatus.Schvaleno, approvals: approved ? [{ no: 1, at: new Date(2026, 9, 1), byName: 'V', cost: 100, sale: 120, marginPercent: 16.67 }] : [] });
   const build = (approved: boolean): ProjectReportModel => buildProjectReportModel({ ...vstup(), budget: { doc, record: rec(approved), rates } });
 
-  it('cena = prodej rozpočtu, vyčerpáno = skutečnost, proinvestováno = skutečnost / náklady', () => {
+  it('cena = plán výnosů (smluvní cena), vyčerpáno = skutečnost, proinvestováno = skutečnost / náklady; semafor podle marže z prognózy', () => {
     const m = build(true);
     expect(m.budget).toMatchObject({ approved: true, cost: 100, sale: 120, actual: 60, remaining: 40, spentPercent: 60, semaphore: 'Zelená' });
     expect(m.finance).toMatchObject({ price: 120, spent: 60, spentPercent: 60, fromBudget: true, provisional: false });
     expect(m.budget?.groups[0]).toMatchObject({ name: 'Materiál', cost: 100, actual: 60 });
   });
 
-  it('neschválený rozpočet je provizorní, bez baseline je semafor „Bez rozpočtu“ a report na to upozorní', () => {
+  it('neschválený rozpočet je provizorní (semafor se počítá z marže, zadání chybí) a report na to upozorní', () => {
     const m = build(false);
     expect(m.finance.provisional).toBe(true);
-    expect(m.budget?.semaphore).toBe('Bez rozpočtu');
+    expect(m.budget?.semaphore).toBe('Zelená');
+    expect(m.budget?.marginApprovedPercent).toBeUndefined();
     expect(reportHighlights(m).join(' ')).toContain('Rozpočet zatím nebyl schválen');
   });
 
