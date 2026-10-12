@@ -4,6 +4,9 @@ import {
   EntryContext,
   attachSignedScan,
   applyEntryChange,
+  canAddLateAttachments,
+  entryLateFilesPath,
+  lateAttachmentAudit,
   availableEntryActions,
   cancelEntry,
   canWriteDiary,
@@ -333,5 +336,31 @@ describe('předávací protokol', () => {
     const h1 = await computeEntryHash(identity, p, {});
     expect(await computeEntryHash(identity, { ...p, handover: { result: 'neprevzato' } }, {})).not.toBe(h1);
     expect(entryHashInput(identity, zapis(), {})).not.toContain('kind');
+  });
+});
+
+describe('dodatečné přílohy po uzavření a podpisu', () => {
+  it('složka je vedle příloh zápisu, ne v nich (nezasahuje do otisku obsahu)', () => {
+    expect(entryLateFilesPath('Zápisy/Hlavní deník/Z007')).toBe('Zápisy/Hlavní deník/Z007/Dodatečné přílohy');
+    expect(entryLateFilesPath('Z007')).not.toBe(entryFilesPath('Z007'));
+  });
+
+  it('smí autor, PM, vedení a administrátor — a jen u uzavřeného nebo podepsaného zápisu', () => {
+    const uzavreny = zapis({ status: EntryStatus.Uzavreno });
+    const podepsany = zapis({ status: EntryStatus.Podepsano });
+    expect(canAddLateAttachments(uzavreny, projekt, asistent)).toBe(true);
+    expect(canAddLateAttachments(podepsany, projekt, pm)).toBe(true);
+    expect(canAddLateAttachments(podepsany, projekt, admin)).toBe(true);
+    expect(canAddLateAttachments(podepsany, projekt, cizi)).toBe(false);
+    expect(canAddLateAttachments(zapis({ status: EntryStatus.Koncept }), projekt, asistent)).toBe(false);
+    expect(canAddLateAttachments(zapis({ status: EntryStatus.Storno }), projekt, asistent)).toBe(false);
+  });
+
+  it('záznam do historie vypíše soubory; cizí člověk, koncept nebo prázdný seznam jsou chyba', () => {
+    const podepsany = zapis({ status: EntryStatus.Podepsano });
+    expect(lateAttachmentAudit(podepsany, ['sken-podpis.pdf', 'foto.jpg'], ctx(pm))).toBe('Dodatečně přiloženo (2): sken-podpis.pdf, foto.jpg');
+    expect(() => lateAttachmentAudit(podepsany, ['a.pdf'], ctx(cizi))).toThrow(WorkflowError);
+    expect(() => lateAttachmentAudit(zapis(), ['a.pdf'], ctx(pm))).toThrow(/uzavřenému nebo podepsanému/);
+    expect(() => lateAttachmentAudit(podepsany, ['  '], ctx(pm))).toThrow(/Není co přiložit/);
   });
 });

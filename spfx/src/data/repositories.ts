@@ -680,6 +680,11 @@ export interface IDiaryRepository {
   /** Podpis skenem: připojí odkaz na nahraný podepsaný sken. */
   attachScan(id: number, signedUrl: string, actor: CurrentUser): Promise<DiaryEntry>;
   cancel(id: number, reason: string, actor: CurrentUser): Promise<DiaryEntry>;
+  /**
+   * Zapíše do historie, že k uzavřenému nebo podepsanému zápisu byly dodatečně přiloženy soubory (soubory samotné se ukládají
+   * do podsložky `entryLateFilesPath`). Zápis ani jeho otisk se nemění.
+   */
+  addLateAttachments(id: number, fileNames: string[], actor: CurrentUser): Promise<DiaryEntry>;
   /** Smaže zápis — jen administrátor (Jednorázové akce); v SharePointu do koše webu, s auditem. */
   delete(id: number, actor: CurrentUser): Promise<void>;
   history(id: number): Promise<DiaryHistoryEntry[]>;

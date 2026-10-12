@@ -59,10 +59,12 @@ import {
   SIGNATURE_LABELS,
   SiteDiary,
   availableEntryActions,
+  canAddLateAttachments,
   canWriteDiary,
   emptyHeader,
   entryFileName,
   entryFilesPath,
+  entryLateFilesPath,
   entryTitle,
   fileExtension,
   handoverDirectionOf,
@@ -189,6 +191,10 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
   const [diaries, setDiaries] = React.useState<SiteDiary[]>([]);
   const [partners, setPartners] = React.useState<Partner[]>([]);
   const [files, setFiles] = React.useState<Record<string, string>>({});
+  // Dodatečné přílohy: soubory přiložené po uzavření / podpisu (vlastní podsložka, nejsou součástí otisku zápisu).
+  const [lateFiles, setLateFiles] = React.useState<Record<string, string>>({});
+  const [lateBusy, setLateBusy] = React.useState(false);
+  const lateRef = React.useRef<HTMLInputElement>(null);
   const [editing, setEditing] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
   const [progress, setProgress] = React.useState<string | undefined>(undefined);
@@ -247,7 +253,8 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
     setFDiary(presetDiary ?? pickDiary(preset, diaryList));
     setFDate(today());
     setFHeader(headerFromProject(p));
-    setFParticipants([]);
+    // Kdo zápis zakládá, je mezi účastníky hned (dá se odebrat nebo upravit).
+    setFParticipants([{ name: user.displayName, organization: settings.company.name, role: kind === 'predani' ? undefined : 'zapisovatel', present: true }]);
     setFPoints(kind === 'predani' ? protocolPoints() : [emptyPoint()]);
     setFTasks([]);
     setFConditions('');
@@ -278,6 +285,7 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
     setEntry(undefined);
     setHistory([]);
     setFiles({});
+    setLateFiles({});
     setPreviewOpen(false);
     setSketch(undefined);
 
@@ -354,6 +362,14 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
         const map: Record<string, string> = {};
         list.forEach((f) => (map[f.name] = f.url));
         setFiles(map);
+      })
+      .catch(() => undefined);
+    repos.documents
+      .listFolderFiles(p, entryLateFilesPath(e.folderPath))
+      .then((list) => {
+        const map: Record<string, string> = {};
+        list.forEach((f) => (map[f.name] = f.url));
+        setLateFiles(map);
       })
       .catch(() => undefined);
   };
@@ -752,6 +768,52 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
     }
   };
 
+  /** Dodatečné přílohy k uzavřenému nebo podepsanému zápisu (např. pozdější podpis, fotka): zápis ani jeho otisk se nemění. */
+  const addLate = async (list: File[]): Promise<void> => {
+    if (!entry || !project || list.length === 0) {
+      return;
+    }
+    setLateBusy(true);
+    setError(undefined);
+    const failed: string[] = [];
+    const added: string[] = [];
+    const urls: Record<string, string> = {};
+    try {
+      const folder = entryLateFilesPath(entry.folderPath);
+      for (const f of list) {
+        try {
+          setProgress(`Nahrávám ${added.length + failed.length + 1} z ${list.length}…`);
+          const isImg = f.type.indexOf('image/') === 0 || isImageFile(f.name);
+          const blob = isImg ? await resizeImage(f, { maxSide: 3000, quality: 0.9 }) : f;
+          const ext = fileExtension(f.name) || extensionForType(blob.type);
+          const base = f.name.indexOf('.') === -1 ? f.name : f.name.slice(0, f.name.lastIndexOf('.'));
+          const name = uniqueFileName(`${isImg && blob !== f ? base + (extensionForType(blob.type) || ext) : base + ext}`, Object.keys(lateFiles).concat(added));
+          urls[name] = await repos.documents.saveProjectFile(project, folder, name, blob);
+          added.push(name);
+        } catch (err) {
+          failed.push(`${f.name}: ${why(err)}`);
+        }
+      }
+      if (added.length > 0) {
+        await repos.diary.addLateAttachments(entry.id, added, user);
+        setLateFiles((cur) => ({ ...cur, ...urls }));
+        repos.diary
+          .history(entry.id)
+          .then(setHistory)
+          .catch(() => undefined);
+        setNotice({ text: `Přiloženo souborů: ${added.length}. Zápis ani jeho podpis se tím nezměnily; přílohy jsou vedené v historii.`, type: MessageBarType.success });
+      }
+    } catch (err) {
+      failed.push(why(err));
+    } finally {
+      setLateBusy(false);
+      setProgress(undefined);
+    }
+    if (failed.length > 0) {
+      setError(failed.join(' | '));
+    }
+  };
+
   /** Podpis skenem: nahraje podepsaný sken do složky zápisu a připojí ho. */
   const doScan = async (file: File): Promise<void> => {
     if (!entry || !project) {
@@ -1022,6 +1084,18 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
             const list = Array.from(e.target.files ?? []);
             e.target.value = '';
             addFiles(targetPoint.current, list, false).catch(() => undefined);
+          }}
+        />
+        <input
+          ref={lateRef}
+          type="file"
+          multiple
+          accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+          style={{ display: 'none' }}
+          onChange={(e) => {
+            const list = Array.from(e.target.files ?? []);
+            e.target.value = '';
+            addLate(list).catch(() => undefined);
           }}
         />
         <input
@@ -1314,6 +1388,10 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
             project={project}
             onScan={() => scanRef.current && scanRef.current.click()}
             canScan={actions.indexOf('scan') !== -1}
+            lateFiles={lateFiles}
+            canLate={!!workflowProject && canAddLateAttachments(entry, workflowProject, actor)}
+            lateBusy={lateBusy}
+            onLate={() => lateRef.current && lateRef.current.click()}
           />
         )}
 
@@ -1399,7 +1477,11 @@ const EntryDetail: React.FC<{
   project: Project | undefined;
   onScan: () => void;
   canScan: boolean;
-}> = ({ entry, history, files, project, onScan, canScan }) => {
+  lateFiles: Record<string, string>;
+  canLate: boolean;
+  lateBusy: boolean;
+  onLate: () => void;
+}> = ({ entry, history, files, project, onScan, canScan, lateFiles, canLate, lateBusy, onLate }) => {
   const closure = closureNote(entry);
   const signature = signatureNote(entry);
   const others = nonImageAttachments(entry);
@@ -1529,6 +1611,22 @@ const EntryDetail: React.FC<{
           {closure && <div style={{ fontSize: 12, color: RES.gray, marginTop: 6, wordBreak: 'break-all' }}>{closure}</div>}
           {signature && <div style={{ fontSize: 13, fontWeight: 600, marginTop: 4 }}>{signature}</div>}
           {entry.signatureKind && <div style={{ fontSize: 12, color: RES.gray }}>Způsob podpisu: {SIGNATURE_LABELS[entry.signatureKind]}</div>}
+        </Section>
+      )}
+
+      {(canLate || Object.keys(lateFiles).length > 0) && (
+        <Section title="Dodatečné přílohy">
+          <div style={{ fontSize: 12, color: RES.gray, marginBottom: 6 }}>
+            Soubory přiložené až po uzavření nebo podpisu (např. sken podpisu, který se doplnil později, nebo fotka). Zápis ani jeho podpis se tím nemění; každé přiložení je v historii.
+          </div>
+          {Object.keys(lateFiles).length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 8 }}>
+              {Object.keys(lateFiles).map((name) => (
+                <FileTile key={name} name={name} url={lateFiles[name]} editable={false} />
+              ))}
+            </div>
+          )}
+          {canLate && <DefaultButton iconProps={{ iconName: 'Attach' }} text={lateBusy ? 'Nahrávám…' : 'Přiložit sken nebo fotku'} disabled={lateBusy} onClick={onLate} />}
         </Section>
       )}
 

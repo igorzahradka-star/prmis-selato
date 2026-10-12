@@ -17,6 +17,7 @@ import {
   SiteDiary,
   applyEntryChange,
   attachSignedScan,
+  lateAttachmentAudit,
   canDeleteEntry,
   canEditEntry,
   canWriteDiary,
@@ -264,6 +265,14 @@ export class MockDiaryRepository implements IDiaryRepository {
 
   public attachScan(id: number, signedUrl: string, actor: CurrentUser): Promise<DiaryEntry> {
     return this.transition(id, actor, (e, c) => attachSignedScan(e, signedUrl, c));
+  }
+
+  public async addLateAttachments(id: number, fileNames: string[], actor: CurrentUser): Promise<DiaryEntry> {
+    const entry = await this.require(id);
+    const project = await this.requireProject(entry.projectNumber);
+    const action = lateAttachmentAudit(entry, fileNames, { project: toWorkflowProject(project), actor: toActor(actor), now: new Date() });
+    this.record(id, actor, action);
+    return delay(entry);
   }
 
   public cancel(id: number, reason: string, actor: CurrentUser): Promise<DiaryEntry> {

@@ -76,6 +76,20 @@ describe('MockDiaryRepository — zápisy', () => {
     ]);
   });
 
+  it('k podepsanému zápisu jde dodatečně přiložit soubor; do historie se zapíše, zápis se nemění; cizí a koncept ne', async () => {
+    const r = createMockRepositories();
+    const z = await r.diary.createEntry(vstup(), martin);
+    await expect(r.diary.addLateAttachments(z.id, ['a.pdf'], martin)).rejects.toThrow(/uzavřenému nebo podepsanému/);
+    await r.diary.close(z.id, 'hash1', {}, martin);
+    const podepsany = await r.diary.attachScan(z.id, 'https://x/sken.pdf', martin);
+    await expect(r.diary.addLateAttachments(z.id, ['a.pdf'], cizi)).rejects.toThrow(/smí nakládat/);
+    const po = await r.diary.addLateAttachments(z.id, ['podpis-druhe-strany.pdf'], jan);
+    expect(po.status).toBe(EntryStatus.Podepsano);
+    expect(po.contentHash).toBe(podepsany.contentHash);
+    const h = (await r.diary.history(z.id)).map((x) => x.action);
+    expect(h[h.length - 1]).toBe('Dodatečně přiloženo (1): podpis-druhe-strany.pdf');
+  });
+
   it('podpis v aplikaci projde jen se shodným otiskem', async () => {
     const r = createMockRepositories();
     const z = await r.diary.createEntry(vstup(), martin);

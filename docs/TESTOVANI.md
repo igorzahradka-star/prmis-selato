@@ -56,6 +56,16 @@ Doporučení: založte si **testovací projekt** (číslo s názvem „TESTOVAC�
 - [ ] Po **Uložit harmonogram** a obnovení stránky vše zůstane (pořadí, vazby, termíny).
 - [ ] Tažení myší funguje i na dotykové obrazovce (pokud ji používáte).
 
+## 4b. Stavební deník (0.38)
+- [ ] **Nový zápis:** mezi účastníky je hned přihlášený uživatel (jméno, firma, role „zapisovatel“, přítomen); jde odebrat nebo upravit.
+- [ ] Nový **předávací protokol** má mezi účastníky také autora.
+- [ ] **Uzavřený zápis:** v detailu je sekce „Dodatečné přílohy“ s tlačítkem „Přiložit sken nebo fotku“; nahrajte PDF i fotku — objeví se dlaždice a zápis zůstane uzavřený.
+- [ ] **Podepsaný zápis:** totéž (tlačítko je vidět i po podpisu); stav zůstane „Podepsáno“, PDF a podpis se nezmění.
+- [ ] V **Historii** zápisu přibyl řádek „Dodatečně přiloženo (n): názvy souborů“ s jménem a časem.
+- [ ] Ve složce zápisu na SharePointu je podsložka „Dodatečné přílohy“ se soubory.
+- [ ] U **konceptu** sekce dodatečných příloh není (soubory se přidávají v bodech); u **stornovaného** zápisu také ne.
+- [ ] Cizí uživatel (nikoli autor, PM, vedení, administrátor) tlačítko nevidí.
+
 ## 5. Cashflow — vazby na harmonogram (0.34)
 - [ ] U platby nákladů zvolte **úkol harmonogramu**, kotvu (zahájení / dokončení), posun a splatnost → datum faktury a splatnost se vyplní samy a jsou zamčené.
 - [ ] Posuňte úkol v harmonogramu a uložte → platba v cashflow se posune.

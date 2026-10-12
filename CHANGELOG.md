@@ -5,6 +5,15 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.38.0 — 12. 10. 2026 — Stavební deník: autor mezi účastníky, dodatečné přílohy; přehled projektů: semafor jako terčík
+
+- **Autor zápisu je hned mezi účastníky.** Při založení nového zápisu (i předávacího protokolu) je v seznamu účastníků přihlášený uživatel — jméno, firma z Nastavení a role „zapisovatel“, přítomen. Dá se upravit nebo odebrat. Rozepsané a už uložené zápisy se tím nemění.
+- **Dodatečné přílohy u uzavřeného a podepsaného zápisu.** V detailu zápisu je nová sekce „Dodatečné přílohy“ s tlačítkem **Přiložit sken nebo fotku** (obrázky se zmenší, PDF a Office soubory se nahrají beze změny). Použije se, když někdo zápis podepíše dodatečně a je třeba přiložit sken. Soubory se ukládají do podsložky **„Dodatečné přílohy“** ve složce zápisu, takže **zápis, jeho podpis ani otisk obsahu se nemění**; každé přiložení je v historii zápisu (kdo, kdy, jaké soubory). Smí autor zápisu, PM projektu, vedení a administrátor; u konceptu se soubory dál přidávají přímo v bodech zápisu, u stornovaného ne.
+- **Přehled projektů:** sloupec Rozpočet je jen barevný terčík (ikona + barva), v bublině je stav, schválený rozpočet, prognóza, odchylka a marže s prahy z Nastavení.
+- Bez změny schématu.
+
+---
+
 ## 0.37.0 — 8. 10. 2026 — Harmonogram se upravuje přímo v Ganttově diagramu (krok 4e-1) + oprava „rozepsaného harmonogramu“
 
 **Oprava:** po uložení harmonogramu hlásila aplikace při dalším otevření „Našli jsme rozepsaný harmonogram“ (obnovit/zahodit), i když nic rozepsaného nebylo. Příčina: hlídání rozepsaného formuláře si zapamatovalo výchozí stav dřív, než se načetly řádky harmonogramu, a načtená data pak považovalo za rozepsané změny. Opraveno pořadím načítání. **Jednou je potřeba hlášku „Zahodit“** — starý uložený koncept v prohlížeči zůstal.

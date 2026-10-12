@@ -362,6 +362,32 @@ export function entryFilesPath(entryFolder: string): string {
   return `${entryFolder}/Přílohy`;
 }
 
+/** Podsložka dodatečných příloh: soubory přiložené až po uzavření nebo podpisu (sken pozdějšího podpisu, fotka …). Nejsou součástí otisku zápisu. */
+export function entryLateFilesPath(entryFolder: string): string {
+  return `${entryFolder}/Dodatečné přílohy`;
+}
+
+/** Smí uživatel k uzavřenému nebo podepsanému zápisu dodatečně přiložit soubor? Autor, PM projektu, vedení a administrátor. */
+export function canAddLateAttachments(entry: DiaryEntry, project: WorkflowProject, actor: Actor): boolean {
+  return (entry.status === EntryStatus.Uzavreno || entry.status === EntryStatus.Podepsano) && canManageEntry(entry, project, actor);
+}
+
+/**
+ * Ověří dodatečnou přílohu a vrátí text záznamu do historie. Zápis se tím nemění (obsah ani otisk) — soubory leží ve vlastní
+ * podsložce; do historie se jen zapíše, kdo a kdy co přiložil.
+ */
+export function lateAttachmentAudit(entry: DiaryEntry, fileNames: string[], ctx: EntryContext): string {
+  if (entry.status !== EntryStatus.Uzavreno && entry.status !== EntryStatus.Podepsano) {
+    throw new WorkflowError(`Dodatečně přiložit soubor jde jen k uzavřenému nebo podepsanému zápisu; zápis č. ${entry.entryNo} je ve stavu „${entry.status}“. U konceptu se soubory přidávají přímo v zápisu.`);
+  }
+  requireManage(entry, ctx, 'Přiložit soubor');
+  const names = fileNames.filter((n) => n.trim() !== '');
+  if (names.length === 0) {
+    throw new WorkflowError('Není co přiložit.');
+  }
+  return `Dodatečně přiloženo (${names.length}): ${names.join(', ')}`;
+}
+
 /** Název souboru s výstupem zápisu: `Zapis_26001_Z007.pdf`. */
 export function entryFileName(projectNumber: string, entryNo: number, extension: 'pdf' | 'docx' | 'podepsano.pdf', kind?: EntryKind): string {
   if (kind === 'predani') {
