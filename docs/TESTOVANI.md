@@ -80,6 +80,17 @@ Po nahrání: **Instalace a diagnostika** (schéma 21) a na téže stránce **P�
 - [ ] **Přehled projektů:** sloupec Rozp. je jen terčík (bublina vysvětlí důvod), Celková cena je smluvní, Náklady jsou prognóza, vedle je Marže a vzadu Marže zadání.
 - [ ] Report projektu (PDF) a export rozpočtu do CSV obsahují nové údaje (marže, výnosy) a nemají prodej ani přirážku.
 
+## 4d. Rozpočet: celkové částky, slovník, cashflow a výnosy, RES CRM (0.40)
+- [ ] Tabulka nákupu nemá sloupce Množství, MJ, Nákup/MJ, Koupeno ks ani Zbývá ks; sloupce jsou Nákup – plán, Rezerva %, Objednáno, Nákup – prognóza, Nakoupeno, Zbývá nakoupit. Úprava plánu celkovou částkou funguje a **počty kusů ve starých datech zůstanou** (kontrola např. přes „Objednat“ z položky: předvyplní se množství).
+- [ ] U vlastní práce jde zadat plán i nakoupeno částkou (hodiny se dopočtou ze sazby profese); bez sazby je pole šedé.
+- [ ] V rozpočtu není kusovník (žádné „Vložit z kusovníku“ ani „Uložit do kusovníku“).
+- [ ] Hlavička rozpočtu: 1. řádek Nákup – plán, Tržby – plán, Marže – plán; 2. řádek Nákup – prognóza, Tržby – prognóza, Marže – prognóza, Semafor; 3. řádek Nakoupeno, Zbývá nakoupit, **Prostavěnost**. Dlaždice Objednáno tam není.
+- [ ] **Slovník:** nikde už není Vyčerpáno, Proinvestováno ani Koupeno (přehled projektů, detail, report PDF, nápověda, export CSV).
+- [ ] Přehled projektů: sloupce Nákup, Marže, Prost. (procento) a vzadu Marže plán.
+- [ ] **Cashflow:** u fakturačního milníku je výběr „Výnos z rozpočtu“ (včetně „Nový výnos (dodatek)…“); panel „Výnosy z rozpočtu a plán fakturace“ ukazuje prognózu výnosu, naplánované milníky a rozdíl; milníky bez vazby se hlásí.
+- [ ] „Nový výnos“ z milníku při uzamčeném plánu vytvoří výnos s plánem 0 a prognózou podle milníku a upozorní, že pro dodatek je třeba plán odemknout.
+- [ ] V záhlaví je tlačítko **RES CRM** (obrys, ikona + text); vede na stránku RES CRM; v Nastavení → Odkazy v záhlaví jde změnit adresu nebo ho skrýt; v režimu celého okna zůstane celé okno i v RES CRM.
+
 ## 5. Cashflow — vazby na harmonogram (0.34)
 - [ ] U platby nákladů zvolte **úkol harmonogramu**, kotvu (zahájení / dokončení), posun a splatnost → datum faktury a splatnost se vyplní samy a jsou zamčené.
 - [ ] Posuňte úkol v harmonogramu a uložte → platba v cashflow se posune.

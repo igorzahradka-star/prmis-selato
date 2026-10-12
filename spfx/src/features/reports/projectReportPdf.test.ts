@@ -79,7 +79,7 @@ describe('PDF reportu projektu', () => {
 
   it('obsahuje přehled, objednávky, fakturaci, termíny, deník i fotky', () => {
     const text = allText(buildProjectReportDocument(model()).content);
-    ['Přehled projektu', 'Objednávky a vyčerpání', 'Fakturace', 'Termíny a úkoly', 'Stavební deník', 'Fotodokumentace'].forEach((t) => expect(text).toContain(t));
+    ['Přehled projektu', 'Objednávky a nákup', 'Fakturace', 'Termíny a úkoly', 'Stavební deník', 'Fotodokumentace'].forEach((t) => expect(text).toContain(t));
     expect(text).toContain('OBJ-2026-0001');
     expect(text).toContain('Zálohová faktura');
     expect(text).toContain('Doložit revizní zprávu');
@@ -166,9 +166,9 @@ describe('PDF reportu: realizační rozpočet', () => {
     expect(t).toContain('NESCHVÁLENO');
     expect(t).toContain('Materiál');
     expect(t).toContain('Vlastní práce (práce)');
-    expect(t).toContain('Skutečnost');
-    expect(t).toContain('proinvestováno 87,5 %');
-    expect(t).toContain('prodej realizačního rozpočtu');
+    expect(t).toContain('Nakoupeno');
+    expect(t).toContain('prostavěnost 87,5 %');
+    expect(t).toContain('smluvní cena (plán výnosů rozpočtu)');
   });
 
   it('schválený rozpočet ukáže číslo záznamu a kdo ho schválil', () => {

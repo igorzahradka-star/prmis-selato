@@ -16,7 +16,7 @@ import { RES, LAYOUT, RES_FONT_FAMILY } from '../theme';
 import { Route, RouteName, buildHash } from '../router';
 import { ROLE_LABELS } from '../../core/types';
 import { canOpenAdmin, canOpenBenchmark, canOpenFinance } from '../../core/roles';
-import { isWebViewMode, siteHomeUrl, toggleWebViewUrl } from '../fullscreen';
+import { crmLinkUrl, isWebViewMode, siteHomeUrl, toggleWebViewUrl } from '../fullscreen';
 import { NavEntry, NavGroup, NavItem, activeItemRoute, buildNavigation, flattenNavigation, groupKeyOf } from './navigation';
 
 import logoUrl from '../../webparts/prm/assets/res-logo-header.svg';
@@ -226,7 +226,7 @@ const NavLink: React.FC<{ item: NavItem; active: boolean; collapsed: boolean; in
 };
 
 const Header: React.FC<{ onToggleNav: () => void }> = ({ onToggleNav }) => {
-  const { user, dataSource } = useApp();
+  const { user, dataSource, settings } = useApp();
   return (
     <header
       style={{
@@ -260,6 +260,7 @@ const Header: React.FC<{ onToggleNav: () => void }> = ({ onToggleNav }) => {
 
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 18 }}>
         <HeaderTools />
+        {settings.links.showCrm && <CrmButton url={settings.links.crmUrl} />}
         <a href={buildHash(RouteName.Profile)} title="Můj profil a podpis" style={{ textDecoration: 'none', color: 'inherit' }}>
           <Persona
             text={user.displayName}
@@ -277,6 +278,32 @@ const Header: React.FC<{ onToggleNav: () => void }> = ({ onToggleNav }) => {
     </header>
   );
 };
+
+/** Tlačítko „RES CRM“: odkaz na sesterskou aplikaci (adresa a zobrazení jsou v Nastavení → Odkazy v záhlaví). */
+const CrmButton: React.FC<{ url: string }> = ({ url }) => (
+  <TooltipHost content="Otevřít RES CRM (nabídky a obchodní případy)">
+    <a
+      href={crmLinkUrl(url, window.location.href)}
+      aria-label="RES CRM"
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
+        color: RES.white,
+        textDecoration: 'none',
+        border: `1px solid ${RES.grayBlue}`,
+        borderRadius: 4,
+        padding: '4px 10px',
+        fontSize: 13,
+        fontWeight: 600,
+        whiteSpace: 'nowrap'
+      }}
+    >
+      <Icon iconName="ContactList" />
+      RES CRM
+    </a>
+  </TooltipHost>
+);
 
 /**
  * Domeček: zpět na úvodní stránku webu SharePointu. V režimu „celé okno" není lišta SharePointu vidět,

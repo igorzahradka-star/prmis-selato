@@ -16,7 +16,7 @@ import { RateTable, asCurrencyCode } from './currency';
 
 /** Které části report obsahuje (uživatel je v dialogu zapíná a vypíná). */
 export interface ReportSections {
-  /** Realizační rozpočet: plán, skutečnost, zbývá, semafor. */
+  /** Realizační rozpočet: nákup, tržby, marže, nakoupeno, semafor. */
   budget: boolean;
   finance: boolean;
   deadlines: boolean;
@@ -102,7 +102,7 @@ export interface ReportBudgetGroup {
   remaining: number;
 }
 
-/** Realizační rozpočet v reportu: plán, skutečnost (koupeno), zbývá, prognóza, semafor a stav schválení. */
+/** Realizační rozpočet v reportu: nákup (plán, prognóza, nakoupeno, zbývá), tržby, marže, semafor a stav schválení. */
 export interface ReportBudget {
   /** Rozpočet někdo aspoň jednou schválil; jinak jsou čísla provizorní. */
   approved: boolean;
@@ -125,7 +125,7 @@ export interface ReportBudget {
   forecast: number;
   actual: number;
   remaining: number;
-  /** Proinvestováno: skutečnost jako % nákladů plánu. */
+  /** Prostavěnost: nakoupeno jako % plánu nákupu. */
   spentPercent: number;
   semaphore: string;
   groups: ReportBudgetGroup[];
@@ -156,11 +156,11 @@ export interface ProjectReportModel {
   finance: {
     /** Celková cena projektu (smluvní, bez DPH) ve měně reportu; má-li projekt rozpočet, je to prodej rozpočtu. */
     price?: number;
-    /** Čísla (cena, vyčerpáno) jsou z rozpočtu / rozpočet zatím není schválený. */
+    /** Čísla (cena, nakoupeno) jsou z rozpočtu / rozpočet zatím není schválený. */
     fromBudget?: boolean;
     provisional?: boolean;
     originalPrice?: { amount: number; currency: string };
-    /** Vyčerpáno: součet vystavených objednávek bez DPH. */
+    /** Nakoupeno (z rozpočtu), jinak objednáno: součet vystavených objednávek bez DPH. */
     spent: number;
     spentPercent?: number;
     ordersByStatus: ReportStatusSum[];
@@ -242,7 +242,7 @@ export function buildProjectReportModel(input: ReportInput): ProjectReportModel 
   // --- finance
   const spentOrders = input.orders.filter((o) => SPENT_ORDER_STATUSES.indexOf(o.status) !== -1);
   const spent = round2(spentOrders.reduce((sum, o) => sum + conv(o.amountNet, o.currency), 0));
-  // --- rozpočet (je-li): cena = prodej, vyčerpáno = skutečnost (koupeno), proinvestování = skutečnost / náklady
+  // --- rozpočet (je-li): cena = smluvní (plán výnosů), nakoupeno = skutečnost, prostavěnost = nakoupeno / plán nákupu
   let budget: ReportBudget | undefined;
   if (input.budget && input.sections.budget) {
     const b = input.budget;
@@ -413,14 +413,13 @@ export function reportHighlights(m: ProjectReportModel): string[] {
     out.push(`${overdueTasks} ${plural(overdueTasks, 'úkol ze zápisu je', 'úkoly ze zápisů jsou', 'úkolů ze zápisů je')} po termínu.`);
   }
   const pct = m.finance.spentPercent;
-  const base = m.finance.fromBudget ? 'nákladů rozpočtu' : 'celkové ceny';
   if (pct !== undefined && pct > 100) {
-    out.push(`Vyčerpáno ${String(pct).replace('.', ',')} % ${base} — ${m.finance.fromBudget ? 'skutečnost přesahuje plán' : 'objednávky přesahují cenu projektu'}.`);
+    out.push(m.finance.fromBudget ? `Prostavěnost ${String(pct).replace('.', ',')} % plánu nákupu — nakoupeno přesahuje plán.` : `Objednáno ${String(pct).replace('.', ',')} % celkové ceny — objednávky přesahují cenu projektu.`);
   } else if (pct !== undefined && pct >= 90) {
-    out.push(`Vyčerpáno už ${String(pct).replace('.', ',')} % ${base}.`);
+    out.push(m.finance.fromBudget ? `Prostavěnost už ${String(pct).replace('.', ',')} % plánu nákupu.` : `Objednáno už ${String(pct).replace('.', ',')} % celkové ceny.`);
   }
   if (m.budget && !m.budget.approved) {
-    out.push('Rozpočet zatím nebyl schválen vedením — cena, náklady a čerpání v reportu jsou provizorní.');
+    out.push('Rozpočet zatím nebyl schválen vedením — cena, nákup a prostavěnost v reportu jsou provizorní.');
   } else if (m.budget && m.budget.changedSinceApproval) {
     out.push('Rozpočet byl od posledního schválení upraven — čísla se liší od schválených.');
   }

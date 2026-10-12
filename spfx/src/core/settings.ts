@@ -20,7 +20,8 @@ export enum SettingKey {
   Approvals = 'approvals',
   Roles = 'roles',
   Company = 'company',
-  WebList = 'webList'
+  WebList = 'webList',
+  Links = 'links'
 }
 
 /** Uzel stromu šablony složek projektu. */
@@ -169,7 +170,20 @@ export interface AppSettings {
   company: CompanySettings;
   /** Seznam běžících projektů na webu (web part „Běžící projekty“). */
   webList: WebListSettings;
+  /** Odkazy v záhlaví aplikace (tlačítko „RES CRM“). */
+  links: HeaderLinksSettings;
 }
+
+/**
+ * Odkazy v záhlaví: tlačítko **RES CRM** vede na stránku RES CRM (sesterská aplikace). Prázdná adresa = výchozí
+ * `<web>/SitePages/REVCRM.aspx` na stejném webu jako PRMIS.
+ */
+export interface HeaderLinksSettings {
+  showCrm: boolean;
+  crmUrl: string;
+}
+
+export const DEFAULT_HEADER_LINKS: HeaderLinksSettings = { showCrm: true, crmUrl: '' };
 
 /**
  * Výchozí struktura složek nového projektu — **stejná jako ve skutečných projektech RES** (ověřeno 1. 10. 2026 na projektu 26001).
@@ -285,7 +299,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
     accountingEmail: '',
     claim: 'Revoltujte s námi za moderní decentralizovanou energetiku'
   },
-  webList: DEFAULT_WEB_LIST
+  webList: DEFAULT_WEB_LIST,
+  links: DEFAULT_HEADER_LINKS
 };
 
 /**
@@ -305,7 +320,8 @@ export function withDefaults(stored: Partial<AppSettings> | undefined): AppSetti
     approvals: { ...DEFAULT_SETTINGS.approvals, ...(s.approvals ?? {}) },
     roles: { ...DEFAULT_SETTINGS.roles, ...(s.roles ?? {}) },
     company: { ...DEFAULT_SETTINGS.company, ...(s.company ?? {}) },
-    webList: webListWithDefaults(s.webList)
+    webList: webListWithDefaults(s.webList),
+    links: { ...DEFAULT_HEADER_LINKS, ...(s.links ?? {}) }
   };
 }
 
@@ -315,6 +331,9 @@ export function withDefaults(stored: Partial<AppSettings> | undefined): AppSetti
  */
 export function validateSettings(settings: AppSettings): string[] {
   const problems: string[] = [...validateWebList(settings.webList)];
+  if (settings.links.crmUrl.trim() !== '' && !/^https?:\/\//i.test(settings.links.crmUrl.trim())) {
+    problems.push('Adresa tlačítka RES CRM musí začínat https:// (nebo ji nechte prázdnou pro výchozí adresu).');
+  }
 
   if (!settings.folders.libraryTitle.trim()) {
     problems.push('Není vyplněn název knihovny, kam se zakládají složky projektů.');

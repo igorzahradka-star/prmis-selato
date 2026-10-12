@@ -271,7 +271,7 @@ describe('na co dát pozor', () => {
     const over = buildProjectReportModel(vstup({ project: base, orders: [objednavka(1, OrderStatus.Odeslano, 1200)] }));
     expect(reportHighlights(over).join(' ')).toContain('přesahují cenu projektu');
     const near = buildProjectReportModel(vstup({ project: base, orders: [objednavka(1, OrderStatus.Odeslano, 920)] }));
-    expect(reportHighlights(near).join(' ')).toContain('Vyčerpáno už 92 %');
+    expect(reportHighlights(near).join(' ')).toContain('Objednáno už 92 %');
     const red = buildProjectReportModel(vstup({ project: { ...base, budgetStatus: BudgetStatus.Cervena } }));
     expect(reportHighlights(red).join(' ')).toContain('červený');
   });

@@ -135,6 +135,8 @@ export interface IncomeMilestone {
   dueDays: number;
   /** Číslo podkladu pro fakturaci (FP…), který milník naplňuje — splatnost a úhrada se pak berou z něj. */
   invoiceNumber?: string;
+  /** Výnos z rozpočtu (`RevenueLine.id`), kterému milník patří — součet milníků výnosu se porovnává s jeho prognózou. */
+  revenueId?: string;
   /** Datum úhrady zadané ručně. */
   paidDate?: string;
   note?: string;
@@ -452,6 +454,28 @@ export function updateItem(doc: BudgetDoc, itemId: string, patch: Partial<Budget
   return { ...doc, items: doc.items.map((i) => (i.id === itemId ? { ...i, ...patch } : i)) };
 }
 
+/**
+ * Plán nákupu položky celkovou částkou (v tabulce se zadává jen celek; ks a cena za MJ se řeší v nabídkovém nástroji).
+ * Počet kusů a MJ ze starých dat zůstanou: cena za jednotku se dopočte tak, aby kusy × cena = zadaný celek. Bez kusů vznikne 1 ks.
+ */
+export function withPlanTotal(item: BudgetItem, total: number): BudgetItem {
+  const t = round2(Math.max(0, total));
+  return item.quantity > 0 ? { ...item, unitCost: t / item.quantity } : { ...item, quantity: 1, unitCost: t };
+}
+
+/** Vlastní práce: plán celkovou částkou → hodiny = částka / nákladová sazba profese; bez sazby nejde (vrací undefined). */
+export function withLabourTotal(item: BudgetItem, total: number, costRate: number): BudgetItem | undefined {
+  return costRate > 0 ? { ...item, quantity: Math.max(0, total) / costRate } : undefined;
+}
+
+/** Vlastní práce: skutečnost celkovou částkou → odpracované hodiny = částka / nákladová sazba; prázdná hodnota skutečnost zruší. */
+export function withLabourActual(item: BudgetItem, amount: number | undefined, costRate: number): BudgetItem | undefined {
+  if (amount === undefined) {
+    return { ...item, actualQty: undefined };
+  }
+  return costRate > 0 ? { ...item, actualQty: Math.max(0, amount) / costRate } : undefined;
+}
+
 export function removeItem(doc: BudgetDoc, itemId: string): BudgetDoc {
   // Platby smazané položky zůstanou (jsou to plánované peníze), ztratí jen vazbu na položku.
   return { ...doc, items: doc.items.filter((i) => i.id !== itemId), payments: (doc.payments ?? []).map((p) => (p.itemId === itemId ? { ...p, itemId: undefined } : p)) };
@@ -663,6 +687,7 @@ export function budgetFromJson(json: string | undefined): BudgetDoc {
     vatRate: num(m.vatRate, 21),
     dueDays: num(m.dueDays, 30),
     invoiceNumber: optStr(m.invoiceNumber),
+    revenueId: optStr(m.revenueId),
     paidDate: day(m.paidDate),
     note: optStr(m.note)
   }));

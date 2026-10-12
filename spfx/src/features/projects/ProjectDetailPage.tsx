@@ -347,10 +347,10 @@ const Overview: React.FC<{ project: Project }> = ({ project }) => {
           })()
         }
       />
-      <Row label="Plán nákupu při schválení" value={formatMoney(project.budgetBaselineTotal)} />
-      <Row label="Prognóza nákupu" value={formatMoney(project.costForecastTotal)} />
+      <Row label="Nákup – plán" value={formatMoney(project.budgetBaselineTotal ?? project.budgetCostTotal)} />
+      <Row label="Nákup – prognóza" value={formatMoney(project.costForecastTotal)} />
       <Row
-        label="Marže (prognóza / zadání)"
+        label="Marže – prognóza / plán"
         value={(() => {
           const v = projectMarginView(project, marginThresholdsOf(settings.budget));
           const f = (x: number | undefined): string => (x === undefined ? '—' : `${x.toLocaleString('cs-CZ', { maximumFractionDigits: 1 })} %`);

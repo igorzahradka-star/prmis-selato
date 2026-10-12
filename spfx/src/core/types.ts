@@ -130,7 +130,7 @@ export interface Project {
   budgetStatus: BudgetStatus;
   budgetBaselineTotal?: number;
   costForecastTotal?: number;
-  /** Součty rozpočtu v Kč (cache): náklady, prodej a skutečnost (koupeno); `budgetApproved` = rozpočet už někdo schválil. */
+  /** Součty rozpočtu v Kč (cache): plán nákupu, plán výnosů (smluvní cena) a nakoupeno; `budgetApproved` = rozpočet už někdo schválil. */
   budgetCostTotal?: number;
   budgetSaleTotal?: number;
   budgetActualTotal?: number;

@@ -38,7 +38,10 @@ import {
   statusAfterReject,
   updateGroup,
   validateBudget,
+  withLabourActual,
+  withLabourTotal,
   withMarkup,
+  withPlanTotal,
   withSale
 } from './budget';
 import { RateTable } from './currency';
@@ -400,4 +403,27 @@ describe('objednáno, prognóza a semafor (krok 3b)', () => {
     expect([c.cost, c.actualCost, c.forecast]).toEqual([4000, 4800, 4800]);
   });
 
+});
+
+describe('zadávání jen celkových částek (počty kusů a ceny za MJ patří do RES CRM)', () => {
+  it('plán nákupu celkem: kusy a MJ ze starých dat zůstanou, cena za jednotku se dopočte', () => {
+    const i = withPlanTotal(item({ quantity: 3, unit: 'ks', unitCost: 100 }), 450);
+    expect([i.quantity, i.unit, itemCost(i)]).toEqual([3, 'ks', 450]);
+    expect(i.unitCost).toBe(150);
+    const bezKusu = withPlanTotal(item({ quantity: 0, unitCost: 0 }), 99.5);
+    expect([bezKusu.quantity, itemCost(bezKusu)]).toEqual([1, 99.5]);
+    expect(itemCost(withPlanTotal(item({ quantity: 7, unitCost: 1 }), 100))).toBe(100);
+    expect(itemCost(withPlanTotal(item(), -5))).toBe(0);
+  });
+  it('práce: celková částka plánu i skutečnosti se převádí na hodiny podle nákladové sazby; bez sazby nejde', () => {
+    const d = doc([item({ id: 'p', groupId: 'gp', quantity: 10, rateId: 's1' })], [gp]);
+    const p = withLabourTotal(d.items[0], 6000, 400) as BudgetItem;
+    expect(p.quantity).toBe(15);
+    expect(calcItems({ ...d, items: [p] }, RATES)[0].cost).toBe(6000);
+    expect(withLabourTotal(d.items[0], 6000, 0)).toBeUndefined();
+    const a = withLabourActual(d.items[0], 2000, 400) as BudgetItem;
+    expect(calcItems({ ...d, items: [a] }, RATES)[0].actualCost).toBe(2000);
+    expect((withLabourActual({ ...d.items[0], actualQty: 4 }, undefined, 400) as BudgetItem).actualQty).toBeUndefined();
+    expect(withLabourActual(d.items[0], 100, 0)).toBeUndefined();
+  });
 });

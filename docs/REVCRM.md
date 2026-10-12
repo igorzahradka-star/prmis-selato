@@ -73,3 +73,14 @@ Odpovědi Igora na otevřené otázky jsou v [`REVCRM_ZAHAJENI.md`](REVCRM_ZAHAJ
 - Komerční část případu na webu matky: co přesně tam leží (dokumenty, data) a jak se k ní z RES přistupuje (odkaz, nebo čtení přes API).
 - Fáze nabídky, stavy případu, role a oprávnění, složková struktura případu (komerční / technická).
 - Přesná podoba „předávací obálky“ při výhře (viz tabulka rozhraní výše).
+
+## Rozpočet a předání kalkulace — dohoda v2 (12. 10. 2026, rozhodl Igor; zapsala relace PRMIS)
+
+Doplňuje „Dohodnutá rozhraní“ výše (řádek o rozpočtu a kalkulaci). **Kopii této části si má zapsat i relace REVCRM** (viz P-008 v deníku PRMIS).
+
+- **Smluvní cena a nákup přicházejí do projektu z kalkulace; prodej a přirážku počítá jen RES CRM.** PRMIS prodej a přirážku u položek nezobrazuje ani nepoužívá (ve starých datech zůstávají uložené).
+- **Rozpočet PRMIS = Nákup + Výnosy.** Formát `BudgetDoc` (`groups`, `items`, `rates`) se rozšířil o `revenues` (smluvní tržby: `id`, `description`, `currency`, `plan`, volitelně `forecast`, `invoiced`, `note`). **Součet `plan` je smluvní cena projektu**, vždy bez DPH; dodatek nebo vícepráce je další řádek výnosů.
+- **Počty kusů, MJ a ceny za MJ patří jen do RES CRM.** V PRMIS se zadávají jen celkové částky položek (plán, prognóza, nakoupeno). Pole `quantity`, `unit`, `unitCost` zůstávají v datech (plán položky = `quantity × unitCost`) a PRMIS je nemaže; úprava celkové částky v PRMIS dopočte `unitCost`.
+- **Marže** = (tržby − nákup) / tržby, v měně tržby − nákup, z aktuálního kurzu ČNB. První schválení rozpočtu zafixuje marži a prognózu přepíše plánem; plán je po schválení uzamčený. Semafor podle marže z prognóz: od 15 % zelená, od 10 % světle zelená, od 5 % žlutá, pod 5 % červená, záporná tmavě červená (hranice v Nastavení PRMIS).
+- **Procentní rezerva** (`reservePercent`) je v PRMIS p % z **nákupu** ostatních položek; RES CRM ji počítá z prodeje. Při předání se proto procentní rezerva převede na **částku**.
+- **Předání (Fáze D):** do rozpočtu projektu se předají `items` (plán nákupu: popis, dodavatel, kategorie, měna, `quantity`, `unit`, `unitCost`) a `revenues` (minimálně „Smluvní cena“ = prodej celkem z kalkulace). Bez `revenues` PRMIS vezme dosavadní cenu projektu (starý model).

@@ -172,14 +172,14 @@ function slideOverview(m: ProjectReportModel): Content[] {
 
   const prov = f.provisional ? ' · NESCHVÁLENO (provizorní)' : '';
   const priceNote = f.fromBudget
-    ? `prodej realizačního rozpočtu bez DPH${prov}`
+    ? `smluvní cena (plán výnosů rozpočtu) bez DPH${prov}`
     : f.originalPrice
     ? `smluvní cena bez DPH (původně ${formatMoney(f.originalPrice.amount, f.originalPrice.currency)})`
     : 'smluvní cena bez DPH';
   const spentNote = f.fromBudget
     ? f.spentPercent !== undefined
-      ? `${String(f.spentPercent).replace('.', ',')} % nákladů rozpočtu — koupeno a odpracováno${prov}`
-      : 'skutečnost z rozpočtu'
+      ? `prostavěnost ${String(f.spentPercent).replace('.', ',')} % plánu nákupu — nakoupeno a odpracováno${prov}`
+      : 'nakoupeno podle rozpočtu'
     : f.spentPercent !== undefined
     ? `${String(f.spentPercent).replace('.', ',')} % ceny — vystavené objednávky bez DPH`
     : 'vystavené objednávky bez DPH';
@@ -189,7 +189,7 @@ function slideOverview(m: ProjectReportModel): Content[] {
       body: [
         [
           { ...(tile('Celková cena', money(m, f.price), priceNote) as object), margin: [0, 0, 8, 8] } as Content,
-          { ...(tile('Vyčerpáno', money(m, f.spent), spentNote, f.spentPercent !== undefined ? progressBar(170, f.spentPercent) : undefined) as object), margin: [8, 0, 0, 8] } as Content
+          { ...(tile(f.fromBudget ? 'Nakoupeno' : 'Objednáno', money(m, f.spent), spentNote, f.spentPercent !== undefined ? progressBar(170, f.spentPercent) : undefined) as object), margin: [8, 0, 0, 8] } as Content
         ],
         [
           { ...(tile('Vyfakturováno', money(m, f.invoiced), 'podklady vyfakturované a uhrazené') as object), margin: [0, 0, 8, 0] } as Content,
@@ -214,7 +214,7 @@ function slideOverview(m: ProjectReportModel): Content[] {
   return [slideTitle('Přehled projektu', `${p.number} · ${p.title}`), { columns: [{ width: 360, stack: [facts, attention] }, { width: 24, text: '' }, { width: '*', stack: [tiles] }], margin: [MX, 0, MX, 0] } as Content];
 }
 
-/** Realizační rozpočet: souhrn (plán, smluvní cena, marže, skutečnost, zbývá, prognóza, semafor) a tabulka nákupu po skupinách. */
+/** Realizační rozpočet: souhrn (nákup, tržby, marže, nakoupeno, prognóza, semafor) a tabulka nákupu po skupinách. */
 function slideBudget(m: ProjectReportModel): Content[] {
   const b = m.budget;
   if (!b) {
@@ -240,20 +240,20 @@ function slideBudget(m: ProjectReportModel): Content[] {
     td(money(m, b.remaining), 'right', true),
     td(pctText(b.spentPercent), 'right', true)
   ]);
-  const table: Content = { table: { headerRows: 1, widths: ['*', 110, 110, 100, 60], body: [[th('Skupina'), th('Plán – nákup', 'right'), th('Skutečnost', 'right'), th('Zbývá', 'right'), th('Čerpáno', 'right')], ...rows] }, layout: tableLayout } as Content;
+  const table: Content = { table: { headerRows: 1, widths: ['*', 110, 110, 100, 60], body: [[th('Skupina'), th('Nákup – plán', 'right'), th('Nakoupeno', 'right'), th('Zbývá nakoupit', 'right'), th('Prost.', 'right')], ...rows] }, layout: tableLayout } as Content;
   return [
     slideTitle('Realizační rozpočet', `${status} · částky bez DPH`),
     {
       stack: [
         {
           columns: [
-            { width: '*', stack: [tile('Plán – nákup', money(m, b.cost), `smluvní cena ${money(m, b.sale)}`)] },
+            { width: '*', stack: [tile('Nákup – plán', money(m, b.cost), `smluvní cena ${money(m, b.sale)}`)] },
             { width: 12, text: '' },
-            { width: '*', stack: [tile('Marže (prognóza)', b.marginForecastPercent !== undefined ? pctText(b.marginForecastPercent) : '—', b.marginApprovedPercent !== undefined ? `zadání ${pctText(b.marginApprovedPercent)}` : 'zadání zatím není schváleno')] },
+            { width: '*', stack: [tile('Marže – prognóza', b.marginForecastPercent !== undefined ? pctText(b.marginForecastPercent) : '—', b.marginApprovedPercent !== undefined ? `plán ${pctText(b.marginApprovedPercent)}` : 'plán zatím není schválen')] },
             { width: 12, text: '' },
-            { width: '*', stack: [tile('Skutečnost', money(m, b.actual), `proinvestováno ${pctText(b.spentPercent)}`, progressBar(140, b.spentPercent))] },
+            { width: '*', stack: [tile('Nakoupeno', money(m, b.actual), `prostavěnost ${pctText(b.spentPercent)}`, progressBar(140, b.spentPercent))] },
             { width: 12, text: '' },
-            { width: '*', stack: [tile('Prognóza nákladů', money(m, b.forecast), `objednáno ${money(m, b.ordered)}`)] }
+            { width: '*', stack: [tile('Nákup – prognóza', money(m, b.forecast), `objednáno ${money(m, b.ordered)}`)] }
           ],
           margin: [0, 0, 0, 10]
         } as Content,
@@ -299,7 +299,7 @@ function slideOrders(m: ProjectReportModel): Content[] {
       : ({ table: { headerRows: 1, widths: [78, 80, '*', 78, 74], body: [[th('Číslo'), th('Dodavatel'), th('Předmět'), th('Stav'), th('Bez DPH', 'right')], ...rows] }, layout: tableLayout } as Content);
 
   return [
-    slideTitle('Objednávky a vyčerpání', `Vyčerpáno ${money(m, f.spent)}${f.price !== undefined ? ` z ${money(m, f.price)}` : ''} · částky bez DPH`),
+    slideTitle('Objednávky a nákup', `${f.fromBudget ? 'Nakoupeno' : 'Objednáno'} ${money(m, f.spent)}${f.price !== undefined ? ` při ceně ${money(m, f.price)}` : ''} · částky bez DPH`),
     {
       columns: [
         { width: 300, stack: [small('Podle stavu'), ...bars] },

@@ -32,12 +32,15 @@ import {
   VatRegime,
   budgetTotals,
   canEditBudget,
+  isPlanLocked,
   newBudgetId,
   newMilestone,
   newPayment,
+  newRevenueLine,
   validateBudget
 } from '../../core/budget';
-import { CfBucket, Granularity, InvoiceLike, buildCashflow, dayText, parsePercents, splitPayments } from '../../core/cashflow';
+import { ensureRevenues } from '../../core/budgetMargin';
+import { CfBucket, Granularity, InvoiceLike, buildCashflow, dayText, parsePercents, revenuePlan, splitPayments } from '../../core/cashflow';
 import { InvoiceStatus } from '../../core/invoiceBases';
 import { DEFAULT_TASK_DUE_DAYS, DeliveryOrder, TaskDates, deliveryConflicts, indexTasks, resolvePayment, taskLabel } from '../../core/scheduleLinks';
 import { CELL_INPUT, NumInput } from '../budget/NumInput';
@@ -77,6 +80,11 @@ export const CashflowTab: React.FC<{ project: Project }> = ({ project }) => {
   const report = useReportCurrency();
   const actor = React.useMemo(() => toActor(user), [user]);
   const wf = React.useMemo(() => toWorkflowProject(project), [project]);
+  // Starý rozpočet (bez výnosů) se při načtení převede na nový model (stejně jako v záložce Realizační rozpočet).
+  const projectRef = React.useRef(project);
+  projectRef.current = project;
+  const ratesRef = React.useRef(report.rates);
+  ratesRef.current = report.rates;
 
   const [loaded, setLoaded] = React.useState(false);
   const [record, setRecord] = React.useState<BudgetRecord | undefined>(undefined);
@@ -116,7 +124,7 @@ export const CashflowTab: React.FC<{ project: Project }> = ({ project }) => {
       return;
     }
     setRecord(b.record);
-    setDoc(b.doc);
+    setDoc(ensureRevenues(b.doc, projectRef.current, ratesRef.current));
     setSaved(JSON.stringify(b.doc));
     setEtag(b.etag);
   }, [repos, project.projectNumber]);
@@ -248,8 +256,21 @@ export const CashflowTab: React.FC<{ project: Project }> = ({ project }) => {
         : { taskId: Number(value), taskAnchor: (cur && cur.taskAnchor) || 'finish', taskOffsetDays: cur && cur.taskOffsetDays !== undefined ? cur.taskOffsetDays : 0, taskDueDays: cur && cur.taskDueDays !== undefined ? cur.taskDueDays : DEFAULT_TASK_DUE_DAYS }
     );
   };
+  const planLocked = isPlanLocked(record);
+  /** Výběr výnosu u milníku; „nový“ založí výnosový řádek (dodatek): s plánem, nebo (plán uzamčen) jen s prognózou. */
+  const chooseRevenue = (m: IncomeMilestone, value: string): void => {
+    if (value !== '__new') {
+      upMilestone(m.id, { revenueId: value || undefined });
+      return;
+    }
+    const line = newRevenueLine(m.currency, m.description || 'Nový výnos');
+    const created = planLocked ? { ...line, plan: 0, forecast: m.amount } : { ...line, plan: m.amount };
+    setDoc({ ...doc, revenues: [...(doc.revenues ?? []), created], income: income.map((x) => (x.id === m.id ? { ...x, revenueId: created.id } : x)) });
+    setNotice(planLocked ? 'Vznikl nový výnos s plánem 0 a prognózou podle milníku (plán výnosů je po schválení uzamčený). Pro dodatek odemkněte plán v Realizačním rozpočtu a nechte ho schválit.' : 'Vznikl nový výnos v rozpočtu (plán = částka milníku). Nezapomeňte popis výnosu případně upravit v Realizačním rozpočtu.');
+  };
   const upMilestone = (id: string, patch: Partial<IncomeMilestone>): void => setIncome(income.map((m) => (m.id === id ? { ...m, ...patch } : m)));
   const peak = cf.buckets.reduce((m, b) => Math.min(m, b.cumPlan), 0);
+  const rp = revenuePlan(doc, report.rates, report.currency);
   const last = cf.buckets[cf.buckets.length - 1];
 
   const openSplit = (itemId?: string): void => {
@@ -344,6 +365,7 @@ export const CashflowTab: React.FC<{ project: Project }> = ({ project }) => {
         <Tile label={`Příjmy – plán (${report.label})`} value={formatMoney(cf.totals.incomePlan, report.currency)} hint={`skutečně přijato ${formatMoney(cf.totals.incomeActual, report.currency)}`} />
         <Tile label={`Výdaje – plán (${report.label})`} value={formatMoney(cf.totals.expensePlan, report.currency)} hint={`skutečně zaplaceno ${formatMoney(cf.totals.expenseActual, report.currency)}`} />
         <Tile label="Saldo plánu" value={formatMoney(cf.totals.incomePlan - cf.totals.expensePlan, report.currency)} hint={last ? `nejnižší kumulace ${formatMoney(peak, report.currency)}` : undefined} warn={cf.totals.incomePlan - cf.totals.expensePlan < 0} />
+        <Tile label="Tržby: zbývá naplánovat fakturaci" value={formatMoney(rp.remainingTotal, report.currency)} hint={rp.mismatch ? (rp.unlinked.length > 0 ? `${rp.unlinked.length} milníků bez vazby na výnos` : 'milníky se liší od prognózy výnosů') : 'fakturace odpovídá prognóze výnosů'} warn={rp.mismatch} />
         <Tile label="Zbývá naplánovat" value={formatMoney(cf.unplannedTotal, report.currency)} hint={cf.coverage.length > 0 ? `${cf.coverage.length} položek rozpočtu bez plateb` : 'náklady jsou rozplánované'} warn={cf.unplannedTotal > 0} />
       </div>
 
@@ -531,9 +553,10 @@ export const CashflowTab: React.FC<{ project: Project }> = ({ project }) => {
         Plánované datum faktury + splatnost určuje, kdy peníze přijdou. Navážete-li milník na podklad pro fakturaci, splatnost a úhrada se berou z něj.
       </div>
       <StickyHScroll>
-        <table style={{ width: '100%', minWidth: 1180, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+        <table style={{ width: '100%', minWidth: 1380, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
           <colgroup>
             <col style={{ width: 'auto' }} />
+            <col style={{ width: 190 }} />
             <col style={{ width: 128 }} />
             <col style={{ width: 112 }} />
             <col style={{ width: 62 }} />
@@ -546,6 +569,7 @@ export const CashflowTab: React.FC<{ project: Project }> = ({ project }) => {
           <thead>
             <tr style={{ borderBottom: `1px solid ${RES.grayBlue}` }}>
               <th style={TH}>Milník</th>
+              <th style={TH} title="Výnos z Realizačního rozpočtu, kterému fakturace patří">Výnos z rozpočtu</th>
               <th style={TH}>Datum faktury</th>
               <th style={{ ...TH, textAlign: 'right' }}>Bez DPH</th>
               <th style={TH}>Měna</th>
@@ -561,6 +585,17 @@ export const CashflowTab: React.FC<{ project: Project }> = ({ project }) => {
               <tr key={m.id} style={{ borderTop: `1px solid ${RES.background}` }}>
                 <td style={TD}>
                   <input aria-label="Popis milníku" value={m.description} disabled={!editable} onChange={(e) => upMilestone(m.id, { description: e.target.value })} style={CELL_INPUT} />
+                </td>
+                <td style={TD}>
+                  <select aria-label="Výnos z rozpočtu" value={m.revenueId && (doc.revenues ?? []).some((r) => r.id === m.revenueId) ? m.revenueId : ''} disabled={!editable} onChange={(e) => chooseRevenue(m, e.target.value)} style={{ ...CELL_INPUT, borderColor: m.revenueId ? RES.grayBlue : RES.amber }}>
+                    <option value="">— nenavázáno —</option>
+                    {(doc.revenues ?? []).map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.description || '(bez popisu)'}
+                      </option>
+                    ))}
+                    <option value="__new">＋ Nový výnos (dodatek)…</option>
+                  </select>
                 </td>
                 <td style={TD}>
                   <input type="date" aria-label="Plánované datum faktury" value={m.plannedDate ?? ''} disabled={!editable} onChange={(e) => upMilestone(m.id, { plannedDate: e.target.value || undefined })} style={DATE} />
@@ -603,7 +638,7 @@ export const CashflowTab: React.FC<{ project: Project }> = ({ project }) => {
             ))}
             {income.length === 0 && (
               <tr>
-                <td colSpan={9} style={{ padding: 10, fontSize: 13, color: RES.gray }}>
+                <td colSpan={10} style={{ padding: 10, fontSize: 13, color: RES.gray }}>
                   Zatím žádný milník. Přidejte plánované faktury zákazníkovi (zálohy, dílčí plnění, předání).
                 </td>
               </tr>
@@ -614,6 +649,42 @@ export const CashflowTab: React.FC<{ project: Project }> = ({ project }) => {
       {editable && (
         <div style={{ marginTop: 4 }}>
           <ActionButton iconProps={{ iconName: 'Add' }} text="Přidat milník" onClick={() => setIncome([...income, newMilestone(report.currency)])} />
+        </div>
+      )}
+
+      {/* Výnosy z rozpočtu proti plánu fakturace */}
+      <h3 style={{ margin: '18px 0 6px', color: RES.navy, fontSize: 15 }}>Výnosy z rozpočtu a plán fakturace</h3>
+      <div style={{ fontSize: 12, color: RES.gray, marginBottom: 6 }}>
+        Každý fakturační milník patří k některému výnosu z Realizačního rozpočtu (smluvní cena, dodatek, vícepráce). Součet milníků výnosu se porovnává s jeho prognózou tržeb; rozdíl je jen upozornění, nic se neblokuje.
+        Chybí-li výnos pro novou fakturaci (dodatek), vyberte u milníku „Nový výnos“.
+      </div>
+      {rp.lines.length === 0 ? (
+        <MessageBar messageBarType={MessageBarType.warning}>Rozpočet zatím nemá žádný výnos — doplňte smluvní cenu v Realizačním rozpočtu (sekce Výnosy).</MessageBar>
+      ) : (
+        <div style={{ background: RES.white, border: `1px solid ${RES.grayBlue}`, borderRadius: 4, padding: '4px 10px' }}>
+          <div style={{ display: 'flex', gap: 10, fontSize: 12, color: RES.gray, padding: '3px 0' }}>
+            <span style={{ flex: '1 1 220px' }}>Výnos</span>
+            <span style={{ flex: '0 0 150px', textAlign: 'right' }}>Prognóza tržeb</span>
+            <span style={{ flex: '0 0 150px', textAlign: 'right' }}>Naplánováno (milníky)</span>
+            <span style={{ flex: '0 0 170px', textAlign: 'right' }}>Zbývá naplánovat</span>
+          </div>
+          {rp.lines.map((l) => (
+            <div key={l.revenueId} style={{ display: 'flex', gap: 10, fontSize: 13, borderTop: `1px solid ${RES.background}`, padding: '3px 0' }}>
+              <span style={{ flex: '1 1 220px' }}>{l.description || '(bez popisu)'}</span>
+              <span style={{ flex: '0 0 150px', textAlign: 'right' }}>{formatMoney(l.forecast, report.currency)}</span>
+              <span style={{ flex: '0 0 150px', textAlign: 'right' }}>
+                {formatMoney(l.planned, report.currency)} <span style={{ color: RES.gray, fontSize: 11 }}>({l.milestones})</span>
+              </span>
+              <span style={{ flex: '0 0 170px', textAlign: 'right', fontWeight: 600, color: Math.abs(l.remaining) > 0.5 ? RES.red : RES.greenDark }}>
+                {Math.abs(l.remaining) > 0.5 ? formatMoney(l.remaining, report.currency) : 'v pořádku'}
+              </span>
+            </div>
+          ))}
+          {rp.unlinked.length > 0 && (
+            <div style={{ borderTop: `1px solid ${RES.background}`, padding: '4px 0', fontSize: 12, color: '#7A5A00' }}>
+              Milníky bez vazby na výnos ({rp.unlinked.length}): {rp.unlinked.map((m) => m.description || 'bez popisu').join(', ')}.
+            </div>
+          )}
         </div>
       )}
 

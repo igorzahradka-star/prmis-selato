@@ -11,7 +11,7 @@
  */
 
 import { CurrencyCode, RateTable, convertAmount } from './currency';
-import { BudgetDoc, IncomeMilestone, PlannedPayment, VAT_REGIMES, calcItems, round2, OrderLike } from './budget';
+import { BudgetDoc, IncomeMilestone, PlannedPayment, VAT_REGIMES, calcItems, revenueForecast, round2, OrderLike } from './budget';
 import { InvoiceStatus } from './invoiceBases';
 import { TaskIndex, applySchedule, resolvePayment } from './scheduleLinks';
 
@@ -289,6 +289,49 @@ export function buildCashflow(input: CashflowInput): CashflowResult {
     coverage,
     unplannedTotal: round2(coverage.reduce((s, c) => s + c.unplanned, 0)),
     warnings
+  };
+}
+
+// --- výnosy z rozpočtu a plán fakturace --------------------------------------------------
+
+export interface RevenueCoverage {
+  revenueId: string;
+  description: string;
+  /** Prognóza tržeb výnosu a součet navázaných fakturačních milníků (obojí bez DPH, ve zvolené měně). */
+  forecast: number;
+  planned: number;
+  /** Prognóza − naplánováno: kladné = ještě chybí naplánovat fakturaci, záporné = milníky přesahují prognózu. */
+  remaining: number;
+  milestones: number;
+}
+
+export interface RevenuePlan {
+  lines: RevenueCoverage[];
+  /** Milníky bez vazby na výnos (nebo s vazbou na výnos, který už neexistuje). */
+  unlinked: IncomeMilestone[];
+  /** Součet kladných i záporných rozdílů přes všechny výnosy (pro upozornění). */
+  remainingTotal: number;
+  /** Aspoň jeden výnos se liší od plánu fakturace nebo je nějaký milník bez vazby. */
+  mismatch: boolean;
+}
+
+/** Porovná prognózu tržeb každého výnosu z rozpočtu se součtem fakturačních milníků, které se na něj odkazují. */
+export function revenuePlan(doc: BudgetDoc, rates: RateTable, currency: CurrencyCode): RevenuePlan {
+  const revenues = doc.revenues ?? [];
+  const income = doc.income ?? [];
+  const known = new Set(revenues.map((r) => r.id));
+  const lines: RevenueCoverage[] = revenues.map((r) => {
+    const mine = income.filter((m) => m.revenueId === r.id);
+    const forecast = round2(convertAmount(revenueForecast(r), r.currency, currency, rates));
+    const planned = round2(mine.reduce((s, m) => s + convertAmount(m.amount, m.currency, currency, rates), 0));
+    return { revenueId: r.id, description: r.description, forecast, planned, remaining: round2(forecast - planned), milestones: mine.length };
+  });
+  const unlinked = income.filter((m) => !m.revenueId || !known.has(m.revenueId));
+  return {
+    lines,
+    unlinked,
+    remainingTotal: round2(lines.reduce((s, l) => s + l.remaining, 0)),
+    mismatch: unlinked.length > 0 || lines.some((l) => Math.abs(l.remaining) > 0.5)
   };
 }
 

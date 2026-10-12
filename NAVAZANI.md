@@ -6,7 +6,7 @@
 >
 > Poslední aktualizace: **23. 9. 2026**
 >
-> **Přečteno z deníku druhé strany do: R-012 (6. 10. 2026)** — deník REVCRM je `C:\Projekty\revcrm\docs\DENIK.md`, náš `docs/DENIK.md`. Na začátku relace přečti novější záznamy REVCRM a toto místo aktualizuj; záznam s AKCE vyřiď odpovědí v našem deníku.
+> **Přečteno z deníku druhé strany do: R-018 (12. 10. 2026)** — deník REVCRM je `C:\Projekty\revcrm\docs\DENIK.md`, náš `docs/DENIK.md`. Na začátku relace přečti novější záznamy REVCRM a toto místo aktualizuj; záznam s AKCE vyřiď odpovědí v našem deníku.
 
 ---
 
@@ -115,7 +115,7 @@ balíček 0.2.4.0). Nasazení odhalilo čtyři chyby, které se lokálně nedaly
 hledání lidí (HTTP 400), skupiny rolí bez oprávnění, knihovna „Dokumenty" se
 nenašla podle zobrazeného názvu, oříznuté záložky. Všechny opravené.
 
-**Aktuální balíček je 0.39.0.0** (schéma 21 — spustit Instalaci a diagnostiku: tři sloupce marží v seznamu projektů; pak na téže stránce karta „Součty rozpočtů v přehledu projektů“ → Přepočítat všechny projekty, aby se cache marží naplnila) (stavební deník: autor mezi účastníky a dodatečné přílohy; bez změny schématu — schéma 20) (Gantt se upravuje tažením, krok 4e-1; bez změny schématu — schéma zůstává 20) (schéma 20 — spustit Instalaci a diagnostiku: sloupce vybraného schvalovatele u rozpočtů; kontrolní seznam k vyzkoušení všeho nového je v `docs/TESTOVANI.md`) (oprava bílé stránky rozpočtu z 0.32.1 — pozor: nepsat React hooky za podmíněný `return`, v `BudgetTab` a podobných komponentách musí být všechny hooky nad prvním `return`) (Fáze 4 harmonogram, krok 4a hotový — bez změny schématu) (schéma 19 — spustit Instalaci a diagnostiku: sloupec Objednatel v podkladech) (dohoda se REVCRM o sdílených seznamech `PRM_Partners` a `PRM_Catalog` je zapsaná v `docs/REVCRM.md`, oddíl „Sdílené seznamy … dohoda v1“ — sloupce těchto seznamů se mění jen přidávacím způsobem a po zápisu do dohody) (30. 9. 2026; na ostrém webu běží 0.3.x nebo 0.4.0.0 — ověřit v katalogu). Přidává stavy projektů
+**Aktuální balíček je 0.40.0.0** (bez změny schématu — schéma 21; tabulka rozpočtu jen s celkovými částkami, slovník Nákup/Tržby/Marže/Prostavěnost, balíček C vazba cashflow na výnosy, tlačítko RES CRM v záhlaví) (schéma 21 — spustit Instalaci a diagnostiku: tři sloupce marží v seznamu projektů; pak na téže stránce karta „Součty rozpočtů v přehledu projektů“ → Přepočítat všechny projekty, aby se cache marží naplnila) (stavební deník: autor mezi účastníky a dodatečné přílohy; bez změny schématu — schéma 20) (Gantt se upravuje tažením, krok 4e-1; bez změny schématu — schéma zůstává 20) (schéma 20 — spustit Instalaci a diagnostiku: sloupce vybraného schvalovatele u rozpočtů; kontrolní seznam k vyzkoušení všeho nového je v `docs/TESTOVANI.md`) (oprava bílé stránky rozpočtu z 0.32.1 — pozor: nepsat React hooky za podmíněný `return`, v `BudgetTab` a podobných komponentách musí být všechny hooky nad prvním `return`) (Fáze 4 harmonogram, krok 4a hotový — bez změny schématu) (schéma 19 — spustit Instalaci a diagnostiku: sloupec Objednatel v podkladech) (dohoda se REVCRM o sdílených seznamech `PRM_Partners` a `PRM_Catalog` je zapsaná v `docs/REVCRM.md`, oddíl „Sdílené seznamy … dohoda v1“ — sloupce těchto seznamů se mění jen přidávacím způsobem a po zápisu do dohody) (30. 9. 2026; na ostrém webu běží 0.3.x nebo 0.4.0.0 — ověřit v katalogu). Přidává stavy projektů
 (Uzavřeno zrušeno, nově Reklamace), barvy špendlíků podle stavu, legendu mapy. **Po nahrání znovu
 spustit Instalace a diagnostika** — doplní volbu „Reklamace" do sloupce Stav (schéma 5). Pokud
 by automatické doplnění selhalo, přidat volbu ručně: nastavení seznamu PRM – Projekty → sloupec Stav
@@ -192,7 +192,7 @@ od projektů).
 
 ### Zadáno k pozdější iteraci (nezačato)
 
-- **Marže, výnosy a semafor — HOTOVO v 0.39.0.0** (viz `docs/ROZHODNUTI.md`, 12. 10. 2026). Zbývá: **balíček C** (vazba fakturačních milníků v cashflow na řádky výnosů; milník se naváže na výnos nebo vznikne nový řádek; upozornění při rozdílu proti prognóze řádku), později API konektor na ABRU pro „vyfakturováno“.
+- **Marže, výnosy a semafor — HOTOVO v 0.39.0.0, balíček C (vazba milníků cashflow na výnosy) HOTOV v 0.40.0.0** (viz `docs/ROZHODNUTI.md`, 12. 10. 2026). Zbývá později: API konektor na ABRU pro „vyfakturováno“.
 
 - **Smazat partnera z okna úprav** — HOTOVO v 0.36.0.0.
 

@@ -1,4 +1,4 @@
-import { isWebViewMode, siteHomeUrl, toggleWebViewUrl } from './fullscreen';
+import { crmLinkUrl, isWebViewMode, siteHomeUrl, toggleWebViewUrl } from './fullscreen';
 
 const STRANKA = 'https://revoltum.sharepoint.com/sites/RevoltumEngineeringServices/SitePages/PRM.aspx';
 
@@ -59,5 +59,18 @@ describe('siteHomeUrl', () => {
 
   it('neplatnou adresu vrátí beze změny', () => {
     expect(siteHomeUrl('není adresa')).toBe('není adresa');
+  });
+});
+
+describe('crmLinkUrl (tlačítko RES CRM)', () => {
+  it('bez vlastní adresy vede na REVCRM.aspx na stejném webu', () => {
+    expect(crmLinkUrl('', `${STRANKA}#/projekty`)).toBe('https://revoltum.sharepoint.com/sites/RevoltumEngineeringServices/SitePages/REVCRM.aspx');
+  });
+  it('vlastní adresa z Nastavení má přednost', () => {
+    expect(crmLinkUrl(' https://example.com/crm.aspx ', STRANKA)).toBe('https://example.com/crm.aspx');
+  });
+  it('při zobrazení přes celé okno se env=WebView přenese i do RES CRM', () => {
+    expect(crmLinkUrl('', `${STRANKA}?env=WebView#/projekty`)).toBe('https://revoltum.sharepoint.com/sites/RevoltumEngineeringServices/SitePages/REVCRM.aspx?env=WebView');
+    expect(crmLinkUrl('https://example.com/crm.aspx?x=1', `${STRANKA}?env=WebView`)).toBe('https://example.com/crm.aspx?x=1&env=WebView');
   });
 });

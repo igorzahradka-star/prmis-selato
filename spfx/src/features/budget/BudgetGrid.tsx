@@ -1,12 +1,13 @@
 /**
- * Tabulka realizačního rozpočtu: skupiny a v nich libovolně přidávané položky.
+ * Tabulka nákupu realizačního rozpočtu: skupiny a v nich libovolně přidávané položky. V projektu se řeší jen **celkové částky**
+ * (počty kusů, MJ a ceny za MJ patří do nabídkového nástroje RES CRM; ve starých datech zůstávají uložené a nemění se).
  *
- *  - běžná skupina: popis, dodavatel, kategorie, měna, množství, MJ, nákup (za jednotku a celkem) = plán nákupu;
- *  - vlastní práce: profese a hodiny; nákladové sazby se berou ze sazeb projektu;
+ *  - běžná skupina: popis, dodavatel, kategorie, měna, **plán nákupu** (celkem);
+ *  - vlastní práce: profese a plán celkem (hodiny se dopočtou z nákladové sazby profese);
  *  - rezerva: částka, nebo % z nákupu ostatních položek.
  *
- * U všech: objednáno, prognóza (ruční, jinak plán), skutečnost (koupeno / odpracováno: množství a částka) a zbývá. Nabídka „⋯“ u položky: duplikovat, přesunout,
- * do kusovníku, objednat, smazat. Tabulka jen upravuje dokument v paměti (`onChange`); ukládání řeší záložka rozpočtu.
+ * U všech: objednáno, prognóza (ruční, jinak plán), nakoupeno (částka) a zbývá nakoupit. Nabídka „⋯“ u položky: duplikovat,
+ * přesunout, objednat, smazat. Tabulka jen upravuje dokument v paměti (`onChange`); ukládání řeší záložka rozpočtu.
  */
 
 import * as React from 'react';
@@ -27,11 +28,15 @@ import {
   addItem,
   calcItems,
   duplicateItem,
+  findRate,
   moveItem,
   newItem,
   removeItem,
   updateGroup,
-  updateItem
+  updateItem,
+  withLabourActual,
+  withLabourTotal,
+  withPlanTotal
 } from '../../core/budget';
 import { itemHasPlan } from '../../core/budgetMargin';
 import { Partner } from '../../core/types';
@@ -44,19 +49,17 @@ export const pct = (v: number): string => `${v.toLocaleString('cs-CZ', { maximum
 const TH: React.CSSProperties = { textAlign: 'left', fontWeight: 600, fontSize: 12, color: RES.gray, padding: '6px 4px', whiteSpace: 'nowrap', position: 'sticky', top: 0, background: RES.white, zIndex: 1, boxShadow: `0 1px 0 ${RES.grayBlue}` };
 const TD: React.CSSProperties = { padding: '3px 3px', verticalAlign: 'middle' };
 const R: React.CSSProperties = { ...TD, textAlign: 'right', fontSize: 13 };
-const COLS = 16;
+const COLS = 11;
 
 export interface BudgetGridProps {
   doc: BudgetDoc;
   onChange: (doc: BudgetDoc) => void;
   editable: boolean;
-  /** Plán nákupu je uzamčený (po schválení): plánované množství a ceny nejdou měnit, prognóza a skutečnost ano. */
+  /** Plán nákupu je uzamčený (po schválení): plánované částky nejdou měnit, prognóza a skutečnost ano. */
   planLocked?: boolean;
   categories: string[];
   report: ReportCurrency;
   onRemoveGroup: (group: BudgetGroup) => void;
-  /** Uložení položky do společného kusovníku; bez něj je volba v nabídce vypnutá. */
-  onSaveToCatalog?: (item: BudgetItem) => void;
   /** Objednávka z položky; bez ní je volba v nabídce vypnutá. */
   onOrder?: (item: BudgetItem) => void;
   /** Objednávky projektu (navázané na položky se počítají do „Objednáno“). */
@@ -66,7 +69,7 @@ export interface BudgetGridProps {
   onCreatePartner: (suggestedName: string, itemId: string) => void;
 }
 
-export const BudgetGrid: React.FC<BudgetGridProps> = ({ doc, onChange, editable, planLocked, categories, report, onRemoveGroup, onSaveToCatalog, onOrder, partners, onCreatePartner, orders }) => {
+export const BudgetGrid: React.FC<BudgetGridProps> = ({ doc, onChange, editable, planLocked, categories, report, onRemoveGroup, onOrder, partners, onCreatePartner, orders }) => {
   const [collapsed, setCollapsed] = React.useState<string[]>([]);
   const toggle = (id: string): void => setCollapsed((cur) => (cur.indexOf(id) === -1 ? [...cur, id] : cur.filter((x) => x !== id)));
   const calcs = React.useMemo(() => calcItems(doc, report.rates, orders), [doc, report.rates, orders]);
@@ -74,8 +77,9 @@ export const BudgetGrid: React.FC<BudgetGridProps> = ({ doc, onChange, editable,
   const inReport = (amount: number, from: CurrencyCode): number => convertAmount(amount, from, report.currency, report.rates);
 
   const setItem = (id: string, patch: Partial<BudgetItem>): void => onChange(updateItem(doc, id, patch));
+  const setWhole = (item: BudgetItem): void => onChange({ ...doc, items: doc.items.map((i) => (i.id === item.id ? item : i)) });
   const bg = editable ? RES.white : RES.background;
-  /** Plánované hodnoty (množství, ceny, měna, profese, rezerva) smí PM měnit, dokud plán není uzamčený. */
+  /** Plánované hodnoty (částky, měna, profese, rezerva) smí PM měnit, dokud plán není uzamčený. */
   const planEditable = editable && !planLocked;
 
   const menuFor = (item: BudgetItem): IContextualMenuItem[] => [
@@ -91,7 +95,6 @@ export const BudgetGrid: React.FC<BudgetGridProps> = ({ doc, onChange, editable,
           .map((g) => ({ key: g.id, text: g.name, onClick: () => onChange(moveItem(doc, item.id, g.id)) }))
       }
     },
-    { key: 'catalog', text: 'Uložit do kusovníku', iconProps: { iconName: 'Library' }, disabled: !onSaveToCatalog, title: onSaveToCatalog ? undefined : 'Připravujeme', onClick: () => onSaveToCatalog && onSaveToCatalog(item) },
     { key: 'order', text: 'Objednat', iconProps: { iconName: 'ShoppingCart' }, disabled: !onOrder || (doc.groups.filter((g) => g.id === item.groupId)[0] || { kind: 'standard' }).kind !== 'standard', title: onOrder ? 'Nová objednávka předvyplněná z položky' : 'Nemáte právo vystavovat objednávky', onClick: () => onOrder && onOrder(item) },
     { key: 'sep', itemType: 1 },
     { key: 'del', text: 'Smazat položku', iconProps: { iconName: 'Delete' }, disabled: !editable || (!!planLocked && itemHasPlan(doc, item)), title: planLocked && itemHasPlan(doc, item) ? 'Položka má plán — po schválení ji nejde smazat' : undefined, onClick: () => onChange(removeItem(doc, item.id)) }
@@ -121,7 +124,7 @@ export const BudgetGrid: React.FC<BudgetGridProps> = ({ doc, onChange, editable,
       <td style={TD}>
         <NumInput
           value={c.forecast}
-          ariaLabel="Prognóza nákladů položky"
+          ariaLabel="Prognóza nákupu položky"
           disabled={!editable}
           inherited={c.item.forecastCost === undefined}
           allowEmpty
@@ -132,22 +135,13 @@ export const BudgetGrid: React.FC<BudgetGridProps> = ({ doc, onChange, editable,
     </>
   );
 
-  const actualCells = (c: ItemCalc, qtyDecimals: number, onQty: (v: number | undefined) => void, onCost?: (v: number | undefined) => void): JSX.Element => (
+  /** Nakoupeno (částka) a zbývá nakoupit. U práce se částka dopočítává z odpracovaných hodin a zapisuje přes sazbu profese. */
+  const actualCells = (c: ItemCalc, onCost: (v: number | undefined) => void, valueOverride?: number): JSX.Element => (
     <>
       <td style={TD}>
-        <NumInput value={c.item.actualQty} ariaLabel="Koupené množství" decimals={qtyDecimals} allowEmpty disabled={!editable} onCommit={onQty} />
+        <NumInput value={valueOverride !== undefined ? valueOverride : c.item.actualCost} ariaLabel="Nakoupeno (částka)" allowEmpty disabled={!editable} onCommit={onCost} />
       </td>
-      <td style={TD}>
-        {onCost ? (
-          <NumInput value={c.item.actualCost} ariaLabel="Koupeno za (v měně položky)" allowEmpty disabled={!editable} onCommit={onCost} />
-        ) : (
-          <div style={{ ...R, color: RES.text }}>{formatMoney(c.actualCost, c.currency)}</div>
-        )}
-      </td>
-      <td style={{ ...R, color: c.remainingQty < 0 ? RES.red : RES.text }} title="Zbývá koupit (množství)">
-        {c.remainingQty.toLocaleString('cs-CZ', { maximumFractionDigits: 3 })}
-      </td>
-      <td style={{ ...R, color: c.remainingCost < 0 ? RES.red : RES.text }} title="Zbývá v rozpočtu (částka)">
+      <td style={{ ...R, color: c.remainingCost < 0 ? RES.red : RES.text }} title="Zbývá nakoupit: plán − nakoupeno (záporné = překročeno)">
         {formatMoney(c.remainingCost, c.currency)}
       </td>
     </>
@@ -156,23 +150,18 @@ export const BudgetGrid: React.FC<BudgetGridProps> = ({ doc, onChange, editable,
   return (
     // Vodorovný posuvník je zrcadlený a lepí se na dolní okraj okna (viz StickyHScroll); záhlaví sloupců zůstává nahoře.
     <StickyHScroll maxHeight="calc(100vh - 240px)">
-      <table style={{ width: '100%', minWidth: 1620, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+      <table style={{ width: '100%', minWidth: 1180, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
         <colgroup>
           <col style={{ width: 'auto' }} />
+          <col style={{ width: 150 }} />
+          <col style={{ width: 130 }} />
+          <col style={{ width: 66 }} />
+          <col style={{ width: 130 }} />
+          <col style={{ width: 90 }} />
+          <col style={{ width: 120 }} />
+          <col style={{ width: 130 }} />
           <col style={{ width: 130 }} />
           <col style={{ width: 120 }} />
-          <col style={{ width: 62 }} />
-          <col style={{ width: 78 }} />
-          <col style={{ width: 48 }} />
-          <col style={{ width: 100 }} />
-          <col style={{ width: 112 }} />
-          <col style={{ width: 80 }} />
-          <col style={{ width: 106 }} />
-          <col style={{ width: 106 }} />
-          <col style={{ width: 80 }} />
-          <col style={{ width: 106 }} />
-          <col style={{ width: 80 }} />
-          <col style={{ width: 106 }} />
           <col style={{ width: 36 }} />
         </colgroup>
         <thead>
@@ -181,27 +170,24 @@ export const BudgetGrid: React.FC<BudgetGridProps> = ({ doc, onChange, editable,
             <th style={TH}>Dodavatel / profese</th>
             <th style={TH}>Kategorie</th>
             <th style={TH}>Měna</th>
-            <th style={{ ...TH, textAlign: 'right' }}>Množství</th>
-            <th style={TH}>MJ</th>
-            <th style={{ ...TH, textAlign: 'right' }}>Nákup / MJ</th>
-            <th style={{ ...TH, textAlign: 'right' }}>Nákup celkem</th>
+            <th style={{ ...TH, textAlign: 'right' }} title="Plán nákupu položky celkem (bez DPH)">
+              Nákup – plán
+            </th>
             <th style={{ ...TH, textAlign: 'right' }} title="Jen u rezervy: velikost v % z nákupu ostatních položek (jinak se zadává částkou).">
               Rezerva %
             </th>
             <th style={{ ...TH, textAlign: 'right' }} title="Součet objednávek navázaných na položku (stavy, které se počítají jako vystavené)">
               Objednáno
             </th>
-            <th style={{ ...TH, textAlign: 'right' }} title="Prognóza nákladů položky: ruční, jinak plán; nikdy méně než objednáno a koupeno">
-              Prognóza
+            <th style={{ ...TH, textAlign: 'right' }} title="Prognóza nákupu položky: ruční, jinak plán; nikdy méně než objednáno a nakoupeno">
+              Nákup – prognóza
             </th>
-            <th style={{ ...TH, textAlign: 'right', background: RES.bluePale }} title="Skutečnost: koupené množství (u práce odpracované hodiny)">
-              Koupeno ks
+            <th style={{ ...TH, textAlign: 'right', background: RES.bluePale }} title="Skutečnost: za kolik se už nakoupilo (u práce odpracováno)">
+              Nakoupeno
             </th>
-            <th style={{ ...TH, textAlign: 'right', background: RES.bluePale }} title="Skutečnost: za kolik se koupilo">
-              Koupeno za
+            <th style={{ ...TH, textAlign: 'right' }} title="Plán nákupu − nakoupeno">
+              Zbývá nakoupit
             </th>
-            <th style={{ ...TH, textAlign: 'right' }}>Zbývá ks</th>
-            <th style={{ ...TH, textAlign: 'right' }}>Zbývá částka</th>
             <th style={TH} />
           </tr>
         </thead>
@@ -217,7 +203,7 @@ export const BudgetGrid: React.FC<BudgetGridProps> = ({ doc, onChange, editable,
             return (
               <React.Fragment key={group.id}>
                 <tr style={{ background: RES.bluePale, borderTop: `1px solid ${RES.grayBlue}` }}>
-                  <td colSpan={5} style={{ ...TD, padding: '5px 4px' }}>
+                  <td colSpan={4} style={{ ...TD, padding: '5px 4px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <IconButton
                         iconProps={{ iconName: isCollapsed ? 'ChevronRight' : 'ChevronDown' }}
@@ -240,7 +226,6 @@ export const BudgetGrid: React.FC<BudgetGridProps> = ({ doc, onChange, editable,
                       </span>
                     </div>
                   </td>
-                  <td colSpan={2} />
                   <td style={{ ...R, fontWeight: 600 }} title={`Plán nákupu skupiny v ${report.label}`}>
                     {formatMoney(cost, report.currency)}
                   </td>
@@ -251,12 +236,10 @@ export const BudgetGrid: React.FC<BudgetGridProps> = ({ doc, onChange, editable,
                   <td style={{ ...R, fontWeight: 600 }} title={`Prognóza skupiny v ${report.label}`}>
                     {formatMoney(gForecast, report.currency)}
                   </td>
-                  <td />
-                  <td style={{ ...R, fontWeight: 600 }} title={`Skutečnost skupiny v ${report.label}`}>
+                  <td style={{ ...R, fontWeight: 600 }} title={`Nakoupeno ve skupině v ${report.label}`}>
                     {formatMoney(actual, report.currency)}
                   </td>
-                  <td />
-                  <td style={{ ...R, fontWeight: 600 }} title={`Zbývá ve skupině v ${report.label}`}>
+                  <td style={{ ...R, fontWeight: 600 }} title={`Zbývá nakoupit ve skupině v ${report.label}`}>
                     {formatMoney(cost - actual, report.currency)}
                   </td>
                   <td style={TD}>
@@ -278,6 +261,7 @@ export const BudgetGrid: React.FC<BudgetGridProps> = ({ doc, onChange, editable,
                     if (!c) {
                       return null;
                     }
+                    const rate = group.kind === 'prace' ? findRate(doc, item.rateId) : undefined;
                     return (
                       <tr key={item.id} style={{ borderTop: `1px solid ${RES.background}` }}>
                         <td style={TD}>{textInput('Popis položky', item.description, (v) => setItem(item.id, { description: v }), group.kind === 'prace' ? 'Co se dělá (nepovinné)' : 'Popis položky')}</td>
@@ -303,14 +287,30 @@ export const BudgetGrid: React.FC<BudgetGridProps> = ({ doc, onChange, editable,
                             <td style={TD} />
                             <td style={{ ...TD, fontSize: 13 }}>CZK</td>
                             <td style={TD}>
-                              <NumInput value={item.quantity} ariaLabel="Plánované hodiny" decimals={2} disabled={!planEditable} onCommit={(v) => setItem(item.id, { quantity: Math.max(0, v ?? 0) })} />
+                              <NumInput
+                                value={c.cost}
+                                ariaLabel="Plán práce celkem"
+                                disabled={!planEditable || !rate || rate.costRate <= 0}
+                                onCommit={(v) => {
+                                  const next = withLabourTotal(item, v ?? 0, rate ? rate.costRate : 0);
+                                  if (next) {
+                                    setWhole(next);
+                                  }
+                                }}
+                              />
                             </td>
-                            <td style={{ ...TD, fontSize: 13 }}>h</td>
-                            <td style={{ ...R, color: RES.gray }}>{item.quantity > 0 ? formatMoney(c.cost / item.quantity, 'CZK') : '—'}</td>
-                            <td style={R}>{formatMoney(c.cost, c.currency)}</td>
                             <td style={TD} />
                             {planCells(c)}
-                            {actualCells(c, 2, (v) => setItem(item.id, { actualQty: v === undefined ? undefined : Math.max(0, v) }))}
+                            {actualCells(
+                              c,
+                              (v) => {
+                                const next = withLabourActual(item, v, rate ? rate.costRate : 0);
+                                if (next) {
+                                  setWhole(next);
+                                }
+                              },
+                              c.actualCost
+                            )}
                           </>
                         ) : group.kind === 'rezerva' ? (
                           <>
@@ -327,13 +327,8 @@ export const BudgetGrid: React.FC<BudgetGridProps> = ({ doc, onChange, editable,
                             </td>
                             <td style={{ ...TD, fontSize: 13 }}>{c.currency}</td>
                             <td style={TD}>
-                              <NumInput value={item.quantity} ariaLabel="Množství" decimals={3} disabled={!planEditable || item.reservePercent !== undefined} onCommit={(v) => setItem(item.id, { quantity: Math.max(0, v ?? 0) })} />
+                              <NumInput value={c.cost} ariaLabel="Rezerva – částka" disabled={!planEditable || item.reservePercent !== undefined} onCommit={(v) => setWhole(withPlanTotal(item, v ?? 0))} />
                             </td>
-                            <td style={TD}>{textInput('Měrná jednotka', item.unit, (v) => setItem(item.id, { unit: v || undefined }))}</td>
-                            <td style={TD}>
-                              <NumInput value={item.unitCost} ariaLabel="Částka rezervy za jednotku" disabled={!planEditable || item.reservePercent !== undefined} onCommit={(v) => setItem(item.id, { unitCost: Math.max(0, v ?? 0) })} />
-                            </td>
-                            <td style={R}>{formatMoney(c.cost, c.currency)}</td>
                             <td style={TD}>
                               <NumInput
                                 value={item.reservePercent}
@@ -345,7 +340,7 @@ export const BudgetGrid: React.FC<BudgetGridProps> = ({ doc, onChange, editable,
                               />
                             </td>
                             {planCells(c)}
-                            {actualCells(c, 3, (v) => setItem(item.id, { actualQty: v === undefined ? undefined : Math.max(0, v) }), (v) => setItem(item.id, { actualCost: v === undefined ? undefined : Math.max(0, v) }))}
+                            {actualCells(c, (v) => setItem(item.id, { actualCost: v === undefined ? undefined : Math.max(0, v) }))}
                           </>
                         ) : (
                           <>
@@ -372,16 +367,11 @@ export const BudgetGrid: React.FC<BudgetGridProps> = ({ doc, onChange, editable,
                               </select>
                             </td>
                             <td style={TD}>
-                              <NumInput value={item.quantity} ariaLabel="Množství" decimals={3} disabled={!planEditable} onCommit={(v) => setItem(item.id, { quantity: Math.max(0, v ?? 0) })} />
+                              <NumInput value={c.cost} ariaLabel="Plán nákupu celkem" disabled={!planEditable} onCommit={(v) => setWhole(withPlanTotal(item, v ?? 0))} />
                             </td>
-                            <td style={TD}>{textInput('Měrná jednotka', item.unit, (v) => setItem(item.id, { unit: v || undefined }))}</td>
-                            <td style={TD}>
-                              <NumInput value={item.unitCost} ariaLabel="Nákup za jednotku" disabled={!planEditable} onCommit={(v) => setItem(item.id, { unitCost: Math.max(0, v ?? 0) })} />
-                            </td>
-                            <td style={R}>{formatMoney(c.cost, c.currency)}</td>
                             <td style={TD} />
                             {planCells(c)}
-                            {actualCells(c, 3, (v) => setItem(item.id, { actualQty: v === undefined ? undefined : Math.max(0, v) }), (v) => setItem(item.id, { actualCost: v === undefined ? undefined : Math.max(0, v) }))}
+                            {actualCells(c, (v) => setItem(item.id, { actualCost: v === undefined ? undefined : Math.max(0, v) }))}
                           </>
                         )}
                         <td style={TD}>{rowMenu(item)}</td>

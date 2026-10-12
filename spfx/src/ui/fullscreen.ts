@@ -41,6 +41,24 @@ export function toggleWebViewUrl(href: string): string {
 }
 
 /**
+ * Adresa tlačítka „RES CRM“: vlastní (z Nastavení), jinak výchozí `<web>/SitePages/REVCRM.aspx` na webu, kde běží aplikace.
+ * Běží-li aplikace přes celé okno (`env=WebView`), přenese se to i na cílovou stránku, ať člověk zůstane v „celém okně“.
+ */
+export function crmLinkUrl(customUrl: string, currentHref: string): string {
+  const target = customUrl.trim() !== '' ? customUrl.trim() : `${siteHomeUrl(currentHref)}SitePages/REVCRM.aspx`;
+  if (!isWebViewMode(currentHref)) {
+    return target;
+  }
+  try {
+    const url = new URL(target);
+    url.searchParams.set(PARAM, VALUE);
+    return url.toString();
+  } catch {
+    return target;
+  }
+}
+
+/**
  * Adresa úvodní stránky webu SharePointu, na kterém aplikace běží.
  * Stránka aplikace leží v `…/sites/Web/SitePages/PRM.aspx` — úvodní stránka je kořen toho webu.
  * Když adresa tvar `/SitePages/` nemá, vrátí se kořen celé domény.

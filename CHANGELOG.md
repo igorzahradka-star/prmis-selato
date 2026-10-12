@@ -5,6 +5,17 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.40.0 — 12. 10. 2026 — Rozpočet: jen celkové částky, sjednocený slovník, vazba cashflow na výnosy (balíček C), tlačítko RES CRM
+
+- **Tabulka nákupu jen s celkovými částkami.** Zmizely sloupce Množství, MJ, Nákup za MJ, Koupeno ks a Zbývá ks (počty kusů, MJ a ceny za MJ se řeší jen v RES CRM; ve starých datech zůstávají uložené a nemění se — úprava celkové částky dopočte cenu za jednotku, takže kusy × cena = zadaný celek). Zůstalo: Nákup – plán, Rezerva %, Objednáno, Nákup – prognóza, Nakoupeno, Zbývá nakoupit. U vlastní práce se částka přepočítá na hodiny podle nákladové sazby profese. Z rozpočtu zmizela i **kusovník** (tlačítko Vložit z kusovníku a Uložit do kusovníku); kusovník zůstává v nabídkovém nástroji.
+- **Hlavička rozpočtu:** první řádek Nákup – plán, Tržby – plán (smluvní cena), Marže – plán; druhý řádek Nákup – prognóza, Tržby – prognóza, Marže – prognóza a semafor; třetí Nakoupeno, Zbývá nakoupit a **Prostavěnost** (dřív Proinvestováno). Dlaždice Objednáno zmizela (objednáno zůstává ve sloupci tabulky).
+- **Slovník sjednocený všude:** Nákup (plán / prognóza / nakoupeno / zbývá nakoupit), Tržby (plán = smluvní cena / prognóza / vyfakturováno), Marže (plán / prognóza), Prostavěnost = nakoupeno / plán nákupu. Přehled projektů: sloupce **Nákup** (prognóza), **Marže**, vzadu **Marže plán** a sloupec **Prost.** (procento prostavěnosti; dřív Vyčerpáno). Totéž v detailu projektu, reportu (PDF a upozornění), exportu do CSV, nápovědě a textech.
+- **Balíček C — cashflow a výnosy.** U každého fakturačního milníku je výběr **výnosu z rozpočtu** (nebo „Nový výnos (dodatek)…“, který založí řádek výnosů; při uzamčeném plánu s plánem 0 a prognózou podle milníku). Panel **Výnosy z rozpočtu a plán fakturace** porovnává prognózu tržeb každého výnosu se součtem navázaných milníků a hlásí rozdíl a milníky bez vazby (jen upozornění, nic se neblokuje). Nová dlaždice „Tržby: zbývá naplánovat fakturaci“.
+- **Tlačítko RES CRM v záhlaví** (podle záznamu R-014 z deníku REVCRM): odkaz na stránku RES CRM (výchozí `<web>/SitePages/REVCRM.aspx`), adresa i zobrazení se nastavují v **Nastavení → Odkazy v záhlaví**; při zobrazení přes celé okno se `env=WebView` přenese i do RES CRM.
+- Bez změny schématu (zůstává 21).
+
+---
+
 ## 0.39.0 — 12. 10. 2026 — Realizační rozpočet: nákup, výnosy, marže a nový semafor (balíčky A + B)
 
 Velká změna logiky rozpočtu podle rozhodnutí z 12. 10. (podrobně `docs/ROZHODNUTI.md`):

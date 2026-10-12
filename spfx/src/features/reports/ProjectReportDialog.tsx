@@ -102,7 +102,7 @@ export const ProjectReportDialog: React.FC<{ project: Project; onClose: () => vo
           )}
           <div style={{ fontSize: 13, fontWeight: 600, color: RES.navy }}>Co má report obsahovat</div>
           <Checkbox label="Přehled projektu (vždy)" checked disabled />
-          <Checkbox label="Realizační rozpočet: plán, skutečnost, zbývá, semafor" checked={sections.budget} disabled={busy} onChange={(_, c) => toggle('budget', !!c)} />
+          <Checkbox label="Realizační rozpočet: nákup, tržby, marže, prostavěnost, semafor" checked={sections.budget} disabled={busy} onChange={(_, c) => toggle('budget', !!c)} />
           <Checkbox label="Finance: objednávky a fakturace" checked={sections.finance} disabled={busy} onChange={(_, c) => toggle('finance', !!c)} />
           <Checkbox label="Termíny a úkoly ze zápisů" checked={sections.deadlines} disabled={busy} onChange={(_, c) => toggle('deadlines', !!c)} />
           <Checkbox label="Stavební deník — poslední zápisy" checked={sections.diary} disabled={busy} onChange={(_, c) => toggle('diary', !!c)} />

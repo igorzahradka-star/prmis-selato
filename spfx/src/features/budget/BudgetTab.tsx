@@ -1,7 +1,7 @@
 /**
  * Záložka Realizační rozpočet v detailu projektu. Rozpočet je jeden na projekt a průběžně se upravuje (nezamyká se);
  * schválení vedením uloží do historie záznam (plán nákupu, smluvní cena, marže v % i v Kč, kdo a kdy; první schválení nastaví prognózu na plán a uzamkne plán). Souhrn ukazuje plán, skutečnost
- * (koupeno) a zbývá — tedy míru proinvestování projektu.
+ * (nakoupeno) a zbývá nakoupit — tedy prostavěnost projektu.
  *
  * Co smí člověk udělat, rozhoduje `core/budget`; skutečná kontrola probíhá znovu v datové vrstvě při zápisu.
  */
@@ -35,7 +35,6 @@ import {
   GROUP_KIND_LABELS,
   GroupKind,
   addGroup,
-  addItem,
   addRate,
   availableBudgetActions,
   budgetTotals,
@@ -64,9 +63,6 @@ import { DraftBanner } from '../../ui/components/DraftBanner';
 import { draftKey } from '../../core/drafts';
 import { BudgetImportDialog } from './BudgetImportDialog';
 import { NewPartnerDialog } from './NewPartnerDialog';
-import { CatalogItemDialog } from '../catalog/CatalogItemDialog';
-import { CatalogPickerDialog } from '../catalog/CatalogPickerDialog';
-import { CatalogItem, budgetItemFromCatalog, catalogInputFromItem, canWriteCatalog } from '../../core/catalog';
 import { CELL_INPUT, NumInput } from './NumInput';
 
 const STATUS_COLOR: Record<BudgetStatus, { bg: string; fg: string }> = {
@@ -116,9 +112,6 @@ export const BudgetTab: React.FC<{ project: Project }> = ({ project }) => {
   const [ratesOpen, setRatesOpen] = React.useState(false);
   const [partners, setPartners] = React.useState<Partner[]>([]);
   const [newPartner, setNewPartner] = React.useState<{ name: string; itemId: string } | undefined>(undefined);
-  const [catalogSave, setCatalogSave] = React.useState<BudgetItem | undefined>(undefined);
-  const [catalogCache, setCatalogCache] = React.useState<CatalogItem[]>([]);
-  const [pickOpen, setPickOpen] = React.useState(false);
   const [orders, setOrders] = React.useState<PurchaseOrder[]>([]);
   const [orderFrom, setOrderFrom] = React.useState<BudgetItem | undefined>(undefined);
   const [ordersKey, setOrdersKey] = React.useState(0);
@@ -364,21 +357,11 @@ export const BudgetTab: React.FC<{ project: Project }> = ({ project }) => {
       }
     });
 
-  /** Otevře uložení do kusovníku; předtím načte kusovník, aby se poznal duplikát. */
-  const openCatalogSave = (item: BudgetItem): void => {
-    repos.catalog
-      .list()
-      .then((l) => setCatalogCache(l))
-      .catch(() => setCatalogCache([]))
-      .then(() => setCatalogSave(item))
-      .catch(() => setCatalogSave(item));
-  };
-
   const exportCsv = (): void => {
     if (!doc) {
       return;
     }
-    const head = ['Skupina', 'Popis', 'Dodavatel / profese', 'Kategorie', 'Měna', 'Množství', 'MJ', 'Nákup za MJ', 'Plán nákupu celkem', 'Prognóza', 'Koupeno ks', 'Koupeno za', 'Zbývá ks', 'Zbývá částka'];
+    const head = ['Skupina', 'Popis', 'Dodavatel / profese', 'Kategorie', 'Měna', 'Nákup – plán', 'Nákup – prognóza', 'Nakoupeno', 'Zbývá nakoupit'];
     const n = (v: number): string => String(v).replace('.', ',');
     const q = (s: string): string => `"${s.replace(/"/g, '""')}"`;
     const lines = [head.map(q).join(';')];
@@ -391,14 +374,9 @@ export const BudgetTab: React.FC<{ project: Project }> = ({ project }) => {
           q(rate ? rate.name : c.item.supplier ?? ''),
           q(c.item.category ?? ''),
           c.currency,
-          n(c.item.quantity),
-          q(c.item.unit ?? ''),
-          n(c.item.quantity > 0 ? round(c.cost / c.item.quantity) : 0),
           n(c.cost),
           n(c.forecast),
-          n(c.actualQty),
           n(c.actualCost),
-          n(c.remainingQty),
           n(c.remainingCost)
         ].join(';')
       );
@@ -518,31 +496,37 @@ export const BudgetTab: React.FC<{ project: Project }> = ({ project }) => {
             </MessageBar>
           )}
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', margin: '10px 0 6px' }}>
-            <Tile label={`Tržby – plán / smluvní cena (${report.label})`} value={formatMoney(totals.sale, report.currency)} hint="součet plánu výnosů, bez DPH" warn={totals.sale <= 0} />
-            <Tile label={`Tržby – prognóza (${report.label})`} value={formatMoney(totals.revenueForecast, report.currency)} hint={`vyfakturováno ${formatMoney(totals.revenueInvoiced, report.currency)}`} />
             <Tile label={`Nákup – plán (${report.label})`} value={formatMoney(totals.cost, report.currency)} hint="součet plánu nákupu" />
-            <Tile label={`Nákup – prognóza (${report.label})`} value={formatMoney(totals.forecast, report.currency)} hint="ruční prognóza, jinak plán; nejméně objednáno a koupeno" warn={totals.forecast > totals.cost} />
+            <Tile label={`Tržby – plán / smluvní cena (${report.label})`} value={formatMoney(totals.sale, report.currency)} hint="součet plánu výnosů, bez DPH" warn={totals.sale <= 0} />
+            <Tile
+              label="Marže – plán"
+              value={`${totals.plannedMargin.percent !== undefined ? pct(totals.plannedMargin.percent) : '—'} · ${formatMoney(totals.plannedMargin.amount, report.currency)}`}
+              hint={approvedM && approvedM.percent !== undefined ? `zafixováno schválením: ${pct(approvedM.percent)}` : 'rozpočet ještě nebyl schválen'}
+              warn={totals.plannedMargin.percent === undefined || totals.plannedMargin.percent < settings.budget.marginYellowPercent}
+            />
           </div>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', margin: '0 0 6px' }}>
+            <Tile label={`Nákup – prognóza (${report.label})`} value={formatMoney(totals.forecast, report.currency)} hint="ruční prognóza, jinak plán; nejméně objednáno a nakoupeno" warn={totals.forecast > totals.cost} />
+            <Tile label={`Tržby – prognóza (${report.label})`} value={formatMoney(totals.revenueForecast, report.currency)} hint={`vyfakturováno ${formatMoney(totals.revenueInvoiced, report.currency)}`} />
             <Tile
-              label="Marže zadání (při schválení)"
-              value={approvedM ? `${approvedM.percent !== undefined ? pct(approvedM.percent) : '—'} · ${formatMoney(report.convert(approvedM.amount, 'CZK'), report.currency)}` : '—'}
-              hint={approvedM ? 'zafixováno posledním schválením (tržby − nákup) / tržby' : 'rozpočet ještě nebyl schválen'}
-            />
-            <Tile
-              label="Marže prognóza (aktuální)"
+              label="Marže – prognóza"
               value={`${totals.forecastMargin.percent !== undefined ? pct(totals.forecastMargin.percent) : '—'} · ${formatMoney(totals.forecastMargin.amount, report.currency)}`}
-              hint={totals.forecastMargin.percent === undefined ? 'bez výnosů nejde marži spočítat' : approvedM && approvedM.percent !== undefined ? `proti zadání ${totals.forecastMargin.percent - approvedM.percent >= 0 ? '+' : ''}${(Math.round((totals.forecastMargin.percent - approvedM.percent) * 10) / 10).toLocaleString('cs-CZ')} p. b.` : '(tržby prognóza − nákup prognóza) / tržby prognóza'}
+              hint={
+                totals.forecastMargin.percent === undefined
+                  ? 'bez výnosů nejde marži spočítat'
+                  : totals.plannedMargin.percent !== undefined
+                  ? `proti plánu ${totals.forecastMargin.percent - totals.plannedMargin.percent >= 0 ? '+' : ''}${(Math.round((totals.forecastMargin.percent - totals.plannedMargin.percent) * 10) / 10).toLocaleString('cs-CZ')} p. b.`
+                  : '(tržby prognóza − nákup prognóza) / tržby prognóza'
+              }
               warn={totals.forecastMargin.percent === undefined || totals.forecastMargin.percent < settings.budget.marginYellowPercent}
             />
             <SemaphoreTile view={semaphore} settings={settings.budget} />
-            <Tile label={`Objednáno (${report.label})`} value={formatMoney(totals.ordered, report.currency)} hint="objednávky navázané na položky rozpočtu" />
           </div>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', margin: '0 0 10px' }}>
-            <Tile label={`Skutečnost – koupeno (${report.label})`} value={formatMoney(totals.actual, report.currency)} hint="součet koupeného a odpracovaného" />
-            <Tile label={`Zbývá (${report.label})`} value={formatMoney(totals.remaining, report.currency)} hint="plán nákupu − skutečnost" warn={totals.remaining < 0} />
-            <div style={{ background: RES.white, border: `1px solid ${RES.grayBlue}`, borderLeft: `4px solid ${totals.spentPercent > 100 ? RES.red : RES.green}`, borderRadius: 4, padding: '8px 12px', minWidth: 150, flex: '2 1 300px' }}>
-              <div style={{ fontSize: 12, color: RES.gray }}>Proinvestováno</div>
+            <Tile label={`Nakoupeno (${report.label})`} value={formatMoney(totals.actual, report.currency)} hint="součet nakoupeného a odpracovaného" />
+            <Tile label={`Zbývá nakoupit (${report.label})`} value={formatMoney(totals.remaining, report.currency)} hint="plán nákupu − nakoupeno" warn={totals.remaining < 0} />
+            <div style={{ background: RES.white, border: `1px solid ${RES.grayBlue}`, borderLeft: `4px solid ${totals.spentPercent > 100 ? RES.red : RES.green}`, borderRadius: 4, padding: '8px 12px', minWidth: 150, flex: '2 1 300px' }} title="Prostavěnost = nakoupeno / plán nákupu">
+              <div style={{ fontSize: 12, color: RES.gray }}>Prostavěnost</div>
               <div style={{ fontSize: 18, fontWeight: 600, color: RES.navy }}>{pct(totals.spentPercent)}</div>
               <div style={{ height: 8, background: RES.background, borderRadius: 4, marginTop: 4, overflow: 'hidden' }}>
                 <div style={{ width: `${Math.min(100, totals.spentPercent)}%`, height: '100%', background: totals.spentPercent > 100 ? RES.red : RES.blue }} />
@@ -565,7 +549,6 @@ export const BudgetTab: React.FC<{ project: Project }> = ({ project }) => {
                 </span>
                 <ActionButton iconProps={{ iconName: 'Add' }} text="Přidat skupinu" disabled={busy || planLocked} onClick={() => setDialog({ kind: 'newGroup', name: '', type: 'standard' })} />
                 <ActionButton iconProps={{ iconName: 'Paste' }} text="Vložit z Excelu" disabled={busy || planLocked} onClick={() => setImportOpen(true)} />
-                <ActionButton iconProps={{ iconName: 'Library' }} text="Vložit z kusovníku" disabled={busy || planLocked} onClick={() => setPickOpen(true)} />
               </>
             )}
             <ActionButton iconProps={{ iconName: ratesOpen ? 'ChevronUp' : 'Contact' }} text={`Sazby profesí (${doc.rates.length})`} onClick={() => setRatesOpen((o) => !o)} />
@@ -609,12 +592,11 @@ export const BudgetTab: React.FC<{ project: Project }> = ({ project }) => {
             orders={orders}
             onOrder={canIssueOrder(wf, actor) ? (item) => setOrderFrom(item) : undefined}
             onCreatePartner={(name, itemId) => setNewPartner({ name, itemId })}
-            onSaveToCatalog={canWriteCatalog(actor) ? (item) => openCatalogSave(item) : undefined}
           />
 
           <div style={{ fontSize: 12, color: RES.gray, marginTop: 8 }}>
-            Nákup: plán = množství × cena za jednotku (u práce hodiny × nákladová sazba profese, u rezervy částka nebo % z nákupu ostatních položek). Prognóza je ruční odhad celkových nákladů položky; když ji nezadáte, platí plán (nikdy nejde pod objednáno a koupeno).
-            Do sloupců Koupeno zapisujte skutečnost; Zbývá se dopočte. Marže projektu = (tržby − nákup) / tržby z prognóz — vychází ze sekce Výnosy. Částky se přepočítávají kurzem ČNB, takže marže s kurzem kolísá.
+            Nákup: plán je celková částka položky (u práce se hodiny dopočtou z nákladové sazby profese, u rezervy je to částka nebo % z nákupu ostatních položek; počty kusů a ceny za jednotku se řeší v nabídkovém nástroji RES CRM). Prognóza je ruční odhad celkového nákupu položky; když ji nezadáte, platí plán (nikdy nejde pod objednáno a nakoupeno).
+            Do sloupce Nakoupeno zapisujte skutečnost; Zbývá nakoupit se dopočte; Prostavěnost = nakoupeno / plán nákupu. Marže projektu = (tržby − nákup) / tržby z prognóz — vychází ze sekce Výnosy. Částky se přepočítávají kurzem ČNB, takže marže s kurzem kolísá.
           </div>
 
           <div style={{ marginTop: 14, background: RES.white, border: `1px solid ${RES.grayBlue}`, borderRadius: 4, padding: '8px 12px' }}>
@@ -702,34 +684,6 @@ export const BudgetTab: React.FC<{ project: Project }> = ({ project }) => {
               setDoc({ ...doc, items: doc.items.map((i) => (i.id === target.itemId ? { ...i, supplier: p.name } : i)) });
             }
             setNotice(`Partner „${p.name}“ je založený a vybraný jako dodavatel. Nezapomeňte rozpočet uložit.`);
-          }}
-        />
-      )}
-
-      {catalogSave && (
-        <CatalogItemDialog
-          initial={catalogInputFromItem(catalogSave, project.projectNumber)}
-          existing={catalogCache}
-          onClose={() => setCatalogSave(undefined)}
-          onSaved={(item, updated) => {
-            setCatalogSave(undefined);
-            setNotice(updated ? `Položka „${item.description}“ už v kusovníku byla — cena a údaje se přepsaly.` : `Položka „${item.description}“ je uložená v kusovníku.`);
-          }}
-        />
-      )}
-
-      {pickOpen && doc && (
-        <CatalogPickerDialog
-          doc={doc}
-          onClose={() => setPickOpen(false)}
-          onPick={(items, groupId) => {
-            setPickOpen(false);
-            let next = doc;
-            items.forEach((c) => {
-              next = addItem(next, budgetItemFromCatalog(c, groupId));
-            });
-            setDoc(next);
-            setNotice(`Vloženo ${items.length} položek z kusovníku. Upravte množství a rozpočet uložte.`);
           }}
         />
       )}
@@ -830,7 +784,6 @@ export const BudgetTab: React.FC<{ project: Project }> = ({ project }) => {
   );
 };
 
-const round = (v: number): number => Math.round(v * 100) / 100;
 
 const SEMAFOR_COLOR: Record<string, string> = {
   [Semafor.Zelena]: '#00A857',

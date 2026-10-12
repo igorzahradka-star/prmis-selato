@@ -12,7 +12,8 @@ import {
   paymentDueDate,
   paymentGross,
   splitPayments,
-  weekStart
+  weekStart,
+  revenuePlan
 } from './cashflow';
 import { RateTable } from './currency';
 import { InvoiceStatus } from './invoiceBases';
@@ -157,5 +158,48 @@ describe('uložení plateb a milníků v rozpočtu', () => {
     const d = doc([pay({ itemId: 'i1' }), pay({ itemId: 'jina' })]);
     expect(removeItem(d, 'i1').payments?.map((p) => p.itemId)).toEqual([undefined, 'jina']);
     expect(validateBudget(doc([pay({ amount: -1 })], [mil({ dueDays: -3 })]), false).map((i) => i.message)).toEqual(['Platba 1: částka nesmí být záporná.', 'Fakturační milník 1: částka a splatnost nesmí být záporné.']);
+  });
+});
+
+describe('výnosy z rozpočtu a plán fakturace (milníky navázané na výnos)', () => {
+  const vynosy = [
+    { id: 'v1', description: 'Smluvní cena', currency: 'CZK' as const, plan: 1000 },
+    { id: 'v2', description: 'Dodatek č. 1', currency: 'CZK' as const, plan: 200, forecast: 300 }
+  ];
+  const d = (income: IncomeMilestone[]): BudgetDoc => ({ ...doc([], income), revenues: vynosy });
+
+  it('součet milníků výnosu se porovná s jeho prognózou (jinak plánem); rozdíl je upozornění', () => {
+    const r = revenuePlan(d([mil({ amount: 600, revenueId: 'v1' }), mil({ amount: 400, revenueId: 'v1' }), mil({ amount: 100, revenueId: 'v2' })]), RATES, 'CZK');
+    expect(r.lines.map((l) => [l.description, l.forecast, l.planned, l.remaining, l.milestones])).toEqual([
+      ['Smluvní cena', 1000, 1000, 0, 2],
+      ['Dodatek č. 1', 300, 100, 200, 1]
+    ]);
+    expect(r.remainingTotal).toBe(200);
+    expect(r.mismatch).toBe(true);
+    expect(r.unlinked).toEqual([]);
+  });
+
+  it('přeplánování je záporný rozdíl; všechno v pořádku nehlásí nic', () => {
+    expect(revenuePlan(d([mil({ amount: 1500, revenueId: 'v1' }), mil({ amount: 300, revenueId: 'v2' })]), RATES, 'CZK').lines[0].remaining).toBe(-500);
+    const ok = revenuePlan(d([mil({ amount: 1000, revenueId: 'v1' }), mil({ amount: 300, revenueId: 'v2' })]), RATES, 'CZK');
+    expect([ok.mismatch, ok.remainingTotal]).toEqual([false, 0]);
+  });
+
+  it('milník bez vazby nebo s vazbou na zmizelý výnos se hlásí zvlášť', () => {
+    const r = revenuePlan(d([mil({ amount: 1000, revenueId: 'v1' }), mil({ amount: 300, revenueId: 'v2' }), mil({ description: 'Sirotek', amount: 50 }), mil({ description: 'Zmizelý', amount: 70, revenueId: 'v9' })]), RATES, 'CZK');
+    expect(r.unlinked.map((m) => m.description)).toEqual(['Sirotek', 'Zmizelý']);
+    expect(r.mismatch).toBe(true);
+  });
+
+  it('částky v jiné měně se přepočtou kurzem; marže a součty tím neovlivněny', () => {
+    const eur = { ...d([mil({ amount: 40, currency: 'EUR', revenueId: 'v1' })]), revenues: [{ id: 'v1', description: 'Smluvní cena', currency: 'CZK' as const, plan: 1000 }] };
+    const r = revenuePlan(eur, RATES, 'CZK');
+    expect([r.lines[0].forecast, r.lines[0].planned, r.lines[0].remaining]).toEqual([1000, 1000, 0]); // 40 EUR = 1000 Kč
+  });
+
+  it('vazba milníku na výnos se uloží a načte', () => {
+    const back = budgetFromJson(budgetToJson(d([mil({ amount: 10, revenueId: 'v2' })])));
+    expect(back.income?.[0].revenueId).toBe('v2');
+    expect(budgetFromJson(budgetToJson(d([mil()]))).income?.[0].revenueId).toBeUndefined();
   });
 });

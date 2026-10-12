@@ -102,7 +102,7 @@ export const DashboardPage: React.FC = () => {
   const [statusError, setStatusError] = React.useState<string | undefined>(undefined);
   const [statusNote, setStatusNote] = React.useState<string | undefined>(undefined);
   const report = useReportCurrency();
-  /** Objednávky všech projektů — z nich se počítá sloupec Vyčerpáno. Dokud se nenačtou (nebo když se nenačtou), je sloupec prázdný. */
+  /** Objednávky všech projektů — z nich se u projektu bez rozpočtu počítá objednáno (bublina sloupce Prost.). Dokud se nenačtou (nebo když se nenačtou), je sloupec prázdný. */
   const [orders, setOrders] = React.useState<PurchaseOrder[] | undefined>(undefined);
 
   React.useEffect(() => {
@@ -403,7 +403,7 @@ interface ColumnContext {
   onStatus: (p: Project, status: ProjectStatus) => void;
   /** Výchozí měna přehledů a přepočet do ní. */
   report: ReportCurrency;
-  /** Vyčerpáno podle projektu (ve výchozí měně přehledů); `undefined`, dokud se objednávky nenačtou. */
+  /** Objednáno podle projektu (ve výchozí měně přehledů); `undefined`, dokud se objednávky nenačtou. */
   spent?: Record<string, number>;
   /** Hranice semaforu marže z Nastavení. */
   thresholds: MarginThresholds;
@@ -491,7 +491,8 @@ function buildColumns(ctx: ColumnContext): IColumn[] {
     },
     {
       key: 'cost',
-      name: 'Náklady',
+      name: 'Nákup',
+      ariaLabel: 'Nákup – prognóza',
       minWidth: 100,
       maxWidth: 120,
       isResizable: true,
@@ -501,7 +502,7 @@ function buildColumns(ctx: ColumnContext): IColumn[] {
         return (
           <div
             style={{ textAlign: 'right', color: f.cost === undefined || f.provisional ? RES.gray : undefined, fontStyle: f.provisional ? 'italic' : undefined }}
-            title={f.cost === undefined ? 'Projekt zatím nemá realizační rozpočet.' : `Aktuální prognóza nákupu z realizačního rozpočtu (plán se může odchylovat)${f.provisional ? ' — rozpočet zatím není schválený, čísla jsou provizorní' : ''}.`}
+            title={f.cost === undefined ? 'Projekt zatím nemá realizační rozpočet.' : `Nákup – prognóza z realizačního rozpočtu (plán se může odchylovat)${f.provisional ? ' — rozpočet zatím není schválený, čísla jsou provizorní' : ''}.`}
           >
             {f.cost === undefined ? '—' : formatMoney(f.cost, ctx.report.currency)}
             {f.provisional && f.cost !== undefined && <ProvisionalTag />}
@@ -527,7 +528,7 @@ function buildColumns(ctx: ColumnContext): IColumn[] {
     },
     {
       key: 'marginApproved',
-      name: 'Marže zadání',
+      name: 'Marže plán',
       minWidth: 80,
       maxWidth: 100,
       isResizable: true,
@@ -535,7 +536,7 @@ function buildColumns(ctx: ColumnContext): IColumn[] {
       onRender: (p: Project) => (
         <div
           style={{ textAlign: 'right', color: RES.gray }}
-          title={p.budgetMarginApproved === undefined ? 'Rozpočet zatím nebyl schválen.' : `Marže zafixovaná posledním schválením rozpočtu${p.budgetMarginApprovedAmount !== undefined ? ` (zisk ${formatMoney(p.budgetMarginApprovedAmount)})` : ''}.`}
+          title={p.budgetMarginApproved === undefined ? 'Rozpočet zatím nebyl schválen.' : `Marže plán — zafixovaná posledním schválením rozpočtu${p.budgetMarginApprovedAmount !== undefined ? ` (zisk ${formatMoney(p.budgetMarginApprovedAmount)})` : ''}.`}
         >
           {p.budgetMarginApproved === undefined ? '—' : `${p.budgetMarginApproved.toLocaleString('cs-CZ', { maximumFractionDigits: 1 })} %`}
         </div>
@@ -543,24 +544,26 @@ function buildColumns(ctx: ColumnContext): IColumn[] {
     },
     {
       key: 'spent',
-      name: 'Vyčerpáno',
-      minWidth: 100,
-      maxWidth: 120,
+      name: 'Prost.',
+      ariaLabel: 'Prostavěnost',
+      minWidth: 64,
+      maxWidth: 84,
       isResizable: true,
       styles: { cellTitle: { justifyContent: 'flex-end' } },
       onRender: (p: Project) => {
         const f = figuresOf(p, ctx.report, ctx.spent);
+        // Prostavěnost = nakoupeno / plán nákupu (z cache rozpočtu); projekt bez rozpočtu ji nemá.
+        const percent = p.budgetActualTotal !== undefined && p.budgetCostTotal !== undefined && p.budgetCostTotal > 0 ? Math.round((p.budgetActualTotal / p.budgetCostTotal) * 1000) / 10 : undefined;
         return (
           <div
-            style={{ textAlign: 'right', color: f.provisional ? RES.gray : undefined, fontStyle: f.provisional ? 'italic' : undefined }}
+            style={{ textAlign: 'right', color: percent === undefined || f.provisional ? RES.gray : percent > 100 ? RES.red : undefined, fontStyle: f.provisional ? 'italic' : undefined }}
             title={
-              f.fromBudget
-                ? `Skutečnost z realizačního rozpočtu (koupeno a odpracováno)${f.provisional ? ' — rozpočet zatím není schválený, čísla jsou provizorní' : ''}.`
-                : `Součet vystavených objednávek projektu bez DPH (${SPENT_ORDER_STATUSES.join(', ')}) ve výchozí měně přehledů.`
+              percent === undefined
+                ? `Projekt nemá realizační rozpočet, prostavěnost se nepočítá${f.actual !== undefined && f.actual > 0 ? ` (objednáno ${formatMoney(f.actual, ctx.report.currency)}, ${SPENT_ORDER_STATUSES.join(', ')})` : ''}.`
+                : `Prostavěnost = nakoupeno ${formatMoney(f.actual, ctx.report.currency)} z plánu nákupu ${formatMoney(p.budgetCostTotal === undefined ? undefined : ctx.report.convert(p.budgetCostTotal, 'CZK'), ctx.report.currency)}${f.provisional ? ' — rozpočet zatím není schválený, čísla jsou provizorní' : ''}.`
             }
           >
-            {f.actual === undefined ? '…' : formatMoney(f.actual, ctx.report.currency)}
-            {f.provisional && f.actual !== undefined && <ProvisionalTag />}
+            {percent === undefined ? '—' : `${percent.toLocaleString('cs-CZ', { maximumFractionDigits: 1 })} %`}
           </div>
         );
       }

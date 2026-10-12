@@ -508,6 +508,23 @@ export const SettingsPage: React.FC = () => {
           </Panel>
         </PivotItem>
 
+        <PivotItem headerText="Odkazy v záhlaví" itemIcon="Link">
+          <Panel>
+            <Hint>
+              Tlačítko <strong>RES CRM</strong> v záhlaví aplikace vede na sesterskou aplikaci RES CRM (nabídky a obchodní případy). Běží-li PRMIS přes celé okno,
+              přenese se to i do RES CRM.
+            </Hint>
+            <Toggle label="Zobrazit tlačítko RES CRM" checked={draft.links.showCrm} onChange={(_, checked) => patch('links', { showCrm: !!checked })} onText="Ano" offText="Ne" />
+            <TextField
+              label="Adresa stránky RES CRM"
+              description="Prázdné = výchozí adresa na stejném webu: …/SitePages/REVCRM.aspx"
+              placeholder="https://revoltum.sharepoint.com/sites/RevoltumEngineeringServices/SitePages/REVCRM.aspx"
+              value={draft.links.crmUrl}
+              onChange={(_, v) => patch('links', { crmUrl: v || '' })}
+            />
+          </Panel>
+        </PivotItem>
+
         <PivotItem headerText="Jednorázové akce" itemIcon="Repair">
           <OneOffActions />
         </PivotItem>
