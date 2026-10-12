@@ -89,6 +89,7 @@ Po nahrání: **Instalace a diagnostika** (schéma 21) a na téže stránce **P�
 - [ ] Přehled projektů: sloupce Nákup, Marže, Prost. (procento) a vzadu Marže plán.
 - [ ] **Cashflow:** u fakturačního milníku je výběr „Výnos z rozpočtu“ (včetně „Nový výnos (dodatek)…“); panel „Výnosy z rozpočtu a plán fakturace“ ukazuje prognózu výnosu, naplánované milníky a rozdíl; milníky bez vazby se hlásí.
 - [ ] „Nový výnos“ z milníku při uzamčeném plánu vytvoří výnos s plánem 0 a prognózou podle milníku a upozorní, že pro dodatek je třeba plán odemknout.
+- [ ] **Rezerva** je v samostatné tabulce pod nákupem (Popis, % z nákupu, Měna, plán, prognóza, čerpáno, zbývá); ostatní skupiny mají stejnou tabulku bez Rezerva %; procento i pevná částka fungují.
 - [ ] V záhlaví je tlačítko **RES CRM** (obrys, ikona + text); vede na stránku RES CRM; v Nastavení → Odkazy v záhlaví jde změnit adresu nebo ho skrýt; v režimu celého okna zůstane celé okno i v RES CRM.
 
 ## 5. Cashflow — vazby na harmonogram (0.34)

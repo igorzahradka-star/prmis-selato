@@ -5,6 +5,12 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.40.1 — 12. 10. 2026 — Rezerva v samostatné tabulce
+
+- Všechny běžné skupiny a práce mají **stejnou tabulku bez sloupce Rezerva %**. **Rezerva** (skupina typu rezerva) je v **samostatné tabulce pod nákupem** s vlastním pořadím sloupců: Popis rezervy, % z nákupu, Měna, Rezerva – plán, Rezerva – prognóza, Čerpáno, Zbývá. Rezervu lze zadat procentem z nákupu ostatních položek, nebo pevnou částkou (procento prázdné). Bez změny schématu a dat.
+
+---
+
 ## 0.40.0 — 12. 10. 2026 — Rozpočet: jen celkové částky, sjednocený slovník, vazba cashflow na výnosy (balíček C), tlačítko RES CRM
 
 - **Tabulka nákupu jen s celkovými částkami.** Zmizely sloupce Množství, MJ, Nákup za MJ, Koupeno ks a Zbývá ks (počty kusů, MJ a ceny za MJ se řeší jen v RES CRM; ve starých datech zůstávají uložené a nemění se — úprava celkové částky dopočte cenu za jednotku, takže kusy × cena = zadaný celek). Zůstalo: Nákup – plán, Rezerva %, Objednáno, Nákup – prognóza, Nakoupeno, Zbývá nakoupit. U vlastní práce se částka přepočítá na hodiny podle nákladové sazby profese. Z rozpočtu zmizela i **kusovník** (tlačítko Vložit z kusovníku a Uložit do kusovníku); kusovník zůstává v nabídkovém nástroji.
