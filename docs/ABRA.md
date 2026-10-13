@@ -132,3 +132,8 @@ Zakázky v datech: 26001, 26005, 10501, 26999 (Režie) — všechno pětimístn�
   U dokladu je jen `primUcet` = 321001 (závazky), nikoli nákladový účet 501/518/512; ten je až v účetním deníku/předpisu zaúčtování (`typUcOp` např. „NÁKUP SLUŽBY“).
 - Zálohy: „poskytnutá záloha na nový vůz“ (PF0011, PF0014) jsou v evidenci běžných přijatých faktur; samostatná evidence zálohových dokladů zatím nenalezena.
 - Potřebujeme ještě export **účetního deníku** (obratovky) za jeden projekt, ideálně s polem Zakázka, Účet, Částka, Popis, Číslo dokladu — a stejně vydané faktury.
+
+### Doklady bez zakázky (Igor, 13. 10. 2026)
+Doklady bez zakázky z větší části (~90 %) patří do projektu **Režie** (`{RR}999`, rok podle data dokladu, např. 26999). Zatím se nestahují; **časem je budeme potřebovat**.
+Návrh na později (ještě nerozhodnuto): stahovat je s `ProjectNumber` = Režie roku a v `Description` je označit „bez zakázky v Abře“, ať je PM/účetní může
+přeřadit (zbývajících ~10 % patří jinam). Pozor na doklady mezi firmami holdingu (např. PF0022) — vyžadují lidské rozhodnutí. Čeká na rozhodnutí Igora.
