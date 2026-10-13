@@ -120,3 +120,15 @@ Sonda (`integrations/abra-sync/src/probe.js`, účet Igora) — přihlášení *
 pouze na licenci se zakoupeným přístupem k API (možno aktivovat ve webovém rozhraní v sekci Licence a přístup)“. Bez zakoupeného API přístupu
 v licenci Flexi nejde automatizace žádnou variantou (Power Automate, Azure, aplikace). Další krok: CFO/správce Abry ověří v Abře → Licence a přístup,
 zda je API přístup zakoupen/aktivován a zda je zapnut pro daného uživatele; teprve pak sondu zopakovat. Mezitím lze strukturu zjistit z ručního exportu (Excel/CSV) z Abry.
+
+### Ruční export z Abry (13. 10. 2026) — co z něj víme
+Igor vyexportoval 33 přijatých faktur (XML i Excel; soubory v `integrations/abra-sync/vystupy/`, mimo git). **Potvrzeno** (XML odpovídá názvům v `config.js`):
+`kod` (číslo dokladu, např. PF0033/2026), `firma` (kód; `showAs` je „KÓD: Název“), `popis`, `datVyst`, `datSplat`, `mena`, `sumZklCelkem` (základ v Kč, **bez DPH**),
+`sumZklCelkemMen` (základ v cizí měně), `zakazka` (`code:26001`; u některých dokladů prázdná), `typDokl` (typ dokladu) s `typDoklK` (`typDokladu.faktura`; dobropis bude zřejmě
+jiná hodnota — **zatím neviděno**), `id` (`key:…` a u importovaných i `ext:…`; stálé ID pro `AbraId` použít `key:`, popř. číselné id z API).
+Zakázky v datech: 26001, 26005, 10501, 26999 (Režie) — všechno pětimístná čísla, tedy kompatibilní s PRMIS. Doklady **bez zakázky** (např. PF0033, PF0022) se nestahují.
+**Zjištěno / nevyřešeno:**
+- XML export **neobsahuje položky faktur** a Excel nemá ani sloupec Zakázka — **pro řádky (položky/zápisy) je potřeba účetní deník** nebo položky dokladů přes API (402 — chybí licence API).
+  U dokladu je jen `primUcet` = 321001 (závazky), nikoli nákladový účet 501/518/512; ten je až v účetním deníku/předpisu zaúčtování (`typUcOp` např. „NÁKUP SLUŽBY“).
+- Zálohy: „poskytnutá záloha na nový vůz“ (PF0011, PF0014) jsou v evidenci běžných přijatých faktur; samostatná evidence zálohových dokladů zatím nenalezena.
+- Potřebujeme ještě export **účetního deníku** (obratovky) za jeden projekt, ideálně s polem Zakázka, Účet, Částka, Popis, Číslo dokladu — a stejně vydané faktury.
