@@ -5,6 +5,13 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.45.1 — 15. 10. 2026 — Servis: přehled a upozornění e-mailem
+
+- Nahoře na stránce Servis **přehled**: nové požadavky, listy po termínu, ke kontrole, k fakturaci a smlouvy, které končí nebo vypršely.
+- **E-mail správcům servisu**, když dispečer zapíše **nový požadavek** a když je **provedení listu ke kontrole**; respektuje osobní nastavení upozornění (Můj profil, skupina „Co čeká na moje schválení nebo kontrolu“), selhání e-mailu nic neblokuje. Bez změny schématu.
+
+---
+
 ## 0.45.0 — 15. 10. 2026 — Modul Servis (základ)
 
 - **Nová nabídka Servis** (jen pro Správce servisu, Dispečera, vedení a administrátora; ostatním se v nabídce neukáže) se třemi záložkami: **Požadavky**, **Servisní listy**, **Lokality a zařízení**.

@@ -105,6 +105,86 @@ export function budgetRequesterRecipient(requesterName: string | undefined, pmLo
   return pmLogin && normalizeLogin(pmLogin) !== '' ? personRecipient(pmLogin, pmName, memberships) : undefined;
 }
 
+// --- Servis -----------------------------------------------------------------------
+
+/** Příjemci z role (např. správci servisu); bez uvedeného uživatele a bez opakování adres. */
+export function roleRecipients(role: Role, memberships: RoleMembership[], excludeLogin?: string): Recipient[] {
+  const me = excludeLogin ? emailFromLogin(excludeLogin) : undefined;
+  const seen: string[] = [];
+  return membersOf(role, memberships).filter((r) => {
+    const key = prefsKey(r.email);
+    if ((me && key === prefsKey(me)) || seen.indexOf(key) !== -1) {
+      return false;
+    }
+    seen.push(key);
+    return true;
+  });
+}
+
+export interface ServiceRequestMailInput {
+  number: string;
+  title: string;
+  siteName: string;
+  deviceName?: string;
+  priority: string;
+  description?: string;
+  receivedBy: string;
+  link: string;
+  companyName: string;
+}
+
+/** E-mail správcům servisu: byl zapsán nový servisní požadavek. */
+export function serviceRequestMail(input: ServiceRequestMailInput): { subject: string; body: string } {
+  const lines = [
+    'Dobrý den,',
+    '',
+    `byl zapsán nový servisní požadavek ${input.number} (priorita: ${input.priority}).`,
+    '',
+    `Lokalita: ${input.siteName}${input.deviceName ? ' · ' + input.deviceName : ''}`,
+    `Požadavek: ${input.title}`,
+    input.description ? `Popis: ${input.description}` : '',
+    `Zapsal(a): ${input.receivedBy}`,
+    '',
+    'Servis otevřete tady:',
+    input.link,
+    '',
+    'Tento e-mail odeslala aplikace PRM Revoltum. Upozornění si můžete vypnout v Můj profil.',
+    input.companyName
+  ];
+  return { subject: `Nový servisní požadavek ${input.number}: ${input.title}`, body: lines.filter((l, i) => !(l === '' && lines[i - 1] === '')).join('\n') };
+}
+
+export interface ServiceJobMailInput {
+  number: string;
+  title: string;
+  deviceName: string;
+  supplierName?: string;
+  reportedBy: string;
+  link: string;
+  companyName: string;
+}
+
+/** E-mail správcům servisu: servisní list je provedený a čeká na kontrolu. */
+export function serviceJobToCheckMail(input: ServiceJobMailInput): { subject: string; body: string } {
+  const lines = [
+    'Dobrý den,',
+    '',
+    `servisní list ${input.number} je provedený a čeká na vaši kontrolu.`,
+    '',
+    `Zařízení: ${input.deviceName}`,
+    `Název: ${input.title}`,
+    input.supplierName ? `Dodavatel: ${input.supplierName}` : '',
+    `Provedení zapsal(a): ${input.reportedBy}`,
+    '',
+    'Po kontrole odemknete fakturaci tady:',
+    input.link,
+    '',
+    'Tento e-mail odeslala aplikace PRM Revoltum. Upozornění si můžete vypnout v Můj profil.',
+    input.companyName
+  ];
+  return { subject: `Ke kontrole: servisní list ${input.number} – ${input.title}`, body: lines.filter((l, i) => !(l === '' && lines[i - 1] === '')).join('\n') };
+}
+
 export interface BudgetApprovalMailInput {
   projectNumber: string;
   projectName?: string;

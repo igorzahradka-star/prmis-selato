@@ -24,6 +24,8 @@ import { OrderPanel } from '../orders/OrderPanel';
 import { InvoicePanel } from '../invoicing/InvoicePanel';
 import { ServiceJobInput } from '../../data/repositories';
 import { CommentDialog, JobDialog } from './ServiceDialogs';
+import { notifyServiceManagers, serviceLink } from './serviceNotify';
+import { serviceJobToCheckMail } from '../../core/notifications';
 import { DATE_INPUT, Fact, JobStatusBadge, dateToInput, inputToDate } from './serviceUi';
 
 const ACTION_LABELS: Record<JobAction, string> = {
@@ -49,7 +51,7 @@ export const JobPanel: React.FC<{
   onClose: () => void;
   onChanged: () => void;
 }> = ({ job, sites, devices, partners, allJobs, onClose, onChanged }) => {
-  const { repos, user } = useApp();
+  const { repos, user, settings } = useApp();
   const [dlg, setDlg] = React.useState<Dlg>(undefined);
   const [error, setError] = React.useState<string | undefined>(undefined);
   const [orderOpen, setOrderOpen] = React.useState(false);
@@ -98,7 +100,11 @@ export const JobPanel: React.FC<{
     setBusy(true);
     setDlgError(undefined);
     act(action, input)
-      .then(() => {
+      .then(async () => {
+        // Provedení zapsané za dodavatele čeká na kontrolu správcem — správci dostanou upozornění.
+        if (action === 'report') {
+          await notifyServiceManagers(repos, settings, user, serviceJobToCheckMail({ number: job.number, title: job.title, deviceName: device ? `${device.number} ${device.name}` : job.deviceNumber, supplierName: job.supplierName, reportedBy: user.displayName, link: serviceLink(), companyName: settings.company.name }));
+        }
         setBusy(false);
         done();
       })

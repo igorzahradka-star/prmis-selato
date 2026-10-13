@@ -17,12 +17,13 @@ webu / mobilní aplikaci (paralelní session). V PRMIS je evidence, stav, faktur
 - **Fakturace:** zákazníkovi (lokalitě) jednak **pravidelný paušál**, jednak **jednotlivé činnosti** (z servisního listu). Dodavatelé fakturují nám (přijaté faktury přes Abru).
 - **Schvalovací limity Servisu** se upřesní později; zatím platí stejné limity jako u projektů, krok „PM“ schvaluje správce servisu.
 
-## Hotovo (0.45.0.0)
+## Hotovo (0.45.1.0)
 - Role Správce servisu a Dispečer (SharePoint skupiny `PRM Správci servisu`, `PRM Dispečeři servisu` — vytvoří Instalace), práva `core/service.ts`.
 - Číslování a validace lokalit a zařízení, složky, stav smlouvy; stránka **Servis** (nabídka jen pro oprávněné) se třemi záložkami: Požadavky, Servisní listy, Lokality a zařízení.
 - Servisní požadavek (číslo `SPO-RRRR-NNNN`) a servisní list (`SL-RRRR-NNNN`), tok přechodů `core/serviceJobs.ts` (testováno), detail listu s tlačítky podle stavu a role,
   vazba na objednávku dodavateli a na podklad pro fakturaci (výběr existujícího nebo založení nového), audit.
 - Servisní projekty skryté v přehledech projektů, objednávkách a fakturaci pro uživatele bez práv Servisu; objednávky/faktury servisních projektů smí vystavovat jen role Servisu.
+- Přehled nahoře na stránce Servis a e-mailová upozornění správcům servisu (nový požadavek, provedení ke kontrole).
 - Schéma 25: seznamy `PRM_ServiceSites`, `PRM_ServiceDevices`, `PRM_ServiceRequests`, `PRM_ServiceJobs`.
 
 ## Zbývá / další etapy
@@ -30,7 +31,7 @@ webu / mobilní aplikaci (paralelní session). V PRMIS je evidence, stav, faktur
 2. **Schvalovací řetěz a limity Servisu** (Igor upřesní).
 3. **Externí web a mobilní aplikace pro servisáka** — paralelní session (viz níže).
 4. Přijaté faktury dodavatelů k servisnímu listu přes Abru (zakázka = číslo zařízení, např. 10501); stejný tok jako Data z účetnictví u projektů.
-5. Zavedení stávajících lokalit a zařízení (zatím ručně), upozornění e-mailem (nový požadavek, provedeno ke kontrole), přehledy.
+5. Zavedení stávajících lokalit a zařízení (zatím ručně), **automatické zakládání složek lokality a zařízení** v  (zatím se do dialogu vkládá odkaz na existující složku), další upozornění (např. dodavateli o novém listu), přehledy a grafy.
 6. **Oprávnění v SharePointu:** seznamy `PRM_Service*` omezit na skupiny Servisu (aplikace skrývá, skutečnou ochranu dělá SharePoint — viz CLAUDE.md, kap. 4);
    servisní projekty se omezují automaticky při založení zařízení.
 

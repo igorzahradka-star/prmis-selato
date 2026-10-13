@@ -20,6 +20,8 @@ import { formatDate } from '../../core/format';
 import { canAdministerService, canViewService, canWorkInService, contractState, ServiceDevice, ServiceSite } from '../../core/service';
 import { JobStatus, RequestStatus, ServiceJob, ServiceRequest, isJobOverdue } from '../../core/serviceJobs';
 import { CommentDialog, DeviceDialog, JobDialog, RequestDialog, SiteDialog } from './ServiceDialogs';
+import { notifyServiceManagers, serviceLink } from './serviceNotify';
+import { serviceRequestMail } from '../../core/notifications';
 import { JobPanel } from './JobPanel';
 import { ContractBadge, JobStatusBadge, PriorityBadge, RequestStatusBadge, TD, TH } from './serviceUi';
 
@@ -28,8 +30,15 @@ type RequestFilter = 'open' | 'all' | RequestStatus;
 
 const norm = (s: string): string => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
+const Tile: React.FC<{ label: string; value: number; hint: string; warn?: boolean }> = ({ label, value, hint, warn }) => (
+  <div style={{ background: RES.white, border: `1px solid ${RES.grayBlue}`, borderLeft: `4px solid ${warn ? RES.amber : RES.grayBlue}`, borderRadius: 4, padding: '6px 12px', minWidth: 130, flex: '1 1 150px' }} title={hint}>
+    <div style={{ fontSize: 12, color: RES.gray }}>{label}</div>
+    <div style={{ fontSize: 20, fontWeight: 600, color: warn ? RES.amber : RES.navy }}>{value}</div>
+  </div>
+);
+
 export const ServicePage: React.FC = () => {
-  const { repos, user } = useApp();
+  const { repos, user, settings } = useApp();
   const [loaded, setLoaded] = React.useState(false);
   const [error, setError] = React.useState<string | undefined>(undefined);
   const [notice, setNotice] = React.useState<string | undefined>(undefined);
@@ -117,6 +126,13 @@ export const ServicePage: React.FC = () => {
   const openJob = openJobId ? jobs.filter((j) => j.id === openJobId)[0] : undefined;
   const jobsOfRequest = (id: number): ServiceJob[] => jobs.filter((j) => j.requestId === id);
 
+  // Co čeká na pozornost — přehled nahoře.
+  const waitingRequests = requests.filter((r) => r.status === RequestStatus.Prijato).length;
+  const overdueJobs = jobs.filter((j) => isJobOverdue(j)).length;
+  const toCheck = jobs.filter((j) => j.status === JobStatus.Provedeno).length;
+  const toInvoice = jobs.filter((j) => j.status === JobStatus.KFakturaci).length;
+  const contractsEnding = devices.filter((d) => d.isActive && (contractState(d) === 'konci' || contractState(d) === 'vyprsela')).length;
+
   return (
     <>
       <PageHeading title="Servis" subtitle="Lokality a zařízení, servisní požadavky a servisní listy. Objednávky a faktury se vedou na servisních projektech zařízení." />
@@ -130,6 +146,13 @@ export const ServicePage: React.FC = () => {
           {notice}
         </MessageBar>
       )}
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', margin: '0 0 10px' }}>
+        <Tile label="Nové požadavky" value={waitingRequests} hint="požadavky ve stavu Přijato, ke kterým ještě není servisní list" warn={waitingRequests > 0} />
+        <Tile label="Po termínu" value={overdueJobs} hint="servisní listy naplánované nebo objednané, jejichž termín už minul" warn={overdueJobs > 0} />
+        <Tile label="Ke kontrole" value={toCheck} hint="provedené servisní listy, které čekají na kontrolu správcem" warn={toCheck > 0} />
+        <Tile label="K fakturaci" value={toInvoice} hint="zkontrolované listy, ke kterým se má založit podklad pro fakturaci" />
+        <Tile label="Smlouvy končí / vypršely" value={contractsEnding} hint="zařízení, jejichž smlouva končí do 60 dnů nebo už vypršela" warn={contractsEnding > 0} />
+      </div>
       {!mayWork && (
         <MessageBar messageBarType={MessageBarType.info} isMultiline>
           Servis máte jen ke čtení.
@@ -342,7 +365,18 @@ export const ServicePage: React.FC = () => {
 
       {siteDlg && <SiteDialog site={siteDlg.site} sites={sites} partners={partners} save={(input) => repos.service.saveSite(input, user)} onSaved={() => { setSiteDlg(undefined); setNotice('Lokalita je uložená.'); reload(); }} onClose={() => setSiteDlg(undefined)} />}
       {deviceDlg && <DeviceDialog site={deviceDlg.site} device={deviceDlg.device} devices={devices} save={(input) => repos.service.saveDevice(input, user)} onSaved={() => { setDeviceDlg(undefined); setNotice('Zařízení je uložené.'); reload(); }} onClose={() => setDeviceDlg(undefined)} />}
-      {requestDlg && <RequestDialog request={requestDlg.request} sites={sites} devices={devices} save={(input) => repos.service.saveRequest(input, user)} onSaved={() => { setRequestDlg(undefined); setNotice('Požadavek je uložený.'); reload(); }} onClose={() => setRequestDlg(undefined)} />}
+      {requestDlg && <RequestDialog request={requestDlg.request} sites={sites} devices={devices} save={async (input) => {
+        const saved = await repos.service.saveRequest(input, user);
+        if (!input.id) {
+          const site = sites.filter((s) => s.number === saved.siteNumber)[0];
+          const device = devices.filter((d) => d.number === saved.deviceNumber)[0];
+          const note = await notifyServiceManagers(repos, settings, user, serviceRequestMail({ number: saved.number, title: saved.title, siteName: site ? `${site.number} ${site.name}` : saved.siteNumber, deviceName: device ? `${device.number} ${device.name}` : undefined, priority: saved.priority, description: saved.description, receivedBy: user.displayName, link: serviceLink(), companyName: settings.company.name }));
+          setNotice(`Požadavek ${saved.number} je zapsaný.${note}`);
+        } else {
+          setNotice('Požadavek je uložený.');
+        }
+        return saved;
+      }} onSaved={() => { setRequestDlg(undefined); reload(); }} onClose={() => setRequestDlg(undefined)} />}
       {jobDlg && <JobDialog request={jobDlg.request} sites={sites} devices={devices} partners={partners} save={(input) => repos.service.createJob(input, user)} onSaved={() => { setJobDlg(undefined); setNotice('Servisní list je založený.'); reload(); }} onClose={() => setJobDlg(undefined)} />}
       {rejectDlg && <CommentDialog title={`Zamítnout požadavek ${rejectDlg.number}`} label="Důvod zamítnutí" required confirm="Zamítnout" onConfirm={(text) => repos.service.rejectRequest(rejectDlg.id, text, user)} onSaved={() => { setRejectDlg(undefined); reload(); }} onClose={() => setRejectDlg(undefined)} />}
       {openJob && <JobPanel job={openJob} sites={sites} devices={devices} partners={partners} allJobs={jobs} onClose={() => setOpenJobId(undefined)} onChanged={reload} />}

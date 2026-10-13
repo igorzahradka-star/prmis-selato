@@ -1,4 +1,4 @@
-import { DEFAULT_NOTIFICATION_PREFS, budgetApprovalMail, budgetApprovalRecipients, budgetDecisionMail, budgetRequesterRecipient, prefsFromJson, prefsToJson, splitByPrefs } from './notifications';
+import { DEFAULT_NOTIFICATION_PREFS, roleRecipients, serviceJobToCheckMail, serviceRequestMail, budgetApprovalMail, budgetApprovalRecipients, budgetDecisionMail, budgetRequesterRecipient, prefsFromJson, prefsToJson, splitByPrefs } from './notifications';
 import { Role } from './types';
 import { RoleMembership } from './userAdmin';
 
@@ -31,6 +31,24 @@ describe('nastavení upozornění', () => {
     expect(splitByPrefs(r, prefs, 'approvals').send.map((x) => x.name)).toEqual(['Petr', 'Neznámý']);
     expect(splitByPrefs(r, prefs, 'approvals').muted.map((x) => x.name)).toEqual(['Anna']);
     expect(splitByPrefs(r, prefs, 'results').send.map((x) => x.name)).toEqual(['Anna', 'Neznámý']);
+  });
+});
+
+describe('upozornění v Servisu', () => {
+  const m: RoleMembership[] = [M(Role.SpravceServisu, clen('sara@revoltum.cz', 'Sára Správce'), clen('karel@revoltum.cz', 'Karel Správce')), M(Role.Dispecer, clen('david@revoltum.cz', 'David Dispečer'))];
+  it('příjemci z role bez toho, kdo akci provedl', () => {
+    expect(roleRecipients(Role.SpravceServisu, m).map((x) => x.email)).toEqual(['sara@revoltum.cz', 'karel@revoltum.cz']);
+    expect(roleRecipients(Role.SpravceServisu, m, 'i:0#.f|membership|sara@revoltum.cz').map((x) => x.email)).toEqual(['karel@revoltum.cz']);
+    expect(roleRecipients(Role.Dispecer, m).map((x) => x.name)).toEqual(['David Dispečer']);
+  });
+  it('texty e-mailů: nový požadavek a servisní list ke kontrole', () => {
+    const a = serviceRequestMail({ number: 'SPO-2026-0003', title: 'Výpadek střídače', siteName: '10500 Mastířovice', deviceName: '10501 FVE', priority: 'Vysoká', receivedBy: 'David', link: 'https://x/#/servis', companyName: 'RES' });
+    expect(a.subject).toContain('SPO-2026-0003');
+    expect(a.body).toContain('Vysoká');
+    expect(a.body).toContain('Můj profil');
+    const b = serviceJobToCheckMail({ number: 'SL-2026-0001', title: 'Oprava', deviceName: '10501 FVE', supplierName: 'Servis s.r.o.', reportedBy: 'David', link: 'https://x', companyName: 'RES' });
+    expect(b.subject).toContain('Ke kontrole');
+    expect(b.body).toContain('Servis s.r.o.');
   });
 });
 
