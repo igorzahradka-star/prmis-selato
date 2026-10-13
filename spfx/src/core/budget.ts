@@ -158,6 +158,32 @@ export interface RevenueLine {
 
 export const revenueForecast = (r: RevenueLine): number => (r.forecast !== undefined ? r.forecast : r.plan);
 
+/**
+ * Doklad z účetnictví (ABRA Flexi) přiřazený k položce nákupu (přijatá faktura) nebo k výnosu (vydaná faktura).
+ * Jeden doklad lze rozdělit mezi víc položek (součet částek nepřekročí částku dokladu). Částka je bez DPH v měně dokladu
+ * (dobropis je záporný). Zálohové faktury se nepřiřazují a do součtů se nezapočítávají.
+ */
+export interface DocAllocation {
+  /** Identifikátor dokladu v Abře (`AbraDoc.abraId`). */
+  docId: string;
+  kind: 'item' | 'revenue';
+  targetId: string;
+  amount: number;
+  currency: CurrencyCode;
+}
+
+/** Součet přiřazených dokladů cíli (položce nebo výnosu) v zadané měně a počet dokladů; bez přiřazení `count = 0`. */
+export function allocatedTo(doc: BudgetDoc, kind: 'item' | 'revenue', targetId: string, currency: CurrencyCode, rates: RateTable): { amount: number; count: number } {
+  const own = (doc.allocations || []).filter((a) => a.kind === kind && a.targetId === targetId);
+  return { amount: round2(own.reduce((s, a) => s + convertAmount(a.amount, a.currency, currency, rates), 0)), count: new Set(own.map((a) => a.docId)).size };
+}
+
+/** Vyfakturováno výnosu: z přiřazených vydaných faktur; bez nich ruční hodnota (do napojení účetnictví). */
+export function revenueInvoicedOf(doc: BudgetDoc, line: RevenueLine, rates: RateTable): number {
+  const a = allocatedTo(doc, 'revenue', line.id, line.currency, rates);
+  return a.count > 0 ? a.amount : line.invoiced ?? 0;
+}
+
 export interface BudgetDoc {
   groups: BudgetGroup[];
   items: BudgetItem[];
@@ -167,6 +193,8 @@ export interface BudgetDoc {
   income?: IncomeMilestone[];
   /** Výnosy (smluvní tržby). Chybí-li, rozpočet je z doby před zavedením výnosů a při otevření se převede (viz `ensureRevenues`). */
   revenues?: RevenueLine[];
+  /** Doklady z účetnictví přiřazené k položkám a výnosům (zdroj pravdy pro Nakoupeno a Vyfakturováno). */
+  allocations?: DocAllocation[];
 }
 
 export const round2 = (v: number): number => Math.round((v + Number.EPSILON) * 100) / 100;
@@ -238,6 +266,9 @@ export interface ItemCalc {
   ordered: number;
   /** Prognóza nákladů: ruční (jinak plán), nejméně však objednáno a koupeno. */
   forecast: number;
+  /** Skutečnost je součet přiřazených dokladů z účetnictví (ruční hodnota se nepoužívá) a kolik dokladů to je. */
+  docBacked: boolean;
+  docCount: number;
 }
 
 export const findRate = (doc: BudgetDoc, id: string | undefined): LabourRate | undefined => doc.rates.filter((r) => r.id === id)[0];
@@ -264,11 +295,18 @@ export function calcItems(doc: BudgetDoc, rates: RateTable, orders: OrderLike[] 
     } else {
       c = { currency: item.currency, cost: itemCost(item), actualQty: item.actualQty ?? 0, actualCost: item.actualCost ?? 0 };
     }
+    // Přiřazené doklady z účetnictví jsou zdroj pravdy: skutečnost položky je jejich součet (vlastní práce se podle hodin nemění).
+    const docs = group && group.kind === 'prace' ? { amount: 0, count: 0 } : allocatedTo(doc, 'item', item.id, c.currency, rates);
+    if (docs.count > 0) {
+      c = { ...c, actualCost: docs.amount };
+    }
     const ordered = orderedForItem(orders, item.id, c.currency, rates);
     return {
       item,
       group,
       ...c,
+      docBacked: docs.count > 0,
+      docCount: docs.count,
       remainingQty: round2(item.quantity - c.actualQty),
       remainingCost: round2(c.cost - c.actualCost),
       ordered,
@@ -381,7 +419,7 @@ export function budgetTotals(doc: BudgetDoc, target: CurrencyCode, rates: RateTa
   const revenues = doc.revenues ?? [];
   const sale = round2(revenues.reduce((s, x) => s + to(x.plan, x.currency), 0));
   const revForecast = round2(revenues.reduce((s, x) => s + to(revenueForecast(x), x.currency), 0));
-  const revInvoiced = round2(revenues.reduce((s, x) => s + to(x.invoiced ?? 0, x.currency), 0));
+  const revInvoiced = round2(revenues.reduce((s, x) => s + to(revenueInvoicedOf(doc, x, rates), x.currency), 0));
   return {
     ...t,
     sale,
@@ -621,7 +659,7 @@ const asKind = (v: unknown, name: string): GroupKind => (v === 'prace' || v === 
 
 /** Přečte uložený rozpočet; poškozené nebo chybějící části se nahradí prázdnými, aby šel rozpočet vždy otevřít. */
 export function budgetFromJson(json: string | undefined): BudgetDoc {
-  let raw: { groups?: unknown; items?: unknown; rates?: unknown; payments?: unknown; income?: unknown; revenues?: unknown } = {};
+  let raw: { groups?: unknown; items?: unknown; rates?: unknown; payments?: unknown; income?: unknown; revenues?: unknown; allocations?: unknown } = {};
   try {
     raw = json ? (JSON.parse(json) as typeof raw) : {};
   } catch {
@@ -703,7 +741,11 @@ export function budgetFromJson(json: string | undefined): BudgetDoc {
         note: optStr(r.note)
       }))
     : undefined;
-  return revenues ? { groups, items, rates, payments, income, revenues } : { groups, items, rates, payments, income };
+  const allocations: DocAllocation[] = (Array.isArray(raw.allocations) ? (raw.allocations as Record<string, unknown>[]) : [])
+    .filter((a) => str(a.docId) !== '' && str(a.targetId) !== '' && typeof a.amount === 'number' && isFinite(a.amount))
+    .map((a) => ({ docId: str(a.docId), kind: (a.kind === 'revenue' ? 'revenue' : 'item') as 'item' | 'revenue', targetId: str(a.targetId), amount: a.amount as number, currency: asCurrencyCode(str(a.currency)) }));
+  const base: BudgetDoc = revenues ? { groups, items, rates, payments, income, revenues } : { groups, items, rates, payments, income };
+  return allocations.length > 0 ? { ...base, allocations } : base;
 }
 
 export function newPayment(itemId?: string, description: string = '', currency: CurrencyCode = 'CZK'): PlannedPayment {

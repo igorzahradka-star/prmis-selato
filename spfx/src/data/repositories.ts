@@ -28,6 +28,7 @@ import { CatalogInput, CatalogItem } from '../core/catalog';
 import { StoredRate, StoredRates } from '../core/currency';
 import { ListDef } from './schema';
 import { NotificationPrefs } from '../core/notifications';
+import { AbraDoc } from '../core/abraDocs';
 
 /** Kdo je přihlášen a co smí. */
 export interface IUserRepository {
@@ -911,6 +912,29 @@ export interface IBudgetRepository {
   listPendingApproval(): Promise<BudgetRecord[]>;
 }
 
+/** Stav stahování dokladů z Abry (prostředník zapisuje do PRM_AbraSync). */
+export interface AbraSyncStatus {
+  /** Seznam pro stahování na webu existuje (po Instalaci). */
+  configured: boolean;
+  lastSyncAt?: Date;
+  lastOk?: boolean;
+  lastMessage?: string;
+  /** Žádost o aktualizaci čeká na prostředníka od tohoto okamžiku. */
+  pendingSince?: Date;
+}
+
+/**
+ * Doklady z účetnictví (ABRA Flexi). Doklady zapisuje prostředník; aplikace je čte a smí jen požádat o aktualizaci.
+ * Čtení nikdy nehází chybu — bez seznamu (před Instalací) vrací prázdný výsledek.
+ */
+export interface IAbraDocRepository {
+  /** Doklady projektu (podle čísla projektu = zakázky v Abře). */
+  list(projectNumber: string): Promise<AbraDoc[]>;
+  syncStatus(): Promise<AbraSyncStatus>;
+  /** Zapíše žádost „Aktualizovat z Abry“; čeká-li už jedna, nic nepřidá. */
+  requestSync(actor: CurrentUser): Promise<void>;
+}
+
 export interface RepositorySet {
   users: IUserRepository;
   userAdmin: IUserAdminRepository;
@@ -925,6 +949,7 @@ export interface RepositorySet {
   rates: IRatesRepository;
   profiles: IProfileRepository;
   budgets: IBudgetRepository;
+  abraDocs: IAbraDocRepository;
   catalog: ICatalogRepository;
   mail: IMailRepository;
   numbering: INumberingRepository;

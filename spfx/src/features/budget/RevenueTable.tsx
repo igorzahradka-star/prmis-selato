@@ -13,7 +13,7 @@ import { RES } from '../../ui/theme';
 import { ReportCurrency } from '../../ui/useReportCurrency';
 import { CURRENCY_CODES, CurrencyCode, convertAmount } from '../../core/currency';
 import { formatMoney } from '../../core/format';
-import { BudgetDoc, RevenueLine, newRevenueLine, revenueForecast } from '../../core/budget';
+import { BudgetDoc, RevenueLine, allocatedTo, newRevenueLine, revenueForecast, revenueInvoicedOf } from '../../core/budget';
 import { CELL_INPUT, NumInput } from './NumInput';
 import { StickyHScroll } from '../../ui/components/StickyHScroll';
 import { useColumnWidths } from '../../ui/components/useColumnWidths';
@@ -29,13 +29,16 @@ export const RevenueTable: React.FC<{
   report: ReportCurrency;
   defaultCurrency: CurrencyCode;
   onImport?: () => void;
-}> = ({ doc, onChange, editable, report, defaultCurrency, onImport }) => {
+  /** Otevře doklady z účetnictví přiřazené výnosu; bez něj se tlačítko „Doklady“ neukazuje. */
+  onOpenDocs?: (revenueId: string) => void;
+}> = ({ doc, onChange, editable, report, defaultCurrency, onImport, onOpenDocs }) => {
   const lines = doc.revenues ?? [];
   const cw = useColumnWidths('budget-revenue', [340, 74, 130, 130, 130, 130, 36], [6]);
   const bg = editable ? RES.white : RES.background;
   const set = (id: string, patch: Partial<RevenueLine>): void => onChange({ ...doc, revenues: lines.map((l) => (l.id === id ? { ...l, ...patch } : l)) });
   const inReport = (amount: number, from: CurrencyCode): number => convertAmount(amount, from, report.currency, report.rates);
   const sum = (pick: (l: RevenueLine) => number): number => lines.reduce((s, l) => s + inReport(pick(l), l.currency), 0);
+  const invoicedOf = (l: RevenueLine): number => revenueInvoicedOf(doc, l, report.rates);
 
   return (
     <div style={{ marginTop: 14 }}>
@@ -74,7 +77,9 @@ export const RevenueTable: React.FC<{
           <tbody>
             {lines.map((l) => {
               const forecast = revenueForecast(l);
-              const left = forecast - (l.invoiced ?? 0);
+              const invoiced = invoicedOf(l);
+              const docCount = allocatedTo(doc, 'revenue', l.id, l.currency, report.rates).count;
+              const left = forecast - invoiced;
               return (
                 <tr key={l.id} style={{ borderTop: `1px solid ${RES.background}` }}>
                   <td style={TD}>
@@ -96,7 +101,12 @@ export const RevenueTable: React.FC<{
                     <NumInput value={forecast} ariaLabel="Prognóza výnosu" disabled={!editable} inherited={l.forecast === undefined} allowEmpty placeholder="podle plánu" onCommit={(v) => set(l.id, { forecast: v === undefined ? undefined : Math.max(0, v) })} />
                   </td>
                   <td style={TD}>
-                    <NumInput value={l.invoiced} ariaLabel="Vyfakturováno" allowEmpty disabled={!editable} onCommit={(v) => set(l.id, { invoiced: v === undefined ? undefined : Math.max(0, v) })} />
+                    <NumInput value={docCount > 0 ? invoiced : l.invoiced} ariaLabel="Vyfakturováno" allowEmpty disabled={!editable || docCount > 0} onCommit={(v) => set(l.id, { invoiced: v === undefined ? undefined : Math.max(0, v) })} />
+                    {onOpenDocs && (
+                      <button type="button" onClick={() => onOpenDocs(l.id)} title="Vydané faktury z účetnictví přiřazené tomuto výnosu" style={{ border: 'none', background: 'none', padding: '2px 4px', cursor: 'pointer', fontSize: 12, color: docCount > 0 ? RES.navy : RES.gray, textDecoration: 'underline' }}>
+                        {docCount > 0 ? `Doklady (${docCount})` : 'Doklady'}
+                      </button>
+                    )}
                   </td>
                   <td style={{ ...R, color: left < 0 ? RES.red : RES.text }}>{formatMoney(left, l.currency)}</td>
                   <td style={TD}>
@@ -128,8 +138,8 @@ export const RevenueTable: React.FC<{
                   {formatMoney(sum((l) => l.plan), report.currency)}
                 </td>
                 <td style={R}>{formatMoney(sum((l) => revenueForecast(l)), report.currency)}</td>
-                <td style={R}>{formatMoney(sum((l) => l.invoiced ?? 0), report.currency)}</td>
-                <td style={R}>{formatMoney(sum((l) => revenueForecast(l) - (l.invoiced ?? 0)), report.currency)}</td>
+                <td style={R}>{formatMoney(sum((l) => invoicedOf(l)), report.currency)}</td>
+                <td style={R}>{formatMoney(sum((l) => revenueForecast(l) - invoicedOf(l)), report.currency)}</td>
                 <td />
               </tr>
             )}

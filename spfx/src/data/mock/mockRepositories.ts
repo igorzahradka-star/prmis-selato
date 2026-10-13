@@ -14,6 +14,7 @@ import { ProjectOverview, overviewFromJson, overviewToJson } from '../../core/pr
 import { MockCatalogRepository } from './mockCatalogRepository';
 import { MockBudgetRepository } from './mockBudgetRepository';
 import { MockProfileRepository } from './mockProfileRepository';
+import { MockAbraDocRepository } from './mockAbraDocRepository';
 import type { FolderMap } from '../../core/projectFolders';
 import { BudgetStatus, CurrentUser, Partner, Project, ProjectStatus, ProjectTask, ACTIVE_PROJECT_STATUSES } from '../../core/types';
 import { AppSettings, DEFAULT_SETTINGS, withDefaults } from '../../core/settings';
@@ -1102,6 +1103,7 @@ export function createMockRepositories(): RepositorySet {
     rates,
     profiles,
     budgets: new MockBudgetRepository(projects),
+    abraDocs: new MockAbraDocRepository(),
     catalog: new MockCatalogRepository(),
     mail: new MockMailRepository(),
     tasks: new MockTaskRepository((projectNumber, next) => projects.setNextDeadline(projectNumber, next)),

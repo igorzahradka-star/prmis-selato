@@ -114,6 +114,13 @@ Po nahrání: **Instalace a diagnostika** (schéma 21) a na téže stránce **P�
 - [ ] Příjemce, který si vypnul „Co čeká na moje schválení“, e-mail nedostane; hláška to uvede a úkol vidí v „Čeká na mě“. Totéž pro objednávky a podklady pro fakturaci.
 - [ ] Příjemce s vypnutým „Výsledek mých žádostí“ nedostane zprávu o schválení / vrácení.
 
+## 4g. Doklady z Abry (0.44, zatím jen ukázková data)
+- [ ] Po Instalaci (schéma 23) má rozpočet část „Doklady z Abry“ (bez napojení je prázdná, hlásí „Zatím nic nebylo staženo“).
+- [ ] V ukázkovém režimu: přiřadit přijatou fakturu k položce → u položky se Nakoupeno změní na součet dokladů a je jen ke čtení; u položky je „Doklady (n)“.
+- [ ] Rozdělit jednu fakturu mezi dvě položky (částka v dialogu Doklady); zbytek se ukazuje jako „Zbývá“.
+- [ ] Odebrat doklad: Nakoupeno se vrátí k ruční hodnotě, když žádný jiný doklad nezůstal.
+- [ ] Vydaná faktura jde přiřadit jen k výnosu, přijatá jen k nákupu; záloha nejde přiřadit nikam a je v tabulce Zálohy bokem.
+
 ## 5. Cashflow — vazby na harmonogram (0.34)
 - [ ] U platby nákladů zvolte **úkol harmonogramu**, kotvu (zahájení / dokončení), posun a splatnost → datum faktury a splatnost se vyplní samy a jsou zamčené.
 - [ ] Posuňte úkol v harmonogramu a uložte → platba v cashflow se posune.

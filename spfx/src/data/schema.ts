@@ -18,7 +18,7 @@
  * Verze schématu. Ukládá se do PRM_Settings pod klíčem `schemaVersion`.
  * Průvodce porovná uloženou verzi s touto a nabídne doplnění rozdílu.
  */
-export const SCHEMA_VERSION = 22;
+export const SCHEMA_VERSION = 23;
 
 /** Typ sloupce v SharePointu. */
 export type FieldType =
@@ -655,6 +655,45 @@ const PRM_USER_PROFILES: ListDef = {
   ]
 };
 
+const PRM_ABRA_DOCS: ListDef = {
+  name: 'PRM_AbraDocs',
+  title: 'PRM – Doklady z Abry',
+  description: 'Faktury přijaté, vydané a zálohové z účetnictví ABRA Flexi podle zakázky (= číslo projektu). Zapisuje jen prostředník (denní stahování), aplikace je čte a PM je přiřazuje k položkám rozpočtu.',
+  kind: 'list',
+  site: 'PRM',
+  versioning: true,
+  fields: [
+    { name: 'AbraId', title: 'ID v Abře', type: 'Text', required: true, indexed: true, description: 'Stálý identifikátor dokladu v Abře (evidence + id). Klíč přiřazení v rozpočtu.' },
+    { name: 'DocType', title: 'Druh', type: 'Choice', choices: ['prijata', 'vydana', 'zaloha-prijata', 'zaloha-vydana'], required: true, indexed: true },
+    { name: 'ProjectNumber', title: 'Projekt (zakázka)', type: 'Text', required: true, indexed: true },
+    { name: 'Partner', title: 'Dodavatel / odběratel', type: 'Text' },
+    { name: 'Description', title: 'Popis', type: 'Note' },
+    { name: 'IssueDate', title: 'Datum vystavení', type: 'DateTime' },
+    { name: 'DueDate', title: 'Splatnost', type: 'DateTime' },
+    { name: 'Currency', title: 'Měna', type: 'Text' },
+    { name: 'AmountNet', title: 'Částka bez DPH', type: 'Currency', decimals: 2, description: 'V měně dokladu; dobropis je záporný.' },
+    { name: 'Accounts', title: 'Účty', type: 'Text', description: 'Účty z účetního deníku (501, 518, 512, 601…), jen informativně.' },
+    { name: 'SyncedAt', title: 'Staženo', type: 'DateTime' }
+  ]
+};
+
+const PRM_ABRA_SYNC: ListDef = {
+  name: 'PRM_AbraSync',
+  title: 'PRM – Stahování z Abry',
+  description: 'Žádosti uživatelů o okamžitou aktualizaci (Kind = Žádost) a výsledky stahování (Kind = Stav). Žádosti zapisuje aplikace, výsledky prostředník.',
+  kind: 'list',
+  site: 'PRM',
+  versioning: true,
+  fields: [
+    { name: 'Kind', title: 'Druh', type: 'Choice', choices: ['Žádost', 'Stav'], required: true, indexed: true },
+    { name: 'Status', title: 'Stav', type: 'Choice', choices: ['Čeká', 'Hotovo', 'Chyba'], indexed: true },
+    { name: 'RequestedByName', title: 'Žádost podal', type: 'Text' },
+    { name: 'RequestedAt', title: 'Žádost podána', type: 'DateTime' },
+    { name: 'FinishedAt', title: 'Dokončeno', type: 'DateTime' },
+    { name: 'Message', title: 'Zpráva', type: 'Note' }
+  ]
+};
+
 export const LISTS: ListDef[] = [
   PRM_SETTINGS,
   PRM_DOCTYPES,
@@ -667,6 +706,8 @@ export const LISTS: ListDef[] = [
   PRM_TASKS,
   PRM_BUDGET_ITEMS,
   PRM_BUDGET_VERSIONS,
+  PRM_ABRA_DOCS,
+  PRM_ABRA_SYNC,
   PRM_INCOME_PLAN,
   PRM_PURCHASE_ORDERS,
   PRM_INVOICE_BASES,

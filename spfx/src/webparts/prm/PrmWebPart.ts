@@ -10,6 +10,7 @@
 
 import { SpCatalogRepository } from '../../data/sharepoint/spCatalogRepository';
 import { SpBudgetRepository } from '../../data/sharepoint/spBudgetRepository';
+import { SpAbraDocRepository } from '../../data/sharepoint/spAbraDocRepository';
 import { SpProfileRepository } from '../../data/sharepoint/spProfileRepository';
 import * as React from 'react';
 import * as ReactDom from 'react-dom';
@@ -102,6 +103,7 @@ export default class PrmWebPart extends BaseClientSideWebPart<IPrmWebPartProps> 
       rates,
       profiles,
       budgets: new SpBudgetRepository(this.context, projects),
+      abraDocs: new SpAbraDocRepository(this.context),
       catalog: new SpCatalogRepository(this.context),
       mail: new SpMailRepository(this.context),
       numbering,

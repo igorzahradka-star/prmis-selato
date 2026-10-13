@@ -69,9 +69,11 @@ export interface BudgetGridProps {
   /** Partneři pro výběr dodavatele a založení nového. */
   partners: Partner[];
   onCreatePartner: (suggestedName: string, itemId: string) => void;
+  /** Otevře doklady z účetnictví přiřazené položce; bez něj se tlačítko „Doklady“ neukazuje. */
+  onOpenDocs?: (itemId: string) => void;
 }
 
-export const BudgetGrid: React.FC<BudgetGridProps> = ({ doc, onChange, editable, planLocked, categories, report, onRemoveGroup, onOrder, partners, onCreatePartner, orders }) => {
+export const BudgetGrid: React.FC<BudgetGridProps> = ({ doc, onChange, editable, planLocked, categories, report, onRemoveGroup, onOrder, partners, onCreatePartner, orders, onOpenDocs }) => {
   const [collapsed, setCollapsed] = React.useState<string[]>([]);
   const toggle = (id: string): void => setCollapsed((cur) => (cur.indexOf(id) === -1 ? [...cur, id] : cur.filter((x) => x !== id)));
   const calcs = React.useMemo(() => calcItems(doc, report.rates, orders), [doc, report.rates, orders]);
@@ -146,8 +148,24 @@ export const BudgetGrid: React.FC<BudgetGridProps> = ({ doc, onChange, editable,
   /** Nakoupeno (částka) a zbývá nakoupit. U práce se částka dopočítává z odpracovaných hodin a zapisuje přes sazbu profese. */
   const actualCells = (c: ItemCalc, onCost: (v: number | undefined) => void, valueOverride?: number): JSX.Element => (
     <>
-      <td style={TD}>
-        <NumInput value={valueOverride !== undefined ? valueOverride : c.item.actualCost} ariaLabel="Nakoupeno (částka)" allowEmpty disabled={!editable} onCommit={onCost} />
+      <td style={TD} title={c.docBacked ? 'Součet přiřazených dokladů z účetnictví (ručně se nemění)' : undefined}>
+        <NumInput
+          value={c.docBacked ? c.actualCost : valueOverride !== undefined ? valueOverride : c.item.actualCost}
+          ariaLabel="Nakoupeno (částka)"
+          allowEmpty
+          disabled={!editable || c.docBacked}
+          onCommit={onCost}
+        />
+        {onOpenDocs && !(c.group && c.group.kind === 'prace') && (
+          <button
+            type="button"
+            onClick={() => onOpenDocs(c.item.id)}
+            title="Doklady z účetnictví přiřazené této položce"
+            style={{ border: 'none', background: 'none', padding: '2px 4px', cursor: 'pointer', fontSize: 12, color: c.docBacked ? RES.navy : RES.gray, textDecoration: 'underline' }}
+          >
+            {c.docBacked ? `Doklady (${c.docCount})` : 'Doklady'}
+          </button>
+        )}
       </td>
       <td style={{ ...R, color: c.remainingCost < 0 ? RES.red : RES.text }} title="Zbývá nakoupit: plán − nakoupeno (záporné = překročeno)">
         {formatMoney(c.remainingCost, c.currency)}

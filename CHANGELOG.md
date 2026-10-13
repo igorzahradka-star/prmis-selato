@@ -5,6 +5,16 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.44.0 — 14. 10. 2026 — Doklady z Abry v rozpočtu (strana PRMIS, bez napojení)
+
+- **Doklady z účetnictví ABRA Flexi** (faktury přijaté, vydané, zálohové) se ukazují v rozpočtu projektu v části **Doklady z Abry**: přehled, přiřazení doklad → položka nákupu (přijaté) nebo výnos (vydané), **rozdělení částky** mezi víc položek, tlačítko **Doklady** u každé položky a výnosu (seznam přiřazených dokladů, odebrání, přiřazení dalšího).
+- **Zdroj pravdy je účetnictví:** je-li k položce přiřazen aspoň jeden doklad, **Nakoupeno = součet dokladů** (ruční zápis se nepoužívá, zůstane uložený); u výnosu stejně **Vyfakturováno**. Dobropisy se odečtou. Položky bez dokladů dál berou ruční hodnotu. Vlastní práce se podle dokladů nemění.
+- **Zálohy** se zobrazují bokem a do Nakoupeno ani Vyfakturováno se **nezapočítávají**. **Nezařazeno** (doklady bez přiřazení) je zatím jen upozornění a v součtech projektu není (rozhodne se později).
+- Přiřazení jsou uložená v rozpočtu (`allocations`), doklady v novém seznamu **PRM_AbraDocs**, žádosti a výsledky stahování v **PRM_AbraSync** — **schéma 23, spustit Instalaci a diagnostiku**. Tlačítko **Aktualizovat z Abry** zapíše žádost pro prostředníka.
+- **Prostředník** (denní stahování z Flexi do PRM_AbraDocs) **ještě není** — čeká na rozhodnutí Azure / Power Automate a výpisy od CFO. Do té doby je seznam dokladů prázdný (v ukázkovém režimu jsou vymyšlená data).
+
+---
+
 ## 0.43.0 — 13. 10. 2026 — Upozornění e-mailem a jejich vypnutí v profilu
 
 - **E-mail schvalovateli rozpočtu:** při žádosti o schválení dostane e-mail vybraný schvalovatel (jinak vedení a administrátoři) s odkazem na projekt a shrnutím čísel. Žadatel dostane e-mail, když je rozpočet schválený nebo vrácený k úpravě. Selhání e-mailu schválení nebrání, aplikace to jen oznámí.

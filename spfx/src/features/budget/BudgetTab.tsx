@@ -28,6 +28,10 @@ import { NotificationKind, budgetApprovalMail, budgetApprovalRecipients, budgetD
 import { Recipient } from '../../core/orderNotify';
 import { applyNotificationPrefs, mutedText } from '../notify/notificationPrefs';
 import { RouteName, buildHash } from '../../ui/router';
+import { AbraDoc } from '../../core/abraDocs';
+import { AbraSyncStatus } from '../../data/repositories';
+import { AbraDocsPanel } from './AbraDocsPanel';
+import { DocsTarget, TargetDocsDialog } from './TargetDocsDialog';
 import { asCurrencyCode } from '../../core/currency';
 import { canIssueOrder, toActor, toWorkflowProject } from '../../core/orderWorkflow';
 import {
@@ -132,6 +136,37 @@ export const BudgetTab: React.FC<{ project: Project; /** Stav projektu se při s
       cancelled = true;
     };
   }, [repos, project.projectNumber, ordersKey]);
+
+  // Doklady z účetnictví (ABRA Flexi): načtou se k rozpočtu; přiřazení k položkám se ukládá v rozpočtu.
+  const [abraDocs, setAbraDocs] = React.useState<AbraDoc[]>([]);
+  const [abraStatus, setAbraStatus] = React.useState<AbraSyncStatus | undefined>(undefined);
+  const [abraBusy, setAbraBusy] = React.useState(false);
+  const [docsTarget, setDocsTarget] = React.useState<DocsTarget | undefined>(undefined);
+  const loadAbra = React.useCallback((): void => {
+    repos.abraDocs
+      .list(project.projectNumber)
+      .then(setAbraDocs)
+      .catch(() => setAbraDocs([]));
+    repos.abraDocs
+      .syncStatus()
+      .then(setAbraStatus)
+      .catch(() => setAbraStatus(undefined));
+  }, [repos, project.projectNumber]);
+  React.useEffect(loadAbra, [loadAbra]);
+  const requestAbraSync = (): void => {
+    setAbraBusy(true);
+    repos.abraDocs
+      .requestSync(user)
+      .then(() => {
+        setAbraBusy(false);
+        setNotice('Žádost o aktualizaci z Abry je zapsaná. Nové doklady se objeví, jakmile je prostředník stáhne (obvykle do několika minut).');
+        loadAbra();
+      })
+      .catch((e: unknown) => {
+        setAbraBusy(false);
+        setError(e instanceof Error ? e.message : String(e));
+      });
+  };
 
   const [approvers, setApprovers] = React.useState<RoleMembership[]>([]);
   const [approverOpen, setApproverOpen] = React.useState(false);
@@ -636,7 +671,7 @@ export const BudgetTab: React.FC<{ project: Project; /** Stav projektu se při s
 
           {ratesOpen && <RatesTable doc={doc} onChange={setDoc} editable={editable && !busy && !planLocked} />}
 
-          <RevenueTable doc={doc} onChange={setDoc} editable={editable && !busy} report={report} defaultCurrency={asCurrencyCode(project.currency)} onImport={() => setRevImportOpen(true)} />
+          <RevenueTable doc={doc} onChange={setDoc} editable={editable && !busy} report={report} defaultCurrency={asCurrencyCode(project.currency)} onImport={() => setRevImportOpen(true)} onOpenDocs={(id) => { const l = (doc.revenues || []).filter((x) => x.id === id)[0]; if (l) { setDocsTarget({ kind: 'revenue', id, label: l.description || 'Výnos', currency: l.currency }); } }} />
 
           {!overhead && (
             <>
@@ -653,7 +688,16 @@ export const BudgetTab: React.FC<{ project: Project; /** Stav projektu se při s
             orders={orders}
             onOrder={canIssueOrder(wf, actor) ? (item) => setOrderFrom(item) : undefined}
             onCreatePartner={(name, itemId) => setNewPartner({ name, itemId })}
+            onOpenDocs={(id) => {
+              const i = doc.items.filter((x) => x.id === id)[0];
+              if (i) {
+                setDocsTarget({ kind: 'item', id, label: i.description || 'Položka', currency: i.currency });
+              }
+            }}
           />
+
+          <AbraDocsPanel doc={doc} docs={abraDocs} status={abraStatus} rates={report.rates} reportCurrency={report.currency} editable={editable && !busy} refreshing={abraBusy} onRefresh={requestAbraSync} onChange={setDoc} />
+          {docsTarget && <TargetDocsDialog target={docsTarget} doc={doc} docs={abraDocs} rates={report.rates} editable={editable && !busy} onChange={setDoc} onClose={() => setDocsTarget(undefined)} />}
 
           <div style={{ fontSize: 12, color: RES.gray, marginTop: 8 }}>
             Nákup: plán je celková částka položky (u práce se hodiny dopočtou z nákladové sazby profese, u rezervy je to částka nebo % z nákupu ostatních položek; počty kusů a ceny za jednotku se řeší v nabídkovém nástroji RES CRM). Prognóza je ruční odhad celkového nákupu položky; když ji nezadáte, platí plán (nikdy nejde pod objednáno a nakoupeno).
