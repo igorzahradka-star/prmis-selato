@@ -96,3 +96,21 @@ Dokončí se po výpisech od CFO (budou v něm přesné názvy polí); zatím je
 3. **Registrace aplikace** v Entra ID (*Registrace aplikací* → *Nová*) s oprávněním **Sites.Selected** k webu PRM, souhlas správce, přidělit zápis jen na web PRM. (Bez hesla: spravovaná identita Function App.)
 4. **Key Vault** s heslem k Abře; Function ho čte přes odkaz v nastavení aplikace — heslo nikdy v kódu.
 5. Nasadit kód z `integrations/abra-sync` + tenká vrstva (doplním po výpisech); časovač denně 5:00 a časovač každých 5 minut, který hledá žádosti `Čeká`.
+
+### Upřesnění z hlavní session (14. 10. 2026): jeden řádek = nejmenší přiřaditelná jednotka
+V PRMIS je záložka projektu „Data z účetnictví“. Řádek v `PRM_AbraDocs` je **nejmenší účetní jednotka, kterou PM přiřazuje k položce rozpočtu**
+(řádka faktury nebo zápis účetního deníku), ne nutně celá faktura. Schéma se nemění. Pro prostředníka z toho plyne:
+- `AbraId` stálé a unikátní **na řádek** (evidence + id dokladu + id řádku/zápisu); `Title` = číslo dokladu; `Description` = popis řádku;
+  `Accounts` = jeden účet řádku; `AmountNet` = částka řádku bez DPH (dobropis záporný); `DocType` beze změny.
+- **Součet řádků dokladu = částka dokladu** (bez DPH). Prostředník to při stahování kontroluje; při rozdílu zapíše varování do `PRM_AbraSync.Message`
+  (např. doklad má položky bez DPH nesouhrnné, zaokrouhlení, položka bez účtu).
+- „Zmizel z Abry“ se označuje po řádcích; vypadne-li z dokladu jen jeden řádek, označí se jen ten.
+
+**Rozhodnutí o zdroji řádků (čeká na výpisy od CFO):**
+| Zdroj | Výhoda | Nevýhoda |
+|---|---|---|
+| Faktury + jejich položky (`faktura-prijata`/`-vydana` + `polozkyDokladu`) | vidíme popis položek i zálohy; nezávislé na zaúčtování | účet na položce nemusí být vyplněn; zakázka může být jen v hlavičce |
+| Účetní deník (obratovky) | **účet a zakázka jsou vždy u zápisu**, částky sedí s účetnictvím, pokryje i zápisy bez faktury | nemá popis položek faktury; zálohy a DPH se zde chovají jinak; evidence a pole nepotvrzené |
+Předběžný sklon: **účetní deník jako zdroj částek a účtů** (je to „pravda“ účetnictví a účty 501/518/512/601 jsou přímo tam), doklady jen pro doplnění
+čísla dokladu, partnera a data splatnosti. Potvrdí se po výpisech `faktura-prijata…detail=full` (obsahuje položky?) a z evidence účetního deníku.
+Mapování v `integrations/abra-sync/src/mapping.js` je zatím po dokladech; po rozhodnutí se přepíše na řádky a doplní test „součet řádků = doklad“.
