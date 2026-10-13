@@ -4,10 +4,16 @@ import { RouteName } from '../router';
 const nic = { benchmark: false, finance: false, admin: false };
 
 describe('buildNavigation', () => {
-  it('běžný uživatel: skupiny Projekty a Servis, Čeká na mě, Partneři a Nápověda; správu nevidí', () => {
+  it('běžný uživatel: skupina Projekty, Čeká na mě, Partneři a Nápověda; Servis a správu nevidí', () => {
     const e = buildNavigation(nic);
     const labels = e.map((x) => (x.kind === 'group' ? x.group.label : x.item.label));
+    expect(labels).toEqual(['Projekty', 'Čeká na mě', 'Partneři', 'Nápověda']);
+  });
+
+  it('Servis se v nabídce ukáže jen uživateli s právem na Servis', () => {
+    const labels = buildNavigation({ ...nic, service: true }).map((x) => (x.kind === 'group' ? x.group.label : x.item.label));
     expect(labels).toEqual(['Projekty', 'Čeká na mě', 'Partneři', 'Servis', 'Nápověda']);
+    expect(flattenNavigation(buildNavigation({ ...nic, service: true })).filter((i) => i.route === RouteName.Service).map((i) => i.comingSoon)).toEqual([undefined]);
   });
 
   it('skupina Projekty obsahuje projektové moduly', () => {

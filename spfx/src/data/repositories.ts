@@ -29,6 +29,8 @@ import { StoredRate, StoredRates } from '../core/currency';
 import { ListDef } from './schema';
 import { NotificationPrefs } from '../core/notifications';
 import { AbraDoc } from '../core/abraDocs';
+import { ServiceDevice, ServiceSite } from '../core/service';
+import { JobAction, JobActionInput, ServiceJob, ServiceRequest } from '../core/serviceJobs';
 
 /** Kdo je přihlášen a co smí. */
 export interface IUserRepository {
@@ -105,6 +107,8 @@ export interface ProjectFilter {
   search?: string;
   /** Zahrnout i projekt Režie. Výchozí: ne. */
   includeOverhead?: boolean;
+  /** Zahrnout i servisní projekty (zařízení v modulu Servis). Výchozí: ne — v přehledu projektů se neukazují. */
+  includeService?: boolean;
 }
 
 /** Údaje z průvodce založením projektu (zadání kap. 8.2). */
@@ -223,6 +227,11 @@ export interface IProjectRepository {
    * Je idempotentní: opakované volání vrátí letošní Režii, nezaloží druhou.
    */
   ensureOverheadProject(projectManagerName: string): Promise<Project>;
+  /**
+   * Založí (nebo vrátí existující) **skrytý servisní projekt** pro zařízení: typ Servis, číslo zařízení (10501…), přístup omezený
+   * na role Servisu. Nezakládá strukturu složek — složku zařízení spravuje modul Servis. Je idempotentní.
+   */
+  ensureServiceProject(input: { projectNumber: string; title: string; shortName: string; customerName?: string; projectManagerName: string; folderUrl?: string }): Promise<Project>;
   /**
    * Naimportuje projekty, které už existují jako složky v knihovně.
    *
@@ -935,6 +944,47 @@ export interface IAbraDocRepository {
   requestSync(actor: CurrentUser): Promise<void>;
 }
 
+/** Vstupy modulu Servis (bez ID = nový záznam). */
+export type ServiceSiteInput = Omit<ServiceSite, 'id'> & { id?: number };
+export type ServiceDeviceInput = Omit<ServiceDevice, 'id'> & { id?: number };
+export type ServiceRequestInput = Omit<ServiceRequest, 'id' | 'number' | 'status' | 'receivedAt' | 'receivedByName' | 'receivedByLogin'> & { id?: number };
+export interface ServiceJobInput {
+  id?: number;
+  requestId?: number;
+  siteNumber: string;
+  deviceNumber: string;
+  title: string;
+  description?: string;
+  plannedDate?: Date;
+  supplierId?: number;
+  supplierName?: string;
+}
+
+/**
+ * Modul Servis: lokality, zařízení (servisní projekty), požadavky a servisní listy. Smí jen role Servisu; ověřuje se i tady.
+ * Servisní list jde jedinou cestou přes `actOnJob` (pravidla toku v `core/serviceJobs`), kde se kontroluje stav i role.
+ */
+export interface IServiceRepository {
+  listSites(): Promise<ServiceSite[]>;
+  /** Uloží lokalitu (nová dostane číslo z nabídky, které správce smí přepsat). Smí správce servisu a administrátor. */
+  saveSite(input: ServiceSiteInput, actor: CurrentUser): Promise<ServiceSite>;
+  listDevices(): Promise<ServiceDevice[]>;
+  /** Uloží zařízení; nové zároveň založí skrytý servisní projekt. Smí správce servisu a administrátor. */
+  saveDevice(input: ServiceDeviceInput, actor: CurrentUser): Promise<ServiceDevice>;
+  listRequests(): Promise<ServiceRequest[]>;
+  /** Zapíše požadavek (nový dostane číslo SPO-RRRR-NNNN, stav Přijato). Smí správce, dispečer, administrátor. */
+  saveRequest(input: ServiceRequestInput, actor: CurrentUser): Promise<ServiceRequest>;
+  /** Zamítne požadavek s důvodem. */
+  rejectRequest(requestId: number, note: string, actor: CurrentUser): Promise<ServiceRequest>;
+  listJobs(): Promise<ServiceJob[]>;
+  /** Založí servisní list (číslo SL-RRRR-NNNN) a požadavek přepne na Zpracovává se. */
+  createJob(input: ServiceJobInput, actor: CurrentUser): Promise<ServiceJob>;
+  /** Upraví zadání, dodavatele a termín listu, dokud je naplánovaný nebo objednaný. */
+  saveJob(input: ServiceJobInput & { id: number }, actor: CurrentUser): Promise<ServiceJob>;
+  /** Provede přechod listu podle `applyJobAction`; zapíše audit a přepočítá stav požadavku. */
+  actOnJob(jobId: number, action: JobAction, input: JobActionInput, actor: CurrentUser): Promise<ServiceJob>;
+}
+
 export interface RepositorySet {
   users: IUserRepository;
   userAdmin: IUserAdminRepository;
@@ -950,6 +1000,7 @@ export interface RepositorySet {
   profiles: IProfileRepository;
   budgets: IBudgetRepository;
   abraDocs: IAbraDocRepository;
+  service: IServiceRepository;
   catalog: ICatalogRepository;
   mail: IMailRepository;
   numbering: INumberingRepository;

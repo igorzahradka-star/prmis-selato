@@ -42,7 +42,7 @@ export const WaitingForMePage: React.FC<{ orderId?: number }> = ({ orderId }) =>
     setError(undefined);
     Promise.all([
       repos.orders.list({ statuses: [OrderStatus.KeSchvaleni] }),
-      repos.projects.list({ includeOverhead: true }),
+      repos.projects.list({ includeOverhead: true, includeService: true }),
       // Podklady ke kontrole; když seznam podkladů na webu ještě není (neběžela Instalace), stránka objednávek nespadne.
       repos.invoices.list({ statuses: [InvoiceStatus.KeKontrole] }).catch((): InvoiceBasis[] => []),
       // Rozpočty ke schválení vidí jen ten, kdo je smí schvalovat (vedení, administrátor).

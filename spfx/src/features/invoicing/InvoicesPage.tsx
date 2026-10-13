@@ -5,6 +5,7 @@
  */
 
 import * as React from 'react';
+import { hiddenServiceNumbers } from '../../core/service';
 import { SearchBox } from '@fluentui/react/lib/SearchBox';
 import { Dropdown, IDropdownOption } from '@fluentui/react/lib/Dropdown';
 import { Toggle } from '@fluentui/react/lib/Toggle';
@@ -47,11 +48,12 @@ export const InvoicesPage: React.FC<{ invoiceId?: number }> = ({ invoiceId }) =>
   React.useEffect(() => {
     let cancelled = false;
     setError(undefined);
-    Promise.all([repos.invoices.list(), repos.projects.list({})])
+    Promise.all([repos.invoices.list(), repos.projects.list({ includeService: true })])
       .then(([i, p]) => {
         if (!cancelled) {
-          setInvoices(i);
-          setProjects(p);
+          const hidden = hiddenServiceNumbers(p, user.roles);
+          setInvoices(i.filter((x) => !hidden.has(x.projectNumber)));
+          setProjects(p.filter((x) => !hidden.has(x.projectNumber)));
         }
       })
       .catch((e: Error) => {
@@ -62,7 +64,7 @@ export const InvoicesPage: React.FC<{ invoiceId?: number }> = ({ invoiceId }) =>
     return () => {
       cancelled = true;
     };
-  }, [repos, reloadKey]);
+  }, [repos, user, reloadKey]);
 
   // Podklad mezitím mohl zkontrolovat nebo předat někdo jiný — seznam se sám obnoví.
   useAutoRefresh(() => setReloadKey((k) => k + 1), creating || invoiceId !== undefined);

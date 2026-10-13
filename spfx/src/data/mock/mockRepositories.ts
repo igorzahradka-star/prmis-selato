@@ -8,6 +8,7 @@
  * jiná logika než do ostré implementace, UI by se chovalo jinak na ostro.
  */
 
+import { SERVICE_PROJECT_TYPE, isServiceProject } from '../../core/service';
 import { checkPartner } from '../../core/partnerDuplicates';
 import { NO_USAGE, PartnerUsage, canDeletePartner, describeUsage, usageTotal } from '../../core/partnerDelete';
 import { ProjectOverview, overviewFromJson, overviewToJson } from '../../core/projectOverview';
@@ -15,6 +16,7 @@ import { MockCatalogRepository } from './mockCatalogRepository';
 import { MockBudgetRepository } from './mockBudgetRepository';
 import { MockProfileRepository } from './mockProfileRepository';
 import { MockAbraDocRepository } from './mockAbraDocRepository';
+import { MockServiceRepository } from './mockServiceRepository';
 import type { FolderMap } from '../../core/projectFolders';
 import { BudgetStatus, CurrentUser, Partner, Project, ProjectStatus, ProjectTask, ACTIVE_PROJECT_STATUSES } from '../../core/types';
 import { AppSettings, DEFAULT_SETTINGS, withDefaults } from '../../core/settings';
@@ -23,6 +25,7 @@ import { StatusChange } from '../../core/projectStatus';
 import {
   AccessGroup,
   OVERHEAD_ACCESS_ROLES,
+  SERVICE_PROJECT_ACCESS_ROLES,
   ProjectAccessState,
   accessGroupsForRoles,
   canManageProjectAccess
@@ -475,6 +478,35 @@ export class MockProjectRepository implements IProjectRepository {
     this.restricted.set(
       cislo,
       accessGroupsForRoles(OVERHEAD_ACCESS_ROLES, roles).map((g) => g.groupName)
+    );
+    return this.projects.filter((p) => p.id === project.id)[0];
+  }
+
+  public async ensureServiceProject(input: { projectNumber: string; title: string; shortName: string; customerName?: string; projectManagerName: string; folderUrl?: string }): Promise<Project> {
+    const existing = this.projects.filter((p) => p.projectNumber === input.projectNumber)[0];
+    if (existing) {
+      return delay(existing);
+    }
+    const rok = new Date().getFullYear();
+    const project: Project = {
+      id: this.nextId++,
+      projectNumber: input.projectNumber,
+      title: input.title,
+      shortName: input.shortName,
+      projectManagerName: input.projectManagerName,
+      status: ProjectStatus.Realizace,
+      projectType: SERVICE_PROJECT_TYPE,
+      currency: 'CZK',
+      startDate: new Date(rok, 0, 1),
+      isOverhead: false,
+      budgetStatus: BudgetStatus.Bez,
+      folderUrl: input.folderUrl
+    };
+    this.projects = [...this.projects, project];
+    const roles = (await this.settings.get()).roles;
+    this.restricted.set(
+      input.projectNumber,
+      accessGroupsForRoles(SERVICE_PROJECT_ACCESS_ROLES, roles).map((g) => g.groupName)
     );
     return this.projects.filter((p) => p.id === project.id)[0];
   }
@@ -973,6 +1005,9 @@ export function applyProjectFilter(
   if (!f.includeOverhead) {
     result = result.filter((p) => !p.isOverhead);
   }
+  if (!f.includeService) {
+    result = result.filter((p) => !isServiceProject(p));
+  }
   if (f.onlyMine) {
     result = result.filter((p) => p.projectManagerName === currentUserDisplayName);
   }
@@ -1091,6 +1126,15 @@ export function createMockRepositories(): RepositorySet {
     };
   };
   const profiles = new MockProfileRepository();
+  const serviceRepo = new MockServiceRepository(numbering, projects);
+  // Ukázková zařízení Servisu mají své skryté servisní projekty (objednávky a faktury se vedou na nich).
+  [
+    { projectNumber: '10501', title: '10501 Mastířovice – Mastířovice I. FVE', shortName: 'Mastířovice I. FVE' },
+    { projectNumber: '10511', title: '10511 Boršov – Boršov 1', shortName: 'Boršov 1' },
+    { projectNumber: '10512', title: '10512 Boršov – Boršov 2 – BESS', shortName: 'Boršov 2 – BESS' }
+  ].forEach((s) => {
+    projects.ensureServiceProject({ ...s, customerName: 'REVOLTUM Energy a.s.', projectManagerName: 'Igor Zahrádka' }).catch(() => undefined);
+  });
   return {
     users: new MockUserRepository(),
     userAdmin: new MockUserAdminRepository(),
@@ -1104,6 +1148,7 @@ export function createMockRepositories(): RepositorySet {
     profiles,
     budgets: new MockBudgetRepository(projects),
     abraDocs: new MockAbraDocRepository(),
+    service: serviceRepo,
     catalog: new MockCatalogRepository(),
     mail: new MockMailRepository(),
     tasks: new MockTaskRepository((projectNumber, next) => projects.setNextDeadline(projectNumber, next)),

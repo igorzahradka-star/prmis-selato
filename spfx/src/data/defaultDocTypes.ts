@@ -43,6 +43,26 @@ export const DEFAULT_DOC_TYPES: DocTypeConfig[] = [
     active: true
   },
   {
+    code: 'SPO',
+    name: 'Servisní požadavek',
+    pattern: 'SPO-{YYYY}-{N}',
+    padding: 4,
+    resetPeriod: 'Ročně',
+    scope: 'Globální',
+    startValue: 1,
+    active: true
+  },
+  {
+    code: 'SL',
+    name: 'Servisní list',
+    pattern: 'SL-{YYYY}-{N}',
+    padding: 4,
+    resetPeriod: 'Ročně',
+    scope: 'Globální',
+    startValue: 1,
+    active: true
+  },
+  {
     code: 'PP',
     name: 'Předávací protokol',
     pattern: 'PP-{PRJ}-{N}',

@@ -2,7 +2,7 @@ import { DEFAULT_NOTIFICATION_PREFS, budgetApprovalMail, budgetApprovalRecipient
 import { Role } from './types';
 import { RoleMembership } from './userAdmin';
 
-const clen = (email: string, displayName: string) => ({ loginName: `i:0#.f|membership|${email}`, displayName, email });
+const clen = (email: string, displayName: string): { loginName: string; displayName: string; email: string } => ({ loginName: `i:0#.f|membership|${email}`, displayName, email });
 const M = (role: Role, ...members: ReturnType<typeof clen>[]): RoleMembership => ({ role, members } as unknown as RoleMembership);
 const memberships: RoleMembership[] = [
   M(Role.Vedeni, clen('anna@revoltum.cz', 'Anna Vedení'), clen('igor@revoltum.cz', 'Igor Zahrádka')),

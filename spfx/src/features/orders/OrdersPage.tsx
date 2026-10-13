@@ -5,6 +5,7 @@
  */
 
 import * as React from 'react';
+import { hiddenServiceNumbers } from '../../core/service';
 import { SearchBox } from '@fluentui/react/lib/SearchBox';
 import { Dropdown, IDropdownOption } from '@fluentui/react/lib/Dropdown';
 import { Toggle } from '@fluentui/react/lib/Toggle';
@@ -46,11 +47,12 @@ export const OrdersPage: React.FC<{ orderId?: number }> = ({ orderId }) => {
   React.useEffect(() => {
     let cancelled = false;
     setError(undefined);
-    Promise.all([repos.orders.list(), repos.projects.list({ includeOverhead: true })])
+    Promise.all([repos.orders.list(), repos.projects.list({ includeOverhead: true, includeService: true })])
       .then(([o, p]) => {
         if (!cancelled) {
-          setOrders(o);
-          setProjects(p);
+          const hidden = hiddenServiceNumbers(p, user.roles);
+          setOrders(o.filter((x) => !hidden.has(x.projectNumber)));
+          setProjects(p.filter((x) => !hidden.has(x.projectNumber)));
         }
       })
       .catch((e: Error) => {
@@ -61,7 +63,7 @@ export const OrdersPage: React.FC<{ orderId?: number }> = ({ orderId }) => {
     return () => {
       cancelled = true;
     };
-  }, [repos, reloadKey]);
+  }, [repos, user, reloadKey]);
 
   // Objednávku mezitím mohl schválit nebo zamítnout někdo jiný — seznam se sám obnoví.
   useAutoRefresh(() => setReloadKey((k) => k + 1), creating || orderId !== undefined);

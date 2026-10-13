@@ -5,6 +5,7 @@
  * (Skutečnou ochranu dat ale dělá SharePoint, ne tahle komponenta.)
  */
 
+import { canViewService } from '../../core/service';
 import { APP_VERSION } from '../../core/version';
 import * as React from 'react';
 import { Icon } from '@fluentui/react/lib/Icon';
@@ -115,7 +116,8 @@ function useNavEntries(): NavEntry[] {
   return buildNavigation({
     benchmark: canOpenBenchmark(user.roles),
     finance: canOpenFinance(user.roles, user.hasFinanceAccess && !!financeSiteUrl),
-    admin: canOpenAdmin(user.roles)
+    admin: canOpenAdmin(user.roles),
+    service: canViewService(user.roles)
   });
 }
 

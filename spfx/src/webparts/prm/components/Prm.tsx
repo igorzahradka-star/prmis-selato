@@ -3,6 +3,7 @@
  * podle adresy v hashi.
  */
 
+import { ServicePage } from '../../../features/service/ServicePage';
 import { CatalogPage } from '../../../features/catalog/CatalogPage';
 import { ProfilePage } from '../../../features/profile/ProfilePage';
 import * as React from 'react';
@@ -158,13 +159,7 @@ function renderRoute(route: Route): React.ReactNode {
         />
       );
     case RouteName.Service:
-      return (
-        <ComingSoonPage
-          title="Servis"
-          phase="Připravujeme"
-          description="Evidence servisních zásahů, revizí a smluv po předání projektu (složka 10-Servis). Upřesníme společně."
-        />
-      );
+      return <ServicePage />;
     case RouteName.Finance:
       return (
         <ComingSoonPage

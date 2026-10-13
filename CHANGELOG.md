@@ -5,6 +5,19 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.45.0 — 15. 10. 2026 — Modul Servis (základ)
+
+- **Nová nabídka Servis** (jen pro Správce servisu, Dispečera, vedení a administrátora; ostatním se v nabídce neukáže) se třemi záložkami: **Požadavky**, **Servisní listy**, **Lokality a zařízení**.
+- **Struktura:** lokalita (číslo po desítkách 10500, 10510…) → zařízení (FVE, BESS…; 10501–10509 pod 10500). Zařízení je servisní zakázka: **skrytý projekt typu Servis** s omezeným přístupem — v přehledu projektů se neukazuje; vlastní číslo, složka, smlouva a fakturace. Aplikace nabídne další volné číslo, správce ho smí přepsat.
+- **Role:** nová role **Správce servisu** (lokality a zařízení, kontrola provedení, odemčení fakturace, krok „PM“ schvalování objednávek) a **Dispečer** (požadavky, servisní listy, objednávky). SharePoint skupiny `PRM Správci servisu` a `PRM Dispečeři servisu` vytvoří Instalace.
+- **Servisní požadavek** (SPO-RRRR-NNNN) → **servisní list** (SL-RRRR-NNNN) se stavy Naplánováno → Dodavatel objednán → Provedeno → K fakturaci → Vyfakturováno → Uzavřeno (Zrušeno). Detail listu s tlačítky podle stavu a role, vazba na objednávku dodavateli a podklad pro fakturaci zákazníkovi, audit. Pravidla toku v `core/serviceJobs` (testováno).
+- Servisní objednávky a faktury smí vystavovat jen role Servisu; běžní PM a asistenti je nevidí.
+- **Smlouva** zařízení: odkaz na dokument, platnost od–do a poznámka; stav (platí / brzy končí / vypršela).
+- **Oprava (stejného typu jako 0.44.3):** dialogy a vnořené panely jsou uvnitř panelu listu, takže se panel při práci v nich nezavře.
+- **Schéma 25 — spustit Instalaci a diagnostiku** (seznamy `PRM_ServiceSites`, `PRM_ServiceDevices`, `PRM_ServiceRequests`, `PRM_ServiceJobs`, nové role a číselné řady SPO a SL). Podrobnosti, rozhodnutí a rozhraní pro externí web: `docs/SERVIS.md`.
+
+---
+
 ## 0.44.3 — 14. 10. 2026 — Rozepsaná objednávka se nezavře při založení dodavatele; vedení si schválí vlastní objednávku
 
 - **Oprava:** po uložení nového dodavatele z rozepsané objednávky se zavřel celý panel objednávky. Dialog „Nový partner“ byl mimo panel, takže ho panel bral jako klik mimo sebe. Dialog je teď uvnitř panelu — objednávka zůstane otevřená a nový dodavatel se do ní rovnou vybere. (Rozepsaná objednávka se navíc dál průběžně zálohuje v prohlížeči a po opětovném otevření nabídne obnovení.)

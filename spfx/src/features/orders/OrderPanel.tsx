@@ -236,7 +236,7 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
     setNotice(undefined);
 
     Promise.all([
-      repos.projects.list({ includeOverhead: true }),
+      repos.projects.list({ includeOverhead: true, includeService: true }),
       repos.partners.list({}),
       orderId !== undefined ? repos.orders.getById(orderId) : Promise.resolve(undefined),
       repos.rates.getLatest().catch((): StoredRates => ({})),

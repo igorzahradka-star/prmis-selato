@@ -7,6 +7,7 @@
  * kterou UI zobrazí s tlačítkem na nový pokus (`retryCreateFolders`).
  */
 
+import { SERVICE_PROJECT_TYPE, isServiceProject } from '../../core/service';
 import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { BudgetStatus, CurrentUser, LEGACY_STATUS_UZAVRENO, Project, ProjectStatus } from '../../core/types';
 import { toDate } from '../../core/format';
@@ -15,6 +16,7 @@ import { StatusChange } from '../../core/projectStatus';
 import {
   AccessGroup,
   OVERHEAD_ACCESS_ROLES,
+  SERVICE_PROJECT_ACCESS_ROLES,
   ProjectAccessState,
   accessGroupsForRoles,
   canManageProjectAccess
@@ -185,7 +187,8 @@ export class SpProjectRepository implements IProjectRepository {
         }
         return query();
       });
-      const projects = items.map(mapProject);
+      // Servisní projekty (zařízení v modulu Servis) se v seznamech projektů neukazují, dokud je volající výslovně nechce.
+      const projects = items.map(mapProject).filter((x) => filter?.includeService || !isServiceProject(x));
 
       // Fulltext se dělá až v prohlížeči: SharePoint umí `substringof` jen
       // na indexovaných textových sloupcích a kombinace s dalšími filtry
@@ -725,6 +728,60 @@ export class SpProjectRepository implements IProjectRepository {
    * se jménem a důvodem; přerušit celý import kvůli jednomu by znamenalo
    * pouštět ho znovu a znovu.
    */
+  public async ensureServiceProject(input: { projectNumber: string; title: string; shortName: string; customerName?: string; projectManagerName: string; folderUrl?: string }): Promise<Project> {
+    const existing = await this.getByNumber(input.projectNumber);
+    if (existing) {
+      return existing;
+    }
+    const sp = getSp(this.context);
+    const rok = new Date().getFullYear();
+    const projectManagerId = await this.resolveUserId(sp, input.projectManagerName);
+    let newId: number | undefined;
+    try {
+      const added = await sp.web.lists.getByTitle(PROJECTS_LIST).items.add({
+        Title: input.title,
+        ProjectNumber: input.projectNumber,
+        ShortName: input.shortName,
+        ProjectManagerId: projectManagerId,
+        ProjectStatus: ProjectStatus.Realizace,
+        ProjectType: SERVICE_PROJECT_TYPE,
+        ProjectYear: rok,
+        Currency: 'CZK',
+        StartDate: new Date(rok, 0, 1).toISOString(),
+        IsOverhead: false,
+        BudgetStatus: BudgetStatus.Bez,
+        ...(input.folderUrl ? { FolderUrl: { Url: input.folderUrl, Description: input.title } } : {})
+      });
+      newId = extractAddedId(added);
+    } catch (error) {
+      throw new Error(describeSpError(error, `Nepodařilo se založit servisní projekt ${input.projectNumber}`));
+    }
+    const project = (await this.getByNumber(input.projectNumber)) ?? {
+      id: newId ?? 0,
+      projectNumber: input.projectNumber,
+      title: input.title,
+      shortName: input.shortName,
+      projectManagerName: input.projectManagerName,
+      status: ProjectStatus.Realizace,
+      projectType: SERVICE_PROJECT_TYPE,
+      currency: 'CZK',
+      startDate: new Date(rok, 0, 1),
+      isOverhead: false,
+      budgetStatus: BudgetStatus.Bez
+    };
+    // Servisní projekt vidí jen role Servisu — zamyká se hned při založení.
+    try {
+      const roles = (await this.settings.get()).roles;
+      await this.applyRestriction(project, accessGroupsForRoles(SERVICE_PROJECT_ACCESS_ROLES, roles));
+    } catch (error) {
+      throw new Error(
+        `Servisní projekt ${input.projectNumber} je založený, ale přístup k němu se nepodařilo omezit — do té doby ho vidí všichni členové webu. ` +
+          `Zkuste to znovu. ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+    return project;
+  }
+
   public async importProjects(
     inputs: ImportProjectInput[],
     counterByYear: { year: number; lastValue: number }[],

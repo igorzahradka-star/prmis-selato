@@ -18,7 +18,7 @@
  * Verze schématu. Ukládá se do PRM_Settings pod klíčem `schemaVersion`.
  * Průvodce porovná uloženou verzi s touto a nabídne doplnění rozdílu.
  */
-export const SCHEMA_VERSION = 24;
+export const SCHEMA_VERSION = 25;
 
 /** Typ sloupce v SharePointu. */
 export type FieldType =
@@ -695,6 +695,104 @@ const PRM_ABRA_SYNC: ListDef = {
   ]
 };
 
+const PRM_SERVICE_SITES: ListDef = {
+  name: 'PRM_ServiceSites',
+  title: 'PRM – Servis: lokality',
+  description: 'Servisní lokality (místa zákazníka, číslo po desítkách: 10500, 10510…). Pod lokalitou jsou zařízení. Vidí a upravuje jen Servis.',
+  kind: 'list',
+  site: 'PRM',
+  versioning: true,
+  fields: [
+    { name: 'SiteNumber', title: 'Číslo lokality', type: 'Text', required: true, indexed: true },
+    { name: 'CustomerId', title: 'Zákazník (ID partnera)', type: 'Number', decimals: 0 },
+    { name: 'CustomerName', title: 'Zákazník', type: 'Text' },
+    { name: 'Address', title: 'Adresa', type: 'Note' },
+    { name: 'Contact', title: 'Kontakt na lokalitě', type: 'Note' },
+    { name: 'Note', title: 'Poznámka', type: 'Note' },
+    { name: 'FolderUrl', title: 'Složka lokality', type: 'Text' },
+    { name: 'IsActive', title: 'Aktivní', type: 'Boolean', defaultValue: '1' }
+  ]
+};
+
+const PRM_SERVICE_DEVICES: ListDef = {
+  name: 'PRM_ServiceDevices',
+  title: 'PRM – Servis: zařízení',
+  description: 'Zařízení v lokalitě (FVE, BESS…). Číslo zařízení je číslo skrytého servisního projektu (10501…); má vlastní smlouvu, složku a fakturaci.',
+  kind: 'list',
+  site: 'PRM',
+  versioning: true,
+  fields: [
+    { name: 'DeviceNumber', title: 'Číslo zařízení', type: 'Text', required: true, indexed: true },
+    { name: 'SiteNumber', title: 'Číslo lokality', type: 'Text', required: true, indexed: true },
+    { name: 'DeviceKind', title: 'Druh zařízení', type: 'Choice', choices: ['FVE', 'BESS', 'MVE', 'Kogenerace', 'Jiné'], defaultValue: 'FVE' },
+    { name: 'CustomerName', title: 'Zákazník', type: 'Text' },
+    { name: 'ContractFrom', title: 'Smlouva od', type: 'DateTime' },
+    { name: 'ContractTo', title: 'Smlouva do', type: 'DateTime' },
+    { name: 'ContractNote', title: 'Poznámka ke smlouvě', type: 'Note' },
+    { name: 'ContractUrl', title: 'Odkaz na smlouvu', type: 'Text', description: 'Smlouva (komerční podmínky) je dokument uložený u lokality/zařízení.' },
+    { name: 'FolderUrl', title: 'Složka zařízení', type: 'Text' },
+    { name: 'IsActive', title: 'Aktivní', type: 'Boolean', defaultValue: '1' }
+  ]
+};
+
+const PRM_SERVICE_REQUESTS: ListDef = {
+  name: 'PRM_ServiceRequests',
+  title: 'PRM – Servis: požadavky',
+  description: 'Servisní požadavky (zapisuje správce nebo dispečer). Z požadavku vznikají servisní listy.',
+  kind: 'list',
+  site: 'PRM',
+  versioning: true,
+  fields: [
+    { name: 'RequestNumber', title: 'Číslo požadavku', type: 'Text', required: true, indexed: true },
+    { name: 'SiteNumber', title: 'Číslo lokality', type: 'Text', required: true, indexed: true },
+    { name: 'DeviceNumber', title: 'Číslo zařízení', type: 'Text', indexed: true },
+    { name: 'Description', title: 'Popis', type: 'Note' },
+    { name: 'Priority', title: 'Priorita', type: 'Choice', choices: ['Nízká', 'Běžná', 'Vysoká', 'Havárie'], defaultValue: 'Běžná' },
+    { name: 'RequestKind', title: 'Druh', type: 'Choice', choices: ['Porucha', 'Preventivní prohlídka', 'Ostatní'], defaultValue: 'Porucha' },
+    { name: 'ReportedBy', title: 'Nahlásil', type: 'Text' },
+    { name: 'ReceivedAt', title: 'Přijato', type: 'DateTime' },
+    { name: 'ReceivedByName', title: 'Přijal', type: 'Text' },
+    { name: 'ReceivedByLogin', title: 'Přijal (login)', type: 'Text' },
+    { name: 'RequestStatus', title: 'Stav', type: 'Choice', choices: ['Přijato', 'Zpracovává se', 'Vyřešeno', 'Zamítnuto'], defaultValue: 'Přijato', indexed: true },
+    { name: 'Note', title: 'Poznámka', type: 'Note' }
+  ]
+};
+
+const PRM_SERVICE_JOBS: ListDef = {
+  name: 'PRM_ServiceJobs',
+  title: 'PRM – Servis: servisní listy',
+  description: 'Servisní listy: dodavatel, objednávka, provedení (zapisuje dodavatel přes externí web), kontrola správcem a fakturace.',
+  kind: 'list',
+  site: 'PRM',
+  versioning: true,
+  fields: [
+    { name: 'JobNumber', title: 'Číslo listu', type: 'Text', required: true, indexed: true },
+    { name: 'RequestId', title: 'ID požadavku', type: 'Number', decimals: 0, indexed: true },
+    { name: 'RequestNumber', title: 'Číslo požadavku', type: 'Text' },
+    { name: 'SiteNumber', title: 'Číslo lokality', type: 'Text', required: true, indexed: true },
+    { name: 'DeviceNumber', title: 'Číslo zařízení', type: 'Text', required: true, indexed: true },
+    { name: 'Description', title: 'Zadání práce', type: 'Note' },
+    { name: 'JobStatus', title: 'Stav', type: 'Choice', choices: ['Naplánováno', 'Dodavatel objednán', 'Provedeno', 'K fakturaci', 'Vyfakturováno', 'Uzavřeno', 'Zrušeno'], defaultValue: 'Naplánováno', indexed: true },
+    { name: 'PlannedDate', title: 'Plánovaný termín', type: 'DateTime' },
+    { name: 'SupplierId', title: 'Dodavatel (ID partnera)', type: 'Number', decimals: 0, indexed: true },
+    { name: 'SupplierName', title: 'Dodavatel', type: 'Text' },
+    { name: 'OrderId', title: 'ID objednávky', type: 'Number', decimals: 0 },
+    { name: 'OrderNumber', title: 'Číslo objednávky', type: 'Text' },
+    { name: 'DoneAt', title: 'Provedeno dne', type: 'DateTime' },
+    { name: 'WorkReport', title: 'Zpráva o provedení', type: 'Note' },
+    { name: 'Hours', title: 'Odpracované hodiny', type: 'Number', decimals: 2 },
+    { name: 'Material', title: 'Použitý materiál', type: 'Note' },
+    { name: 'PhotosUrl', title: 'Fotky (složka)', type: 'Text' },
+    { name: 'CheckedByName', title: 'Zkontroloval', type: 'Text' },
+    { name: 'CheckedAt', title: 'Zkontrolováno', type: 'DateTime' },
+    { name: 'CheckNote', title: 'Poznámka kontroly', type: 'Note' },
+    { name: 'InvoiceId', title: 'ID podkladu pro fakturaci', type: 'Number', decimals: 0 },
+    { name: 'InvoiceNumber', title: 'Číslo podkladu pro fakturaci', type: 'Text' },
+    { name: 'CancelReason', title: 'Důvod zrušení', type: 'Note' },
+    { name: 'CreatedByName', title: 'Založil', type: 'Text' }
+  ]
+};
+
 export const LISTS: ListDef[] = [
   PRM_SETTINGS,
   PRM_DOCTYPES,
@@ -709,6 +807,10 @@ export const LISTS: ListDef[] = [
   PRM_BUDGET_VERSIONS,
   PRM_ABRA_DOCS,
   PRM_ABRA_SYNC,
+  PRM_SERVICE_SITES,
+  PRM_SERVICE_DEVICES,
+  PRM_SERVICE_REQUESTS,
+  PRM_SERVICE_JOBS,
   PRM_INCOME_PLAN,
   PRM_PURCHASE_ORDERS,
   PRM_INVOICE_BASES,

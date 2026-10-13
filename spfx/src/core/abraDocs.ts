@@ -7,8 +7,8 @@
  * Zálohové faktury se zobrazují, ale nepřiřazují se a do součtů se nezapočítávají.
  */
 
-import { RateTable, convertAmount, convertBooked, CurrencyCode } from './currency';
-import { BudgetDoc, DocAllocation, round2 } from './budget';
+import { RateTable, convertBooked, CurrencyCode } from './currency';
+import { DocAllocation, round2 } from './budget';
 
 export type AbraDocType = 'prijata' | 'vydana' | 'zaloha-prijata' | 'zaloha-vydana';
 

@@ -73,6 +73,14 @@ export const SERVICE_ACCESS_ROLES: Role[] = [Role.Administrator, Role.Vedeni, Ro
 
 export const isServiceProject = (p: { projectType?: string }): boolean => p.projectType === SERVICE_PROJECT_TYPE;
 
+/**
+ * Čísla servisních projektů, jejichž objednávky, faktury a další záznamy se uživateli **nemají ukazovat** (nemá práva Servisu).
+ * Ochrana dat je v SharePointu; tohle jen uklidí obrazovky, aby se servis neobjevil v seznamech běžným projektovým manažerům.
+ */
+export function hiddenServiceNumbers(projects: { projectNumber: string; projectType?: string }[], roles: Role[]): Set<string> {
+  return canViewService(roles) ? new Set<string>() : new Set(projects.filter(isServiceProject).map((p) => p.projectNumber));
+}
+
 // --- číslování -------------------------------------------------------------------
 
 const num = (s: string): number => parseInt(s, 10);

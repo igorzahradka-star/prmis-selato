@@ -129,6 +129,14 @@ Po nahrání: **Instalace a diagnostika** (schéma 21) a na téže stránce **P�
 - [ ] Člen vedení vystaví objednávku do pásma vedení a v detailu je tlačítko Schválit (jen Schválit, ne Vrátit/Zamítnout); po schválení je ve stavu Schváleno a v historii stojí, že ji schválil člen vedení sám.
 - [ ] Projektový manažer vlastní objednávku (nad svůj limit) sám neschválí; jednatel také ne; u částky, kde je potřeba jednatel, jednatelský krok schválí jiný člověk.
 
+## 4i. Servis (0.45)
+- [ ] Po Instalaci (schéma 25) vzniknou skupiny Správci servisu a Dispečeři servisu; uživateli bez těchto rolí (a bez vedení) se v nabídce Servis neukáže a #/servis hlásí chybějící práva.
+- [ ] Správce založí lokalitu (nabídne 10500, další 10510…) a zařízení (10501…); zařízení má skrytý servisní projekt — v Přehledu projektů se neukáže, ale jde otevřít odkazem „Servisní projekt“.
+- [ ] Dispečer zapíše požadavek, založí z něj servisní list, vybere dodavatele a termín; dispečer **nesmí** zakládat lokality ani kontrolovat a odemykat fakturaci.
+- [ ] Objednávka dodavateli na servisní projekt: vystaví ji role Servisu, krok „PM“ schvaluje správce servisu; list se k objednávce naváže a přejde na Dodavatel objednán.
+- [ ] Zápis provedení (zpráva, hodiny, materiál) → Provedeno; správce „Zkontrolovat a odemknout fakturaci“ → K fakturaci; založení podkladu pro fakturaci → Označit jako vyfakturováno → Uzavřít.
+- [ ] Servisní objednávky a faktury běžný PM v seznamech objednávek a fakturace nevidí.
+
 ## 5. Cashflow — vazby na harmonogram (0.34)
 - [ ] U platby nákladů zvolte **úkol harmonogramu**, kotvu (zahájení / dokončení), posun a splatnost → datum faktury a splatnost se vyplní samy a jsou zamčené.
 - [ ] Posuňte úkol v harmonogramu a uložte → platba v cashflow se posune.

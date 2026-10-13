@@ -1,0 +1,73 @@
+/**
+ * Společné drobnosti obrazovek Servisu: štítky stavů, styly tabulek, formátování.
+ */
+
+import * as React from 'react';
+import { RES } from '../../ui/theme';
+import { JobStatus, RequestStatus } from '../../core/serviceJobs';
+import { CONTRACT_STATE_LABELS, ContractState } from '../../core/service';
+
+export const TH: React.CSSProperties = { textAlign: 'left', fontWeight: 600, fontSize: 12, color: RES.gray, padding: '6px 8px', whiteSpace: 'nowrap', position: 'sticky', top: 0, background: RES.white, zIndex: 1, boxShadow: `0 1px 0 ${RES.grayBlue}` };
+export const TD: React.CSSProperties = { padding: '6px 8px', fontSize: 13, verticalAlign: 'top' };
+
+const PILL: React.CSSProperties = { display: 'inline-block', borderRadius: 10, padding: '1px 9px', fontSize: 12, whiteSpace: 'nowrap' };
+
+const JOB_COLORS: Record<JobStatus, { bg: string; fg: string }> = {
+  [JobStatus.Naplanovano]: { bg: '#E8EEF4', fg: '#34506B' },
+  [JobStatus.Objednano]: { bg: '#DDEBFA', fg: '#1F5C99' },
+  [JobStatus.Provedeno]: { bg: '#FFF1CC', fg: '#7A5A00' },
+  [JobStatus.KFakturaci]: { bg: '#E4F6EC', fg: '#1D7A4B' },
+  [JobStatus.Vyfakturovano]: { bg: '#D3EFE0', fg: '#14613A' },
+  [JobStatus.Uzavreno]: { bg: '#EEEEEE', fg: '#555555' },
+  [JobStatus.Zruseno]: { bg: '#F6DADA', fg: '#8A2A2A' }
+};
+
+export const JobStatusBadge: React.FC<{ status: JobStatus }> = ({ status }) => (
+  <span style={{ ...PILL, background: JOB_COLORS[status].bg, color: JOB_COLORS[status].fg }}>{status}</span>
+);
+
+const REQUEST_COLORS: Record<RequestStatus, { bg: string; fg: string }> = {
+  [RequestStatus.Prijato]: { bg: '#FFF1CC', fg: '#7A5A00' },
+  [RequestStatus.Zpracovava]: { bg: '#DDEBFA', fg: '#1F5C99' },
+  [RequestStatus.Vyreseno]: { bg: '#E4F6EC', fg: '#1D7A4B' },
+  [RequestStatus.Zamitnuto]: { bg: '#F6DADA', fg: '#8A2A2A' }
+};
+
+export const RequestStatusBadge: React.FC<{ status: RequestStatus }> = ({ status }) => (
+  <span style={{ ...PILL, background: REQUEST_COLORS[status].bg, color: REQUEST_COLORS[status].fg }}>{status}</span>
+);
+
+export const PriorityBadge: React.FC<{ priority: string }> = ({ priority }) => {
+  const c = priority === 'Havárie' ? { bg: '#F6DADA', fg: '#8A2A2A' } : priority === 'Vysoká' ? { bg: '#FDE4CF', fg: '#8A4B12' } : priority === 'Nízká' ? { bg: '#EEEEEE', fg: '#555555' } : { bg: '#E8EEF4', fg: '#34506B' };
+  return <span style={{ ...PILL, background: c.bg, color: c.fg }}>{priority}</span>;
+};
+
+export const ContractBadge: React.FC<{ state: ContractState }> = ({ state }) => {
+  const c = state === 'vyprsela' ? { bg: '#F6DADA', fg: '#8A2A2A' } : state === 'konci' ? { bg: '#FFF1CC', fg: '#7A5A00' } : state === 'platna' ? { bg: '#E4F6EC', fg: '#1D7A4B' } : { bg: '#EEEEEE', fg: '#555555' };
+  return <span style={{ ...PILL, background: c.bg, color: c.fg }}>{CONTRACT_STATE_LABELS[state]}</span>;
+};
+
+/** Datum do pole `<input type="date">` (RRRR-MM-DD) a zpět. */
+export function dateToInput(d: Date | undefined): string {
+  if (!d) {
+    return '';
+  }
+  const m = String(d.getMonth() + 1);
+  const day = String(d.getDate());
+  return `${d.getFullYear()}-${m.length < 2 ? '0' + m : m}-${day.length < 2 ? '0' + day : day}`;
+}
+
+export function inputToDate(s: string): Date | undefined {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  return m ? new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10)) : undefined;
+}
+
+export const DATE_INPUT: React.CSSProperties = { height: 32, border: `1px solid ${RES.grayBlue}`, borderRadius: 2, padding: '0 6px', font: 'inherit' };
+
+/** Popisek + hodnota v detailu. */
+export const Fact: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
+  <div style={{ marginBottom: 8 }}>
+    <div style={{ fontSize: 12, color: RES.gray }}>{label}</div>
+    <div style={{ fontSize: 14 }}>{children || '—'}</div>
+  </div>
+);

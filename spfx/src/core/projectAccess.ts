@@ -20,6 +20,9 @@ import { PermissionLevel, ROLE_PERMISSION_LEVEL } from './userAdmin';
  */
 export const OVERHEAD_ACCESS_ROLES: Role[] = [Role.Administrator, Role.Vedeni, Role.Finance];
 
+/** Servisní projekty (zařízení v modulu Servis) vidí jen role Servisu, vedení a administrátor. */
+export const SERVICE_PROJECT_ACCESS_ROLES: Role[] = [Role.Administrator, Role.Vedeni, Role.SpravceServisu, Role.Dispecer];
+
 /** Jedna skupina, které se přístup ponechá, a s jakým oprávněním. */
 export interface AccessGroup {
   role: Role;

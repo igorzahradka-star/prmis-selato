@@ -200,7 +200,7 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
     setProtocols([]);
 
     Promise.all([
-      repos.projects.list({}),
+      repos.projects.list({ includeService: true }),
       repos.partners.list({}),
       invoiceId !== undefined ? repos.invoices.getById(invoiceId) : Promise.resolve(undefined),
       repos.rates.getLatest().catch((): StoredRates => ({})),

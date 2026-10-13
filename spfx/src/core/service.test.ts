@@ -6,6 +6,7 @@ import {
   canWorkInService,
   contractState,
   isDeviceNumber,
+  hiddenServiceNumbers,
   isServiceProject,
   isSiteNumber,
   nextDeviceNumber,
@@ -80,6 +81,15 @@ describe('práva Servisu', () => {
     expect(isServiceProject({ projectType: 'Servis' })).toBe(true);
     expect(isServiceProject({ projectType: 'FVE' })).toBe(false);
     expect(isServiceProject({})).toBe(false);
+  });
+});
+
+describe('skrytí servisních záznamů', () => {
+  const projekty = [{ projectNumber: '26001', projectType: 'FVE' }, { projectNumber: '10501', projectType: 'Servis' }];
+  it('uživatel bez práv Servisu servisní projekty nevidí, správce a administrátor ano', () => {
+    expect(Array.from(hiddenServiceNumbers(projekty, [Role.ProjektovyManazer]))).toEqual(['10501']);
+    expect(hiddenServiceNumbers(projekty, [Role.SpravceServisu]).size).toBe(0);
+    expect(hiddenServiceNumbers(projekty, [Role.Administrator]).size).toBe(0);
   });
 });
 

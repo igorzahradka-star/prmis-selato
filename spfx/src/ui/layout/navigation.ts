@@ -27,6 +27,8 @@ export interface NavFlags {
   benchmark: boolean;
   finance: boolean;
   admin: boolean;
+  /** Uživatel smí vidět modul Servis (správce, dispečer, vedení, administrátor). */
+  service?: boolean;
 }
 
 const item = (route: RouteName, label: string, icon: string, comingSoon?: boolean): NavEntry => ({
@@ -57,17 +59,20 @@ export function buildNavigation(flags: NavFlags): NavEntry[] {
       }
     },
     item(RouteName.WaitingForMe, 'Čeká na mě', 'Inbox'),
-    item(RouteName.Partners, 'Partneři', 'ContactCard'),
-    {
+    item(RouteName.Partners, 'Partneři', 'ContactCard')
+  ];
+  // Servis vidí jen role Servisu, vedení a administrátor — ostatním se v nabídce neukáže.
+  if (flags.service) {
+    entries.push({
       kind: 'group',
       group: {
         key: 'servis',
         label: 'Servis',
         icon: 'Repair',
-        children: [{ route: RouteName.Service, label: 'Servis', icon: 'Repair', comingSoon: true }]
+        children: [{ route: RouteName.Service, label: 'Servis', icon: 'Repair' }]
       }
-    }
-  ];
+    });
+  }
 
   if (flags.benchmark) {
     entries.push(item(RouteName.Benchmark, 'Benchmark', 'BarChartVertical', true));
