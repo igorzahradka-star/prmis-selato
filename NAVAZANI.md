@@ -252,6 +252,7 @@ Celý seznam včetně zodpovězených rozhodnutí: [`docs/ROZHODNUTI.md`](docs/R
 Trvalá pravidla jsou v [`CLAUDE.md`](CLAUDE.md). Navíc věci, na které se naráží
 opakovaně a v dokumentaci je nenajdeš:
 
+- **Nahrání balíčku:** Upload → **Deploy** → v dialogu o Teams **„I'll do it later"** (nezavírat křížkem). Když se tento krok přeskočí, katalog ukazuje novou verzi, ale stránka běží na staré (v patičce zůstane starší číslo). Postup je i v `docs/TESTOVANI.md`, oddíl 0.
 - **Říkáme „projekt", nikdy „zakázka."** I když to Igor sám napíše, Claude to má opravit.
 - **`String.padStart` a `Promise.finally` v SPFx nejsou k dispozici** (cílová knihovna
   je starší). Používat vlastní pomocnou funkci — vzory jsou v `core/format.ts`

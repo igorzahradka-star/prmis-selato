@@ -4,7 +4,16 @@ Určeno pro Igora. Zkoušejte na ostrém SharePointu (nebo na testovacím projek
 
 Doporučení: založte si **testovací projekt** (číslo s názvem „TESTOVACÍ“) a zkoušejte na něm, ať se nic nemíchá se skutečnými projekty.
 
-## 0. Po nahrání balíčku
+## 0. Nahrání balíčku a kontrola
+
+Postup nahrání (jinak se aplikace nenasadí, i když katalog ukazuje novou verzi):
+
+1. Katalog aplikací → **Upload** → `spfx/sharepoint/solution/prm-revoltum.sppkg`.
+2. V dialogu zvolit **Deploy** (nasadit).
+3. Dialog s nabídkou synchronizace do Teams potvrdit tlačítkem **I'll do it later**. Nezavírat křížkem a nepřeskakovat — bez toho se balíček nenasadí.
+4. Na `PRM.aspx` stisknout `Ctrl+F5` a zkontrolovat verzi v patičce.
+
+Kontrola:
 - [ ] V Instalaci a diagnostice nic nechybí (zelené), schéma 20.
 - [ ] Verze v patičce / O aplikaci je 0.36.0.0.
 - [ ] Domovská stránka se načte, seznam projektů se zobrazí.
