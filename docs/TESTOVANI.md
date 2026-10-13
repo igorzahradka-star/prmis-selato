@@ -101,6 +101,12 @@ Po nahrání: **Instalace a diagnostika** (schéma 21) a na téže stránce **P�
 - [ ] **Rezerva** je v samostatné tabulce pod nákupem (Popis, % z nákupu, Měna, plán, prognóza, čerpáno, zbývá); ostatní skupiny mají stejnou tabulku bez Rezerva %; procento i pevná částka fungují.
 - [ ] V záhlaví je tlačítko **RES CRM** (obrys, ikona + text); vede na stránku RES CRM; v Nastavení → Odkazy v záhlaví jde změnit adresu nebo ho skrýt; v režimu celého okna zůstane celé okno i v RES CRM.
 
+## 4e. Marže v přehledu, Režie, stav při schválení, filtr dokončených (0.42)
+- [ ] Přehled projektů: marže se ukazuje procenty u projektů s Celkovou cenou a Nákupem (bez přepočtu); po „Přepočítat všechny projekty“ se karta nehlásí varováním o sloupcích.
+- [ ] Přehled projektů: po spuštění nejsou vidět Dokončené a Stornované; vypnutí přepínače je ukáže; výběr stavu „Dokončeno“ ve filtru Stav je ukáže i při zapnutém přepínači.
+- [ ] Schválení rozpočtu u projektu ve stavu Nabídka: v dialogu je volba nového stavu (výchozí Příprava); po schválení je projekt v tom stavu. U projektu v Realizaci volba není.
+- [ ] Režie: záložka Fakturace dovolí „Nový podklad“; záložka Realizační rozpočet nabídne Založit rozpočet a ukáže jen Výnosy (bez nákupu a schvalování).
+
 ## 5. Cashflow — vazby na harmonogram (0.34)
 - [ ] U platby nákladů zvolte **úkol harmonogramu**, kotvu (zahájení / dokončení), posun a splatnost → datum faktury a splatnost se vyplní samy a jsou zamčené.
 - [ ] Posuňte úkol v harmonogramu a uložte → platba v cashflow se posune.

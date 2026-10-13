@@ -17,7 +17,8 @@ import { useApp } from '../../ui/AppContext';
 import { loadProjectManagerNames } from './projectManagers';
 import { DEFAULT_SORT, ProjectSortKey, sortProjects } from '../../core/projectSort';
 import { projectFigures } from '../../core/projectFigures';
-import { quickStatusChange } from '../../core/projectStatus';
+import { isHiddenByDefault, quickStatusChange } from '../../core/projectStatus';
+import { Toggle } from '@fluentui/react/lib/Toggle';
 import { isCustomOrder, moveColumn, orderColumns } from '../../core/columnOrder';
 import { StatusSelect } from './StatusSelect';
 import { RES, LAYOUT } from '../../ui/theme';
@@ -90,6 +91,8 @@ export const DashboardPage: React.FC = () => {
   const [search, setSearch] = React.useState<string>(savedView ? savedView.search : '');
   const [statuses, setStatuses] = React.useState<string[]>(savedView ? savedView.statuses : []);
   const [pms, setPms] = React.useState<string[]>(savedView ? savedView.pms : []);
+  // Dokončené a stornované projekty se po spuštění skrývají (přehled zůstane čitelný); vypnutím filtru se zobrazí. Nepamatuje se.
+  const [hideFinished, setHideFinished] = React.useState(true);
   const [pmOptions, setPmOptions] = React.useState<IDropdownOption[]>([]);
   const [isNewProjectOpen, setIsNewProjectOpen] = React.useState(false);
   const [refreshKey, setRefreshKey] = React.useState(0);
@@ -127,7 +130,8 @@ export const DashboardPage: React.FC = () => {
       .list({ statuses, projectManagerNames: pms, search, includeOverhead: true })
       .then((data) => {
         if (!cancelled) {
-          setProjects(data);
+          // Skrývá se jen bez výběru konkrétních stavů — kdo si stav vybere výslovně, uvidí ho.
+          setProjects(hideFinished && statuses.length === 0 ? data.filter((p) => !isHiddenByDefault(String(p.status))) : data);
         }
       })
       .catch((e: Error) => {
@@ -139,7 +143,7 @@ export const DashboardPage: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [repos, statuses.join(','), pms.join(','), search, refreshKey]);
+  }, [repos, statuses.join(','), pms.join(','), search, refreshKey, hideFinished]);
 
   // Nabídka jmen PM do filtru — ze všech projektů, nezávisle na aktuálním filtru.
   React.useEffect(() => {
@@ -285,6 +289,14 @@ export const DashboardPage: React.FC = () => {
           onChange={(_, option) => option && setStatuses(toggle(statuses, String(option.key), !!option.selected))}
           styles={{ root: { minWidth: 180 } }}
           placeholder="Všechny stavy"
+        />
+        <Toggle
+          label="Skrýt dokončené a stornované"
+          inlineLabel
+          checked={hideFinished}
+          onChange={(_, v) => setHideFinished(!!v)}
+          title="Zapnuto: přehled neukazuje projekty ve stavu Dokončeno a Storno. Vypnutím se zobrazí."
+          styles={{ root: { marginBottom: 6, alignSelf: 'flex-end' } }}
         />
         <div style={{ flex: '1 1 auto' }} />
         <CurrencySwitch stacked />

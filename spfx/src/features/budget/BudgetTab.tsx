@@ -19,7 +19,8 @@ import { useApp } from '../../ui/AppContext';
 import { RES } from '../../ui/theme';
 import { CurrencySwitch } from '../../ui/components/CurrencySwitch';
 import { useReportCurrency } from '../../ui/useReportCurrency';
-import { Partner, Project, Role } from '../../core/types';
+import { Partner, Project, ProjectStatus, Role } from '../../core/types';
+import { APPROVAL_COMPATIBLE_STATUSES, APPROVAL_DEFAULT_STATUS, quickStatusChange, statusAllowsApprovedBudget } from '../../core/projectStatus';
 import { RoleMembership } from '../../core/userAdmin';
 import { ApproverDialog } from '../orders/ApproverDialog';
 import { formatDate, formatMoney } from '../../core/format';
@@ -83,9 +84,9 @@ const Tile: React.FC<{ label: string; value: string; hint?: string; warn?: boole
   </div>
 );
 
-type DialogState = { kind: 'approve' | 'reject'; text: string } | { kind: 'group'; group: BudgetGroup } | { kind: 'newGroup'; name: string; type: GroupKind } | undefined;
+type DialogState = { kind: 'approve' | 'reject'; text: string; /** Nový stav projektu při schválení (jen když dosavadní stav schválený rozpočet nepřipouští). */ status?: ProjectStatus } | { kind: 'group'; group: BudgetGroup } | { kind: 'newGroup'; name: string; type: GroupKind } | undefined;
 
-export const BudgetTab: React.FC<{ project: Project }> = ({ project }) => {
+export const BudgetTab: React.FC<{ project: Project; /** Stav projektu se při schválení rozpočtu přepnul — rodič si projekt obnoví. */ onProjectChanged?: (p: Project) => void }> = ({ project, onProjectChanged }) => {
   const { repos, settings, user } = useApp();
   const report = useReportCurrency();
   const actor = React.useMemo(() => toActor(user), [user]);
@@ -327,7 +328,15 @@ export const BudgetTab: React.FC<{ project: Project }> = ({ project }) => {
         const price = budgetTotals(doc, asCurrencyCode(project.currency), report.rates).sale;
         const firstApproval = record.approvals.length === 0;
         await repos.budgets.approve(record.id, czk(doc), d.text.trim() || undefined, user, { priceNet: price, currency: asCurrencyCode(project.currency) });
-        setNotice(`Rozpočet je schválený. Marže při schválení je zafixovaná v historii dole, smluvní cena projektu je součet plánu výnosů a plán je teď uzamčený.${firstApproval ? ' Prognóza se nastavila na plán.' : ''}`);
+        let statusNote = '';
+        if (d.status && !statusAllowsApprovedBudget(project.status)) {
+          const updated = await repos.projects.updateStatus(project.projectNumber, quickStatusChange(project, d.status), user);
+          if (onProjectChanged) {
+            onProjectChanged(updated);
+          }
+          statusNote = ` Stav projektu se změnil na „${d.status}“.`;
+        }
+        setNotice(`Rozpočet je schválený.${statusNote} Marže při schválení je zafixovaná v historii dole, smluvní cena projektu je součet plánu výnosů a plán je teď uzamčený.${firstApproval ? ' Prognóza se nastavila na plán.' : ''}`);
       } else {
         await repos.budgets.reject(record.id, d.text, user);
         setNotice('Rozpočet je vrácený k úpravě.');
@@ -399,9 +408,8 @@ export const BudgetTab: React.FC<{ project: Project }> = ({ project }) => {
 
   // --- zobrazení ---
 
-  if (project.isOverhead) {
-    return <MessageBar messageBarType={MessageBarType.info}>Na projekt Režie se realizační rozpočet nevede.</MessageBar>;
-  }
+  /** Režie: omezený rozpočet jen pro evidenci vydaných faktur (výnosy a vyfakturováno); bez nákupu, marže a schvalování. */
+  const overhead = project.isOverhead;
   if (!loaded && !error) {
     return <Spinner size={SpinnerSize.medium} label="Načítám rozpočet…" />;
   }
@@ -489,12 +497,19 @@ export const BudgetTab: React.FC<{ project: Project }> = ({ project }) => {
 
       {doc && totals && (
         <>
+          {overhead && (
+            <MessageBar messageBarType={MessageBarType.info} isMultiline>
+              Na Režii se rozpočet vede omezeně — slouží k evidenci vydaných faktur (část Výnosy, sloupec Vyfakturováno). Nákup, marže a schvalování se zde nepoužívají.
+            </MessageBar>
+          )}
           {planLocked && (
             <MessageBar messageBarType={MessageBarType.info} isMultiline>
               <strong>Plán je uzamčený</strong> ({record && record.status === BudgetStatus.KeSchvaleni ? 'čeká na schválení' : 'rozpočet je schválený'}). Prognózu nákupu a tržeb, skutečnost a vyfakturováno můžete upravovat dál.
               {actions.indexOf('unlock') !== -1 ? ' Změna plánu (dodatek, vícepráce, jiný nákup) se dělá odemčením plánu a novým schválením.' : ''}
             </MessageBar>
           )}
+          {!overhead && (
+            <>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', margin: '10px 0 6px' }}>
             <Tile label={`Nákup – plán (${report.label})`} value={formatMoney(totals.cost, report.currency)} hint="součet plánu nákupu" />
             <Tile label={`Tržby – plán / smluvní cena (${report.label})`} value={formatMoney(totals.sale, report.currency)} hint="součet plánu výnosů, bez DPH" warn={totals.sale <= 0} />
@@ -534,6 +549,8 @@ export const BudgetTab: React.FC<{ project: Project }> = ({ project }) => {
             </div>
           </div>
 
+            </>
+          )}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 8 }}>
             {editable && (
               <>
@@ -547,21 +564,21 @@ export const BudgetTab: React.FC<{ project: Project }> = ({ project }) => {
                     ? `Automaticky uloženo v ${autosave.savedAt.getHours()}:${String(autosave.savedAt.getMinutes()).padStart(2, '0')}.`
                     : ''}
                 </span>
-                <ActionButton iconProps={{ iconName: 'Add' }} text="Přidat skupinu" disabled={busy || planLocked} onClick={() => setDialog({ kind: 'newGroup', name: '', type: 'standard' })} />
-                <ActionButton iconProps={{ iconName: 'Paste' }} text="Vložit z Excelu" disabled={busy || planLocked} onClick={() => setImportOpen(true)} />
+                {!overhead && <ActionButton iconProps={{ iconName: 'Add' }} text="Přidat skupinu" disabled={busy || planLocked} onClick={() => setDialog({ kind: 'newGroup', name: '', type: 'standard' })} />}
+                {!overhead && <ActionButton iconProps={{ iconName: 'Paste' }} text="Vložit z Excelu" disabled={busy || planLocked} onClick={() => setImportOpen(true)} />}
               </>
             )}
-            <ActionButton iconProps={{ iconName: ratesOpen ? 'ChevronUp' : 'Contact' }} text={`Sazby profesí (${doc.rates.length})`} onClick={() => setRatesOpen((o) => !o)} />
+            {!overhead && <ActionButton iconProps={{ iconName: ratesOpen ? 'ChevronUp' : 'Contact' }} text={`Sazby profesí (${doc.rates.length})`} onClick={() => setRatesOpen((o) => !o)} />}
             <ActionButton iconProps={{ iconName: 'Download' }} text="Export do CSV" onClick={exportCsv} />
             <span style={{ flex: '1 1 auto' }} />
           </div>
-          {(actions.indexOf('unlock') !== -1 || actions.indexOf('requestApproval') !== -1 || actions.indexOf('approve') !== -1 || actions.indexOf('reject') !== -1 || (actions.indexOf('withdraw') !== -1 && !canApproveBudget(actor, record))) && (
+          {!overhead && (actions.indexOf('unlock') !== -1 || actions.indexOf('requestApproval') !== -1 || actions.indexOf('approve') !== -1 || actions.indexOf('reject') !== -1 || (actions.indexOf('withdraw') !== -1 && !canApproveBudget(actor, record))) && (
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap', margin: '0 0 10px' }}>
               {actions.indexOf('unlock') !== -1 && <DefaultButton text="Odemknout plán ke změně" iconProps={{ iconName: 'Unlock' }} title="Plán nákupu a výnosů půjde upravit (např. dodatek); po úpravě je potřeba nové schválení" disabled={busy} onClick={unlockPlan} />}
               {actions.indexOf('requestApproval') !== -1 && <DefaultButton text="Požádat o schválení" disabled={busy} onClick={requestApproval} />}
               {actions.indexOf('withdraw') !== -1 && !canApproveBudget(actor, record) && <DefaultButton text="Stáhnout žádost" disabled={busy} onClick={withdraw} />}
               {actions.indexOf('reject') !== -1 && <ReturnButton text="Vrátit k úpravě" disabled={busy} onClick={() => setDialog({ kind: 'reject', text: '' })} />}
-              {actions.indexOf('approve') !== -1 && <ApproveButton text="Schválit" disabled={busy} onClick={() => setDialog({ kind: 'approve', text: '' })} />}
+              {actions.indexOf('approve') !== -1 && <ApproveButton text="Schválit" disabled={busy} onClick={() => setDialog({ kind: 'approve', text: '', status: statusAllowsApprovedBudget(project.status) ? undefined : APPROVAL_DEFAULT_STATUS })} />}
             </div>
           )}
           {issues.length > 0 && (
@@ -579,6 +596,8 @@ export const BudgetTab: React.FC<{ project: Project }> = ({ project }) => {
 
           <RevenueTable doc={doc} onChange={setDoc} editable={editable && !busy} report={report} defaultCurrency={asCurrencyCode(project.currency)} onImport={() => setRevImportOpen(true)} />
 
+          {!overhead && (
+            <>
           <h3 style={{ margin: '16px 0 4px', color: RES.navy, fontSize: 15 }}>Nákup</h3>
           <BudgetGrid
             doc={doc}
@@ -598,6 +617,9 @@ export const BudgetTab: React.FC<{ project: Project }> = ({ project }) => {
             Nákup: plán je celková částka položky (u práce se hodiny dopočtou z nákladové sazby profese, u rezervy je to částka nebo % z nákupu ostatních položek; počty kusů a ceny za jednotku se řeší v nabídkovém nástroji RES CRM). Prognóza je ruční odhad celkového nákupu položky; když ji nezadáte, platí plán (nikdy nejde pod objednáno a nakoupeno).
             Do sloupce Nakoupeno zapisujte skutečnost; Zbývá nakoupit se dopočte; Prostavěnost = nakoupeno / plán nákupu. Marže projektu = (tržby − nákup) / tržby z prognóz — vychází ze sekce Výnosy. Částky se přepočítávají kurzem ČNB, takže marže s kurzem kolísá.
           </div>
+
+            </>
+          )}
 
           <div style={{ marginTop: 14, background: RES.white, border: `1px solid ${RES.grayBlue}`, borderRadius: 4, padding: '8px 12px' }}>
             <div style={{ fontWeight: 600, color: RES.navy, marginBottom: 4 }}>Historie schválení</div>
@@ -758,13 +780,26 @@ export const BudgetTab: React.FC<{ project: Project }> = ({ project }) => {
                   {record && record.approvals.length === 0 ? ' Je to první schválení: prognóza se nastaví na plán.' : ' Prognóza se nemění.'}
                 </div>
               )}
+              {dialog.kind === 'approve' && !statusAllowsApprovedBudget(project.status) && (
+                <div style={{ marginBottom: 8 }}>
+                  <MessageBar messageBarType={MessageBarType.warning} isMultiline>
+                    Projekt je ve stavu <strong>{project.status}</strong>, ke schválenému rozpočtu se to nehodí. Při schválení se stav přepne:
+                  </MessageBar>
+                  <Dropdown
+                    label="Nový stav projektu"
+                    selectedKey={dialog.status ?? APPROVAL_DEFAULT_STATUS}
+                    options={APPROVAL_COMPATIBLE_STATUSES.map((s) => ({ key: s, text: s }))}
+                    onChange={(_, o) => o && setDialog({ kind: 'approve', text: dialog.text, status: o.key as ProjectStatus })}
+                  />
+                </div>
+              )}
               <TextField
                 label={dialog.kind === 'approve' ? 'Poznámka ke schválení (nepovinná)' : 'Důvod vrácení (povinný)'}
                 multiline
                 rows={3}
                 autoFocus
                 value={dialog.text}
-                onChange={(_, v) => setDialog({ kind: dialog.kind as 'approve' | 'reject', text: v ?? '' })}
+                onChange={(_, v) => setDialog({ kind: dialog.kind as 'approve' | 'reject', text: v ?? '', status: dialog.kind === 'approve' ? dialog.status : undefined })}
               />
             </>
           )}

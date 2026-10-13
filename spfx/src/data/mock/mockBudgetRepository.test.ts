@@ -69,12 +69,12 @@ describe('MockBudgetRepository (jeden rozpočet na projekt)', () => {
     expect(ok.approverName).toBeUndefined();
   });
 
-  it('cizí PM nezaloží ani neuloží; Režie rozpočet nevede', async () => {
+  it('cizí PM nezaloží ani neuloží; na Režii smí založit rozpočet (omezený) role, která objednává', async () => {
     const r = createMockRepositories();
     await expect(r.budgets.create('25003', naplneny(), TOTALS, cizi)).rejects.toThrow(/oprávnění/);
     const rec = await r.budgets.create('25003', naplneny(), TOTALS, jan);
     await expect(r.budgets.save(rec.id, naplneny(), TOTALS, cizi)).rejects.toThrow(/Rozpočet smí upravovat/);
-    await expect(r.budgets.create('26999', naplneny(), TOTALS, igor)).rejects.toThrow(/oprávnění/);
+    await expect(r.budgets.create('26999', naplneny(), TOTALS, igor)).resolves.toBeDefined();
   });
 
   it('prázdný rozpočet nejde poslat ke schválení; schválit jde jen to, co čeká', async () => {

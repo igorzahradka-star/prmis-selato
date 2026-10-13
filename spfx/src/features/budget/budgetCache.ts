@@ -110,6 +110,8 @@ export interface RefreshAllResult {
   withBudget: number;
   updated: number;
   failed: string[];
+  /** U kolika projektů se nepodařilo uložit marže, protože web nemá sloupce marží (chybí Instalace a diagnostika). */
+  withoutMarginColumns: number;
 }
 
 /**
@@ -119,7 +121,7 @@ export interface RefreshAllResult {
 export async function refreshAllBudgetCaches(repos: RepositorySet, settings: AppSettings, rates: RateTable, onProgress?: (done: number, total: number) => void): Promise<RefreshAllResult> {
   const projects = (await repos.projects.list({ includeOverhead: false })).filter((p) => !p.isOverhead);
   const orders = await repos.orders.list({});
-  const result: RefreshAllResult = { projects: projects.length, withBudget: 0, updated: 0, failed: [] };
+  const result: RefreshAllResult = { projects: projects.length, withBudget: 0, updated: 0, failed: [], withoutMarginColumns: 0 };
   for (let i = 0; i < projects.length; i++) {
     const p = projects[i];
     try {
@@ -127,8 +129,11 @@ export async function refreshAllBudgetCaches(repos: RepositorySet, settings: App
       if (budget) {
         result.withBudget += 1;
         const view = computeSemaphore(budget.doc, budget.record, orders.filter((o) => o.projectNumber === p.projectNumber), rates, settings, p);
-        await repos.projects.setBudgetCache(p.projectNumber, cacheOf(view));
+        const marginsSaved = await repos.projects.setBudgetCache(p.projectNumber, cacheOf(view));
         result.updated += 1;
+        if (!marginsSaved) {
+          result.withoutMarginColumns += 1;
+        }
       }
     } catch (e) {
       result.failed.push(`${p.projectNumber}: ${e instanceof Error ? e.message : String(e)}`);

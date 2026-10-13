@@ -48,10 +48,10 @@ describe('MockInvoiceRepository — zakládání a čísla', () => {
     expect((await r.invoices.create(vstup(), jan)).number).toBe('FP26004');
   });
 
-  it('cizí PM a čtenář nezaloží; na Režii se nefakturuje', async () => {
+  it('cizí PM a čtenář nezaloží; na Režii smí zadat role, která objednává (evidence vydaných faktur)', async () => {
     const r = createMockRepositories();
     await expect(r.invoices.create(vstup(), cizi)).rejects.toThrow(/oprávnění/);
-    await expect(r.invoices.create(vstup({ projectNumber: '26999' }), igor)).rejects.toThrow(/oprávnění/);
+    await expect(r.invoices.create(vstup({ projectNumber: '26999' }), igor)).resolves.toBeDefined();
   });
 });
 

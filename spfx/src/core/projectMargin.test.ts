@@ -24,9 +24,16 @@ describe('marže projektu v přehledech (z cache v projektu)', () => {
     expect(v).toMatchObject({ known: false, status: BudgetStatus.Zluta });
     expect(marginTooltip(v, T)).toContain('Přesná marže se zobrazí po přepočtu');
   });
+  it('před přepočtem cache se marže spočítá z celkové ceny a nákupu, které přehled ukazuje', () => {
+    const v = projectMarginView(projekt({ budgetSaleTotal: 1000, budgetCostTotal: 900 }), T);
+    expect(v).toMatchObject({ known: true, forecastPercent: 10, forecastAmount: 100, status: BudgetStatus.SvetleZelena });
+    // prognóza nákupu má přednost před plánem
+    expect(projectMarginView(projekt({ budgetSaleTotal: 1000, budgetCostTotal: 900, costForecastTotal: 950 }), T).forecastPercent).toBe(5);
+  });
   it('bez tržeb (nula) není marže definovaná', () => {
     const v = projectMarginView(projekt({ budgetRevenueForecast: 0, costForecastTotal: 50 }), T);
-    expect(v).toMatchObject({ forecastPercent: undefined, status: BudgetStatus.Bez });
+    expect(v.forecastPercent).toBeUndefined();
+    expect(v.status).toBe(BudgetStatus.Bez);
     expect(marginTooltip(v, T)).toContain('marže se nepočítá');
   });
   it('bublina uvádí marži, zadání a hranice', () => {

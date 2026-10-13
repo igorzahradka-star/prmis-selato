@@ -49,7 +49,7 @@ export const ProjectInvoicesTab: React.FC<{ project: Project }> = ({ project }) 
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
         <div style={{ flex: '1 1 auto', color: RES.gray, fontSize: 13 }}>
           {project.isOverhead
-            ? 'Na projekt Režie se nefakturuje.'
+            ? 'Evidence vydaných faktur Režie. Všechny podklady napříč projekty najdete v části Fakturace.'
             : `Podklady pro fakturaci projektu ${project.projectNumber}. Všechny podklady napříč projekty najdete v části Fakturace.`}
         </div>
         <div style={{ marginRight: 12 }}>
@@ -64,7 +64,7 @@ export const ProjectInvoicesTab: React.FC<{ project: Project }> = ({ project }) 
         </MessageBar>
       )}
       {!invoices && !error && <Spinner size={SpinnerSize.medium} label="Načítám podklady…" />}
-      {invoices && invoices.length === 0 && !project.isOverhead && (
+      {invoices && invoices.length === 0 && (
         <MessageBar messageBarType={MessageBarType.info}>Tento projekt zatím nemá žádný podklad pro fakturaci.</MessageBar>
       )}
       {invoices && invoices.length > 0 && (

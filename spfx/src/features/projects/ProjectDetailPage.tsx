@@ -302,7 +302,7 @@ export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projec
           />
         </PivotItem>
         <PivotItem headerText="Realizační rozpočet" itemIcon="Table">
-          <BudgetTab project={project} />
+          <BudgetTab project={project} onProjectChanged={(p) => setProject(p)} />
         </PivotItem>
         <PivotItem headerText="Cashflow" itemIcon="Money">
           <CashflowTab project={project} />

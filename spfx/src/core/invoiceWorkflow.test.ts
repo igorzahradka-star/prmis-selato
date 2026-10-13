@@ -61,12 +61,13 @@ function podklad(extra: Partial<InvoiceBasis> = {}): InvoiceBasis {
 }
 
 describe('kdo smí co', () => {
-  it('vystavit smí PM, asistent projektu a vedení; cizí PM ne; na Režii se nefakturuje', () => {
+  it('vystavit smí PM, asistent projektu a vedení; cizí PM ne; na Režii smí role, která objednává', () => {
     expect(canIssueInvoice(projekt, pm)).toBe(true);
     expect(canIssueInvoice(projekt, asistent)).toBe(true);
     expect(canIssueInvoice(projekt, vedeni)).toBe(true);
     expect(canIssueInvoice(projekt, cizi)).toBe(false);
-    expect(canIssueInvoice(rezie, admin)).toBe(false);
+    expect(canIssueInvoice(rezie, admin)).toBe(true);
+    expect(canIssueInvoice(rezie, cizi)).toBe(true); // Režii hlídá SharePoint (přístup se přiděluje jednotlivě), role PM stačí
   });
   it('kontrolovat smí PM projektu, vedení a administrátor; asistent ne', () => {
     expect(canCheckInvoice(projekt, pm)).toBe(true);

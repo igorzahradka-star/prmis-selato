@@ -25,10 +25,13 @@ export interface ProjectMarginView {
 export function projectMarginView(p: Project, t: MarginThresholds): ProjectMarginView {
   const approvedPercent = p.budgetMarginApproved;
   const approvedAmount = p.budgetMarginApprovedAmount;
-  if (p.budgetRevenueForecast === undefined || p.costForecastTotal === undefined) {
+  // Dokud cache marží není přepočítaná, počítá se marže z toho, co přehled ukazuje: celková cena (prodej rozpočtu) a nákup (prognóza, jinak plán).
+  const revenue = p.budgetRevenueForecast ?? p.budgetSaleTotal;
+  const cost = p.costForecastTotal ?? p.budgetCostTotal;
+  if (revenue === undefined || cost === undefined || revenue <= 0) {
     return { status: p.budgetStatus ?? BudgetStatus.Bez, approvedPercent, approvedAmount, known: false };
   }
-  const m = marginOf(p.budgetRevenueForecast, p.costForecastTotal);
+  const m = marginOf(revenue, cost);
   return { status: marginStatus(m.percent, t), forecastPercent: m.percent, forecastAmount: m.amount, approvedPercent, approvedAmount, known: true };
 }
 

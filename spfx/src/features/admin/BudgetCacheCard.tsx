@@ -55,8 +55,13 @@ export const BudgetCacheCard: React.FC = () => {
         </MessageBar>
       )}
       {result && (
-        <MessageBar messageBarType={result.failed.length > 0 ? MessageBarType.warning : MessageBarType.success} isMultiline styles={{ root: { marginTop: 8 } }}>
+        <MessageBar messageBarType={result.failed.length > 0 || result.withoutMarginColumns > 0 ? MessageBarType.warning : MessageBarType.success} isMultiline styles={{ root: { marginTop: 8 } }}>
           Projektů {result.projects}, z toho s rozpočtem {result.withBudget}; přepočítáno {result.updated}.
+          {result.withoutMarginColumns > 0 && (
+            <div style={{ marginTop: 4 }}>
+              <strong>Marže se neuložily:</strong> v seznamu projektů chybí sloupce marží. Spusťte nahoře na této stránce <strong>Instalaci</strong> (vytvoří chybějící sloupce) a potom přepočet zopakujte.
+            </div>
+          )}
           {result.failed.length > 0 && (
             <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>
               {result.failed.map((f) => (

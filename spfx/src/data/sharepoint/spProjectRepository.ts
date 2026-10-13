@@ -360,7 +360,7 @@ export class SpProjectRepository implements IProjectRepository {
     return (await this.getByNumber(projectNumber)) ?? existing;
   }
 
-  public async setBudgetCache(projectNumber: string, cache: BudgetCacheInput): Promise<void> {
+  public async setBudgetCache(projectNumber: string, cache: BudgetCacheInput): Promise<boolean> {
     const existing = await this.getByNumber(projectNumber);
     if (!existing) {
       throw new Error(`Projekt ${projectNumber} nebyl nalezen.`);
@@ -384,12 +384,14 @@ export class SpProjectRepository implements IProjectRepository {
       const item = sp.web.lists.getByTitle(PROJECTS_LIST).items.getById(existing.id);
       try {
         await item.update({ ...base, ...margins }, '*');
+        return true;
       } catch (error) {
         // Web ještě nemá sloupce marží (chybí Instalace po aktualizaci) — uloží se aspoň zbytek cache.
         if (extractStatus(error) !== 400) {
           throw error;
         }
         await item.update(base, '*');
+        return false;
       }
     } catch (error) {
       throw new Error(describeSpError(error, `Nepodařilo se uložit semafor rozpočtu projektu ${projectNumber}`));

@@ -1,4 +1,4 @@
-import { quickStatusChange, statusChoices } from './projectStatus';
+import { isHiddenByDefault, quickStatusChange, statusAllowsApprovedBudget, statusChoices } from './projectStatus';
 import { BudgetStatus, Project, ProjectStatus } from './types';
 import { STATUS_ORDER } from './geo';
 
@@ -51,5 +51,17 @@ describe('statusChoices', () => {
     const v = statusChoices('Něco starého', STATUS_ORDER);
     expect(v[0]).toBe('Něco starého');
     expect(v.length).toBe(STATUS_ORDER.length + 1);
+  });
+});
+
+describe('stav projektu a schválený rozpočet', () => {
+  it('schválený rozpočet nesedí k Nabídce a Stornu; ostatní stavy jsou přípustné', () => {
+    expect(statusAllowsApprovedBudget('Nabídka')).toBe(false);
+    expect(statusAllowsApprovedBudget('Storno')).toBe(false);
+    ['Příprava', 'Realizace', 'Pozastaveno', 'Dokončeno', 'Reklamace', 'Uzavřeno'].forEach((s) => expect(statusAllowsApprovedBudget(s)).toBe(true));
+  });
+  it('dokončené a stornované se v přehledu skrývají ve výchozím stavu', () => {
+    expect(['Dokončeno', 'Storno', 'Uzavřeno'].map(isHiddenByDefault)).toEqual([true, true, true]);
+    expect(['Nabídka', 'Příprava', 'Realizace', 'Pozastaveno', 'Reklamace'].map(isHiddenByDefault)).toEqual([false, false, false, false, false]);
   });
 });

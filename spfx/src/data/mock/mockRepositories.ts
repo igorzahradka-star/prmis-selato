@@ -329,7 +329,7 @@ export class MockProjectRepository implements IProjectRepository {
     return delay(updated);
   }
 
-  public async setBudgetCache(projectNumber: string, cache: BudgetCacheInput): Promise<void> {
+  public async setBudgetCache(projectNumber: string, cache: BudgetCacheInput): Promise<boolean> {
     this.projects = this.projects.map((p) =>
       p.projectNumber === projectNumber
         ? {
@@ -347,7 +347,7 @@ export class MockProjectRepository implements IProjectRepository {
           }
         : p
     );
-    return delay(undefined);
+    return delay(true);
   }
 
   public async setContractPrice(projectNumber: string, priceNet: number, currency: string): Promise<void> {

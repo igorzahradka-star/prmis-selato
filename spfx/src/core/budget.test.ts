@@ -305,10 +305,10 @@ describe('žádost o schválení a schválení (rozpočet se nezamyká)', () => 
     ];
     expect(budgetApproverCandidates(m, 'zadatel').map((x) => x.name)).toEqual(['Adam', 'Beneš', 'Čermák']);
   });
-  it('bez rozpočtu jde založit; Režie rozpočet nevede', () => {
+  it('bez rozpočtu jde založit; na Režii smí vedení (omezený rozpočet pro evidenci faktur)', () => {
     expect(availableBudgetActions(undefined, project, pm)).toEqual(['create']);
     expect(availableBudgetActions(undefined, project, cizi)).toEqual([]);
-    expect(availableBudgetActions(undefined, { ...project, isOverhead: true }, vedeni)).toEqual([]);
+    expect(availableBudgetActions(undefined, { ...project, isOverhead: true }, vedeni)).toEqual(['create']);
   });
   it('po vrácení nebo stažení žádosti je rozpočet koncept (plán jde opravit a znovu předložit)', () => {
     expect(statusAfterReject({ approvals: [] })).toBe(BudgetStatus.Koncept);

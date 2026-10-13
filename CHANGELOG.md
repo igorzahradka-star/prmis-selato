@@ -5,6 +5,15 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.42.0 — 13. 10. 2026 — Marže v přehledu, Režie, stav při schválení, filtr dokončených
+
+- **Marže v přehledu projektů** se počítá z Celkové ceny a Nákupu (prognóza, jinak plán), které přehled ukazuje — nečeká na přepočet cache. Přesná hodnota (z prognózy tržeb) se doplní po přepočtu nebo otevření rozpočtu. **Přepočítat všechny projekty** teď hlásí, když web nemá sloupce marží (chybí Instalace a diagnostika), místo aby tiše uložil jen část.
+- **Režie:** zapnutá fakturace (evidence vydaných faktur) a **omezený realizační rozpočet** — jen Výnosy (vyfakturováno); bez nákupu, marže, semaforu a schvalování. Smí role, která objednává (přístup k Režii hlídá SharePoint).
+- **Schválení rozpočtu a stav projektu:** je-li projekt v Nabídce nebo ve Stornu, dialog schválení nabídne přepnutí do Příprava (výchozí), Realizace, Pozastaveno, Dokončeno nebo Reklamace; stav se změní současně se schválením.
+- **Přehled projektů:** přepínač „Skrýt dokončené a stornované“ (po spuštění zapnutý, nepamatuje se). Vybereš-li konkrétní stav ve filtru Stav, zobrazí se bez ohledu na přepínač. Bez změny schématu.
+
+---
+
 ## 0.41.1 — 13. 10. 2026 — Vysvětlení zašedlého plánu u vlastní práce
 
 - Částka plánu vlastní práce je zašedlá, když vybraná profese **nemá nákladovou sazbu** (0 Kč/hod) — hodiny se z částky nedají spočítat. Políčko teď nad sebou ukazuje vysvětlení a co udělat (doplnit sazbu v „Sazby profesí“). Bez změny schématu.

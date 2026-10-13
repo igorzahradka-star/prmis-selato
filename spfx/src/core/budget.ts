@@ -797,9 +797,9 @@ function sameLogin(a: string | undefined, b: string | undefined): boolean {
   return x !== '' && x === normalizeLogin(b);
 }
 
-/** Smí uživatel upravovat rozpočet projektu? PM, asistent a další s právem na projekt; na Režii se rozpočet nevede. */
+/** Smí uživatel upravovat rozpočet projektu? PM, asistent a další s právem na projekt; na Režii (omezený rozpočet jen pro evidenci vydaných faktur) ten, kdo smí objednávat. */
 export function canEditBudget(project: WorkflowProject, actor: Actor): boolean {
-  return !project.isOverhead && (canIssueOrder(project, actor) || sameLogin(project.projectManagerLogin, actor.login));
+  return canIssueOrder(project, actor) || (!project.isOverhead && sameLogin(project.projectManagerLogin, actor.login));
 }
 
 /**

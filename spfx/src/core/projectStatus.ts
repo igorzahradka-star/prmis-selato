@@ -40,3 +40,19 @@ export function statusChoices(current: string, all: ProjectStatus[]): string[] {
   const values: string[] = all.map((s) => String(s));
   return values.indexOf(current) === -1 ? [current, ...values] : values;
 }
+
+/** Stavy, ve kterých má smysl schválený realizační rozpočet (Nabídka a Storno ne). */
+export const APPROVAL_COMPATIBLE_STATUSES: ProjectStatus[] = [ProjectStatus.Priprava, ProjectStatus.Realizace, ProjectStatus.Pozastaveno, ProjectStatus.Dokonceno, ProjectStatus.Reklamace];
+
+/** Výchozí stav, který se nabídne při schválení rozpočtu projektu ve stavu, který se schválením nesouhlasí. */
+export const APPROVAL_DEFAULT_STATUS = ProjectStatus.Priprava;
+
+/** Smí mít projekt v tomto stavu schválený rozpočet? Nabídka (ještě není zakázáno) a Storno ne. */
+export function statusAllowsApprovedBudget(status: string): boolean {
+  return APPROVAL_COMPATIBLE_STATUSES.some((s) => String(s) === status) || status === 'Uzavřeno';
+}
+
+/** Stavy, které se v přehledu projektů ve výchozím stavu skrývají (dokončené a stornované; „Uzavřeno“ je starý název Dokončeno). */
+export function isHiddenByDefault(status: string): boolean {
+  return status === String(ProjectStatus.Dokonceno) || status === String(ProjectStatus.Storno) || status === 'Uzavřeno';
+}

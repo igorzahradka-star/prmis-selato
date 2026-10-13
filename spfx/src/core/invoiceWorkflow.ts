@@ -41,9 +41,9 @@ function sameLogin(a: string | undefined, b: string | undefined): boolean {
   return x !== '' && x === normalizeLogin(b);
 }
 
-/** Smí uživatel na projektu vystavit podklad? Na Režii ne (nemá zákazníka). */
+/** Smí uživatel na projektu vystavit podklad? Na Režii ten, kdo smí objednávat (evidence vydaných faktur). */
 export function canIssueInvoice(project: WorkflowProject, actor: Actor): boolean {
-  return !project.isOverhead && canIssueOrder(project, actor);
+  return canIssueOrder(project, actor);
 }
 
 /** Kdo smí s podkladem nakládat: vystavitel, PM projektu, vedení, administrátor. */

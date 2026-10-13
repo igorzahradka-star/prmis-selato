@@ -186,7 +186,8 @@ export interface IProjectRepository {
    */
   update(projectNumber: string, input: ProjectEditInput, expectedVersion?: string): Promise<Project>;
   /** Uloží výsledek semaforu rozpočtu do projektu (cache pro přehled projektů): stav, baseline a prognóza nákladů (v Kč). */
-  setBudgetCache(projectNumber: string, cache: BudgetCacheInput): Promise<void>;
+  /** Vrací, zda se uložily i sloupce marží (false = web je ještě nemá — chybí Instalace a diagnostika). */
+  setBudgetCache(projectNumber: string, cache: BudgetCacheInput): Promise<boolean>;
   /** Přepíše jen smluvní cenu projektu (bez DPH) a měnu — používá schválení rozpočtu: smluvní cena = prodej schváleného rozpočtu. */
   setContractPrice(projectNumber: string, priceNet: number, currency: string): Promise<void>;
   /**
