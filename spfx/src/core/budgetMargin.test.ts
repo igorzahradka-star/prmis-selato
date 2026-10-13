@@ -137,23 +137,23 @@ describe('uzamčení plánu po schválení', () => {
     };
     expect(planViolations(b, n)).toEqual([]);
   });
-  it('změna množství, ceny, měny, sazby nebo plánu výnosu je porušení', () => {
+  it('změna množství, ceny, měny nebo sazby je porušení; plán výnosu se měnit smí', () => {
     const b = base();
     expect(planViolations(b, { ...b, items: b.items.map((i) => (i.id === 'a' ? { ...i, quantity: 3 } : i)) })).toHaveLength(1);
     expect(planViolations(b, { ...b, items: b.items.map((i) => (i.id === 'a' ? { ...i, unitCost: 1 } : i)) })).toHaveLength(1);
     expect(planViolations(b, { ...b, items: b.items.map((i) => (i.id === 'a' ? { ...i, currency: 'EUR' as const } : i)) })).toHaveLength(1);
     expect(planViolations(b, { ...b, rates: [{ id: 's1', name: 'Montér', costRate: 500, saleRate: 600 }] })).toHaveLength(1);
-    expect(planViolations(b, { ...b, revenues: [rev({ plan: 1100 })] })).toHaveLength(1);
+    expect(planViolations(b, { ...b, revenues: [rev({ plan: 1100 })] })).toEqual([]);
   });
-  it('nová položka nebo nový výnos jen s plánem 0; smazat jde jen to, co plán nemá', () => {
+  it('nová položka nákupu jen s plánem 0; smazat jde jen to, co plán nemá; výnosy se upravují volně', () => {
     const b = base();
     expect(planViolations(b, { ...b, items: [...b.items, item({ id: 'n', quantity: 0, unitCost: 0 })] })).toEqual([]);
     expect(planViolations(b, { ...b, items: [...b.items, item({ id: 'n', quantity: 1, unitCost: 50 })] })).toHaveLength(1);
     expect(planViolations(b, { ...b, items: [...b.items, item({ id: 'np', groupId: 'gp', quantity: 5, rateId: 's1' })] })).toHaveLength(1);
-    expect(planViolations(b, { ...b, revenues: [...(b.revenues ?? []), rev({ id: 'v9', description: 'Dodatek', plan: 300 })] })).toHaveLength(1);
+    expect(planViolations(b, { ...b, revenues: [...(b.revenues ?? []), rev({ id: 'v9', description: 'Dodatek', plan: 300 })] })).toEqual([]);
     expect(planViolations(b, { ...b, revenues: [...(b.revenues ?? []), rev({ id: 'v9', description: 'Dodatek', plan: 0 })] })).toEqual([]);
     expect(planViolations(b, { ...b, items: b.items.filter((i) => i.id !== 'a') })).toHaveLength(1);
-    expect(planViolations(b, { ...b, revenues: [] })).toHaveLength(1);
+    expect(planViolations(b, { ...b, revenues: [] })).toEqual([]);
   });
   it('jednorázový převod starého rozpočtu (bez výnosů) kontrolou projde', () => {
     const stary = doc([item({ id: 'a' })], undefined);

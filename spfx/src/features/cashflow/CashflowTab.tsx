@@ -32,7 +32,6 @@ import {
   VatRegime,
   budgetTotals,
   canEditBudget,
-  isPlanLocked,
   newBudgetId,
   newMilestone,
   newPayment,
@@ -256,17 +255,16 @@ export const CashflowTab: React.FC<{ project: Project }> = ({ project }) => {
         : { taskId: Number(value), taskAnchor: (cur && cur.taskAnchor) || 'finish', taskOffsetDays: cur && cur.taskOffsetDays !== undefined ? cur.taskOffsetDays : 0, taskDueDays: cur && cur.taskDueDays !== undefined ? cur.taskDueDays : DEFAULT_TASK_DUE_DAYS }
     );
   };
-  const planLocked = isPlanLocked(record);
-  /** Výběr výnosu u milníku; „nový“ založí výnosový řádek (dodatek): s plánem, nebo (plán uzamčen) jen s prognózou. */
+  /** Výběr výnosu u milníku; „nový“ založí výnosový řádek (dodatek) s plánem podle částky milníku. */
   const chooseRevenue = (m: IncomeMilestone, value: string): void => {
     if (value !== '__new') {
       upMilestone(m.id, { revenueId: value || undefined });
       return;
     }
     const line = newRevenueLine(m.currency, m.description || 'Nový výnos');
-    const created = planLocked ? { ...line, plan: 0, forecast: m.amount } : { ...line, plan: m.amount };
+    const created = { ...line, plan: m.amount };
     setDoc({ ...doc, revenues: [...(doc.revenues ?? []), created], income: income.map((x) => (x.id === m.id ? { ...x, revenueId: created.id } : x)) });
-    setNotice(planLocked ? 'Vznikl nový výnos s plánem 0 a prognózou podle milníku (plán výnosů je po schválení uzamčený). Pro dodatek odemkněte plán v Realizačním rozpočtu a nechte ho schválit.' : 'Vznikl nový výnos v rozpočtu (plán = částka milníku). Nezapomeňte popis výnosu případně upravit v Realizačním rozpočtu.');
+    setNotice('Vznikl nový výnos v rozpočtu (plán = částka milníku). Nezapomeňte popis výnosu případně upravit v Realizačním rozpočtu.');
   };
   const upMilestone = (id: string, patch: Partial<IncomeMilestone>): void => setIncome(income.map((m) => (m.id === id ? { ...m, ...patch } : m)));
   const peak = cf.buckets.reduce((m, b) => Math.min(m, b.cumPlan), 0);

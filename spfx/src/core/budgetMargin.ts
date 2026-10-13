@@ -198,25 +198,7 @@ export function planViolations(previous: BudgetDoc, next: BudgetDoc): string[] {
       out.push(`Nákladová sazba profese „${r.name}“ je po schválení uzamčená — odemkněte plán ke změně.`);
     }
   });
-  const prevRev = new Map((previous.revenues ?? []).map((r) => [r.id, r] as [string, RevenueLine]));
-  const nextRev = next.revenues ?? [];
-  const nextRevIds = new Set(nextRev.map((r) => r.id));
-  nextRev.forEach((r, idx) => {
-    const o = prevRev.get(r.id);
-    const label = nameOf(r.description, `řádek ${idx + 1}`);
-    if (!o) {
-      if (r.plan !== 0) {
-        out.push(`Nový výnos ${label} (dodatek, vícepráce) mění plán výnosů — odemkněte plán ke změně a nechte schválit.`);
-      }
-    } else if (o.plan !== r.plan || o.currency !== r.currency) {
-      out.push(`Plán výnosu ${label} je po schválení uzamčený — odemkněte plán ke změně.`);
-    }
-  });
-  (previous.revenues ?? []).forEach((o) => {
-    if (!nextRevIds.has(o.id) && o.plan !== 0) {
-      out.push(`Výnos ${nameOf(o.description, '')} má plán — po schválení ho nejde smazat; odemkněte plán ke změně.`);
-    }
-  });
+  // Výnosy (smluvní cena, dodatky, rozpis fakturace) se po schválení upravovat smějí — zamčená je jen výchozí marže ve schválení.
   return out.filter((m, i) => out.indexOf(m) === i);
 }
 

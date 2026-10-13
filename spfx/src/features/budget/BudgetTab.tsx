@@ -577,7 +577,7 @@ export const BudgetTab: React.FC<{ project: Project }> = ({ project }) => {
 
           {ratesOpen && <RatesTable doc={doc} onChange={setDoc} editable={editable && !busy && !planLocked} />}
 
-          <RevenueTable doc={doc} onChange={setDoc} editable={editable && !busy} planLocked={planLocked} report={report} defaultCurrency={asCurrencyCode(project.currency)} onImport={() => setRevImportOpen(true)} />
+          <RevenueTable doc={doc} onChange={setDoc} editable={editable && !busy} report={report} defaultCurrency={asCurrencyCode(project.currency)} onImport={() => setRevImportOpen(true)} />
 
           <h3 style={{ margin: '16px 0 4px', color: RES.navy, fontSize: 15 }}>Nákup</h3>
           <BudgetGrid

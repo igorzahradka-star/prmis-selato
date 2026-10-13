@@ -5,6 +5,13 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.41.0 — 13. 10. 2026 — Výnosy po schválení volné, šířka sloupců podle uživatele
+
+- **Výnosy (smluvní cena, dodatky, rozpis fakturace) se po schválení rozpočtu upravují a přidávají volně** — tlačítko „Přidat výnos“, plán, měna i smazání jsou dostupné i u schváleného rozpočtu. Zamčená zůstává jen **výchozí marže** zafixovaná ve schválení (historie schválení) a plán nákupu. Kontrola v datové vrstvě (`planViolations`) výnosy už nehlídá. „＋ Nový výnos (dodatek)“ v Cashflow vždy založí výnos s plánem podle částky milníku.
+- **Šířku sloupců** tabulek Nákup, Rezerva a Výnosy si uživatel mění tažením za pravý okraj záhlaví (dvojklik vrátí výchozí šířku, nastavení se pamatuje v prohlížeči). Popis je ve výchozím stavu nejširší (340 px). Bez změny schématu.
+
+---
+
 ## 0.40.1 — 12. 10. 2026 — Rezerva v samostatné tabulce
 
 - Všechny běžné skupiny a práce mají **stejnou tabulku bez sloupce Rezerva %**. **Rezerva** (skupina typu rezerva) je v **samostatné tabulce pod nákupem** s vlastním pořadím sloupců: Popis rezervy, % z nákupu, Měna, Rezerva – plán, Rezerva – prognóza, Čerpáno, Zbývá. Rezervu lze zadat procentem z nákupu ostatních položek, nebo pevnou částkou (procento prázdné). Bez změny schématu a dat.

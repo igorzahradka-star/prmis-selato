@@ -42,6 +42,7 @@ import { itemHasPlan } from '../../core/budgetMargin';
 import { Partner } from '../../core/types';
 import { CELL_INPUT, NumInput } from './NumInput';
 import { StickyHScroll } from '../../ui/components/StickyHScroll';
+import { useColumnWidths } from '../../ui/components/useColumnWidths';
 import { SupplierPicker } from './SupplierPicker';
 
 export const pct = (v: number): string => `${v.toLocaleString('cs-CZ', { maximumFractionDigits: 1 })} %`;
@@ -83,6 +84,9 @@ export const BudgetGrid: React.FC<BudgetGridProps> = ({ doc, onChange, editable,
   const setItem = (id: string, patch: Partial<BudgetItem>): void => onChange(updateItem(doc, id, patch));
   const setWhole = (item: BudgetItem): void => onChange({ ...doc, items: doc.items.map((i) => (i.id === item.id ? item : i)) });
   const bg = editable ? RES.white : RES.background;
+  // Šířky sloupců si uživatel mění tažením záhlaví (pamatují se v prohlížeči); Popis je ve výchozím stavu nejširší.
+  const mainCols = useColumnWidths('budget-main', [340, 170, 130, 66, 130, 120, 130, 130, 120, 36], [9]);
+  const resCols = useColumnWidths('budget-reserve', [340, 110, 66, 130, 130, 130, 130, 36], [7]);
   /** Plánované hodnoty (částky, měna, profese, rezerva) smí PM měnit, dokud plán není uzamčený. */
   const planEditable = editable && !planLocked;
 
@@ -159,35 +163,30 @@ export const BudgetGrid: React.FC<BudgetGridProps> = ({ doc, onChange, editable,
         Rezervu zadejte <strong>procentem z nákupu ostatních položek</strong> (sleduje změny rozpočtu), nebo pevnou <strong>částkou</strong> (pak procento nechte prázdné).
       </div>
       <StickyHScroll>
-        <table style={{ width: '100%', minWidth: 900, borderCollapse: 'collapse', tableLayout: 'fixed', background: RES.white }}>
-          <colgroup>
-            <col style={{ width: 'auto' }} />
-            <col style={{ width: 110 }} />
-            <col style={{ width: 66 }} />
-            <col style={{ width: 130 }} />
-            <col style={{ width: 130 }} />
-            <col style={{ width: 130 }} />
-            <col style={{ width: 130 }} />
-            <col style={{ width: 36 }} />
-          </colgroup>
+        <table style={{ width: resCols.total, borderCollapse: 'collapse', tableLayout: 'fixed', background: RES.white }}>
+          {resCols.cols}
           <thead>
             <tr style={{ borderBottom: `1px solid ${RES.grayBlue}` }}>
-              <th style={TH}>Popis rezervy</th>
-              <th style={{ ...TH, textAlign: 'right' }} title="Velikost rezervy v % z nákupu ostatních položek rozpočtu. Prázdné = pevná částka.">
-                % z nákupu
+              <th style={TH}>
+                Popis rezervy{resCols.grip(0)}
               </th>
-              <th style={TH}>Měna</th>
+              <th style={{ ...TH, textAlign: 'right' }} title="Velikost rezervy v % z nákupu ostatních položek rozpočtu. Prázdné = pevná částka.">
+                % z nákupu{resCols.grip(1)}
+              </th>
+              <th style={TH}>
+                Měna{resCols.grip(2)}
+              </th>
               <th style={{ ...TH, textAlign: 'right' }} title="Plán rezervy: z procenta, nebo zadaná částka">
-                Rezerva – plán
+                Rezerva – plán{resCols.grip(3)}
               </th>
               <th style={{ ...TH, textAlign: 'right' }} title="Prognóza rezervy: ruční, jinak plán">
-                Rezerva – prognóza
+                Rezerva – prognóza{resCols.grip(4)}
               </th>
               <th style={{ ...TH, textAlign: 'right', background: RES.bluePale }} title="Kolik z rezervy už bylo čerpáno (nakoupeno)">
-                Čerpáno
+                Čerpáno{resCols.grip(5)}
               </th>
               <th style={{ ...TH, textAlign: 'right' }} title="Plán rezervy − čerpáno">
-                Zbývá
+                Zbývá{resCols.grip(6)}
               </th>
               <th style={TH} />
             </tr>
@@ -292,39 +291,36 @@ export const BudgetGrid: React.FC<BudgetGridProps> = ({ doc, onChange, editable,
   return (
     <>
     <StickyHScroll maxHeight="calc(100vh - 240px)">
-      <table style={{ width: '100%', minWidth: 1090, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-        <colgroup>
-          <col style={{ width: 'auto' }} />
-          <col style={{ width: 150 }} />
-          <col style={{ width: 130 }} />
-          <col style={{ width: 66 }} />
-          <col style={{ width: 130 }} />
-          <col style={{ width: 120 }} />
-          <col style={{ width: 130 }} />
-          <col style={{ width: 130 }} />
-          <col style={{ width: 120 }} />
-          <col style={{ width: 36 }} />
-        </colgroup>
+      <table style={{ width: mainCols.total, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+        {mainCols.cols}
         <thead>
           <tr style={{ borderBottom: `1px solid ${RES.grayBlue}` }}>
-            <th style={TH}>Popis položky</th>
-            <th style={TH}>Dodavatel / profese</th>
-            <th style={TH}>Kategorie</th>
-            <th style={TH}>Měna</th>
+            <th style={TH}>
+              Popis položky{mainCols.grip(0)}
+            </th>
+            <th style={TH}>
+              Dodavatel / profese{mainCols.grip(1)}
+            </th>
+            <th style={TH}>
+              Kategorie{mainCols.grip(2)}
+            </th>
+            <th style={TH}>
+              Měna{mainCols.grip(3)}
+            </th>
             <th style={{ ...TH, textAlign: 'right' }} title="Plán nákupu položky celkem (bez DPH)">
-              Nákup – plán
+              Nákup – plán{mainCols.grip(4)}
             </th>
             <th style={{ ...TH, textAlign: 'right' }} title="Součet objednávek navázaných na položku (stavy, které se počítají jako vystavené)">
-              Objednáno
+              Objednáno{mainCols.grip(5)}
             </th>
             <th style={{ ...TH, textAlign: 'right' }} title="Prognóza nákupu položky: ruční, jinak plán; nikdy méně než objednáno a nakoupeno">
-              Nákup – prognóza
+              Nákup – prognóza{mainCols.grip(6)}
             </th>
             <th style={{ ...TH, textAlign: 'right', background: RES.bluePale }} title="Skutečnost: za kolik se už nakoupilo (u práce odpracováno)">
-              Nakoupeno
+              Nakoupeno{mainCols.grip(7)}
             </th>
             <th style={{ ...TH, textAlign: 'right' }} title="Plán nákupu − nakoupeno">
-              Zbývá nakoupit
+              Zbývá nakoupit{mainCols.grip(8)}
             </th>
             <th style={TH} />
           </tr>
