@@ -114,3 +114,9 @@ V PRMIS je záložka projektu „Data z účetnictví“. Řádek v `PRM_AbraDoc
 Předběžný sklon: **účetní deník jako zdroj částek a účtů** (je to „pravda“ účetnictví a účty 501/518/512/601 jsou přímo tam), doklady jen pro doplnění
 čísla dokladu, partnera a data splatnosti. Potvrdí se po výpisech `faktura-prijata…detail=full` (obsahuje položky?) a z evidence účetního deníku.
 Mapování v `integrations/abra-sync/src/mapping.js` je zatím po dokladech; po rozhodnutí se přepíše na řádky a doplní test „součet řádků = doklad“.
+
+### První zkouška sondy (13. 10. 2026): BLOKUJE LICENCE API
+Sonda (`integrations/abra-sync/src/probe.js`, účet Igora) — přihlášení **prošlo**, ale každé čtení vrací **HTTP 402**: „Přístup uživatele k API lze povolit
+pouze na licenci se zakoupeným přístupem k API (možno aktivovat ve webovém rozhraní v sekci Licence a přístup)“. Bez zakoupeného API přístupu
+v licenci Flexi nejde automatizace žádnou variantou (Power Automate, Azure, aplikace). Další krok: CFO/správce Abry ověří v Abře → Licence a přístup,
+zda je API přístup zakoupen/aktivován a zda je zapnut pro daného uživatele; teprve pak sondu zopakovat. Mezitím lze strukturu zjistit z ručního exportu (Excel/CSV) z Abry.
