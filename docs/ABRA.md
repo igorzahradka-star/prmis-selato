@@ -164,3 +164,13 @@ Igor vyexportoval (PDF, `integrations/abra-sync/vystupy/`) **Účetní deník** 
 - `AbraId` řádku: stálé ID zápisu deníku z API (zatím neznáme název evidence ani pole — **čeká na licenci API**; ručně lze získat jen PDF, který pro automatizaci nestačí).
   Do té doby případně lze brát z exportu Excel/CSV (v reportech Účetní deník / analýza zakázky zkusit Tisk → formát XLS/CSV).
 - Přenos cizích měn: deník nese jen Kč → `AmountNetCzk` z deníku; částka v měně dokladu (`AmountNet`) z hlavičky dokladu a rozdělí se poměrně (viz „Cizí měny“).
+
+### Účetní deník z XML (13. 10. 2026) — potvrzeno a ověřeno
+Ruční export XML `ucetni-denik` (267 zápisů, jen u nás v `vystupy/`, mimo git). **Potvrzené názvy:** evidence **`ucetni-denik`**; stálé ID zápisu **`idUcetniDenik`** (unikátní → `AbraId` = `ucetni-denik:<id>`);
+`doklad` (číslo dokladu), `modul` (FAP, FAV, BAN, ZAV, INT, MAJ, PHL…), `datUcto`/`datVyst`/`datSplat`, `mdUcet`, `dalUcet`, **`sumTuz` (částka v Kč)**, **`sumMen` (částka v měně dokladu, u CZK 0)**, `mena`, `zakazka`, `popis`, `nazFirmy`, `firma`.
+- **Cizí měna je potvrzená:** např. faktura vydaná v EUR má `sumMen` 79 896,30 EUR a `sumTuz` 1 952 665,57 Kč (kurz dne zaúčtování) → `AmountNet` = `sumMen`, `AmountNetCzk` = `sumTuz`. Hotovo v `src/journalMapping.js`.
+- `DocType` se určuje podle toho, co zápis je (náklad → `prijata`, výnos → `vydana`), ne podle modulu: např. vydaná faktura, která připíše na nákladový účet 518, je záporný náklad. Moduly ZAV/INT jsou tak `prijata`.
+- **Kontrola proti účetnictví:** mapování (`mapJournalBatch`) na tomto exportu dává součty po projektech **shodné s reportem Účetní analýza zakázky** (10501: náklad 61 047,11 / výnos 89 879,14; 26001: 125 643,00 / 2 149 758,24; 26002: 38 700,00 / 66 522,00; 26005: 171 090,08 / 1 843 300,00; 26006: výnos 142 311,00).
+  Z 267 zápisů se přenáší 78 řádků; zbytek je banka, DPH, závazky a nenákladové účty.
+- **Bez zakázky** jsou u nákladových/výnosových účtů jen 2 zápisy (část PF0033 „práce na ostatních projektech“ 4 300 Kč a drobný interní zbytek 0,03 Kč) → souvisí s rozhodnutím o Režii (viz výše).
+- **Stále neznámé:** zálohy (v deníku se žádné zálohové zápisy nevyskytly — zachytí se, až nějaké budou; zatím žádný `DocType` zaloha-*), tvar JSON z API (kvůli licenci 402), zda API vrací `mdUcet`/`dalUcet` jako „code:…“.
