@@ -45,7 +45,7 @@ function findRecipient(login: string | undefined, name: string | undefined, memb
   return email ? { email, name: name || email } : undefined;
 }
 
-function membersOf(role: Role, memberships: RoleMembership[]): Recipient[] {
+export function membersOf(role: Role, memberships: RoleMembership[]): Recipient[] {
   const out: Recipient[] = [];
   memberships
     .filter((m) => m.role === role)

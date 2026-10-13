@@ -27,6 +27,7 @@ import { BudgetDoc, BudgetRecord } from '../core/budget';
 import { CatalogInput, CatalogItem } from '../core/catalog';
 import { StoredRate, StoredRates } from '../core/currency';
 import { ListDef } from './schema';
+import { NotificationPrefs } from '../core/notifications';
 
 /** Kdo je přihlášen a co smí. */
 export interface IUserRepository {
@@ -812,6 +813,12 @@ export interface IProfileRepository {
   saveSignature(actor: CurrentUser, imageDataUrl: string): Promise<UserSignature>;
   /** Odstraní podpis přihlášeného uživatele (jen svůj). */
   removeSignature(actor: CurrentUser): Promise<void>;
+  /** Nastavení upozornění e-mailem všech uživatelů podle e-mailu (klíč `prefsKey`). Nikdy nespadne: bez dat vrací prázdný objekt (= všem zapnuto). */
+  getNotificationPrefs(): Promise<Record<string, NotificationPrefs>>;
+  /** Nastavení upozornění přihlášeného uživatele (bez uloženého = vše zapnuto). */
+  getMyNotificationPrefs(actor: CurrentUser): Promise<NotificationPrefs>;
+  /** Uloží nastavení upozornění přihlášeného uživatele (jen své; ověřuje se i zde). */
+  saveNotificationPrefs(actor: CurrentUser, prefs: NotificationPrefs): Promise<void>;
 }
 
 /**

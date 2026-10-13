@@ -33,6 +33,7 @@ import { ExternalLink } from '../../ui/components/ExternalLink';
 import { RES } from '../../ui/theme';
 import { CS_CALENDAR_STRINGS } from '../../ui/csCalendarStrings';
 import { buildHash, RouteName } from '../../ui/router';
+import { applyNotificationPrefs, mutedText } from '../notify/notificationPrefs';
 import { Currency, Partner, PartnerType, Project } from '../../core/types';
 import { formatDate, formatDateTime, formatMoney, parseAmount, parseCzechDate } from '../../core/format';
 import {
@@ -800,6 +801,11 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
       });
       return;
     }
+    const prefsSplit = await applyNotificationPrefs(repos, recipients, 'approvals');
+    if (prefsSplit.send.length === 0) {
+      setNotice({ text: `Objednávka čeká na schválení. ${mutedText(prefsSplit.muted)} — uvidí ji v přehledu Čeká na mě.`, type: MessageBarType.info });
+      return;
+    }
     const mail = approvalRequestMail({
       orderNumber: saved.orderNumber,
       projectNumber: saved.projectNumber,
@@ -813,9 +819,9 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
       companyName: settings.company.name
     });
     try {
-      await repos.mail.send({ to: recipients.map((r) => r.email), subject: mail.subject, bodyText: mail.body, attachments: [] });
+      await repos.mail.send({ to: prefsSplit.send.map((r) => r.email), subject: mail.subject, bodyText: mail.body, attachments: [] });
       setNotice({
-        text: `Schvalovatel byl upozorněn e-mailem: ${recipients.map((r) => r.name).join(', ')}.`,
+        text: `Schvalovatel byl upozorněn e-mailem: ${prefsSplit.send.map((r) => r.name).join(', ')}.${prefsSplit.muted.length > 0 ? ' ' + mutedText(prefsSplit.muted) + '.' : ''}`,
         type: MessageBarType.success
       });
     } catch (e) {
@@ -836,6 +842,9 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
       }
       const requester = requesterRecipient(saved, roleMembers);
       if (!requester || requester.email.toLowerCase() === (user.email || '').toLowerCase()) {
+        return;
+      }
+      if ((await applyNotificationPrefs(repos, [requester], 'results')).send.length === 0) {
         return;
       }
       const mail = decisionMail({

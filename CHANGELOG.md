@@ -5,6 +5,14 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.43.0 — 13. 10. 2026 — Upozornění e-mailem a jejich vypnutí v profilu
+
+- **E-mail schvalovateli rozpočtu:** při žádosti o schválení dostane e-mail vybraný schvalovatel (jinak vedení a administrátoři) s odkazem na projekt a shrnutím čísel. Žadatel dostane e-mail, když je rozpočet schválený nebo vrácený k úpravě. Selhání e-mailu schválení nebrání, aplikace to jen oznámí.
+- **Každý uživatel si upozornění vypíná v Můj profil** ve dvou skupinách: „Co čeká na moje schválení nebo kontrolu“ a „Výsledek mých žádostí“. Platí pro objednávky, podklady pro fakturaci i rozpočty. Vypnutí se týká jen e-mailu, úkol zůstává v „Čeká na mě“. Bez nastavení je vše zapnuto.
+- Nastavení je ve sloupci `NotifyPrefs` seznamu PRM_UserProfiles — **schéma 22, spustit Instalaci a diagnostiku** (do té doby se upozornění posílají všem a uložení nastavení hlásí, že chybí sloupec).
+
+---
+
 ## 0.42.0 — 13. 10. 2026 — Marže v přehledu, Režie, stav při schválení, filtr dokončených
 
 - **Marže v přehledu projektů** se počítá z Celkové ceny a Nákupu (prognóza, jinak plán), které přehled ukazuje — nečeká na přepočet cache. Přesná hodnota (z prognózy tržeb) se doplní po přepočtu nebo otevření rozpočtu. **Přepočítat všechny projekty** teď hlásí, když web nemá sloupce marží (chybí Instalace a diagnostika), místo aby tiše uložil jen část.

@@ -6,6 +6,7 @@
 import * as React from 'react';
 import { PrimaryButton, DefaultButton } from '@fluentui/react/lib/Button';
 import { Checkbox } from '@fluentui/react/lib/Checkbox';
+import { Toggle } from '@fluentui/react/lib/Toggle';
 import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
 import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 
@@ -13,6 +14,7 @@ import { useApp } from '../../ui/AppContext';
 import { RES } from '../../ui/theme';
 import { PageHeading } from '../../ui/components/PageHeading';
 import { UserSignature } from '../../core/signatures';
+import { DEFAULT_NOTIFICATION_PREFS, NOTIFICATION_LABELS, NotificationKind, NotificationPrefs } from '../../core/notifications';
 import { formatDateTime } from '../../core/format';
 import { prepareSignatureImage } from '../diary/imageUtils';
 import { SignaturePadDialog } from './SignaturePadDialog';
@@ -29,6 +31,8 @@ export const ProfilePage: React.FC = () => {
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | undefined>(undefined);
   const [notice, setNotice] = React.useState<string | undefined>(undefined);
+  const [prefs, setPrefs] = React.useState<NotificationPrefs | undefined>(undefined);
+  const [prefsBusy, setPrefsBusy] = React.useState(false);
   const fileRef = React.useRef<HTMLInputElement>(null);
   /** Původní vybraný soubor — kvůli přepnutí „odstranit bílé pozadí“ bez nového výběru. */
   const sourceRef = React.useRef<File | undefined>(undefined);
@@ -41,6 +45,35 @@ export const ProfilePage: React.FC = () => {
   }, [repos, user.loginName]);
 
   React.useEffect(load, [load]);
+
+  React.useEffect(() => {
+    repos.profiles
+      .getMyNotificationPrefs(user)
+      .then(setPrefs)
+      .catch(() => setPrefs({ ...DEFAULT_NOTIFICATION_PREFS }));
+  }, [repos, user]);
+
+  /** Přepnutí uloží hned; když se uložení nepovede, přepínač se vrátí. */
+  const setPref = (kind: NotificationKind, value: boolean): void => {
+    if (!prefs) {
+      return;
+    }
+    const next = { ...prefs, [kind]: value };
+    setPrefs(next);
+    setPrefsBusy(true);
+    setError(undefined);
+    repos.profiles
+      .saveNotificationPrefs(user, next)
+      .then(() => {
+        setPrefsBusy(false);
+        setNotice(value ? 'Upozornění zapnuta.' : 'Upozornění vypnuta.');
+      })
+      .catch((e: Error) => {
+        setPrefsBusy(false);
+        setPrefs(prefs);
+        setError(e.message);
+      });
+  };
 
   const prepare = (file: File, removeBackground: boolean): void => {
     setBusy(true);
@@ -120,6 +153,31 @@ export const ProfilePage: React.FC = () => {
           {notice}
         </MessageBar>
       )}
+
+      <section style={{ background: RES.white, border: `1px solid ${RES.grayBlue}`, borderRadius: 4, padding: '14px 18px', maxWidth: 760, marginTop: 8 }}>
+        <h2 style={{ margin: '0 0 6px', fontSize: 15, color: RES.navy }}>Upozornění e-mailem</h2>
+        <div style={{ fontSize: 13, color: RES.gray, marginBottom: 10 }}>
+          Aplikace vám může poslat e-mail, když na vás něco čeká, nebo když se rozhodlo o vaší žádosti. Vypnutí se týká jen e-mailu — úkoly dál vidíte v přehledu Čeká na mě.
+        </div>
+        {!prefs ? (
+          <Spinner size={SpinnerSize.small} label="Načítám nastavení…" labelPosition="right" styles={{ root: { justifyContent: 'flex-start' } }} />
+        ) : (
+          (['approvals', 'results'] as NotificationKind[]).map((kind) => (
+            <Toggle
+              key={kind}
+              label={NOTIFICATION_LABELS[kind].title}
+              inlineLabel
+              checked={prefs[kind]}
+              disabled={prefsBusy}
+              onText="Zapnuto"
+              offText="Vypnuto"
+              title={NOTIFICATION_LABELS[kind].hint}
+              onChange={(_, v) => setPref(kind, !!v)}
+              styles={{ root: { marginBottom: 6 } }}
+            />
+          ))
+        )}
+      </section>
 
       <section style={{ background: RES.white, border: `1px solid ${RES.grayBlue}`, borderRadius: 4, padding: '14px 18px', maxWidth: 760, marginTop: 8 }}>
         <h2 style={{ margin: '0 0 6px', fontSize: 15, color: RES.navy }}>Můj podpis</h2>

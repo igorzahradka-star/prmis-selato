@@ -24,6 +24,10 @@ import { APPROVAL_COMPATIBLE_STATUSES, APPROVAL_DEFAULT_STATUS, quickStatusChang
 import { RoleMembership } from '../../core/userAdmin';
 import { ApproverDialog } from '../orders/ApproverDialog';
 import { formatDate, formatMoney } from '../../core/format';
+import { NotificationKind, budgetApprovalMail, budgetApprovalRecipients, budgetDecisionMail, budgetRequesterRecipient } from '../../core/notifications';
+import { Recipient } from '../../core/orderNotify';
+import { applyNotificationPrefs, mutedText } from '../notify/notificationPrefs';
+import { RouteName, buildHash } from '../../ui/router';
 import { asCurrencyCode } from '../../core/currency';
 import { canIssueOrder, toActor, toWorkflowProject } from '../../core/orderWorkflow';
 import {
@@ -286,6 +290,26 @@ export const BudgetTab: React.FC<{ project: Project; /** Stav projektu se při s
     setApproverOpen(true);
   };
 
+  /** Odkaz na projekt (záložka Realizační rozpočet) pro e-mail. */
+  const budgetLink = (): string => `${(typeof window !== 'undefined' ? window.location.href : '').split('#')[0]}${buildHash(RouteName.ProjectDetail, project.projectNumber)}`;
+
+  /** Pošle upozornění podle osobního nastavení příjemců; selhání e-mailu nikdy nebrání akci — vrací větu pro hlášku. */
+  const sendBudgetMail = async (recipients: Recipient[], kind: NotificationKind, mail: { subject: string; body: string }, who: string): Promise<string> => {
+    if (recipients.length === 0) {
+      return ` E-mail ${who} se nepodařilo poslat (nenašla se adresa) — uvidí to v přehledu Čeká na mě.`;
+    }
+    const split = await applyNotificationPrefs(repos, recipients, kind);
+    if (split.send.length === 0) {
+      return ` ${mutedText(split.muted)}.`;
+    }
+    try {
+      await repos.mail.send({ to: split.send.map((x) => x.email), subject: mail.subject, bodyText: mail.body, attachments: [] });
+      return ` Upozornění e-mailem: ${split.send.map((x) => x.name).join(', ')}.${split.muted.length > 0 ? ' ' + mutedText(split.muted) + '.' : ''}`;
+    } catch (e) {
+      return ` E-mail ${who} se nepodařilo odeslat (${e instanceof Error ? e.message : String(e)}).`;
+    }
+  };
+
   const sendApprovalRequest = (picked: { login: string; name: string } | undefined): void => {
     setApproverOpen(false);
     run(async () => {
@@ -294,8 +318,18 @@ export const BudgetTab: React.FC<{ project: Project; /** Stav projektu se při s
       }
       if (record) {
         await repos.budgets.requestApproval(record.id, user, picked);
+        const t = budgetTotals(doc as BudgetDoc, 'CZK', report.rates);
+        const mail = budgetApprovalMail({
+          projectNumber: project.projectNumber,
+          projectName: project.shortName || project.title,
+          requesterName: user.displayName,
+          summary: [`Plán nákupu: ${formatMoney(t.cost, 'CZK')}`, `Tržby – plán (smluvní cena): ${formatMoney(t.sale, 'CZK')}`, `Marže – plán: ${t.plannedMargin.percent !== undefined ? pct(t.plannedMargin.percent) : '—'} (${formatMoney(t.plannedMargin.amount, 'CZK')})`],
+          link: budgetLink(),
+          companyName: settings.company.name
+        });
+        const mailNote = await sendBudgetMail(budgetApprovalRecipients(picked ? picked.login : undefined, picked ? picked.name : undefined, user.loginName, approvers), 'approvals', mail, 'schvalovateli');
         await reload();
-        setNotice(`Žádost o schválení je odeslaná${picked ? `: ${picked.name}` : ' vedení'}. Rozpočet můžete dál upravovat; schválí se jeho aktuální podoba.`);
+        setNotice(`Žádost o schválení je odeslaná${picked ? `: ${picked.name}` : ' vedení'}. Rozpočet můžete dál upravovat; schválí se jeho aktuální podoba.${mailNote}`);
       }
     });
   };
@@ -319,6 +353,10 @@ export const BudgetTab: React.FC<{ project: Project; /** Stav projektu se při s
     if (!record) {
       return;
     }
+    const requester = (): Recipient | undefined => {
+      const one = budgetRequesterRecipient(record.requestedByName, project.projectManagerLogin, project.projectManagerName, approvers);
+      return one && one.email.toLowerCase() !== (user.email || '').toLowerCase() ? one : undefined;
+    };
     run(async () => {
       if (d.kind === 'approve') {
         if (dirty) {
@@ -336,10 +374,14 @@ export const BudgetTab: React.FC<{ project: Project; /** Stav projektu se při s
           }
           statusNote = ` Stav projektu se změnil na „${d.status}“.`;
         }
-        setNotice(`Rozpočet je schválený.${statusNote} Marže při schválení je zafixovaná v historii dole, smluvní cena projektu je součet plánu výnosů a plán je teď uzamčený.${firstApproval ? ' Prognóza se nastavila na plán.' : ''}`);
+        const to = requester();
+        const mailNote = to ? await sendBudgetMail([to], 'results', budgetDecisionMail({ projectNumber: project.projectNumber, projectName: project.shortName || project.title, outcome: 'schvaleno', decidedBy: user.displayName, comment: d.text.trim() || undefined, link: budgetLink(), companyName: settings.company.name }), 'žadateli') : '';
+        setNotice(`Rozpočet je schválený.${statusNote} Marže při schválení je zafixovaná v historii dole, smluvní cena projektu je součet plánu výnosů a plán je teď uzamčený.${firstApproval ? ' Prognóza se nastavila na plán.' : ''}${mailNote}`);
       } else {
         await repos.budgets.reject(record.id, d.text, user);
-        setNotice('Rozpočet je vrácený k úpravě.');
+        const to = requester();
+        const mailNote = to ? await sendBudgetMail([to], 'results', budgetDecisionMail({ projectNumber: project.projectNumber, projectName: project.shortName || project.title, outcome: 'vraceno', decidedBy: user.displayName, comment: d.text.trim() || undefined, link: budgetLink(), companyName: settings.company.name }), 'žadateli') : '';
+        setNotice(`Rozpočet je vrácený k úpravě.${mailNote}`);
       }
       await reload();
     });

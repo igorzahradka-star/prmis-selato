@@ -18,7 +18,7 @@
  * Verze schématu. Ukládá se do PRM_Settings pod klíčem `schemaVersion`.
  * Průvodce porovná uloženou verzi s touto a nabídne doplnění rozdílu.
  */
-export const SCHEMA_VERSION = 21;
+export const SCHEMA_VERSION = 22;
 
 /** Typ sloupce v SharePointu. */
 export type FieldType =
@@ -650,7 +650,8 @@ const PRM_USER_PROFILES: ListDef = {
     { name: 'UserLogin', title: 'Přihlašovací jméno', type: 'Text', required: true, indexed: true },
     { name: 'UserName', title: 'Jméno', type: 'Text' },
     { name: 'Signature', title: 'Podpis (obrázek)', type: 'Note', description: 'Obrázek podpisu jako PNG/JPEG data URL. Nastavuje si každý sám v aplikaci (Můj profil).' },
-    { name: 'SignatureUpdated', title: 'Podpis změněn', type: 'DateTime' }
+    { name: 'SignatureUpdated', title: 'Podpis změněn', type: 'DateTime' },
+    { name: 'NotifyPrefs', title: 'Upozornění e-mailem (JSON)', type: 'Note', description: 'Co si uživatel vypnul: {"approvals":bool,"results":bool}. Prázdné = vše zapnuto. Nastavuje si každý sám v aplikaci (Můj profil).' }
   ]
 };
 

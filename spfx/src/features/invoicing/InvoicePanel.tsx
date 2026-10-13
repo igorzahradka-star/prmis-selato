@@ -35,6 +35,7 @@ import { CS_CALENDAR_STRINGS } from '../../ui/csCalendarStrings';
 import { useAutoRefresh } from '../../ui/useAutoRefresh';
 import { ExternalLink } from '../../ui/components/ExternalLink';
 import { buildHash, RouteName } from '../../ui/router';
+import { applyNotificationPrefs, mutedText } from '../notify/notificationPrefs';
 import { Currency, Partner, Project } from '../../core/types';
 import { formatDate, formatDateTime, formatMoney, parseAmount, parseCzechDate } from '../../core/format';
 import { OrderAttachment, OrderLine, lineTotalNet } from '../../core/orders';
@@ -358,6 +359,11 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
       });
       return;
     }
+    const prefsSplit = await applyNotificationPrefs(repos, recipients, 'approvals');
+    if (prefsSplit.send.length === 0) {
+      setNotice({ text: `Podklad čeká na kontrolu. ${mutedText(prefsSplit.muted)} — uvidí ho v přehledu Čeká na mě.`, type: MessageBarType.info });
+      return;
+    }
     const mail = invoiceCheckMail({
       number: saved.number,
       projectNumber: saved.projectNumber,
@@ -369,8 +375,8 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
       companyName: settings.company.name
     });
     try {
-      await repos.mail.send({ to: recipients.map((r) => r.email), subject: mail.subject, bodyText: mail.body, attachments: [] });
-      setNotice({ text: `Kontrolor byl upozorněn e-mailem: ${recipients.map((r) => r.name).join(', ')}.`, type: MessageBarType.success });
+      await repos.mail.send({ to: prefsSplit.send.map((r) => r.email), subject: mail.subject, bodyText: mail.body, attachments: [] });
+      setNotice({ text: `Kontrolor byl upozorněn e-mailem: ${prefsSplit.send.map((r) => r.name).join(', ')}.${prefsSplit.muted.length > 0 ? ' ' + mutedText(prefsSplit.muted) + '.' : ''}`, type: MessageBarType.success });
     } catch (e) {
       setNotice({
         text: `Podklad čeká na kontrolu, ale e-mail kontrolorovi se nepodařilo odeslat (${why(e)}). Řekněte mu to prosím sami.`,
@@ -386,6 +392,9 @@ export const InvoicePanel: React.FC<InvoicePanelProps> = ({ isOpen, invoiceId, p
     }
     const requester = personRecipient(saved.requestedByLogin, saved.requestedByName, roleMembers);
     if (!requester) {
+      return;
+    }
+    if ((await applyNotificationPrefs(repos, [requester], 'results')).send.length === 0) {
       return;
     }
     const mail = invoiceReturnedMail({

@@ -107,6 +107,13 @@ Po nahrání: **Instalace a diagnostika** (schéma 21) a na téže stránce **P�
 - [ ] Schválení rozpočtu u projektu ve stavu Nabídka: v dialogu je volba nového stavu (výchozí Příprava); po schválení je projekt v tom stavu. U projektu v Realizaci volba není.
 - [ ] Režie: záložka Fakturace dovolí „Nový podklad“; záložka Realizační rozpočet nabídne Založit rozpočet a ukáže jen Výnosy (bez nákupu a schvalování).
 
+## 4f. Upozornění e-mailem (0.43)
+- [ ] Po Instalaci (schéma 22) jde v Můj profil přepnout obě upozornění; po obnovení stránky zůstanou přepnutá.
+- [ ] Rozpočet: „Požádat o schválení“ pošle e-mail vybranému schvalovateli (jinak vedení a administrátorům); hláška uvede, komu. Žadatel e-mail nedostane.
+- [ ] Schválit / Vrátit k úpravě: žadatel dostane e-mail s výsledkem a komentářem.
+- [ ] Příjemce, který si vypnul „Co čeká na moje schválení“, e-mail nedostane; hláška to uvede a úkol vidí v „Čeká na mě“. Totéž pro objednávky a podklady pro fakturaci.
+- [ ] Příjemce s vypnutým „Výsledek mých žádostí“ nedostane zprávu o schválení / vrácení.
+
 ## 5. Cashflow — vazby na harmonogram (0.34)
 - [ ] U platby nákladů zvolte **úkol harmonogramu**, kotvu (zahájení / dokončení), posun a splatnost → datum faktury a splatnost se vyplní samy a jsou zamčené.
 - [ ] Posuňte úkol v harmonogramu a uložte → platba v cashflow se posune.
