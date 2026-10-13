@@ -1,6 +1,6 @@
 import { BudgetDoc, BudgetGroup, BudgetItem, DocAllocation, RevenueLine, budgetFromJson, budgetToJson, budgetTotals, calcItems } from './budget';
 import { RateTable } from './currency';
-import { AbraDoc, advanceSummary, allocatedOfDoc, assignDoc, docsForTarget, moveAllocation, orphanAllocations, unallocatedDocs, unallocatedOfDoc, unallocatedTotals, unassignDoc } from './abraDocs';
+import { AbraDoc, abraRowMatches, advanceSummary, allocatedOfDoc, assignDoc, assignStateOf, replaceDocAllocations, setDocTarget, docsForTarget, moveAllocation, orphanAllocations, unallocatedDocs, unallocatedOfDoc, unallocatedTotals, unassignDoc } from './abraDocs';
 
 const RATES = { EUR: 25, USD: 20, source: 'test' } as unknown as RateTable;
 const g1: BudgetGroup = { id: 'g1', name: 'Střídače', kind: 'standard', defaultMarkupPercent: 0 };
@@ -133,5 +133,41 @@ describe('přehledy dokladů', () => {
     const list = docsForTarget(docs, split, 'item', 'i1');
     expect(list.map((x) => [x.doc.abraId, x.amount, x.split])).toEqual([['FP-2', 100, true]]);
     expect(orphanAllocations(docs, split).map((a) => a.docId)).toEqual(['SMAZANA']);
+  });
+});
+
+describe('hledání v řádcích', () => {
+  const row = faktura({ partnerName: 'Memodo s.r.o.', description: 'Střídač 100 kW', accounts: ['501'] });
+  it('najde podle čísla, partnera, popisu i účtu a ignoruje diakritiku a velikost písmen', () => {
+    expect(['', 'fp26', 'MEMODO', 'stridac', 'kw', '501'].map((q) => abraRowMatches(row, q))).toEqual([true, true, true, true, true, true]);
+    expect(abraRowMatches(row, 'jiny dodavatel')).toBe(false);
+  });
+});
+
+describe('přepínání cíle a rozdělení řádku', () => {
+  const doc = faktura();
+  it('stav přiřazení: nic, část, celý, záloha', () => {
+    const l = (amount: number): DocAllocation[] => [{ docId: 'FP-1', kind: 'item', targetId: 'i1', amount, currency: 'CZK' }];
+    expect(assignStateOf(doc, undefined)).toBe('none');
+    expect(assignStateOf(doc, l(200))).toBe('partial');
+    expect(assignStateOf(doc, l(600))).toBe('full');
+    expect(assignStateOf(faktura({ type: 'zaloha-vydana' }), undefined)).toBe('advance');
+  });
+  it('změna cíle přesune celou částku; bez cíle řádek zůstane nepřiřazený', () => {
+    const a = (setDocTarget(undefined, doc, 'item', 'i1') as { allocations: DocAllocation[] }).allocations;
+    expect(a).toHaveLength(1);
+    const b = (setDocTarget(a, doc, 'item', 'i2') as { allocations: DocAllocation[] }).allocations;
+    expect(b.map((x) => [x.targetId, x.amount])).toEqual([['i2', 600]]);
+    expect((setDocTarget(b, doc, 'item', undefined) as { allocations: DocAllocation[] }).allocations).toEqual([]);
+    expect('error' in setDocTarget(undefined, faktura({ type: 'zaloha-prijata' }), 'item', 'i1')).toBe(true);
+  });
+  it('rozdělení: části se sloučí podle cíle, součet nesmí přesáhnout řádek, ostatní doklady zůstanou', () => {
+    const other: DocAllocation = { docId: 'JINY', kind: 'item', targetId: 'i1', amount: 5, currency: 'CZK' };
+    const ok = replaceDocAllocations([other], doc, 'item', [{ targetId: 'i1', amount: 100 }, { targetId: 'i2', amount: 300 }, { targetId: 'i1', amount: 50 }]) as { allocations: DocAllocation[] };
+    expect(ok.allocations.map((x) => [x.docId, x.targetId, x.amount])).toEqual([['JINY', 'i1', 5], ['FP-1', 'i1', 150], ['FP-1', 'i2', 300]]);
+    expect('error' in replaceDocAllocations(undefined, doc, 'item', [{ targetId: 'i1', amount: 700 }])).toBe(true);
+    expect('error' in replaceDocAllocations(undefined, doc, 'item', [{ targetId: '', amount: 10 }])).toBe(true);
+    expect('error' in replaceDocAllocations(undefined, doc, 'item', [{ targetId: 'i1', amount: -10 }])).toBe(true);
+    expect((replaceDocAllocations([other], doc, 'item', []) as { allocations: DocAllocation[] }).allocations).toEqual([other]);
   });
 });

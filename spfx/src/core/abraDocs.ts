@@ -155,3 +155,72 @@ export function advanceSummary(docs: AbraDoc[], target: CurrencyCode, rates: Rat
   const sum = (type: AbraDocType): number => round2(adv.filter((d) => d.type === type).reduce((s, d) => s + convertAmount(d.amountNet, d.currency, target, rates), 0));
   return { received: sum('zaloha-prijata'), issued: sum('zaloha-vydana'), docs: adv };
 }
+
+/** Hledání v řádcích z účetnictví: číslo dokladu, partner, popis, účet (bez ohledu na velikost písmen a diakritiku). */
+export function abraRowMatches(row: AbraDoc, search: string): boolean {
+  const fold = (s: string): string => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const q = fold(search.trim());
+  if (q === '') {
+    return true;
+  }
+  return fold([row.number, row.partnerName || '', row.description || '', (row.accounts || []).join(' ')].join(' ')).indexOf(q) !== -1;
+}
+
+/** Stav přiřazení řádku z účetnictví: nic / část / celý / záloha (nepřiřazuje se). */
+export type DocAssignState = 'none' | 'partial' | 'full' | 'advance';
+
+export function assignStateOf(d: AbraDoc, allocations: DocAllocation[] | undefined): DocAssignState {
+  if (isAdvance(d)) {
+    return 'advance';
+  }
+  const done = allocatedOfDoc(allocations, d.abraId);
+  if (done === 0) {
+    return 'none';
+  }
+  return Math.abs(unallocatedOfDoc(d, allocations)) > 0.005 ? 'partial' : 'full';
+}
+
+/**
+ * Přepne řádek k jinému cíli: původní přiřazení se zruší a na nový cíl jde celá částka řádku. Bez cíle se řádek vrátí mezi nepřiřazené.
+ * Slouží rozbalovátku „Přiřazeno k“ — PM může položku kdykoli změnit nebo zrušit.
+ */
+export function setDocTarget(allocations: DocAllocation[] | undefined, doc: AbraDoc, kind: 'item' | 'revenue', targetId: string | undefined): { allocations: DocAllocation[] } | { error: string } {
+  const cleared = unassignDoc(allocations, doc.abraId);
+  if (!targetId) {
+    return { allocations: cleared };
+  }
+  return assignDoc(cleared, doc, kind, targetId);
+}
+
+/** Nahradí všechna přiřazení řádku zadanými částmi (rozdělení mezi víc položek); součet částí nesmí přesáhnout částku řádku. */
+export function replaceDocAllocations(allocations: DocAllocation[] | undefined, doc: AbraDoc, kind: 'item' | 'revenue', parts: { targetId: string; amount: number }[]): { allocations: DocAllocation[] } | { error: string } {
+  if (isAdvance(doc)) {
+    return { error: 'Zálohová faktura se k položkám nepřiřazuje.' };
+  }
+  if (targetKindOf(doc) !== kind) {
+    return { error: 'Řádek nejde přiřadit k tomuto druhu cíle.' };
+  }
+  let sum = 0;
+  const merged: { targetId: string; amount: number }[] = [];
+  for (const p of parts) {
+    const amount = round2(p.amount);
+    if (!p.targetId) {
+      return { error: 'U každé části vyberte položku.' };
+    }
+    if (amount === 0 || Math.sign(amount) !== Math.sign(doc.amountNet)) {
+      return { error: 'Částky musí být nenulové a mít stejné znaménko jako řádek.' };
+    }
+    sum += amount;
+    const same = merged.filter((m) => m.targetId === p.targetId)[0];
+    if (same) {
+      same.amount = round2(same.amount + amount);
+    } else {
+      merged.push({ targetId: p.targetId, amount });
+    }
+  }
+  if (Math.abs(sum) > Math.abs(doc.amountNet) + 0.005) {
+    return { error: 'Součet částí je vyšší než částka řádku.' };
+  }
+  const rest = unassignDoc(allocations, doc.abraId);
+  return { allocations: [...rest, ...merged.map((m) => ({ docId: doc.abraId, kind, targetId: m.targetId, amount: m.amount, currency: doc.currency }))] };
+}

@@ -39,6 +39,7 @@ import { ProjectInvoicesTab } from '../invoicing/ProjectInvoicesTab';
 import { ProjectDiaryTab } from '../diary/ProjectDiaryTab';
 import { ProjectHandoverTab } from '../diary/ProjectHandoverTab';
 import { BudgetTab } from '../budget/BudgetTab';
+import { AccountingDataTab } from '../accounting/AccountingDataTab';
 import { CashflowTab } from '../cashflow/CashflowTab';
 import { ProjectPhotos } from '../photos/ProjectPhotos';
 
@@ -303,6 +304,9 @@ export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projec
         </PivotItem>
         <PivotItem headerText="Realizační rozpočet" itemIcon="Table">
           <BudgetTab project={project} onProjectChanged={(p) => setProject(p)} />
+        </PivotItem>
+        <PivotItem headerText="Data z účetnictví" itemIcon="Financial">
+          <AccountingDataTab project={project} />
         </PivotItem>
         <PivotItem headerText="Cashflow" itemIcon="Money">
           <CashflowTab project={project} />

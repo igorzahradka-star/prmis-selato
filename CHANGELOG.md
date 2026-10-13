@@ -5,6 +5,16 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.44.1 — 14. 10. 2026 — Data z účetnictví jako samostatná záložka
+
+- Doklady z Abry už nejsou uvnitř rozpočtu (list byl nepřehledný), jsou v **samostatné záložce projektu „Data z účetnictví“** (vedle Realizačního rozpočtu a Cashflow).
+- Tabulka má **řádky** (faktura nebo její část, resp. zápis z účetního deníku): datum, doklad, partner a popis, účet, částka. Každý řádek se přiřadí rozbalovátkem k položce rozpočtu (nebo k výnosu); jde **kdykoli změnit nebo vrátit na „nepřiřazeno“**, a **Rozdělit…** rozdělí částku mezi víc položek.
+- **Barvy řádků:** zelený = přiřazeno, žlutý = přiřazeno jen částečně, bílý s oranžovým proužkem = nepřiřazeno, šedý = záloha (nezapočítává se). **Filtr** Vše / Jen nepřiřazené / Jen přiřazené, druh dokladu a hledání.
+- Nahoře souhrn nepřiřazeného nákupu a výnosů, počet přiřazených řádků a zálohy; změny se ukládají samy a přepočítají marži v přehledu projektů.
+- V rozpočtu zůstaly u položek a výnosů tlačítka **Doklady (n)** s přiřazenými řádky. Bez změny schématu (zůstává 23).
+
+---
+
 ## 0.44.0 — 14. 10. 2026 — Doklady z Abry v rozpočtu (strana PRMIS, bez napojení)
 
 - **Doklady z účetnictví ABRA Flexi** (faktury přijaté, vydané, zálohové) se ukazují v rozpočtu projektu v části **Doklady z Abry**: přehled, přiřazení doklad → položka nákupu (přijaté) nebo výnos (vydané), **rozdělení částky** mezi víc položek, tlačítko **Doklady** u každé položky a výnosu (seznam přiřazených dokladů, odebrání, přiřazení dalšího).

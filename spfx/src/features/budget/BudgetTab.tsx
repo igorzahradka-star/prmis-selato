@@ -29,8 +29,6 @@ import { Recipient } from '../../core/orderNotify';
 import { applyNotificationPrefs, mutedText } from '../notify/notificationPrefs';
 import { RouteName, buildHash } from '../../ui/router';
 import { AbraDoc } from '../../core/abraDocs';
-import { AbraSyncStatus } from '../../data/repositories';
-import { AbraDocsPanel } from './AbraDocsPanel';
 import { DocsTarget, TargetDocsDialog } from './TargetDocsDialog';
 import { asCurrencyCode } from '../../core/currency';
 import { canIssueOrder, toActor, toWorkflowProject } from '../../core/orderWorkflow';
@@ -139,34 +137,14 @@ export const BudgetTab: React.FC<{ project: Project; /** Stav projektu se při s
 
   // Doklady z účetnictví (ABRA Flexi): načtou se k rozpočtu; přiřazení k položkám se ukládá v rozpočtu.
   const [abraDocs, setAbraDocs] = React.useState<AbraDoc[]>([]);
-  const [abraStatus, setAbraStatus] = React.useState<AbraSyncStatus | undefined>(undefined);
-  const [abraBusy, setAbraBusy] = React.useState(false);
   const [docsTarget, setDocsTarget] = React.useState<DocsTarget | undefined>(undefined);
   const loadAbra = React.useCallback((): void => {
     repos.abraDocs
       .list(project.projectNumber)
       .then(setAbraDocs)
       .catch(() => setAbraDocs([]));
-    repos.abraDocs
-      .syncStatus()
-      .then(setAbraStatus)
-      .catch(() => setAbraStatus(undefined));
   }, [repos, project.projectNumber]);
   React.useEffect(loadAbra, [loadAbra]);
-  const requestAbraSync = (): void => {
-    setAbraBusy(true);
-    repos.abraDocs
-      .requestSync(user)
-      .then(() => {
-        setAbraBusy(false);
-        setNotice('Žádost o aktualizaci z Abry je zapsaná. Nové doklady se objeví, jakmile je prostředník stáhne (obvykle do několika minut).');
-        loadAbra();
-      })
-      .catch((e: unknown) => {
-        setAbraBusy(false);
-        setError(e instanceof Error ? e.message : String(e));
-      });
-  };
 
   const [approvers, setApprovers] = React.useState<RoleMembership[]>([]);
   const [approverOpen, setApproverOpen] = React.useState(false);
@@ -696,7 +674,6 @@ export const BudgetTab: React.FC<{ project: Project; /** Stav projektu se při s
             }}
           />
 
-          <AbraDocsPanel doc={doc} docs={abraDocs} status={abraStatus} rates={report.rates} reportCurrency={report.currency} editable={editable && !busy} refreshing={abraBusy} onRefresh={requestAbraSync} onChange={setDoc} />
           {docsTarget && <TargetDocsDialog target={docsTarget} doc={doc} docs={abraDocs} rates={report.rates} editable={editable && !busy} onChange={setDoc} onClose={() => setDocsTarget(undefined)} />}
 
           <div style={{ fontSize: 12, color: RES.gray, marginTop: 8 }}>
