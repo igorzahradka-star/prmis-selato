@@ -419,7 +419,7 @@ export const BudgetGrid: React.FC<BudgetGridProps> = ({ doc, onChange, editable,
                             </td>
                             <td style={TD} />
                             <td style={{ ...TD, fontSize: 13 }}>CZK</td>
-                            <td style={TD}>
+                            <td style={TD} title={planEditable && (!rate || rate.costRate <= 0) ? 'Částku nejde zadat: profese nemá nákladovou sazbu. Doplňte ji v tabulce sazeb profesí (Kč/hod) nebo vyberte jinou profesi.' : undefined}>
                               <NumInput
                                 value={c.cost}
                                 ariaLabel="Plán práce celkem"

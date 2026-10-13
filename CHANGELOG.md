@@ -5,6 +5,12 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.41.1 — 13. 10. 2026 — Vysvětlení zašedlého plánu u vlastní práce
+
+- Částka plánu vlastní práce je zašedlá, když vybraná profese **nemá nákladovou sazbu** (0 Kč/hod) — hodiny se z částky nedají spočítat. Políčko teď nad sebou ukazuje vysvětlení a co udělat (doplnit sazbu v „Sazby profesí“). Bez změny schématu.
+
+---
+
 ## 0.41.0 — 13. 10. 2026 — Výnosy po schválení volné, šířka sloupců podle uživatele
 
 - **Výnosy (smluvní cena, dodatky, rozpis fakturace) se po schválení rozpočtu upravují a přidávají volně** — tlačítko „Přidat výnos“, plán, měna i smazání jsou dostupné i u schváleného rozpočtu. Zamčená zůstává jen **výchozí marže** zafixovaná ve schválení (historie schválení) a plán nákupu. Kontrola v datové vrstvě (`planViolations`) výnosy už nehlídá. „＋ Nový výnos (dodatek)“ v Cashflow vždy založí výnos s plánem podle částky milníku.
