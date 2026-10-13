@@ -46,6 +46,8 @@ export interface WorkflowProject {
   projectManagerName?: string;
   assistantLogins?: string[];
   isOverhead: boolean;
+  /** Servisní projekt (zařízení v modulu Servis): objednává dispečer, krok „PM“ schvaluje správce servisu. */
+  isService?: boolean;
 }
 
 export interface WorkflowContext {
@@ -116,6 +118,10 @@ function sameLogin(a: string | undefined, b: string | undefined): boolean {
  * sem stačí kontrola, že jde o roli, která objednává.
  */
 export function canIssueOrder(project: WorkflowProject, actor: Actor): boolean {
+  if (project.isService) {
+    // Servis: jen role Servisu (a administrátor); běžní projektoví manažeři servisní projekty nevidí ani neobjednávají.
+    return hasAnyRole(actor.roles, Role.Administrator, Role.SpravceServisu, Role.Dispecer);
+  }
   if (project.isOverhead) {
     return hasAnyRole(actor.roles, Role.Administrator, Role.Vedeni, Role.ProjektovyManazer, Role.AsistentPM);
   }
@@ -129,7 +135,8 @@ export function canIssueOrder(project: WorkflowProject, actor: Actor): boolean {
 export function canManageOrder(order: PurchaseOrder, project: WorkflowProject, actor: Actor): boolean {
   return (
     sameLogin(order.requestedByLogin, actor.login) ||
-    sameLogin(project.projectManagerLogin, actor.login) ||
+    (!project.isService && sameLogin(project.projectManagerLogin, actor.login)) ||
+    (!!project.isService && hasAnyRole(actor.roles, Role.SpravceServisu, Role.Dispecer)) ||
     hasAnyRole(actor.roles, Role.Administrator, Role.Vedeni)
   );
 }
@@ -174,7 +181,8 @@ function mayApproveLevel(level: ApprovalLevel, order: PurchaseOrder, project: Wo
   }
   switch (level) {
     case 'pm':
-      return sameLogin(project.projectManagerLogin, actor.login);
+      // Servis: krok „PM“ schvaluje správce servisu (dispečer jen vystavuje).
+      return project.isService ? hasAnyRole(actor.roles, Role.SpravceServisu) : sameLogin(project.projectManagerLogin, actor.login);
     case 'vedeni':
       return hasAnyRole(actor.roles, Role.Vedeni);
     case 'jednatel':
@@ -282,6 +290,8 @@ export interface ChainInput {
   projectManagerLogin?: string;
   isOverhead: boolean;
   settings: ApprovalSettings;
+  /** Servisní projekt a vystavitel je správce servisu: krok „PM“ se u něj chová jako samoschválení PM. */
+  issuerIsServiceAdmin?: boolean;
   /** Konkrétní schvalovatelé jednotlivých kroků; bez nich smí krok schválit kdokoli z role. */
   assignees?: Partial<Record<ApprovalLevel, Assignee>>;
 }
@@ -306,7 +316,7 @@ export function buildApprovalChain(input: ChainInput): { steps: ApprovalStep[] }
     }
   }
 
-  const issuerIsPm = sameLogin(input.issuerLogin, input.projectManagerLogin);
+  const issuerIsPm = sameLogin(input.issuerLogin, input.projectManagerLogin) || !!input.issuerIsServiceAdmin;
   const steps: ApprovalStep[] = [];
 
   levels.forEach((level) => {
@@ -346,7 +356,7 @@ export function defaultApproverLogin(
 ): string {
   const wanted: Assignee | undefined =
     level === 'pm'
-      ? project.projectManagerLogin
+      ? project.projectManagerLogin && !project.isService
         ? { login: project.projectManagerLogin, name: project.projectManagerName || project.projectManagerLogin }
         : undefined
       : level === 'vedeni'
@@ -425,6 +435,7 @@ export function submitOrder(
     projectManagerLogin: ctx.project.projectManagerLogin,
     isOverhead: ctx.project.isOverhead,
     settings: ctx.settings,
+    issuerIsServiceAdmin: !!ctx.project.isService && hasAnyRole(ctx.actor.roles, Role.SpravceServisu),
     assignees
   });
   const next = afterChain(steps);
@@ -603,13 +614,15 @@ export function toWorkflowProject(project: {
   projectManagerName?: string;
   assistantLogins?: string[];
   isOverhead: boolean;
+  projectType?: string;
 }): WorkflowProject {
   return {
     projectNumber: project.projectNumber,
     projectManagerLogin: project.projectManagerLogin,
     projectManagerName: project.projectManagerName,
     assistantLogins: project.assistantLogins,
-    isOverhead: project.isOverhead
+    isOverhead: project.isOverhead,
+    isService: project.projectType === 'Servis'
   };
 }
 
@@ -701,7 +714,7 @@ export function approverCandidates(
   project: WorkflowProject,
   requesterLogin: string
 ): Assignee[] {
-  const role = level === 'pm' ? Role.ProjektovyManazer : level === 'vedeni' ? Role.Vedeni : Role.Jednatel;
+  const role = level === 'pm' ? (project.isService ? Role.SpravceServisu : Role.ProjektovyManazer) : level === 'vedeni' ? Role.Vedeni : Role.Jednatel;
   const result: Assignee[] = [];
   const add = (login: string | undefined, name: string | undefined): void => {
     if (!login || sameLogin(login, requesterLogin)) {
@@ -713,7 +726,7 @@ export function approverCandidates(
     result.push({ login, name: name || login });
   };
   memberships.filter((m) => m.role === role).forEach((m) => m.members.forEach((p) => add(p.loginName, p.displayName)));
-  if (level === 'pm') {
+  if (level === 'pm' && !project.isService) {
     add(project.projectManagerLogin, project.projectManagerName);
   }
   return result.sort((a, b) => a.name.localeCompare(b.name, 'cs-CZ'));

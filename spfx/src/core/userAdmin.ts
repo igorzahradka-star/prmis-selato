@@ -144,6 +144,8 @@ export const ROLE_PURPOSE: Record<Role, string> = {
   [Role.ProjektovyManazer]:
     'Zakládá a vede své projekty, schvaluje objednávky do svého limitu. Projekty mazat nesmí — má na to stav Storno.',
   [Role.AsistentPM]: 'Pracuje na přiřazených projektech, vystavuje objednávky, ale neschvaluje je.',
+  [Role.SpravceServisu]: 'Modul Servis: spravuje lokality a zařízení, kontroluje provedené servisní listy a odemyká fakturaci. Servis vidí jen role Servisu (a administrátor, vedení).',
+  [Role.Dispecer]: 'Modul Servis: pod správcem servisu zapisuje požadavky, zakládá servisní listy a objednává dodavatele. Kontrolu a fakturaci neodemyká.',
   [Role.Ctenar]: 'Jen čte projekty. Nic nemění.'
 };
 
@@ -158,6 +160,8 @@ export const ROLE_ORDER: Role[] = [
   Role.Finance,
   Role.ProjektovyManazer,
   Role.AsistentPM,
+  Role.SpravceServisu,
+  Role.Dispecer,
   Role.Ctenar
 ];
 
@@ -191,6 +195,8 @@ export const ROLE_PERMISSION_LEVEL: Record<Role, PermissionLevel> = {
   [Role.Finance]: 'Reader',
   [Role.ProjektovyManazer]: 'Editor',
   [Role.AsistentPM]: 'Editor',
+  [Role.SpravceServisu]: 'Editor',
+  [Role.Dispecer]: 'Editor',
   [Role.Ctenar]: 'Reader'
 };
 

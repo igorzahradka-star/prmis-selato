@@ -362,6 +362,34 @@ describe('cancelOrder', () => {
   });
 });
 
+describe('Servis: objednávky servisních projektů', () => {
+  const servis: WorkflowProject = { projectNumber: '10501', isOverhead: false, isService: true };
+  const spravce: Actor = { login: 'i:0#.f|membership|spravce@revoltum.cz', displayName: 'Sára Správce', roles: [Role.SpravceServisu] };
+  const dispecer: Actor = { login: 'i:0#.f|membership|dispecer@revoltum.cz', displayName: 'David Dispečer', roles: [Role.Dispecer] };
+  const cizi: Actor = { login: 'i:0#.f|membership|cizipm@revoltum.cz', displayName: 'Běžný PM', roles: [Role.ProjektovyManazer] };
+  it('objednávat smí správce, dispečer a administrátor; běžný PM a asistent ne', () => {
+    expect([spravce, dispecer, admin].map((a) => canIssueOrder(servis, a))).toEqual([true, true, true]);
+    expect([cizi, asistent].map((a) => canIssueOrder(servis, a))).toEqual([false, false]);
+  });
+  it('krok „PM“ u servisní objednávky schvaluje správce servisu, ne dispečer', () => {
+    const o = objednavka({ requestedByLogin: dispecer.login, requestedByName: dispecer.displayName, status: OrderStatus.KeSchvaleni, approvalChain: [{ level: 'pm', approved: false }], currentApprovalLevel: 'pm' });
+    expect(() => decideOrder(o, 'approve', '', ctx(dispecer, servis))).toThrow(WorkflowError);
+    expect(() => decideOrder(o, 'approve', '', ctx(cizi, servis))).toThrow(WorkflowError);
+    expect(decideOrder(o, 'approve', '', ctx(spravce, servis)).status).toBe(OrderStatus.Schvaleno);
+  });
+  it('kandidáty na schvalovatele kroku „PM“ jsou členové role Správce servisu', () => {
+    const m = [
+      { role: Role.SpravceServisu, members: [{ id: 1, loginName: spravce.login, displayName: spravce.displayName, email: 's@x.cz' }] },
+      { role: Role.ProjektovyManazer, members: [{ id: 2, loginName: cizi.login, displayName: cizi.displayName, email: 'c@x.cz' }] }
+    ] as never;
+    expect(approverCandidates('pm', m, servis, dispecer.login).map((a) => a.name)).toEqual(['Sára Správce']);
+  });
+  it('správce servisu si vlastní objednávku do limitu PM schválí sám (krok „PM“ se vyřídí automaticky)', () => {
+    const { steps } = buildApprovalChain({ amountNetCzk: 1000, issuerLogin: spravce.login, isOverhead: false, settings: { ...SETTINGS, pmSelfApprovalEnabled: true }, issuerIsServiceAdmin: true });
+    expect(steps).toEqual([{ level: 'pm', approved: true, auto: true }]);
+  });
+});
+
 describe('canIssueOrder', () => {
   it('na běžný projekt smí PM projektu, jeho asistent, vedení a administrátor; cizí PM ne', () => {
     expect(canIssueOrder(projekt, pm)).toBe(true);

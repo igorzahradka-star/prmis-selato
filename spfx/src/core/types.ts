@@ -22,6 +22,10 @@ export enum Role {
   ProjektovyManazer = 'ProjektovyManazer',
   /** Pracuje na přiřazených projektech, ale neschvaluje. */
   AsistentPM = 'AsistentPM',
+  /** Modul Servis: lokality, zařízení, požadavky; kontroluje provedení a odemyká fakturaci. Servisní projekty vidí jen role Servisu. */
+  SpravceServisu = 'SpravceServisu',
+  /** Modul Servis: pod správcem servisu — zapisuje požadavky, zakládá servisní listy a objednává dodavatele. */
+  Dispecer = 'Dispecer',
   /** Jen čtení projektů. */
   Ctenar = 'Ctenar'
 }
@@ -34,6 +38,8 @@ export const ROLE_LABELS: Record<Role, string> = {
   [Role.Finance]: 'Finance – důvěrné',
   [Role.ProjektovyManazer]: 'Projektový manažer',
   [Role.AsistentPM]: 'Asistent PM',
+  [Role.SpravceServisu]: 'Správce servisu',
+  [Role.Dispecer]: 'Dispečer servisu',
   [Role.Ctenar]: 'Čtenář'
 };
 

@@ -368,6 +368,8 @@ export const MOCK_ROLE_MEMBERS: { role: Role; members: Person[] }[] = [
   { role: Role.Finance, members: [MOCK_DIRECTORY[0], MOCK_DIRECTORY[4]] },
   { role: Role.ProjektovyManazer, members: [MOCK_DIRECTORY[0], MOCK_DIRECTORY[1], MOCK_DIRECTORY[2]] },
   { role: Role.AsistentPM, members: [MOCK_DIRECTORY[5]] },
+  { role: Role.SpravceServisu, members: [MOCK_DIRECTORY[0]] },
+  { role: Role.Dispecer, members: [MOCK_DIRECTORY[1]] },
   { role: Role.Ctenar, members: [MOCK_DIRECTORY[6]] }
 ];
 

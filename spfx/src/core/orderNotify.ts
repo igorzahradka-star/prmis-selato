@@ -78,6 +78,9 @@ export function approvalRecipients(order: PurchaseOrder, project: WorkflowProjec
   if (step.assignedLogin) {
     const one = findRecipient(step.assignedLogin, step.assignedName, memberships);
     found = one ? [one] : [];
+  } else if (step.level === 'pm' && project.isService) {
+    // Servis: krok „PM“ schvaluje správce servisu.
+    found = membersOf(Role.SpravceServisu, memberships);
   } else if (step.level === 'pm') {
     const one = findRecipient(project.projectManagerLogin, project.projectManagerName, memberships);
     found = one ? [one] : [];

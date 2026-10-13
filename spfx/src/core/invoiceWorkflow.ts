@@ -50,13 +50,18 @@ export function canIssueInvoice(project: WorkflowProject, actor: Actor): boolean
 export function canManageInvoice(inv: InvoiceBasis, project: WorkflowProject, actor: Actor): boolean {
   return (
     sameLogin(inv.requestedByLogin, actor.login) ||
-    sameLogin(project.projectManagerLogin, actor.login) ||
+    (!project.isService && sameLogin(project.projectManagerLogin, actor.login)) ||
+    (!!project.isService && hasAnyRole(actor.roles, Role.SpravceServisu, Role.Dispecer)) ||
     hasAnyRole(actor.roles, Role.Administrator, Role.Vedeni)
   );
 }
 
 /** Kdo smí podklad zkontrolovat a předat účtárně: PM projektu, vedení, administrátor. */
 export function canCheckInvoice(project: WorkflowProject, actor: Actor): boolean {
+  // Servis: podklad kontroluje správce servisu (dispečer ne).
+  if (project.isService) {
+    return hasAnyRole(actor.roles, Role.SpravceServisu, Role.Administrator, Role.Vedeni);
+  }
   return sameLogin(project.projectManagerLogin, actor.login) || hasAnyRole(actor.roles, Role.Administrator, Role.Vedeni);
 }
 

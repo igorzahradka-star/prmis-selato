@@ -20,6 +20,8 @@ export interface RoleGroupMapping {
   [Role.Finance]: string;
   [Role.ProjektovyManazer]: string;
   [Role.AsistentPM]: string;
+  [Role.SpravceServisu]: string;
+  [Role.Dispecer]: string;
   [Role.Ctenar]: string;
 }
 
@@ -30,6 +32,8 @@ export const DEFAULT_ROLE_GROUPS: RoleGroupMapping = {
   [Role.Finance]: 'PRM Finance – důvěrné',
   [Role.ProjektovyManazer]: 'PRM Projektoví manažeři',
   [Role.AsistentPM]: 'PRM Asistenti',
+  [Role.SpravceServisu]: 'PRM Správci servisu',
+  [Role.Dispecer]: 'PRM Dispečeři servisu',
   [Role.Ctenar]: 'PRM Čtenáři'
 };
 
