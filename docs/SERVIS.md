@@ -31,7 +31,7 @@ webu / mobilní aplikaci (paralelní session). V PRMIS je evidence, stav, faktur
 2. **Schvalovací řetěz a limity Servisu** (Igor upřesní).
 3. **Externí web a mobilní aplikace pro servisáka** — paralelní session (viz níže).
 4. Přijaté faktury dodavatelů k servisnímu listu přes Abru (zakázka = číslo zařízení, např. 10501); stejný tok jako Data z účetnictví u projektů.
-5. Zavedení stávajících lokalit a zařízení (zatím ručně), **automatické zakládání složek lokality a zařízení** v  (zatím se do dialogu vkládá odkaz na existující složku), další upozornění (např. dodavateli o novém listu), přehledy a grafy.
+5. Zavedení stávajících lokalit a zařízení (zatím ručně), **automatické zakládání složek lokality a zařízení** ve složce 02_SERVIS (zatím se do dialogu vkládá odkaz na existující složku), další upozornění (např. dodavateli o novém listu), přehledy a grafy.
 6. **Oprávnění v SharePointu:** seznamy `PRM_Service*` omezit na skupiny Servisu (aplikace skrývá, skutečnou ochranu dělá SharePoint — viz CLAUDE.md, kap. 4);
    servisní projekty se omezují automaticky při založení zařízení.
 
