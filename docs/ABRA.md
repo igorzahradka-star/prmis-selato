@@ -45,3 +45,54 @@ Potřebujeme od CFO (přihlášený v prohlížeči): `faktura-prijata.json?limi
 - Čím poběží prostředník (Power Automate / Azure) a kdo ho nastaví; **účet jen pro čtení** vytvoří CFO.
 - „Nezařazeno“ v součtech projektu (zatím mimo).
 - Odkdy se doklady stahují (návrh: od 1. 1. 2026).
+
+---
+
+## Prostředník — stav a návrh (14. 10. 2026, druhá session)
+
+### Hotovo
+- `integrations/abra-sync/` — čistá logika bez sítě a bez hesel: `src/mapping.js` (doklad z Flexi → řádek `PRM_AbraDocs`: dobropis záporný,
+  EUR/USD v měně dokladu, jiná měna v Kč s poznámkou, doklad s jinou než „číselnou“ zakázkou se přeskočí), `src/plan.js` (co přidat / upravit /
+  označit jako „zmizel z Abry“; nic se nemaže; pojistka, aby výpadek Abry neoznačil hromadně všechno), `src/config.js` (**všechny názvy
+  evidencí a polí Flexi na jednom místě — NEPOTVRZENÉ**). 14 jednotkových testů na vymyšlených datech: `cd integrations/abra-sync && npm test`.
+- Zatím **nic** z toho nekomunikuje s Abrou ani se SharePointem.
+
+### Čeká na Igora / CFO
+1. Odpověď, zda má firma **Power Automate Premium** (nebo plán „na tok“) — M365 admin centrum → Fakturace → Licence.
+2. Výpisy z Flexi (CFO, přihlášený v prohlížeči): `faktura-prijata.json?limit=3&detail=full`, `faktura-vydana/properties.json`, `zakazka.json?limit=3`
+   + název evidence **zálohových faktur** (přijatých i vydaných) a **účetního deníku** (`…/properties.json` k nim).
+3. Účet ve Flexi **jen pro čtení** (CFO) — heslo se zadá jen do připojení/úschovny prostředníka.
+Do té doby se nehádají názvy polí; v `config.js` jsou označené jako nepotvrzené.
+
+### Otevřené otázky k datům (rozhodne se podle výpisů)
+- Je zakázka jen v hlavičce dokladu, nebo i na řádcích (doklad rozdělený na víc projektů)? Při řádcích by jeden doklad dal víc řádků v `PRM_AbraDocs`
+  — **to by znamenalo změnu smlouvy** (klíč `AbraId` by musel obsahovat i řádek); zatím se předpokládá zakázka v hlavičce.
+- Mají dobropisy v Abře částku kladnou, nebo zápornou? (Mapování to zvládne obojí.)
+- Filtr podle účtů 501/518/512/601: zatím se **nefiltruje**, účty se jen vypisují do pole `Accounts`. Pokud mají stahovat jen doklady s těmito účty, je třeba účetní deník.
+
+### Který prostředník — doporučení
+| | Power Automate (Igor preferuje) | Azure Function | Plánovač úloh na PC |
+|---|---|---|---|
+| Potřebuje | licenci **Power Automate Premium** (konektor HTTP je prémiový) jen pro účet, pod nímž flow běží | předplatné Azure (firma nemá; stačí průběžná platba, provoz pár korun měsíčně) | stálý zapnutý počítač |
+| Kód z `integrations/abra-sync` | **nepoužije se přímo** — logika se přepíše do výrazů v kroku „Výběr“; kód a testy slouží jako přesná specifikace | použije se přímo (+ tenká vrstva pro Flexi a SharePoint) | použije se přímo |
+| Heslo k Abře | v připojení HTTP / úschovně flow | Azure Key Vault | nejhůř — soubor v počítači |
+| Slabina | hodně kroků, pomalejší při stovkách dokladů, limity akcí za den | nutné zřídit Azure a registraci aplikace | vypne se počítač = nestahuje se |
+Doporučení: **licence Premium k dispozici → Power Automate**; jinak Azure Function (nejčistší řešení); plánovač až jako nouzovka.
+
+### Postup A — Power Automate (krok za krokem, pro Igora / administrátora)
+Dokončí se po výpisech od CFO (budou v něm přesné názvy polí); zatím jen kostra:
+1. **Účet pro flow:** zvolte účet (ideálně servisní, ne osobní) s licencí Power Automate Premium; musí mít **zápis** do webu PRM (členové skupiny PM/Admin).
+2. **Vytvořit flow:** make.powerautomate.com → *Moje toky* → *Nový tok* → *Naplánovaný cloudový tok* → název „PRM – Abra – denní stahování“, denně 5:00.
+3. **Spuštění na žádost:** druhý tok „PRM – Abra – na žádost“ se spouštěčem *SharePoint – Při vytvoření položky* (web PRM, seznam `PRM_AbraSync`) s podmínkou `Kind = Žádost`. Oba toky volají stejný podtok (*Podřízený tok*).
+4. **Připojení ke Flexi:** akce *HTTP* → metoda GET, URI `https://revoltum.flexibee.eu/flexi/revoltum_engineering___services_s_r_o_/faktura-prijata.json?limit=0&detail=custom:…` (přesný filtr a pole doplním po výpisech); ověřování *Základní*, uživatel = účet jen pro čtení. **Heslo se zadá jen do tohoto pole** (a nikam jinam); doporučeno uložit do Azure Key Vault/proměnné prostředí prostředí Power Platform — ne do textu toku.
+5. Totéž pro `faktura-vydana`, zálohové evidence (po potvrzení názvů).
+6. **Zápis:** pro každý doklad *Získat položky* (`PRM_AbraDocs`, filtr `AbraId eq '…'`) → když není, *Vytvořit položku*, když je a liší se, *Aktualizovat položku*; nic nemazat. Zmizelé označit podle pravidel v `plan.js`.
+7. **Výsledek:** *Vytvořit položku* v `PRM_AbraSync` (`Kind = Stav`, `Status = Hotovo`/`Chyba`, `FinishedAt`, `Message`); čekající žádost přepnout na `Hotovo`. Chyby zachytit větví „Při selhání“ → `Status = Chyba`.
+8. **Zkouška:** spustit ručně, zkontrolovat v seznamu `PRM_AbraDocs` pár dokladů proti Abře.
+
+### Postup B — Azure Function (krok za krokem)
+1. Správce M365/CFO založí **předplatné Azure** (portal.azure.com → *Předplatná* → *Přidat*, platební karta firmy; Function typu Consumption stojí řádově korunky).
+2. *Vytvořit prostředek* → **Function App** (Node.js 22, Consumption), region West Europe.
+3. **Registrace aplikace** v Entra ID (*Registrace aplikací* → *Nová*) s oprávněním **Sites.Selected** k webu PRM, souhlas správce, přidělit zápis jen na web PRM. (Bez hesla: spravovaná identita Function App.)
+4. **Key Vault** s heslem k Abře; Function ho čte přes odkaz v nastavení aplikace — heslo nikdy v kódu.
+5. Nasadit kód z `integrations/abra-sync` + tenká vrstva (doplním po výpisech); časovač denně 5:00 a časovač každých 5 minut, který hledá žádosti `Čeká`.
