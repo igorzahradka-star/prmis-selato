@@ -1,7 +1,7 @@
 // Testy na VYMYŠLENÝCH ukázkách (tvar odpovědi Flexi je odhad podle dokumentace, ne výpis z instance Revoltum).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mapFlexiDoc, mapBatch, refCode, toIsoDate, toNumber } from '../src/mapping.js';
+import { allocateProportionally, mapFlexiDoc, mapBatch, refCode, toIsoDate, toNumber } from '../src/mapping.js';
 import { planSync, buildMessage } from '../src/plan.js';
 
 const SYNCED = '2026-10-14T05:00:00.000Z';
@@ -53,6 +53,7 @@ test('faktura přijatá v korunách', () => {
     DueDate: '2026-04-14T12:00:00.000Z',
     Currency: 'CZK',
     AmountNet: 125000,
+    AmountNetCzk: null,
     Accounts: '501, 518',
     SyncedAt: SYNCED
   });
@@ -69,6 +70,7 @@ test('cizí měna EUR/USD: částka v měně dokladu', () => {
   const r = mapFlexiDoc(base({ mena: 'code:EUR', sumZklCelkem: '25300.00', sumZklCelkemMen: '1000.00' }), opts);
   assert.equal(r.row.Currency, 'EUR');
   assert.equal(r.row.AmountNet, 1000);
+  assert.equal(r.row.AmountNetCzk, 25300);
   assert.equal(r.row.Description, 'Dodávka střídačů');
 });
 
@@ -142,4 +144,29 @@ test('buildMessage: česká zpráva', () => {
   const msg = buildMessage(planSync([], mapped.rows, { since: '2026-01-01' }), mapped);
   assert.match(msg, /Nových 1, upravených 0, beze změny 0\./);
   assert.match(msg, /Přeskočeno 1 dokladů se zakázkou/);
+});
+
+test('dobropis v EUR: obě částky záporné; jiná měna a CZK nemají AmountNetCzk', () => {
+  const r = mapFlexiDoc(base({ typDokl: 'code:DOBROPIS', mena: 'code:EUR', sumZklCelkem: '2530.00', sumZklCelkemMen: '100.00' }), opts);
+  assert.equal(r.row.AmountNet, -100);
+  assert.equal(r.row.AmountNetCzk, -2530);
+  assert.equal(mapFlexiDoc(base({ mena: 'code:PLN' }), opts).row.AmountNetCzk, null);
+  assert.equal(mapFlexiDoc(base(), opts).row.AmountNetCzk, null);
+});
+
+test('rozpad AmountNetCzk na řádky stejným poměrem, součet přesně sedí', () => {
+  // doklad 100 EUR = 2 530,01 Kč, rozpad 33,33 / 33,33 / 33,34 EUR
+  const parts = allocateProportionally(2530.01, [33.33, 33.33, 33.34]);
+  assert.equal(Math.round(parts.reduce((a, b) => a + b, 0) * 100) / 100, 2530.01);
+  assert.ok(Math.abs(parts[0] - 843.25) < 0.02);
+  assert.deepEqual(allocateProportionally(-1000, [-1, -3]), [-250, -750]);
+  assert.deepEqual(allocateProportionally(500, []), []);
+  assert.deepEqual(allocateProportionally(500, [0, 0]), [500, 0]);
+});
+
+test('planSync: změna AmountNetCzk je změna řádku', () => {
+  const row = mapFlexiDoc(base({ mena: 'code:EUR', sumZklCelkem: '25300', sumZklCelkemMen: '1000' }), opts).row;
+  const cur = { spId: 1, ...row, AmountNetCzk: 25000 };
+  assert.equal(planSync([cur], [row], { since: '2026-01-01' }).update.length, 1);
+  assert.equal(planSync([{ spId: 1, ...row }], [row], { since: '2026-01-01' }).unchanged, 1);
 });

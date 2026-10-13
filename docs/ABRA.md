@@ -137,3 +137,12 @@ Zakázky v datech: 26001, 26005, 10501, 26999 (Režie) — všechno pětimístn�
 Doklady bez zakázky z větší části (~90 %) patří do projektu **Režie** (`{RR}999`, rok podle data dokladu, např. 26999). Zatím se nestahují; **časem je budeme potřebovat**.
 Návrh na později (ještě nerozhodnuto): stahovat je s `ProjectNumber` = Režie roku a v `Description` je označit „bez zakázky v Abře“, ať je PM/účetní může
 přeřadit (zbývajících ~10 % patří jinam). Pozor na doklady mezi firmami holdingu (např. PF0022) — vyžadují lidské rozhodnutí. Čeká na rozhodnutí Igora.
+
+### Cizí měny — AmountNetCzk (schéma 24, od hlavní session 14. 10. 2026)
+Účetnictví je jediný zdroj pravdy, proto se u dokladů v cizí měně přenáší i **částka v Kč, jak ji zaúčtovala Abra**. Pravidla (implementováno v `mapping.js`, testy):
+1. `Currency` (CZK/EUR/USD) + `AmountNet` = částka v měně dokladu.
+2. `AmountNetCzk` = u dokladů v EUR/USD hodnota z Abry `sumZklCelkem` (základ celkem v Kč), **ne vlastní přepočet**; u dokladů v CZK prázdné (`null`). Dobropis záporný v obou.
+   **Nepotvrzeno:** v ručním exportu nebyl žádný doklad v cizí měně; že `sumZklCelkem` nese Kč a `sumZklCelkemMen` měnu dokladu, plyne z Excelu (sloupce „Základ celkem [měna]“ / „[Kč]“) a dokumentace. Ověřit na prvním EUR dokladu.
+3. Řádky = části dokladu: `allocateProportionally()` rozdělí `AmountNetCzk` stejným poměrem jako `AmountNet`, na haléře; zbytek po zaokrouhlení dostane největší řádek, součet řádků = zaúčtovaná částka dokladu v Kč.
+4. Jiná měna než CZK/EUR/USD: `Currency = CZK`, `AmountNet` = zaúčtovaná částka v Kč, `AmountNetCzk` prázdné.
+Změna `AmountNetCzk` u již stažené položky se bere jako změna řádku (aktualizuje se).

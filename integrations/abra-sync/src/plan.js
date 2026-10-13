@@ -5,7 +5,7 @@
 
 import { VANISHED_MARK } from './config.js';
 
-const COMPARED = ['Title', 'DocType', 'ProjectNumber', 'Partner', 'Description', 'IssueDate', 'DueDate', 'Currency', 'AmountNet', 'Accounts'];
+const COMPARED = ['Title', 'DocType', 'ProjectNumber', 'Partner', 'Description', 'IssueDate', 'DueDate', 'Currency', 'AmountNet', 'AmountNetCzk', 'Accounts'];
 
 function day(value) {
   return value ? String(value).slice(0, 10) : '';
@@ -15,8 +15,8 @@ function same(field, a, b) {
   if (field === 'IssueDate' || field === 'DueDate') {
     return day(a) === day(b);
   }
-  if (field === 'AmountNet') {
-    return Math.abs(Number(a ?? 0) - Number(b ?? 0)) < 0.005;
+  if (field === 'AmountNet' || field === 'AmountNetCzk') {
+    return (a == null) === (b == null) && Math.abs(Number(a ?? 0) - Number(b ?? 0)) < 0.005;
   }
   return (a ?? '') === (b ?? '');
 }

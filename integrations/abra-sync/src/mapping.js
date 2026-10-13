@@ -91,10 +91,11 @@ export function mapFlexiDoc(record, options) {
   if (rawAmount === undefined) {
     return { ok: false, reason: 'bez-castky', detail: id };
   }
-  let amount = round2(rawAmount);
-  if (isCreditNote(record)) {
-    amount = -Math.abs(amount);
-  }
+  const credit = isCreditNote(record);
+  const sign = (n) => (credit ? -Math.abs(n) : n);
+  const amount = sign(round2(rawAmount));
+  // Cizí měna (EUR/USD): přenáší se i částka v Kč, jak ji zaúčtovala Abra (kurz dne zaúčtování) — žádný vlastní přepočet.
+  const czk = useForeign ? toNumber(record[FIELDS.netCzk]) : undefined;
 
   const baseDescription = typeof record[FIELDS.description] === 'string' ? record[FIELDS.description].trim() : '';
   const convertedNote = native ? '' : `(původně ${currencyRaw}, částka přepočtená v Kč)`;
@@ -113,6 +114,7 @@ export function mapFlexiDoc(record, options) {
       DueDate: toIsoDate(record[FIELDS.dueDate]) ?? null,
       Currency: native ? currencyRaw : 'CZK',
       AmountNet: amount,
+      AmountNetCzk: czk === undefined ? null : sign(round2(czk)),
       Accounts: accounts.join(', '),
       SyncedAt: options.syncedAt
     }
@@ -146,4 +148,34 @@ export function mapBatch(records, options) {
     rows.push(result.row);
   }
   return { rows, skipped, details };
+}
+
+/**
+ * Rozdělí částku dokladu mezi řádky stejným poměrem jako `weights` (např. částky řádků v měně dokladu), na haléře, tak aby součet
+ * přesně dal `total`. Zbytek po zaokrouhlení dostane největší řádek. Slouží k rozpadu AmountNetCzk na řádky (řádek = část dokladu).
+ * @param {number} total   zaúčtovaná částka dokladu v Kč
+ * @param {number[]} weights  částky řádků (v měně dokladu)
+ */
+export function allocateProportionally(total, weights) {
+  const sum = weights.reduce((a, b) => a + b, 0);
+  if (weights.length === 0) {
+    return [];
+  }
+  if (sum === 0) {
+    const parts = weights.map(() => 0);
+    parts[0] = round2(total);
+    return parts;
+  }
+  const parts = weights.map((w) => round2((total * w) / sum));
+  const diff = round2(total - parts.reduce((a, b) => a + b, 0));
+  if (diff !== 0) {
+    let big = 0;
+    weights.forEach((w, i) => {
+      if (Math.abs(w) > Math.abs(weights[big])) {
+        big = i;
+      }
+    });
+    parts[big] = round2(parts[big] + diff);
+  }
+  return parts;
 }
