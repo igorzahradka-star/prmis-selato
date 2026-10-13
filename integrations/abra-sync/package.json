@@ -1,0 +1,12 @@
+{
+  "name": "prm-abra-sync",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Prostředník PRM Revoltum: ABRA Flexi (jen čtení) -> SharePoint PRM_AbraDocs. Čistá logika mapování a plánování zápisu.",
+  "type": "module",
+  "license": "UNLICENSED",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  }
+}
