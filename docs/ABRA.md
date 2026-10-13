@@ -146,3 +146,21 @@ přeřadit (zbývajících ~10 % patří jinam). Pozor na doklady mezi firmami h
 3. Řádky = části dokladu: `allocateProportionally()` rozdělí `AmountNetCzk` stejným poměrem jako `AmountNet`, na haléře; zbytek po zaokrouhlení dostane největší řádek, součet řádků = zaúčtovaná částka dokladu v Kč.
 4. Jiná měna než CZK/EUR/USD: `Currency = CZK`, `AmountNet` = zaúčtovaná částka v Kč, `AmountNetCzk` prázdné.
 Změna `AmountNetCzk` u již stažené položky se bere jako změna řádku (aktualizuje se).
+
+### Rozhodnutí o zdroji řádků: ÚČETNÍ DENÍK (13. 10. 2026, podle reportů Účetní deník a Účetní analýza zakázky)
+Igor vyexportoval (PDF, `integrations/abra-sync/vystupy/`) **Účetní deník** a **Účetní analýzu zakázky**. Z nich plyne:
+- **Zakázka je na úrovni zápisu (řádku), ne jen v hlavičce dokladu.** Příklad: doklad PF0033/2026 má prázdnou zakázku v hlavičce, ale v deníku je rozpadnutý po účtech/řádcích na
+  několik zakázek (např. 8 600 → 26001, 12 900 → 26002, 17 200 → 26005, zbytek Režie). Doklad PF0022 (od firmy holdingu) se rozpadá obdobně. **Proto jsou řádky = zápisy účetního deníku,
+  ne faktury**; hlavička faktury se k tomu hodí jen pro doplnění (partner, splatnost, měna). Potvrzuje to i „jeden řádek = nejmenší přiřaditelná jednotka“.
+- Záznam deníku nese: modul (FAP = faktury přijaté, ZAV = závazky, BAN = banka…), interní číslo dokladu (→ `Title`), variabilní symbol, **Částka [Kč]**, **Účet MD**, **Účet DAL**,
+  datum zaúčtování, středisko, činnost, **zakázka**, popis, firmu. Částky jsou **bez DPH** (DPH jde samostatným zápisem na 343…, ten se přeskakuje); součet řádků PF0033 = základ faktury.
+- Do PRMIS patří jen zápisy dotýkající se **nákladových nebo výnosových účtů**; zbytek (banka 221, závazky 321, DPH 343, kapitál 411…) se přeskočí. Logika je v `src/journal.js`
+  (`classifyEntry`, testy): náklad na MD = kladný, na DAL (storno) = záporný; výnos na DAL = kladný, na MD (dobropis/storno) = záporný.
+- **K potvrzení Igorem:**
+  1. **Výnosové účty jsou 602xxx a 604xxx** (ne 601, jak bylo v zadání) — bereme celou skupinu 60. Kurzový zisk/ztráta (663/563) a bankovní poplatky (568) se zatím **nepřenášejí**.
+  2. Nákladové účty zatím jen 501, 512, 518 (podle zadání). Jiné (např. 502 energie, 511 opravy, 521 mzdy, 568 bankovní poplatky) by se **nepřenesly**, i když mají zakázku — prověřit s CFO, zda nejsou potřeba.
+  3. **Doklady modulu ZAV (závazky: cestovné, drobné nákupy) nejsou faktury**; zatím se berou jako `DocType = prijata`. Pokud mají být zvlášť, je potřeba nová hodnota Druh (změna schématu).
+  4. Zaokrouhlení (např. „Zaokrouhleno 0,14“ nebo −7,33 na výnosu 602001) jsou drobné zápisy v deníku — přenášejí se, aby součet sedl s účetnictvím.
+- `AbraId` řádku: stálé ID zápisu deníku z API (zatím neznáme název evidence ani pole — **čeká na licenci API**; ručně lze získat jen PDF, který pro automatizaci nestačí).
+  Do té doby případně lze brát z exportu Excel/CSV (v reportech Účetní deník / analýza zakázky zkusit Tisk → formát XLS/CSV).
+- Přenos cizích měn: deník nese jen Kč → `AmountNetCzk` z deníku; částka v měně dokladu (`AmountNet`) z hlavičky dokladu a rozdělí se poměrně (viz „Cizí měny“).
