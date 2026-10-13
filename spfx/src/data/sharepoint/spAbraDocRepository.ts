@@ -31,11 +31,12 @@ interface DocItem {
   DueDate?: string;
   Currency?: string;
   AmountNet?: number;
+  AmountNetCzk?: number;
   Accounts?: string;
   SyncedAt?: string;
 }
 
-const FIELDS = ['Id', 'Title', 'AbraId', 'DocType', 'ProjectNumber', 'Partner', 'Description', 'IssueDate', 'DueDate', 'Currency', 'AmountNet', 'Accounts', 'SyncedAt'];
+const FIELDS = ['Id', 'Title', 'AbraId', 'DocType', 'ProjectNumber', 'Partner', 'Description', 'IssueDate', 'DueDate', 'Currency', 'AmountNet', 'AmountNetCzk', 'Accounts', 'SyncedAt'];
 
 function toDoc(item: DocItem): AbraDoc | undefined {
   const type = DOC_TYPES.filter((t) => t === item.DocType)[0];
@@ -54,6 +55,7 @@ function toDoc(item: DocItem): AbraDoc | undefined {
     dueDate: toDate(item.DueDate),
     currency: asCurrencyCode(item.Currency || 'CZK'),
     amountNet: item.AmountNet,
+    amountNetCzk: typeof item.AmountNetCzk === 'number' ? item.AmountNetCzk : undefined,
     accounts: item.Accounts ? item.Accounts.split(/[\s,;]+/).filter((a) => a !== '') : undefined,
     syncedAt: toDate(item.SyncedAt)
   };

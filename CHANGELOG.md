@@ -5,6 +5,14 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.44.2 — 14. 10. 2026 — Cizí měny v datech z účetnictví
+
+- Cizoměnový doklad nese **i částku v Kč, jak ji zaúčtovala Abra** (kurz dne zaúčtování; sloupec `AmountNetCzk`). U položek a výnosů v **Kč** se Nakoupeno a Vyfakturováno počítá **přesně z této částky**, ne dnešním kurzem ČNB — čísla tedy souhlasí s účetnictvím a „nehádají se“. U položky ve **stejné měně** jako doklad se bere částka v měně dokladu.
+- Jen když účetnictví částku v měně položky nemá (např. položka v EUR a doklad v Kč), přepočítá se kurzem ČNB a řádek v záložce Data z účetnictví to **označí jako orientační**. Rozdělení dokladu si drží podíl v Kč.
+- V tabulce se u cizoměnových řádků ukazuje „účetně … Kč“. **Schéma 24 — spustit Instalaci a diagnostiku** (nový sloupec v PRM_AbraDocs).
+
+---
+
 ## 0.44.1 — 14. 10. 2026 — Data z účetnictví jako samostatná záložka
 
 - Doklady z Abry už nejsou uvnitř rozpočtu (list byl nepřehledný), jsou v **samostatné záložce projektu „Data z účetnictví“** (vedle Realizačního rozpočtu a Cashflow).

@@ -7,7 +7,7 @@
  * Zálohové faktury se zobrazují, ale nepřiřazují se a do součtů se nezapočítávají.
  */
 
-import { RateTable, convertAmount, CurrencyCode } from './currency';
+import { RateTable, convertAmount, convertBooked, CurrencyCode } from './currency';
 import { BudgetDoc, DocAllocation, round2 } from './budget';
 
 export type AbraDocType = 'prijata' | 'vydana' | 'zaloha-prijata' | 'zaloha-vydana';
@@ -36,6 +36,8 @@ export interface AbraDoc {
   currency: CurrencyCode;
   /** Částka bez DPH v měně dokladu; dobropis je záporný. */
   amountNet: number;
+  /** Totéž v Kč, jak to zaúčtovala Abra (kurz dne zaúčtování); u cizoměnových dokladů. Podle něj se do Kč počítá přesně podle účetnictví. */
+  amountNetCzk?: number;
   /** Účty z účetního deníku (501, 518, 512, 601…) — jen informativně. */
   accounts?: string[];
   syncedAt?: Date;
@@ -44,6 +46,24 @@ export interface AbraDoc {
 export const isAdvance = (d: AbraDoc): boolean => d.type === 'zaloha-prijata' || d.type === 'zaloha-vydana';
 /** Přijatá faktura patří k nákupu (položky rozpočtu), vydaná k výnosům. */
 export const targetKindOf = (d: AbraDoc): 'item' | 'revenue' | undefined => (d.type === 'prijata' ? 'item' : d.type === 'vydana' ? 'revenue' : undefined);
+
+/** Podíl zaúčtované částky v Kč na dané části dokladu; jen u cizoměnových dokladů se známou částkou v Kč. */
+export function bookedShare(d: AbraDoc, amount: number): number | undefined {
+  return d.currency !== 'CZK' && d.amountNetCzk !== undefined && d.amountNet !== 0 ? round2((amount * d.amountNetCzk) / d.amountNet) : undefined;
+}
+
+/** Přepočet částky dokladu do měny (zaúčtované Kč, jinak kurz ČNB); `amount` je část dokladu v jeho měně. */
+export function docAmountIn(d: AbraDoc, amount: number, target: CurrencyCode, rates: RateTable): number {
+  return convertBooked(amount, d.currency, bookedShare(d, amount), target, rates);
+}
+
+/** Je přepočet dokladu do měny položky jen orientační (kurz ČNB), ne podle účetnictví? */
+export function isApproximate(d: AbraDoc, itemCurrency: CurrencyCode): boolean {
+  if (d.currency === itemCurrency) {
+    return false;
+  }
+  return !(itemCurrency === 'CZK' && d.currency !== 'CZK' && d.amountNetCzk !== undefined);
+}
 
 /** Kolik z dokladu je přiřazeno (v měně dokladu). */
 export function allocatedOfDoc(allocations: DocAllocation[] | undefined, docId: string): number {
@@ -64,7 +84,7 @@ export function unallocatedTotals(docs: AbraDoc[], allocations: DocAllocation[] 
   let revenue = 0;
   const open = unallocatedDocs(docs, allocations);
   open.forEach((d) => {
-    const v = convertAmount(unallocatedOfDoc(d, allocations), d.currency, target, rates);
+    const v = docAmountIn(d, unallocatedOfDoc(d, allocations), target, rates);
     if (d.type === 'prijata') {
       cost += v;
     } else {
@@ -98,9 +118,13 @@ export function assignDoc(allocations: DocAllocation[] | undefined, doc: AbraDoc
     return { error: 'Přiřazujete víc, než z dokladu zbývá.' };
   }
   const same = list.filter((a) => a.docId === doc.abraId && a.kind === kind && a.targetId === targetId)[0];
+  const withCzk = (amountTotal: number): { amountCzk?: number } => {
+    const share = bookedShare(doc, amountTotal);
+    return share !== undefined ? { amountCzk: share } : {};
+  };
   const next = same
-    ? list.map((a) => (a === same ? { ...a, amount: round2(a.amount + wanted) } : a))
-    : [...list, { docId: doc.abraId, kind, targetId, amount: wanted, currency: doc.currency }];
+    ? list.map((a) => (a === same ? { ...a, amount: round2(a.amount + wanted), ...withCzk(round2(a.amount + wanted)) } : a))
+    : [...list, { docId: doc.abraId, kind, targetId, amount: wanted, currency: doc.currency, ...withCzk(wanted) }];
   return { allocations: next };
 }
 
@@ -152,7 +176,7 @@ export function orphanAllocations(docs: AbraDoc[], allocations: DocAllocation[] 
 /** Zálohy projektu bokem: přijaté a vydané zvlášť, součty v jedné měně. Do rozpočtu se nezapočítávají. */
 export function advanceSummary(docs: AbraDoc[], target: CurrencyCode, rates: RateTable): { received: number; issued: number; docs: AbraDoc[] } {
   const adv = docs.filter(isAdvance);
-  const sum = (type: AbraDocType): number => round2(adv.filter((d) => d.type === type).reduce((s, d) => s + convertAmount(d.amountNet, d.currency, target, rates), 0));
+  const sum = (type: AbraDocType): number => round2(adv.filter((d) => d.type === type).reduce((s, d) => s + docAmountIn(d, d.amountNet, target, rates), 0));
   return { received: sum('zaloha-prijata'), issued: sum('zaloha-vydana'), docs: adv };
 }
 
@@ -222,5 +246,5 @@ export function replaceDocAllocations(allocations: DocAllocation[] | undefined, 
     return { error: 'Součet částí je vyšší než částka řádku.' };
   }
   const rest = unassignDoc(allocations, doc.abraId);
-  return { allocations: [...rest, ...merged.map((m) => ({ docId: doc.abraId, kind, targetId: m.targetId, amount: m.amount, currency: doc.currency }))] };
+  return { allocations: [...rest, ...merged.map((m) => ({ docId: doc.abraId, kind, targetId: m.targetId, amount: m.amount, currency: doc.currency, ...(bookedShare(doc, m.amount) !== undefined ? { amountCzk: bookedShare(doc, m.amount) } : {}) }))] };
 }

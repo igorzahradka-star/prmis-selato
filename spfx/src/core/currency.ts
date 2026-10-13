@@ -90,6 +90,17 @@ export function convertAmount(amount: number | undefined | null, from: string | 
   return czk;
 }
 
+/**
+ * Částka z účetnictví do cílové měny. Stejná měna → beze změny. Je-li známá částka v Kč, kterou účetnictví zaúčtovalo (kurz dne
+ * zaúčtování), vychází se z ní — do Kč tedy přesně podle účetnictví. Jinak se přepočítá kurzem ČNB (orientačně).
+ */
+export function convertBooked(amount: number, from: string | undefined, bookedCzk: number | undefined, to: CurrencyCode, rates: RateTable): number {
+  if (from === to) {
+    return round2(amount);
+  }
+  return bookedCzk !== undefined ? convertAmount(bookedCzk, 'CZK', to, rates) : convertAmount(amount, from, to, rates);
+}
+
 /** Součet částek v různých měnách, v Kč. */
 export function sumInCzk(items: { amount: number | undefined | null; currency: string | undefined }[], rates: RateTable): number {
   return round2(items.reduce((sum, i) => sum + toCzk(i.amount, i.currency, rates), 0));

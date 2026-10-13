@@ -18,7 +18,7 @@
  * Semafor se řídí aktuální marží z prognózy (viz `budgetMargin.ts`).
  */
 
-import { CurrencyCode, RateTable, asCurrencyCode, convertAmount } from './currency';
+import { CurrencyCode, RateTable, asCurrencyCode, convertAmount, convertBooked } from './currency';
 import { hasAnyRole, normalizeLogin } from './roles';
 import { Role } from './types';
 import { Actor, Assignee, WorkflowProject, canIssueOrder } from './orderWorkflow';
@@ -170,12 +170,14 @@ export interface DocAllocation {
   targetId: string;
   amount: number;
   currency: CurrencyCode;
+  /** Část částky v Kč, jak ji zaúčtovalo účetnictví (jen u cizoměnových dokladů); do Kč se pak počítá přesně podle účetnictví. */
+  amountCzk?: number;
 }
 
 /** Součet přiřazených dokladů cíli (položce nebo výnosu) v zadané měně a počet dokladů; bez přiřazení `count = 0`. */
 export function allocatedTo(doc: BudgetDoc, kind: 'item' | 'revenue', targetId: string, currency: CurrencyCode, rates: RateTable): { amount: number; count: number } {
   const own = (doc.allocations || []).filter((a) => a.kind === kind && a.targetId === targetId);
-  return { amount: round2(own.reduce((s, a) => s + convertAmount(a.amount, a.currency, currency, rates), 0)), count: new Set(own.map((a) => a.docId)).size };
+  return { amount: round2(own.reduce((s, a) => s + convertBooked(a.amount, a.currency, a.amountCzk, currency, rates), 0)), count: new Set(own.map((a) => a.docId)).size };
 }
 
 /** Vyfakturováno výnosu: z přiřazených vydaných faktur; bez nich ruční hodnota (do napojení účetnictví). */
@@ -743,7 +745,7 @@ export function budgetFromJson(json: string | undefined): BudgetDoc {
     : undefined;
   const allocations: DocAllocation[] = (Array.isArray(raw.allocations) ? (raw.allocations as Record<string, unknown>[]) : [])
     .filter((a) => str(a.docId) !== '' && str(a.targetId) !== '' && typeof a.amount === 'number' && isFinite(a.amount))
-    .map((a) => ({ docId: str(a.docId), kind: (a.kind === 'revenue' ? 'revenue' : 'item') as 'item' | 'revenue', targetId: str(a.targetId), amount: a.amount as number, currency: asCurrencyCode(str(a.currency)) }));
+    .map((a) => ({ docId: str(a.docId), kind: (a.kind === 'revenue' ? 'revenue' : 'item') as 'item' | 'revenue', targetId: str(a.targetId), amount: a.amount as number, currency: asCurrencyCode(str(a.currency)), ...(optNum(a.amountCzk) !== undefined ? { amountCzk: optNum(a.amountCzk) } : {}) }));
   const base: BudgetDoc = revenues ? { groups, items, rates, payments, income, revenues } : { groups, items, rates, payments, income };
   return allocations.length > 0 ? { ...base, allocations } : base;
 }

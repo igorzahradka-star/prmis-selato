@@ -1,6 +1,6 @@
 import { BudgetDoc, BudgetGroup, BudgetItem, DocAllocation, RevenueLine, budgetFromJson, budgetToJson, budgetTotals, calcItems } from './budget';
 import { RateTable } from './currency';
-import { AbraDoc, abraRowMatches, advanceSummary, allocatedOfDoc, assignDoc, assignStateOf, replaceDocAllocations, setDocTarget, docsForTarget, moveAllocation, orphanAllocations, unallocatedDocs, unallocatedOfDoc, unallocatedTotals, unassignDoc } from './abraDocs';
+import { AbraDoc, abraRowMatches, isApproximate, advanceSummary, allocatedOfDoc, assignDoc, assignStateOf, replaceDocAllocations, setDocTarget, docsForTarget, moveAllocation, orphanAllocations, unallocatedDocs, unallocatedOfDoc, unallocatedTotals, unassignDoc } from './abraDocs';
 
 const RATES = { EUR: 25, USD: 20, source: 'test' } as unknown as RateTable;
 const g1: BudgetGroup = { id: 'g1', name: 'Střídače', kind: 'standard', defaultMarkupPercent: 0 };
@@ -133,6 +133,34 @@ describe('přehledy dokladů', () => {
     const list = docsForTarget(docs, split, 'item', 'i1');
     expect(list.map((x) => [x.doc.abraId, x.amount, x.split])).toEqual([['FP-2', 100, true]]);
     expect(orphanAllocations(docs, split).map((a) => a.docId)).toEqual(['SMAZANA']);
+  });
+});
+
+describe('cizí měny: přesně podle účetnictví, jinak kurz ČNB', () => {
+  const eur = faktura({ abraId: 'E-1', currency: 'EUR', amountNet: 1000, amountNetCzk: 24800 }); // zaúčtováno kurzem 24,80
+  it('položka v Kč bere zaúčtovanou částku v Kč, ne dnešní kurz', () => {
+    const l = (assignDoc(undefined, eur, 'item', 'i1') as { allocations: DocAllocation[] }).allocations;
+    expect(l[0].amountCzk).toBe(24800);
+    const d = budget(l, [item({ actualCost: 1 })]);
+    expect(calcItems(d, RATES)[0].actualCost).toBe(24800); // kurz ČNB v testu je 25, tedy 25000 by byla chyba
+  });
+  it('položka ve stejné měně bere částku dokladu beze změny; rozdělení si drží podíl v Kč', () => {
+    const l = (replaceDocAllocations(undefined, eur, 'item', [{ targetId: 'i1', amount: 400 }, { targetId: 'i2', amount: 600 }]) as { allocations: DocAllocation[] }).allocations;
+    expect(l.map((a) => a.amountCzk)).toEqual([9920, 14880]);
+    const d = budget(l, [item({ id: 'i1', currency: 'EUR' }), item({ id: 'i2', currency: 'CZK' })]);
+    expect(calcItems(d, RATES).map((c) => c.actualCost)).toEqual([400, 14880]);
+  });
+  it('orientační přepočet jen když účetnictví částku v měně položky nemá', () => {
+    expect([isApproximate(eur, 'CZK'), isApproximate(eur, 'EUR'), isApproximate(eur, 'USD'), isApproximate(faktura(), 'EUR'), isApproximate(faktura(), 'CZK')]).toEqual([false, false, true, true, false]);
+    expect(isApproximate(faktura({ currency: 'EUR', amountNet: 10 }), 'CZK')).toBe(true); // bez zaúčtované částky v Kč
+  });
+  it('Nezařazeno a zálohy se v Kč počítají ze zaúčtované částky', () => {
+    expect(unallocatedTotals([eur], undefined, 'CZK', RATES).cost).toBe(24800);
+    expect(advanceSummary([faktura({ abraId: 'Z', type: 'zaloha-vydana', currency: 'EUR', amountNet: 100, amountNetCzk: 2450 })], 'CZK', RATES).issued).toBe(2450);
+  });
+  it('částka v Kč se uloží s přiřazením a načte', () => {
+    const a: DocAllocation[] = [{ docId: 'E-1', kind: 'item', targetId: 'i1', amount: 1000, currency: 'EUR', amountCzk: 24800 }];
+    expect(budgetFromJson(budgetToJson(budget(a))).allocations).toEqual(a);
   });
 });
 

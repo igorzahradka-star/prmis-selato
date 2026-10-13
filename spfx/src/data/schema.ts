@@ -18,7 +18,7 @@
  * Verze schématu. Ukládá se do PRM_Settings pod klíčem `schemaVersion`.
  * Průvodce porovná uloženou verzi s touto a nabídne doplnění rozdílu.
  */
-export const SCHEMA_VERSION = 23;
+export const SCHEMA_VERSION = 24;
 
 /** Typ sloupce v SharePointu. */
 export type FieldType =
@@ -672,6 +672,7 @@ const PRM_ABRA_DOCS: ListDef = {
     { name: 'DueDate', title: 'Splatnost', type: 'DateTime' },
     { name: 'Currency', title: 'Měna', type: 'Text' },
     { name: 'AmountNet', title: 'Částka bez DPH', type: 'Currency', decimals: 2, description: 'V měně dokladu; dobropis je záporný.' },
+    { name: 'AmountNetCzk', title: 'Částka bez DPH v Kč (zaúčtovaná)', type: 'Currency', decimals: 2, description: 'U cizoměnových dokladů částka v Kč, jak ji zaúčtovala Abra (kurz dne zaúčtování). Podle ní se Nakoupeno a Vyfakturováno v Kč počítá přesně podle účetnictví.' },
     { name: 'Accounts', title: 'Účty', type: 'Text', description: 'Účty z účetního deníku (501, 518, 512, 601…), jen informativně.' },
     { name: 'SyncedAt', title: 'Staženo', type: 'DateTime' }
   ]

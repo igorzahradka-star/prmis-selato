@@ -118,6 +118,7 @@ Po nahrání: **Instalace a diagnostika** (schéma 21) a na téže stránce **P�
 - [ ] Po Instalaci (schéma 23) je v projektu záložka „Data z účetnictví“ (bez napojení je prázdná, hlásí „Z Abry zatím nic nebylo staženo“).
 - [ ] Filtr „Jen nepřiřazené“ skryje přiřazené řádky i zálohy; přiřazený řádek je zelený.
 - [ ] Přiřazení jde změnit na jinou položku i vrátit na „nepřiřazeno“.
+- [ ] Cizoměnová faktura (v ukázkových datech Sungrow, 12 000 EUR) ukazuje „účetně 296 400 Kč“; přiřazená k položce v Kč dá Nakoupeno 296 400 Kč. U položky v USD se řádek označí jako orientační přepočet.
 - [ ] V ukázkovém režimu: přiřadit přijatou fakturu k položce → u položky se Nakoupeno změní na součet dokladů a je jen ke čtení; u položky je „Doklady (n)“.
 - [ ] Rozdělit jednu fakturu mezi dvě položky (částka v dialogu Doklady); zbytek se ukazuje jako „Zbývá“.
 - [ ] Odebrat doklad: Nakoupeno se vrátí k ruční hodnotě, když žádný jiný doklad nezůstal.

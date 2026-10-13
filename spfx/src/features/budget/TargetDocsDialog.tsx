@@ -110,6 +110,7 @@ export const TargetDocsDialog: React.FC<{
               <td style={TD}>{x.doc.issueDate ? formatDate(x.doc.issueDate) : '—'}</td>
               <td style={{ ...TD, textAlign: 'right', color: x.amount < 0 ? RES.red : RES.text }}>
                 {formatMoney(x.amount, x.doc.currency)}
+                {x.doc.currency !== 'CZK' && x.doc.amountNetCzk !== undefined && <div style={{ color: RES.gray, fontSize: 12 }}>účetně {formatMoney(Math.round(((x.amount * x.doc.amountNetCzk) / x.doc.amountNet) * 100) / 100, 'CZK')}</div>}
                 {x.split && <div style={{ color: RES.gray, fontSize: 12 }}>z {formatMoney(x.doc.amountNet, x.doc.currency)}</div>}
               </td>
               <td style={TD}>

@@ -20,9 +20,10 @@ import { useReportCurrency } from '../../ui/useReportCurrency';
 import { Project } from '../../core/types';
 import { formatDate, formatDateTime, formatMoney } from '../../core/format';
 import { toActor, toWorkflowProject } from '../../core/orderWorkflow';
+import { CurrencyCode } from '../../core/currency';
 import { BudgetDoc, BudgetRecord, budgetTotals, canEditBudget, validateBudget } from '../../core/budget';
 import { ensureRevenues } from '../../core/budgetMargin';
-import { ABRA_DOC_LABELS, AbraDoc, DocAssignState, abraRowMatches, advanceSummary, allocatedOfDoc, assignStateOf, isAdvance, orphanAllocations, setDocTarget, targetKindOf, unallocatedTotals } from '../../core/abraDocs';
+import { ABRA_DOC_LABELS, AbraDoc, DocAssignState, abraRowMatches, advanceSummary, allocatedOfDoc, assignStateOf, isAdvance, isApproximate, orphanAllocations, setDocTarget, targetKindOf, unallocatedTotals } from '../../core/abraDocs';
 import { AbraSyncStatus } from '../../data/repositories';
 import { useAutosave, whenFlushed } from '../budget/useAutosave';
 import { refreshBudgetCache } from '../budget/budgetCache';
@@ -143,7 +144,7 @@ export const AccountingDataTab: React.FC<{ project: Project }> = ({ project }) =
       setAutoError(undefined);
       // Přiřazení mění Nakoupeno a tím prognózu a marži — přehled projektů se aktualizuje hned.
       if (record) {
-        void refreshBudgetCache(repos, projectRef.current, settings, ratesRef.current);
+        refreshBudgetCache(repos, projectRef.current, settings, ratesRef.current).catch(() => undefined);
       }
     },
     onError: (m) => setAutoError(m)
@@ -342,7 +343,9 @@ export const AccountingDataTab: React.FC<{ project: Project }> = ({ project }) =
                     {row.description && <div style={{ color: RES.gray, fontSize: 12, maxWidth: 380, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.description}</div>}
                   </td>
                   <td style={TD}>{row.accounts && row.accounts.length > 0 ? row.accounts.join(', ') : '—'}</td>
-                  <td style={{ ...TD, textAlign: 'right', whiteSpace: 'nowrap', color: row.amountNet < 0 ? RES.red : RES.text }}>{formatMoney(row.amountNet, row.currency)}</td>
+                  <td style={{ ...TD, textAlign: 'right', whiteSpace: 'nowrap', color: row.amountNet < 0 ? RES.red : RES.text }}>{formatMoney(row.amountNet, row.currency)}
+                    {row.currency !== 'CZK' && row.amountNetCzk !== undefined && <div style={{ color: RES.gray, fontSize: 12, fontWeight: 400 }} title="Částka v Kč, jak ji zaúčtovala Abra (kurz dne zaúčtování)">účetně {formatMoney(row.amountNetCzk, 'CZK')}</div>}
+                  </td>
                   <td style={{ ...TD, minWidth: 300 }}>
                     {state === 'advance' ? (
                       <span style={{ color: RES.gray }}>Záloha — jen přehled, nepřiřazuje se</span>
@@ -360,6 +363,11 @@ export const AccountingDataTab: React.FC<{ project: Project }> = ({ project }) =
                         onChange={(_, o) => o && change(row, String(o.key))}
                         styles={{ root: { minWidth: 280 } }}
                       />
+                    )}
+                    {single && isApproximate(row, targetCurrency(doc, single.kind, single.targetId)) && (
+                      <div style={{ fontSize: 12, color: RES.amber }} title="Doklad a položka jsou v různých měnách a účetnictví nemá částku v měně položky — přepočítává se kurzem ČNB.">
+                        Přepočteno kurzem ČNB (orientačně): položka je v {targetCurrency(doc, single.kind, single.targetId)}, doklad v {row.currency}
+                      </div>
                     )}
                     {state === 'partial' && <div style={{ fontSize: 12, color: RES.amber }}>Přiřazena jen část — zbývá {formatMoney(left, row.currency)}</div>}
                   </td>
@@ -384,6 +392,17 @@ export const AccountingDataTab: React.FC<{ project: Project }> = ({ project }) =
     </div>
   );
 };
+
+/** Měna položky nebo výnosu, ke kterému je řádek přiřazen. */
+function targetCurrency(doc: BudgetDoc, kind: 'item' | 'revenue', id: string): CurrencyCode {
+  if (kind === 'revenue') {
+    const l = (doc.revenues || []).filter((x) => x.id === id)[0];
+    return l ? l.currency : 'CZK';
+  }
+  const i = doc.items.filter((x) => x.id === id)[0];
+  const g = i ? doc.groups.filter((x) => x.id === i.groupId)[0] : undefined;
+  return i && !(g && g.kind === 'rezerva' && i.reservePercent !== undefined) ? i.currency : 'CZK';
+}
 
 const Tile: React.FC<{ label: string; value: string; hint?: string; warn?: boolean }> = ({ label, value, hint, warn }) => (
   <div style={{ background: RES.white, border: `1px solid ${RES.grayBlue}`, borderLeft: `4px solid ${warn ? RES.amber : RES.grayBlue}`, borderRadius: 4, padding: '6px 12px', minWidth: 150, flex: '1 1 200px' }} title={hint}>
