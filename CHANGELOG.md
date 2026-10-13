@@ -5,6 +5,13 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.44.3 — 14. 10. 2026 — Rozepsaná objednávka se nezavře při založení dodavatele; vedení si schválí vlastní objednávku
+
+- **Oprava:** po uložení nového dodavatele z rozepsané objednávky se zavřel celý panel objednávky. Dialog „Nový partner“ byl mimo panel, takže ho panel bral jako klik mimo sebe. Dialog je teď uvnitř panelu — objednávka zůstane otevřená a nový dodavatel se do ní rovnou vybere. (Rozepsaná objednávka se navíc dál průběžně zálohuje v prohlížeči a po opětovném otevření nabídne obnovení.)
+- **Vedení si schvaluje vlastní objednávku:** člen vedení smí v kroku „vedení“ **schválit** objednávku, kterou sám vystavil (v audit logu je vidět „vlastní objednávku schválil člen vedení“). Vrátit ani zamítnout si ji nesmí. Týká se **jen vedení** a jen kroku vedení: PM, jednatel a administrátor si vlastní objednávku neschválí a krok jednatele u vlastní objednávky vedení musí schválit jednatel. Platí i při zápisu do dat (`decideOrder`). Bez změny schématu.
+
+---
+
 ## 0.44.2 — 14. 10. 2026 — Cizí měny v datech z účetnictví
 
 - Cizoměnový doklad nese **i částku v Kč, jak ji zaúčtovala Abra** (kurz dne zaúčtování; sloupec `AmountNetCzk`). U položek a výnosů v **Kč** se Nakoupeno a Vyfakturováno počítá **přesně z této částky**, ne dnešním kurzem ČNB — čísla tedy souhlasí s účetnictvím a „nehádají se“. U položky ve **stejné měně** jako doklad se bere částka v měně dokladu.

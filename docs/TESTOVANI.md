@@ -124,6 +124,11 @@ Po nahrání: **Instalace a diagnostika** (schéma 21) a na téže stránce **P�
 - [ ] Odebrat doklad: Nakoupeno se vrátí k ruční hodnotě, když žádný jiný doklad nezůstal.
 - [ ] Vydaná faktura jde přiřadit jen k výnosu, přijatá jen k nákupu; záloha nejde přiřadit nikam a je v tabulce Zálohy bokem.
 
+## 4h. Objednávky: dodavatel z rozepsané objednávky a samoschválení vedením (0.44.3)
+- [ ] Nová objednávka → v poli Dodavatel „+ Založit nového partnera…“ → vyplnit a uložit: panel objednávky zůstane otevřený, předmět a položky jsou zachované a nový dodavatel je vybraný.
+- [ ] Člen vedení vystaví objednávku do pásma vedení a v detailu je tlačítko Schválit (jen Schválit, ne Vrátit/Zamítnout); po schválení je ve stavu Schváleno a v historii stojí, že ji schválil člen vedení sám.
+- [ ] Projektový manažer vlastní objednávku (nad svůj limit) sám neschválí; jednatel také ne; u částky, kde je potřeba jednatel, jednatelský krok schválí jiný člověk.
+
 ## 5. Cashflow — vazby na harmonogram (0.34)
 - [ ] U platby nákladů zvolte **úkol harmonogramu**, kotvu (zahájení / dokončení), posun a splatnost → datum faktury a splatnost se vyplní samy a jsou zamčené.
 - [ ] Posuňte úkol v harmonogramu a uložte → platba v cashflow se posune.

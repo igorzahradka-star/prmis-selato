@@ -246,9 +246,34 @@ describe('decideOrder', () => {
       approvalChain: [{ level: 'vedeni', approved: false }],
       currentApprovalLevel: 'vedeni'
     });
-    expect(() => decideOrder(vlastniVedeni, 'approve', '', ctx(vedeni))).toThrow(/Vlastní objednávku/);
-    // jiný člen vedení ale ano
+    // člen vedení si ji smí v kroku vedení schválit sám (výjimka jen pro vedení)…
+    const sam = decideOrder(vlastniVedeni, 'approve', '', ctx(vedeni));
+    expect(sam.status).toBe(OrderStatus.Schvaleno);
+    expect(sam.auditAction).toMatch(/vlastní objednávku schválil člen vedení/);
+    // …ale vrátit ani zamítnout si ji nesmí
+    expect(() => decideOrder(vlastniVedeni, 'return', 'změnit', ctx(vedeni))).toThrow(/Vlastní objednávku/);
+    expect(() => decideOrder(vlastniVedeni, 'reject', 'důvod', ctx(vedeni))).toThrow(/Vlastní objednávku/);
+    // jiný člen vedení může také
     expect(decideOrder(vlastniVedeni, 'approve', '', ctx(vedeni2)).status).toBe(OrderStatus.Schvaleno);
+  });
+
+  it('výjimka platí jen pro vedení a jen v kroku vedení: jednatel, PM a krok jednatele ne', () => {
+    const vlastniVedeniJednatel = objednavka({
+      requestedByLogin: VEDENI,
+      requestedByName: vedeni.displayName,
+      status: OrderStatus.KeSchvaleni,
+      approvalChain: [{ level: 'vedeni', approved: true, auto: true }, { level: 'jednatel', approved: false }],
+      currentApprovalLevel: 'jednatel'
+    });
+    expect(() => decideOrder(vlastniVedeniJednatel, 'approve', '', ctx(vedeni))).toThrow(WorkflowError);
+    const vlastniJednatel = objednavka({
+      requestedByLogin: JEDNATEL,
+      requestedByName: jednatel.displayName,
+      status: OrderStatus.KeSchvaleni,
+      approvalChain: [{ level: 'jednatel', approved: false }],
+      currentApprovalLevel: 'jednatel'
+    });
+    expect(() => decideOrder(vlastniJednatel, 'approve', '', ctx(jednatel))).toThrow(/Vlastní objednávku/);
   });
 
   it('PM nesmí schválit objednávku, kterou sám vystavil, ani kdyby byl na řadě', () => {

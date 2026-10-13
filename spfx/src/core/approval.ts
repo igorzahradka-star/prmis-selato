@@ -29,6 +29,7 @@ export function describeApprovalLadder(settings: ApprovalSettings): string[] {
       ? 'objednávku do svého limitu si projektový manažer schvaluje sám'
       : 'i vlastní objednávku projektového manažera schvaluje vedení'
   );
+  rows.push('člen vedení si smí vlastní objednávku schválit sám (v kroku vedení); v audit logu je to vidět');
   if (settings.overheadRequiresVedeni) {
     rows.push('objednávky na projekt Režie schvaluje vždy vedení, bez ohledu na částku');
   }

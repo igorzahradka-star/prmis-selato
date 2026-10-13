@@ -135,14 +135,22 @@ export function canManageOrder(order: PurchaseOrder, project: WorkflowProject, a
 }
 
 /**
- * Smí uživatel schválit daný krok? Vždy platí, že nikdo neschvaluje vlastní objednávku —
- * ani když by mu to role jinak dovolila.
+ * Člen vedení smí **schválit** vlastní objednávku v kroku „vedení“ (vedení si schvaluje samo). Jinak nikdo neschvaluje
+ * vlastní objednávku; vrátit ani zamítnout si ji nesmí nikdo. Jednatel, PM ani administrátor tuto výjimku nemají.
+ */
+export function mayApproveOwn(level: ApprovalLevel, actor: Actor): boolean {
+  return level === 'vedeni' && hasAnyRole(actor.roles, Role.Vedeni);
+}
+
+/**
+ * Smí uživatel schválit daný krok? Nikdo neschvaluje vlastní objednávku — výjimkou je člen vedení v kroku vedení
+ * (`mayApproveOwn`).
  *
  * Má-li krok přiřazeného schvalovatele, smí ho schválit jen on (a u vedení a jednatele musí stále mít
  * příslušnou roli). Bez přiřazení smí kdokoli z role: PM projektu, člen vedení, jednatel.
  */
 export function mayApproveStep(step: ApprovalStep, order: PurchaseOrder, project: WorkflowProject, actor: Actor): boolean {
-  if (sameLogin(order.requestedByLogin, actor.login)) {
+  if (sameLogin(order.requestedByLogin, actor.login) && !mayApproveOwn(step.level, actor)) {
     return false;
   }
   if (step.assignedLogin) {
@@ -161,7 +169,7 @@ export function mayApproveStep(step: ApprovalStep, order: PurchaseOrder, project
 }
 
 function mayApproveLevel(level: ApprovalLevel, order: PurchaseOrder, project: WorkflowProject, actor: Actor): boolean {
-  if (sameLogin(order.requestedByLogin, actor.login)) {
+  if (sameLogin(order.requestedByLogin, actor.login) && !mayApproveOwn(level, actor)) {
     return false;
   }
   switch (level) {
@@ -245,7 +253,8 @@ export function availableActions(order: PurchaseOrder, project: WorkflowProject,
     }
   }
   if (isWaitingFor(order, project, actor)) {
-    actions.push('approve', 'return', 'reject');
+    // Vlastní objednávku smí člen vedení jen schválit; vrátit ani zamítnout ji nesmí.
+    actions.push(...(sameLogin(order.requestedByLogin, actor.login) ? (['approve'] as OrderAction[]) : (['approve', 'return', 'reject'] as OrderAction[])));
   }
   if (manage && order.status === OrderStatus.KeSchvaleni && currentStepIndex(order.approvalChain) !== -1) {
     actions.push('reassign');
@@ -444,8 +453,12 @@ export function decideOrder(
     throw new WorkflowError(`Objednávka ${order.orderNumber} nemá žádný nevyřízený krok schvalování.`);
   }
   const step = order.approvalChain[index];
-  if (sameLogin(order.requestedByLogin, ctx.actor.login)) {
+  const own = sameLogin(order.requestedByLogin, ctx.actor.login);
+  if (own && !mayApproveOwn(step.level, ctx.actor)) {
     throw new WorkflowError('Vlastní objednávku nesmíte schválit, vrátit ani zamítnout. Musí to udělat někdo jiný.');
+  }
+  if (own && decision !== 'approve') {
+    throw new WorkflowError('Vlastní objednávku smí člen vedení jen schválit. Vrátit ji nebo zamítnout musí někdo jiný (nebo ji stáhněte a upravte).');
   }
   if (!mayApproveStep(step, order, ctx.project, ctx.actor)) {
     throw new WorkflowError(
@@ -475,9 +488,9 @@ export function decideOrder(
       approvalChain: chain,
       currentApprovalLevel: next.level,
       auditAction:
-        next.status === OrderStatus.Schvaleno
+        (next.status === OrderStatus.Schvaleno
           ? `Schváleno (${APPROVAL_LEVEL_LABELS[step.level]}) — schvalování dokončeno`
-          : `Schváleno (${APPROVAL_LEVEL_LABELS[step.level]}) — dále ${APPROVAL_LEVEL_LABELS[next.level as ApprovalLevel]}`,
+          : `Schváleno (${APPROVAL_LEVEL_LABELS[step.level]}) — dále ${APPROVAL_LEVEL_LABELS[next.level as ApprovalLevel]}`) + (own ? ' — vlastní objednávku schválil člen vedení' : ''),
       approval: { stepNo: index + 1, decision: 'Schváleno', comment: text || undefined }
     };
   }

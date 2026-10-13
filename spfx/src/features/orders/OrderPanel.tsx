@@ -1347,7 +1347,7 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
           </DialogFooter>
         </Dialog>
       )}
-      </Panel>
+      {/* Dialog je uvnitř panelu: jinak ho panel bere jako klik mimo sebe a po uložení partnera se zavře i s rozepsanou objednávkou. */}
       {newSupplier && (
         <NewPartnerDialog
           suggestedName=""
@@ -1362,6 +1362,7 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
           }}
         />
       )}
+      </Panel>
     </>
   );
 };

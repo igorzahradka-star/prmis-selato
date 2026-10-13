@@ -85,12 +85,21 @@ describe('MockOrderRepository — schvalování krok za krokem', () => {
     expect(schvalena.status).toBe(OrderStatus.Schvaleno);
   });
 
-  it('PM nemůže schválit vlastní objednávku (jako Igor v roli vedení)', async () => {
+  it('člen vedení si vlastní objednávku smí schválit sám, ale nesmí ji vrátit ani zamítnout', async () => {
     const r = await repos();
-    // Igor je PM projektu 25001 a zároveň vedení: vlastní objednávku schválit nesmí
+    // Igor je PM projektu 25001 a zároveň vedení: v kroku vedení si vlastní objednávku schválí
     const o = await r.orders.create(vstup(), igor);
     await r.orders.submit(o.id, igor);
-    await expect(r.orders.decide(o.id, 'approve', '', igor)).rejects.toThrow(/Vlastní objednávku/);
+    await expect(r.orders.decide(o.id, 'return', 'změnit', igor)).rejects.toThrow(/Vlastní objednávku/);
+    await expect(r.orders.decide(o.id, 'reject', 'důvod', igor)).rejects.toThrow(/Vlastní objednávku/);
+    expect((await r.orders.decide(o.id, 'approve', '', igor)).status).toBe(OrderStatus.Schvaleno);
+  });
+
+  it('PM bez role vedení vlastní objednávku neschválí', async () => {
+    const r = await repos();
+    const o = await r.orders.create(vstup({ projectNumber: '25003' }), jan);
+    await r.orders.submit(o.id, jan);
+    await expect(r.orders.decide(o.id, 'approve', '', jan)).rejects.toThrow();
   });
 
   it('historie schvalování se zapisuje: kdo, jak a s jakým komentářem', async () => {
