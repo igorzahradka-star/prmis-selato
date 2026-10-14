@@ -151,3 +151,21 @@ describe('MockServiceRepository — smazání požadavku', () => {
     await expect(r.service.deleteRequest(1, vedeni)).rejects.toThrow(/nejde smazat/);
   });
 });
+
+describe('MockServiceRepository — přílohy', () => {
+  it('přílohy požadavku a listu: přidat, přečíst, odebrat; stejný název se nepřepíše; cizí role nesmí', async () => {
+    const r = createMockRepositories();
+    const t = { kind: 'request' as const, id: 1 };
+    const file = new File(['abc'], 'foto.jpg', { type: 'image/jpeg' });
+    await r.service.addAttachment(t, file, dispecer);
+    const second = await r.service.addAttachment(t, new File(['def'], 'foto.jpg', { type: 'image/jpeg' }), dispecer);
+    expect(second.name).toBe('foto_2.jpg');
+    expect((await r.service.listAttachments(t)).map((a) => a.name)).toEqual(['foto.jpg', 'foto_2.jpg']);
+    expect((await r.service.readAttachment(t, 'foto.jpg')).size).toBe(3);
+    await expect(r.service.addAttachment(t, file, pm)).rejects.toThrow(/správce servisu, dispečer/);
+    await expect(r.service.addAttachment(t, new File(['x'], 'virus.exe'), dispecer)).rejects.toThrow(/\.exe/);
+    await r.service.removeAttachment(t, 'foto.jpg', dispecer);
+    expect((await r.service.listAttachments(t)).map((a) => a.name)).toEqual(['foto_2.jpg']);
+    expect(await r.service.listAttachments({ kind: 'job', id: 1 })).toEqual([]);
+  });
+});

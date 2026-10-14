@@ -17,6 +17,7 @@ import { DEVICE_KINDS, ServiceDevice, ServiceSite, nextDeviceNumber, nextSiteNum
 import { DEFAULT_JOB_KIND, JOB_KINDS, REQUEST_KINDS, REQUEST_PRIORITIES, ServiceJob, ServiceRequest } from '../../core/serviceJobs';
 import { ServiceDeviceInput, ServiceJobInput, ServiceRequestInput, ServiceSiteInput } from '../../data/repositories';
 import { LocationPicker } from '../map/LocationPicker';
+import { ServiceAttachments } from './ServiceAttachments';
 import { DATE_INPUT, dateToInput, inputToDate } from './serviceUi';
 
 const ROW: React.CSSProperties = { display: 'flex', gap: 10, flexWrap: 'wrap' };
@@ -224,7 +225,7 @@ export const DeviceDialog: React.FC<{ site: ServiceSite; device?: ServiceDevice;
 
 // --- požadavek --------------------------------------------------------------------
 
-export const RequestDialog: React.FC<{ request?: ServiceRequest; sites: ServiceSite[]; devices: ServiceDevice[]; defaultSite?: string; save: (input: ServiceRequestInput) => Promise<unknown>; onSaved: () => void; onClose: () => void }> = ({ request, sites, devices, defaultSite, save, onSaved, onClose }) => {
+export const RequestDialog: React.FC<{ request?: ServiceRequest; sites: ServiceSite[]; devices: ServiceDevice[]; defaultSite?: string; save: (input: ServiceRequestInput, files: File[]) => Promise<unknown>; onSaved: () => void; onClose: () => void }> = ({ request, sites, devices, defaultSite, save, onSaved, onClose }) => {
   const [siteNumber, setSiteNumber] = React.useState(request ? request.siteNumber : defaultSite ?? (sites[0] ? sites[0].number : ''));
   const [deviceNumber, setDeviceNumber] = React.useState(request && request.deviceNumber ? request.deviceNumber : '');
   const [title, setTitle] = React.useState(request ? request.title : '');
@@ -234,6 +235,7 @@ export const RequestDialog: React.FC<{ request?: ServiceRequest; sites: ServiceS
   const [reportedBy, setReportedBy] = React.useState(request ? request.reportedBy ?? '' : '');
   const [note, setNote] = React.useState(request ? request.note ?? '' : '');
   const [required, setRequired] = React.useState(dateToInput(request ? request.requiredDate : undefined));
+  const [files, setFiles] = React.useState<File[]>([]);
   const { busy, error, run } = useSave(onSaved);
   const siteDevices = devices.filter((d) => d.siteNumber === siteNumber && d.isActive);
 
@@ -244,7 +246,7 @@ export const RequestDialog: React.FC<{ request?: ServiceRequest; sites: ServiceS
       busy={busy}
       confirm="Uložit"
       onClose={onClose}
-      onConfirm={() => run(() => save({ id: request ? request.id : undefined, siteNumber, deviceNumber: deviceNumber || undefined, title, description: description.trim() || undefined, priority, kind, reportedBy: reportedBy.trim() || undefined, requiredDate: inputToDate(required), note: note.trim() || undefined }))}
+      onConfirm={() => run(() => save({ id: request ? request.id : undefined, siteNumber, deviceNumber: deviceNumber || undefined, title, description: description.trim() || undefined, priority, kind, reportedBy: reportedBy.trim() || undefined, requiredDate: inputToDate(required), note: note.trim() || undefined }, files))}
     >
       <div style={ROW}>
         <Dropdown
@@ -274,6 +276,8 @@ export const RequestDialog: React.FC<{ request?: ServiceRequest; sites: ServiceS
         <input type="date" value={required} onChange={(e) => setRequired(e.target.value)} style={DATE_INPUT} />
       </label>
       <TextField label="Poznámka" multiline rows={2} value={note} onChange={(_, v) => setNote(v ?? '')} />
+      <div style={{ fontWeight: 600, margin: '10px 0 4px', color: RES.navy }}>Přílohy (fotky, dokumenty, nákresy)</div>
+      <ServiceAttachments target={request ? { kind: 'request', id: request.id } : undefined} pending={files} onPendingChange={setFiles} hideTitle />
     </Shell>
   );
 };
@@ -291,7 +295,7 @@ export const JobDialog: React.FC<{
   sites: ServiceSite[];
   devices: ServiceDevice[];
   partners: Partner[];
-  save: (input: ServiceJobInput) => Promise<unknown>;
+  save: (input: ServiceJobInput, files: File[]) => Promise<unknown>;
   onSaved: () => void;
   onClose: () => void;
 }> = ({ job, request, sites, devices, partners, save, onSaved, onClose }) => {
@@ -304,6 +308,7 @@ export const JobDialog: React.FC<{
   const [supplierId, setSupplierId] = React.useState<number>(job && job.supplierId ? job.supplierId : 0);
   const [planned, setPlanned] = React.useState(dateToInput(job ? job.plannedDate : request ? request.requiredDate : undefined));
   const [isInternal, setIsInternal] = React.useState(!!(job && job.isInternal));
+  const [files, setFiles] = React.useState<File[]>([]);
   const [jobKind, setJobKind] = React.useState(job && job.jobKind ? job.jobKind : request && request.kind === 'Preventivní prohlídka' ? 'Plánovaná' : DEFAULT_JOB_KIND);
   const { busy, error, run } = useSave(onSaved);
   const siteDevices = devices.filter((d) => d.siteNumber === siteNumber && d.isActive);
@@ -319,7 +324,7 @@ export const JobDialog: React.FC<{
       onClose={onClose}
       onConfirm={() => {
         const supplier = suppliers.filter((p) => p.id === supplierId)[0];
-        run(() => save({ id: job ? job.id : undefined, requestId: job ? job.requestId : request ? request.id : undefined, siteNumber, deviceNumber, title, description: description.trim() || undefined, plannedDate: inputToDate(planned), jobKind, isInternal, supplierId: !isInternal && supplier ? supplier.id : undefined, supplierName: !isInternal && supplier ? supplier.name : undefined }));
+        run(() => save({ id: job ? job.id : undefined, requestId: job ? job.requestId : request ? request.id : undefined, siteNumber, deviceNumber, title, description: description.trim() || undefined, plannedDate: inputToDate(planned), jobKind, isInternal, supplierId: !isInternal && supplier ? supplier.id : undefined, supplierName: !isInternal && supplier ? supplier.name : undefined }, files));
       }}
     >
       <div style={ROW}>
@@ -355,6 +360,9 @@ export const JobDialog: React.FC<{
           <input type="date" value={planned} onChange={(e) => setPlanned(e.target.value)} style={DATE_INPUT} />
         </label>
       </div>
+      {!job && request && <div style={{ fontSize: 12, color: RES.gray, margin: '6px 0' }}>Přílohy požadavku {request.number} se k servisnímu listu a k objednávce přiloží samy. Další podklady (fotky poškození, místo závady) lze přidat zde.</div>}
+      <div style={{ fontWeight: 600, margin: '10px 0 4px', color: RES.navy }}>Podklady k servisnímu listu</div>
+      <ServiceAttachments target={job ? { kind: 'job', id: job.id } : undefined} pending={files} onPendingChange={setFiles} show="plain" prefix="" hideTitle />
     </Shell>
   );
 };

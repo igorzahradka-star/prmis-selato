@@ -239,6 +239,25 @@ export function requestDeletionProblem(requestId: number, jobs: { requestId?: nu
   return blocked.length === 0 ? '' : `Požadavek nejde smazat, má ${blocked.length} servisních listů, které už nejde smazat (objednané, provedené nebo vyfakturované).`;
 }
 
+/** Název přílohy, který ještě mezi `existing` není: `foto.jpg` → `foto_2.jpg` → `foto_3.jpg` (velikost písmen nerozhoduje). */
+export function uniqueAttachmentName(name: string, existing: string[]): string {
+  const used = new Set(existing.map((n) => n.toLocaleLowerCase('cs-CZ')));
+  if (!used.has(name.toLocaleLowerCase('cs-CZ'))) {
+    return name;
+  }
+  const dot = name.lastIndexOf('.');
+  const base = dot > 0 ? name.slice(0, dot) : name;
+  const ext = dot > 0 ? name.slice(dot) : '';
+  let n = 2;
+  while (used.has(`${base}_${n}${ext}`.toLocaleLowerCase('cs-CZ'))) {
+    n++;
+  }
+  return `${base}_${n}${ext}`;
+}
+
+/** Předpona příloh, které k servisnímu listu přidal dodavatel nebo dispečer při zápisu provedení (fotky z provedení). */
+export const EXECUTION_ATTACHMENT_PREFIX = 'Provedeni_';
+
 // --- smlouva ---------------------------------------------------------------------
 
 export type ContractState = 'bez' | 'platna' | 'konci' | 'vyprsela';

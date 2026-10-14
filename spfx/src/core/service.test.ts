@@ -15,6 +15,7 @@ import {
   serviceFolderPlan,
   isSiteWideJob,
   siteDeletionProblem,
+  uniqueAttachmentName,
   requestDeletionProblem,
   siteNumberOfDevice,
   validateDeviceNumber,
@@ -157,5 +158,14 @@ describe('smazání požadavku', () => {
   it('požadavek bez listů jde smazat; s listy ne', () => {
     expect(requestDeletionProblem(1, [{ requestId: 2 }, {}])).toBe('');
     expect(requestDeletionProblem(1, [{ requestId: 1 }, { requestId: 1 }])).toMatch(/2 servisních listů/);
+  });
+});
+
+describe('přílohy servisu', () => {
+  it('stejný název dostane příponu _2, _3 a velikost písmen nerozhoduje', () => {
+    expect(uniqueAttachmentName('foto.jpg', [])).toBe('foto.jpg');
+    expect(uniqueAttachmentName('foto.jpg', ['foto.jpg'])).toBe('foto_2.jpg');
+    expect(uniqueAttachmentName('foto.jpg', ['FOTO.JPG', 'foto_2.jpg'])).toBe('foto_3.jpg');
+    expect(uniqueAttachmentName('bez-pripony', ['bez-pripony'])).toBe('bez-pripony_2');
   });
 });

@@ -26,6 +26,7 @@ import { notifyServiceManagers, serviceLink } from './serviceNotify';
 import { serviceRequestMail } from '../../core/notifications';
 import { JobPanel } from './JobPanel';
 import { ServiceMap } from './ServiceMap';
+import { RequestPanel } from './RequestPanel';
 import { ContractBadge, JobKindBadge, JobStatusBadge, PriorityBadge, RequestStatusBadge, SlaIndicator, TD, TH } from './serviceUi';
 import { isSlaBreached, slaProgress } from '../../core/serviceSla';
 
@@ -67,6 +68,7 @@ export const ServicePage: React.FC<{ param?: string }> = ({ param }) => {
   const [deleteSiteDlg, setDeleteSiteDlg] = React.useState<ServiceSite | undefined>(undefined);
   const [deleteRequestDlg, setDeleteRequestDlg] = React.useState<ServiceRequest | undefined>(undefined);
   const [deleteJobDlg, setDeleteJobDlg] = React.useState<ServiceJob | undefined>(undefined);
+  const [openRequestId, setOpenRequestId] = React.useState<number | undefined>(undefined);
   const [openJobId, setOpenJobId] = React.useState<number | undefined>(undefined);
 
   const mayView = canViewService(user.roles);
@@ -166,6 +168,7 @@ export const ServicePage: React.FC<{ param?: string }> = ({ param }) => {
   const shownJobs = jobs
     .filter((j) => (jobFilter === 'all' ? true : jobFilter === 'open' ? j.status !== JobStatus.Uzavreno && j.status !== JobStatus.Zruseno : j.status === jobFilter))
     .filter((j) => matches(j.number, j.title, j.supplierName, siteName(j.siteNumber), deviceName(j.deviceNumber), j.orderNumber, j.invoiceNumber));
+  const openRequest = openRequestId ? requests.filter((x) => x.id === openRequestId)[0] : undefined;
   const openJob = openJobId ? jobs.filter((j) => j.id === openJobId)[0] : undefined;
   const jobsOfRequest = (id: number): ServiceJob[] => jobs.filter((j) => j.requestId === id);
 
@@ -228,9 +231,9 @@ export const ServicePage: React.FC<{ param?: string }> = ({ param }) => {
             </thead>
             <tbody>
               {shownRequests.map((r) => (
-                <tr key={r.id} style={{ borderTop: `1px solid ${RES.background}` }}>
+                <tr key={r.id} style={{ borderTop: `1px solid ${RES.background}`, cursor: 'pointer' }} onClick={() => setOpenRequestId(r.id)}>
                   <td style={{ ...TD, whiteSpace: 'nowrap' }}>
-                    <strong>{r.number}</strong>
+                    <Link>{r.number}</Link>
                   </td>
                   <td style={{ ...TD, whiteSpace: 'nowrap' }}>{formatDate(r.receivedAt)}</td>
                   <td style={TD}>
@@ -252,7 +255,7 @@ export const ServicePage: React.FC<{ param?: string }> = ({ param }) => {
                   <td style={TD}>
                     <SlaIndicator progress={slaProgress(r, jobs, settings.service.slaRules)} />
                   </td>
-                  <td style={TD}>
+                  <td style={TD} onClick={(e) => e.stopPropagation()}>
                     {jobsOfRequest(r.id).map((j) => (
                       <div key={j.id}>
                         <Link onClick={() => setOpenJobId(j.id)}>{j.number}</Link> <JobStatusBadge status={j.status} />
@@ -260,7 +263,7 @@ export const ServicePage: React.FC<{ param?: string }> = ({ param }) => {
                     ))}
                     {jobsOfRequest(r.id).length === 0 && '—'}
                   </td>
-                  <td style={{ ...TD, whiteSpace: 'nowrap' }}>
+                  <td style={{ ...TD, whiteSpace: 'nowrap' }} onClick={(e) => e.stopPropagation()}>
                     {mayWork && (r.status === RequestStatus.Prijato || r.status === RequestStatus.Zpracovava) && <ActionButton text="Založit servisní list" iconProps={{ iconName: 'Add' }} onClick={() => setJobDlg({ request: r })} styles={{ root: { height: 28 } }} />}
                     {mayDelete && requestDeletionProblem(r.id, jobs) === '' && <ActionButton text="Smazat" iconProps={{ iconName: 'Delete' }} title="Smazat požadavek (i s jeho zrušenými a nezpracovanými listy)" onClick={() => setDeleteRequestDlg(r)} styles={{ root: { height: 28 } }} />}
                     {mayWork && r.status === RequestStatus.Prijato && <ActionButton text="Zamítnout" onClick={() => setRejectDlg(r)} styles={{ root: { height: 28 } }} />}
@@ -497,8 +500,19 @@ export const ServicePage: React.FC<{ param?: string }> = ({ param }) => {
       )}
       {siteDlg && <SiteDialog site={siteDlg.site} sites={sites} partners={partners} save={(input) => repos.service.saveSite(input, user)} onSaved={() => { setSiteDlg(undefined); setNotice('Lokalita je uložená.'); reload(); }} onClose={() => setSiteDlg(undefined)} />}
       {deviceDlg && <DeviceDialog site={deviceDlg.site} device={deviceDlg.device} devices={devices} save={(input) => repos.service.saveDevice(input, user)} onSaved={() => { setDeviceDlg(undefined); setNotice('Soubor je uložený.'); reload(); }} onClose={() => setDeviceDlg(undefined)} />}
-      {requestDlg && <RequestDialog request={requestDlg.request} defaultSite={requestDlg.siteNumber} sites={sites} devices={devices} save={async (input) => {
+      {requestDlg && <RequestDialog request={requestDlg.request} defaultSite={requestDlg.siteNumber} sites={sites} devices={devices} save={async (input, files) => {
         const saved = await repos.service.saveRequest(input, user);
+        const failed: string[] = [];
+        for (const f of files) {
+          try {
+            await repos.service.addAttachment({ kind: 'request', id: saved.id }, f, user);
+          } catch (e) {
+            failed.push(`${f.name}: ${e instanceof Error ? e.message : String(e)}`);
+          }
+        }
+        if (failed.length > 0) {
+          setError(`Požadavek je uložený, ale některé přílohy se nenahrály: ${failed.join(' | ')}`);
+        }
         if (!input.id) {
           const site = sites.filter((s) => s.number === saved.siteNumber)[0];
           const device = devices.filter((d) => d.number === saved.deviceNumber)[0];
@@ -509,8 +523,39 @@ export const ServicePage: React.FC<{ param?: string }> = ({ param }) => {
         }
         return saved;
       }} onSaved={() => { setRequestDlg(undefined); reload(); }} onClose={() => setRequestDlg(undefined)} />}
-      {jobDlg && <JobDialog request={jobDlg.request} sites={sites} devices={devices} partners={partners} save={(input) => repos.service.createJob(input, user)} onSaved={() => { setJobDlg(undefined); setNotice('Servisní list je založený.'); reload(); }} onClose={() => setJobDlg(undefined)} />}
+      {jobDlg && <JobDialog request={jobDlg.request} sites={sites} devices={devices} partners={partners} save={async (input, files) => {
+        const created = await repos.service.createJob(input, user);
+        const failed: string[] = [];
+        for (const f of files) {
+          try {
+            await repos.service.addAttachment({ kind: 'job', id: created.id }, f, user);
+          } catch (e) {
+            failed.push(`${f.name}: ${e instanceof Error ? e.message : String(e)}`);
+          }
+        }
+        if (failed.length > 0) {
+          setError(`Servisní list je založený, ale některé přílohy se nenahrály: ${failed.join(' | ')}`);
+        }
+        return created;
+      }} onSaved={() => { setJobDlg(undefined); setNotice('Servisní list je založený.'); reload(); }} onClose={() => setJobDlg(undefined)} />}
       {rejectDlg && <CommentDialog title={`Zamítnout požadavek ${rejectDlg.number}`} label="Důvod zamítnutí" required confirm="Zamítnout" onConfirm={(text) => repos.service.rejectRequest(rejectDlg.id, text, user)} onSaved={() => { setRejectDlg(undefined); reload(); }} onClose={() => setRejectDlg(undefined)} />}
+      {openRequest && (
+        <RequestPanel
+          request={openRequest}
+          sites={sites}
+          devices={devices}
+          jobs={jobs}
+          rules={settings.service.slaRules}
+          mayWork={mayWork}
+          mayDelete={mayDelete}
+          onClose={() => setOpenRequestId(undefined)}
+          onEdit={() => setRequestDlg({ request: openRequest })}
+          onReject={() => setRejectDlg(openRequest)}
+          onNewJob={() => setJobDlg({ request: openRequest })}
+          onOpenJob={(id) => setOpenJobId(id)}
+          onDelete={() => setDeleteRequestDlg(openRequest)}
+        />
+      )}
       {openJob && <JobPanel job={openJob} sites={sites} devices={devices} partners={partners} allJobs={jobs} onClose={() => setOpenJobId(undefined)} onChanged={reload} />}
     </>
   );

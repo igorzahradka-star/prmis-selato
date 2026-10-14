@@ -18,7 +18,7 @@
  * Verze schématu. Ukládá se do PRM_Settings pod klíčem `schemaVersion`.
  * Průvodce porovná uloženou verzi s touto a nabídne doplnění rozdílu.
  */
-export const SCHEMA_VERSION = 28;
+export const SCHEMA_VERSION = 29;
 
 /** Typ sloupce v SharePointu. */
 export type FieldType =
@@ -799,7 +799,8 @@ const PRM_SERVICE_JOBS: ListDef = {
     { name: 'InvoiceId', title: 'ID podkladu pro fakturaci', type: 'Number', decimals: 0 },
     { name: 'InvoiceNumber', title: 'Číslo podkladu pro fakturaci', type: 'Text' },
     { name: 'CancelReason', title: 'Důvod zrušení', type: 'Note' },
-    { name: 'CreatedByName', title: 'Založil', type: 'Text' }
+    { name: 'CreatedByName', title: 'Založil', type: 'Text' },
+    { name: 'CreatedByLogin', title: 'Založil (login)', type: 'Text' }
   ]
 };
 

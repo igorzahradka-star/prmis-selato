@@ -9,9 +9,10 @@
 import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { CurrentUser } from '../../core/types';
 import { toDate } from '../../core/format';
-import { canDeleteInService, canManageSites, canWorkInService, jobDeletionProblem, nextSiteNumber, serviceFolderPlan, siteDeletionProblem, requestDeletionProblem, validateDeviceNumber, validateSiteNumber, ServiceDevice, ServiceSite } from '../../core/service';
+import { canDeleteInService, canManageSites, canWorkInService, jobDeletionProblem, uniqueAttachmentName, nextSiteNumber, serviceFolderPlan, siteDeletionProblem, requestDeletionProblem, validateDeviceNumber, validateSiteNumber, ServiceDevice, ServiceSite } from '../../core/service';
 import { JobAction, JobActionInput, JobStatus, RequestStatus, ServiceFlowError, ServiceJob, ServiceRequest, applyJobAction, requestStatusFrom } from '../../core/serviceJobs';
-import { INumberingRepository, IProjectRepository, ISettingsRepository, IServiceRepository, ServiceDeviceInput, ServiceJobInput, ServiceRequestInput, ServiceSiteInput } from '../repositories';
+import { OrderAttachment, validateAttachment } from '../../core/orders';
+import { INumberingRepository, IProjectRepository, ISettingsRepository, ServiceAttachmentTarget, IServiceRepository, ServiceDeviceInput, ServiceJobInput, ServiceRequestInput, ServiceSiteInput } from '../repositories';
 import { getSp, getSpForSite, describeSpError } from './spContext';
 import { resolveFolderPath } from './spFolders';
 import { resolveLibrary } from './spLibrary';
@@ -124,7 +125,8 @@ function mapJob(i: Item): ServiceJob {
     invoiceId: numOrUndef(i.InvoiceId),
     invoiceNumber: str(i.InvoiceNumber),
     cancelReason: str(i.CancelReason),
-    createdByName: str(i.CreatedByName)
+    createdByName: str(i.CreatedByName),
+    createdByLogin: str(i.CreatedByLogin)
   };
 }
 
@@ -474,6 +476,63 @@ export class SpServiceRepository implements IServiceRepository {
     await this.syncRequestStatus(job.requestId, actor);
   }
 
+  // --- přílohy (přílohy položky seznamu) ---
+
+  private itemOf(target: ServiceAttachmentTarget): ReturnType<ReturnType<ReturnType<typeof getSp>['web']['lists']['getByTitle']>['items']['getById']> {
+    return getSp(this.context).web.lists.getByTitle(target.kind === 'request' ? REQUESTS : JOBS).items.getById(target.id);
+  }
+
+  public async listAttachments(target: ServiceAttachmentTarget): Promise<OrderAttachment[]> {
+    try {
+      const origin = new URL(this.context.pageContext.web.absoluteUrl).origin;
+      const files: { FileName: string; ServerRelativeUrl: string }[] = await this.itemOf(target).attachmentFiles();
+      return files.map((f) => ({ name: f.FileName, url: `${origin}${f.ServerRelativeUrl}` }));
+    } catch (error) {
+      throw new Error(describeSpError(error, 'Přílohy se nepodařilo načíst'));
+    }
+  }
+
+  public async addAttachment(target: ServiceAttachmentTarget, file: File, actor: CurrentUser): Promise<OrderAttachment> {
+    if (!canWorkInService(actor.roles)) {
+      throw new Error('Přílohy smí přidávat jen správce servisu, dispečer a administrátor.');
+    }
+    const problem = validateAttachment(file.name, file.size);
+    if (problem) {
+      throw new Error(problem);
+    }
+    const existing = (await this.listAttachments(target)).map((a) => a.name);
+    const name = uniqueAttachmentName(file.name, existing);
+    try {
+      await this.itemOf(target).attachmentFiles.add(name, file);
+    } catch (error) {
+      throw new Error(describeSpError(error, `Přílohu „${file.name}“ se nepodařilo nahrát`));
+    }
+    await this.audit(target.kind === 'request' ? 'Servisní požadavek' : 'Servisní list', String(target.id), actor, `Příloha přidána: ${name}`);
+    const found = (await this.listAttachments(target)).filter((a) => a.name === name)[0];
+    return found ?? { name, url: '' };
+  }
+
+  public async removeAttachment(target: ServiceAttachmentTarget, fileName: string, actor: CurrentUser): Promise<void> {
+    if (!canWorkInService(actor.roles)) {
+      throw new Error('Přílohy smí odebírat jen správce servisu, dispečer a administrátor.');
+    }
+    // Audit jde první: odebraný soubor je v koši SharePointu, ale bez záznamu by nebylo vidět, kdo ho odebral.
+    await this.audit(target.kind === 'request' ? 'Servisní požadavek' : 'Servisní list', String(target.id), actor, `Příloha odebrána: ${fileName}`);
+    try {
+      await this.itemOf(target).attachmentFiles.getByName(fileName).delete();
+    } catch (error) {
+      throw new Error(describeSpError(error, `Přílohu „${fileName}“ se nepodařilo odebrat`));
+    }
+  }
+
+  public async readAttachment(target: ServiceAttachmentTarget, fileName: string): Promise<Blob> {
+    try {
+      return await this.itemOf(target).attachmentFiles.getByName(fileName).getBlob();
+    } catch (error) {
+      throw new Error(describeSpError(error, `Přílohu „${fileName}“ se nepodařilo načíst`));
+    }
+  }
+
   // --- servisní listy ---
 
   public async listJobs(): Promise<ServiceJob[]> {
@@ -536,7 +595,7 @@ export class SpServiceRepository implements IServiceRepository {
     const now = new Date();
     const id = await this.add(
       JOBS,
-      { ...this.jobFields(input), JobNumber: number, JobStatus: JobStatus.Naplanovano, RequestId: input.requestId ?? null, RequestNumber: request ? request.number : '', CreatedByName: actor.displayName },
+      { ...this.jobFields(input), JobNumber: number, JobStatus: JobStatus.Naplanovano, RequestId: input.requestId ?? null, RequestNumber: request ? request.number : '', CreatedByName: actor.displayName, CreatedByLogin: actor.loginName },
       'Servisní list se nepodařilo založit'
     );
     await this.audit('Servisní list', number, actor, 'Založen servisní list', undefined, JobStatus.Naplanovano);

@@ -18,7 +18,9 @@ import { useApp } from '../../ui/AppContext';
 import { RES } from '../../ui/theme';
 import { formatDate, formatDateTime } from '../../core/format';
 import { Partner } from '../../core/types';
-import { ServiceDevice, ServiceSite } from '../../core/service';
+import { EXECUTION_ATTACHMENT_PREFIX, ServiceDevice, ServiceSite } from '../../core/service';
+import { signatureOf, UserSignature } from '../../core/signatures';
+import { downloadBlob } from '../../ui/download';
 import { JobAction, JobActionInput, ServiceJob, availableJobActions, isJobOverdue } from '../../core/serviceJobs';
 import { InvoiceStatus } from '../../core/invoiceBases';
 import { OrderStatus } from '../../core/orders';
@@ -27,6 +29,8 @@ import { InvoicePanel } from '../invoicing/InvoicePanel';
 import { ServiceJobInput } from '../../data/repositories';
 import { CommentDialog, JobDialog } from './ServiceDialogs';
 import { notifyServiceManagers, serviceLink } from './serviceNotify';
+import { ServiceAttachments } from './ServiceAttachments';
+import { renderServiceJobPdf, serviceJobPdfFileName } from './serviceJobPdf';
 import { serviceJobToCheckMail } from '../../core/notifications';
 import { DATE_INPUT, Fact, JobKindBadge, JobStatusBadge, dateToInput, inputToDate } from './serviceUi';
 
@@ -62,6 +66,10 @@ export const JobPanel: React.FC<{
   const [orders, setOrders] = React.useState<{ id: number; orderNumber: string; supplierName: string; status: string; subject: string }[]>([]);
   const [invoices, setInvoices] = React.useState<{ id: number; number: string; status: string; customerName?: string }[]>([]);
   const [pick, setPick] = React.useState<number | undefined>(undefined);
+  const [orderFiles, setOrderFiles] = React.useState<File[]>([]);
+  const [execCount, setExecCount] = React.useState(0);
+  const [pdfBusy, setPdfBusy] = React.useState(false);
+  const noFiles = React.useRef<File[]>([]).current;
 
   const site = sites.filter((s) => s.number === job.siteNumber)[0];
   const device = devices.filter((d) => d.number === job.deviceNumber)[0];
@@ -77,6 +85,76 @@ export const JobPanel: React.FC<{
       .then((l) => setInvoices(l.map((i) => ({ id: i.id, number: i.number, status: i.status, customerName: i.customerName }))))
       .catch(() => setInvoices([]));
   }, [repos, job.deviceNumber, reload]);
+
+  /** Načte podklady z požadavku a ze servisního listu (kromě fotek z provedení) a otevře novou objednávku s nimi jako přílohami. */
+  const startOrder = (): void => {
+    setBusy(true);
+    setDlgError(undefined);
+    (async (): Promise<void> => {
+      const files: File[] = [];
+      const targets: { kind: 'request' | 'job'; id: number }[] = [{ kind: 'job', id: job.id }];
+      if (job.requestId) {
+        targets.unshift({ kind: 'request', id: job.requestId });
+      }
+      for (const t of targets) {
+        for (const a of await repos.service.listAttachments(t)) {
+          if (a.name.indexOf(EXECUTION_ATTACHMENT_PREFIX) === 0) {
+            continue;
+          }
+          const blob = await repos.service.readAttachment(t, a.name);
+          // Stejný název z požadavku i z listu se nesmí přepsat.
+          const name = files.some((f) => f.name === a.name) ? `${t.kind === 'job' ? 'SL' : 'SPO'}_${a.name}` : a.name;
+          files.push(new File([blob], name, { type: blob.type }));
+        }
+      }
+      setOrderFiles(files);
+      setOrderOpen(true);
+    })()
+      .catch((e: unknown) => setDlgError(e instanceof Error ? e.message : String(e)))
+      .then(() => setBusy(false), () => setBusy(false));
+  };
+
+  /** PDF servisního listu s podpisem vystavitele — pro odeslání e-mailem (např. dodavateli bez portálu). */
+  const exportPdf = (): void => {
+    setPdfBusy(true);
+    setError(undefined);
+    (async (): Promise<void> => {
+      const [reqAtt, jobAtt, requests, partnersList] = await Promise.all([
+        job.requestId ? repos.service.listAttachments({ kind: 'request', id: job.requestId }) : Promise.resolve([]),
+        repos.service.listAttachments({ kind: 'job', id: job.id }),
+        job.requestId ? repos.service.listRequests() : Promise.resolve([]),
+        Promise.resolve(partners)
+      ]);
+      const request = requests.filter((x) => x.id === job.requestId)[0];
+      const supplier = partnersList.filter((x) => x.id === job.supplierId)[0];
+      const sigs = job.createdByLogin ? await repos.profiles.getSignatures([job.createdByLogin]).catch((): Record<string, UserSignature> => ({})) : {};
+      const blob = await renderServiceJobPdf({
+        number: job.number,
+        title: job.title,
+        siteName: site ? `${site.number} ${site.name}` : job.siteNumber,
+        deviceName: device ? `${device.number} ${device.name}` : 'celá lokalita',
+        siteAddress: site ? site.address : undefined,
+        siteContact: site && site.contact ? `Kontakt: ${site.contact}` : undefined,
+        requestNumber: job.requestNumber,
+        requestTitle: request ? request.title : undefined,
+        requestDescription: request ? request.description : undefined,
+        reportedBy: request ? request.reportedBy : undefined,
+        priority: request ? request.priority : undefined,
+        kind: job.jobKind === 'Plánovaná' ? 'Plánovaná (v paušálu)' : 'Nahodilá (mimo paušál)',
+        isInternal: !!job.isInternal,
+        supplier: supplier ? { name: supplier.name, address: supplier.address, ico: supplier.ico, dic: supplier.dic, email: supplier.email } : job.supplierName ? { name: job.supplierName } : undefined,
+        plannedDate: job.plannedDate,
+        description: job.description,
+        attachmentNames: [...reqAtt.map((a) => a.name), ...jobAtt.filter((a) => a.name.indexOf(EXECUTION_ATTACHMENT_PREFIX) !== 0).map((a) => a.name)],
+        company: settings.company,
+        issuer: { name: job.createdByName || user.displayName, at: job.createdAt, image: signatureOf(sigs, job.createdByLogin) },
+        watermark: job.status === 'Zrušeno' ? 'ZRUŠENO' : undefined
+      });
+      downloadBlob(blob, serviceJobPdfFileName(job.number));
+    })()
+      .catch((e: unknown) => setError(`PDF se nepodařilo vytvořit: ${e instanceof Error ? e.message : String(e)}`))
+      .then(() => setPdfBusy(false), () => setPdfBusy(false));
+  };
 
   const act = (action: JobAction, input: JobActionInput): Promise<unknown> => repos.service.actOnJob(job.id, action, input, user);
   const done = (): void => {
@@ -144,6 +222,7 @@ export const JobPanel: React.FC<{
           <DefaultButton key={a} text={ACTION_LABELS[a]} onClick={() => setDlg(a)} />
         )
       )}
+      <DefaultButton text={pdfBusy ? 'Vytvářím PDF…' : 'Export do PDF'} iconProps={{ iconName: 'PDF' }} disabled={pdfBusy} title="PDF s podpisem vystavitele — pro odeslání e-mailem (např. dodavateli bez portálu)" onClick={exportPdf} />
       <DefaultButton text="Zavřít" onClick={onClose} />
     </div>
   );
@@ -173,6 +252,17 @@ export const JobPanel: React.FC<{
         <Fact label="Plánovaný termín">{job.plannedDate ? formatDate(job.plannedDate) : ''}</Fact>
         <Fact label="Objednávka dodavateli">{orderLink}</Fact>
 
+        <div style={{ borderTop: `1px solid ${RES.grayBlue}`, paddingTop: 8, marginTop: 4 }}>
+          <div style={{ fontWeight: 600, color: RES.navy, marginBottom: 6 }}>Podklady k servisnímu listu</div>
+          <ServiceAttachments target={{ kind: 'job', id: job.id }} pending={noFiles} onPendingChange={() => undefined} show="plain" prefix={EXECUTION_ATTACHMENT_PREFIX} editable={job.status === 'Naplánováno' || job.status === 'Dodavatel objednán'} hideTitle />
+          {job.requestId && (
+            <div style={{ marginTop: 8 }}>
+              <div style={{ fontSize: 12, color: RES.gray, marginBottom: 4 }}>Přílohy z požadavku {job.requestNumber}</div>
+              <ServiceAttachments target={{ kind: 'request', id: job.requestId }} pending={noFiles} onPendingChange={() => undefined} editable={false} hideTitle />
+            </div>
+          )}
+        </div>
+
         {(job.doneAt || job.workReport) && (
           <div style={{ borderTop: `1px solid ${RES.grayBlue}`, paddingTop: 8, marginTop: 4 }}>
             <div style={{ fontWeight: 600, color: RES.navy, marginBottom: 6 }}>Provedení</div>
@@ -181,7 +271,8 @@ export const JobPanel: React.FC<{
             <Fact label="Zpráva o provedení">{job.workReport && <span style={{ whiteSpace: 'pre-wrap' }}>{job.workReport}</span>}</Fact>
             <Fact label="Odpracované hodiny">{job.hours !== undefined ? String(job.hours).replace('.', ',') : ''}</Fact>
             <Fact label="Materiál">{job.material}</Fact>
-            <Fact label="Fotky">{job.photosUrl && <Link href={job.photosUrl} {...EXTERNAL_LINK_PROPS}>Otevřít složku s fotkami</Link>}</Fact>
+            <Fact label="Odkaz na fotky">{job.photosUrl && <Link href={job.photosUrl} {...EXTERNAL_LINK_PROPS}>Otevřít složku s fotkami</Link>}</Fact>
+            <ServiceAttachments target={{ kind: 'job', id: job.id }} pending={noFiles} onPendingChange={() => undefined} show="prefixed" prefix={EXECUTION_ATTACHMENT_PREFIX} editable={false} hideTitle />
           </div>
         )}
         {(job.checkedAt || job.checkNote) && (
@@ -251,7 +342,8 @@ export const JobPanel: React.FC<{
             onChange={(_, o) => o && setPick(Number(o.key))}
           />
           <div style={{ marginTop: 8 }}>
-            <DefaultButton text={dlg === 'order' ? 'Vystavit novou objednávku…' : 'Založit nový podklad…'} onClick={() => (dlg === 'order' ? setOrderOpen(true) : setInvoiceOpen(true))} />
+            <DefaultButton text={dlg === 'order' ? 'Vystavit novou objednávku…' : 'Založit nový podklad…'} disabled={busy} onClick={() => (dlg === 'order' ? startOrder() : setInvoiceOpen(true))} />
+            {dlg === 'order' && <div style={{ fontSize: 12, color: RES.gray, marginTop: 4 }}>K nové objednávce se přiloží podklady z požadavku a servisního listu (fotky poškození, místo závady…).</div>}
           </div>
           <DialogFooter>
             <PrimaryButton
@@ -288,7 +380,7 @@ export const JobPanel: React.FC<{
             selectedKey={proofKind}
             options={[
               { key: 'Popis', text: 'Popis práce (textem)' },
-              { key: 'Fotka', text: 'Fotky (odkaz na složku)' },
+              { key: 'Fotka', text: 'Fotky (nahrajte je níže)' },
               { key: 'Vzdálené ověření', text: 'Ověření na dálku (např. dispečer podle dat ve vizualizaci)' }
             ]}
             onChange={(_, o) => o && setProofKind(o.key)}
@@ -300,7 +392,9 @@ export const JobPanel: React.FC<{
             <TextField label="Odpracované hodiny" value={hours} onChange={(_, v) => setHours(v ?? '')} styles={{ root: { width: 160 } }} />
             <TextField label="Použitý materiál" value={material} onChange={(_, v) => setMaterial(v ?? '')} styles={{ root: { flex: '1 1 auto' } }} />
           </div>
-          <TextField label="Fotky (odkaz na složku)" required={proofKind === 'Fotka'} value={photosUrl} onChange={(_, v) => setPhotosUrl(v ?? '')} />
+          <div style={{ fontWeight: 600, margin: '10px 0 4px' }}>Fotky a přílohy z provedení{proofKind === 'Fotka' ? ' *' : ''}</div>
+          <ServiceAttachments target={{ kind: 'job', id: job.id }} pending={noFiles} onPendingChange={() => undefined} show="prefixed" prefix={EXECUTION_ATTACHMENT_PREFIX} onCount={setExecCount} hideTitle />
+          <TextField label="Odkaz na složku s fotkami (nepovinné)" value={photosUrl} onChange={(_, v) => setPhotosUrl(v ?? '')} />
           <DialogFooter>
             <PrimaryButton
               text={busy ? 'Ukládám…' : 'Zapsat provedení'}
@@ -311,7 +405,7 @@ export const JobPanel: React.FC<{
                   setDlgError('Odpracované hodiny nejsou číslo.');
                   return;
                 }
-                submit('report', { workReport: reportText, hours: h, material, photosUrl: photosUrl.trim() || undefined, doneAt: inputToDate(doneAt), proofKind, verifiedBy });
+                submit('report', { workReport: reportText, hours: h, material, photosUrl: photosUrl.trim() || undefined, doneAt: inputToDate(doneAt), proofKind, verifiedBy, photoCount: execCount });
               }}
             />
             <DefaultButton text="Zrušit" disabled={busy} onClick={closeDialog} />
@@ -322,7 +416,7 @@ export const JobPanel: React.FC<{
       <OrderPanel
         isOpen={orderOpen}
         projectNumber={job.deviceNumber}
-        prefill={{ subject: `${job.title} (${job.number})`, supplierName: job.supplierName, deliveryDate: job.plannedDate, currency: 'CZK', lines: [{ description: job.title, quantity: 1, unit: 'kpl', unitPriceNet: 0 }] }}
+        prefill={{ subject: `${job.title} (${job.number})`, supplierName: job.supplierName, deliveryDate: job.plannedDate, files: orderFiles, currency: 'CZK', lines: [{ description: job.title, quantity: 1, unit: 'kpl', unitPriceNet: 0 }] }}
         onDismiss={() => setOrderOpen(false)}
         onChanged={() => setReload((k) => k + 1)}
       />

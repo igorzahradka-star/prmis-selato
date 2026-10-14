@@ -948,6 +948,12 @@ export interface IAbraDocRepository {
 export type ServiceSiteInput = Omit<ServiceSite, 'id'> & { id?: number };
 export type ServiceDeviceInput = Omit<ServiceDevice, 'id'> & { id?: number };
 export type ServiceRequestInput = Omit<ServiceRequest, 'id' | 'number' | 'status' | 'receivedAt' | 'receivedByName' | 'receivedByLogin'> & { id?: number };
+/** Kam se příloha ukládá: k servisnímu požadavku, nebo k servisnímu listu (příloha položky seznamu). */
+export interface ServiceAttachmentTarget {
+  kind: 'request' | 'job';
+  id: number;
+}
+
 export interface ServiceJobInput {
   id?: number;
   requestId?: number;
@@ -990,6 +996,12 @@ export interface IServiceRepository {
   saveRequest(input: ServiceRequestInput, actor: CurrentUser): Promise<ServiceRequest>;
   /** Zamítne požadavek s důvodem. */
   rejectRequest(requestId: number, note: string, actor: CurrentUser): Promise<ServiceRequest>;
+  /** Přílohy požadavku nebo servisního listu (fotky, dokumenty, nákresy). */
+  listAttachments(target: ServiceAttachmentTarget): Promise<OrderAttachment[]>;
+  /** Přidá přílohu (stejná pravidla na název a velikost jako u objednávek); stejný název dostane příponu `_2`. Smí správce, dispečer a administrátor. */
+  addAttachment(target: ServiceAttachmentTarget, file: File, actor: CurrentUser): Promise<OrderAttachment>;
+  removeAttachment(target: ServiceAttachmentTarget, fileName: string, actor: CurrentUser): Promise<void>;
+  readAttachment(target: ServiceAttachmentTarget, fileName: string): Promise<Blob>;
   /**
    * Smaže požadavek (i s jeho zrušenými a nezpracovanými listy, viz `requestDeletionProblem`); v SharePointu do koše webu.
    * Smí jen vedení a administrátor.

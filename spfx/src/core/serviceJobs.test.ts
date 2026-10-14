@@ -124,3 +124,21 @@ describe('doklad o provedení', () => {
     expect(applyJobAction(objednano(), 'report', { photosUrl: 'https://x/f' }, dispecer).patch.proofKind).toBe('Fotka');
   });
 });
+
+describe('fotky z provedení a interní servis', () => {
+  it('doklad Fotka stačí s nahranými fotkami, i bez odkazu na složku', () => {
+    const objednano = job({ status: JobStatus.Objednano });
+    expect(applyJobAction(objednano, 'report', { proofKind: 'Fotka', photoCount: 2 }, dispecer).patch.proofKind).toBe('Fotka');
+    expect(() => applyJobAction(objednano, 'report', { proofKind: 'Fotka', photoCount: 0 }, dispecer)).toThrow(/fotky/);
+  });
+
+  it('interní servis se neobjednává a provedení se zapisuje rovnou z naplánovaného stavu', () => {
+    const interni = job({ isInternal: true, supplierId: undefined, supplierName: undefined });
+    expect(availableJobActions(interni, dispecer.roles)).toEqual(expect.arrayContaining(['report', 'edit', 'cancel']));
+    expect(availableJobActions(interni, dispecer.roles)).not.toContain('order');
+    expect(() => applyJobAction(interni, 'order', { orderId: 1 }, dispecer)).toThrow(/neobjednává/);
+    expect(applyJobAction(interni, 'report', { workReport: 'Opraveno naším dispečerem' }, dispecer).status).toBe(JobStatus.Provedeno);
+    // běžný list z naplánovaného stavu provedení zapsat nejde
+    expect(() => applyJobAction(job(), 'report', { workReport: 'x' }, dispecer)).toThrow(/ve stavu „Naplánováno“/);
+  });
+});

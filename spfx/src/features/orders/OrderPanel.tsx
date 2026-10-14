@@ -94,6 +94,8 @@ export interface OrderPrefill {
   budgetItemName?: string;
   /** Termín dodání nové objednávky (např. plánovaný termín servisního listu); v objednávce se dá změnit. */
   deliveryDate?: Date;
+  /** Přílohy, které se k nové objednávce rovnou připojí (např. podklady ze servisního požadavku a listu); nahrají se po uložení. */
+  files?: File[];
 }
 
 export interface OrderPanelProps {
@@ -204,6 +206,9 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
       setFSubject(prefill.subject);
       if (prefill.deliveryDate) {
         setFDelivery(prefill.deliveryDate);
+      }
+      if (prefill.files && prefill.files.length > 0) {
+        setPendingFiles(prefill.files);
       }
       setFCurrency((prefill.currency as Currency) || 'CZK');
       setFLines(

@@ -5,6 +5,15 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.51.0 — 15. 10. 2026 — Servis: přílohy, detail požadavku, PDF listu, podklady do objednávky
+
+- **Přílohy požadavku a servisního listu:** fotky, dokumenty a **nákresy** (kreslení do prázdna i do fotky jako ve stavebním deníku). Fotky se před uložením zmenší podle Nastavení → Fotky. Přílohy jsou přílohy položky seznamu (SharePoint), ne složky.
+- **Detail požadavku** (klik na řádek v seznamu požadavků): údaje, SLA, přílohy a servisní listy s jejich stavem; odtud jde požadavek upravit, zamítnout, smazat (vedení a administrátor) a založit na něj servisní list. V seznamu zmizelo useknutí textu — tabulka se posouvá.
+- **Servisní list** má vlastní přílohy (podklady, fotky poškození…) a ukazuje i přílohy z požadavku. **Export do PDF** s podpisem vystavitele (stejně jako objednávka) — pro odeslání e-mailem, např. dodavateli bez portálu.
+- **Objednávka z servisního listu:** přílohy z požadavku a z listu se k nové objednávce **přiloží samy**; termín dodání se převezme z plánovaného termínu listu (v objednávce jde změnit).
+- **Zápis provedení:** doklad „Fotky“ se dokládá **nahráním fotek** přímo v dialogu (odkaz na složku je nepovinný); fotky z provedení se ukazují v detailu listu.
+- **Schéma 29** (sloupec CreatedByLogin u servisních listů — kvůli podpisu na PDF) — po nahrání spustit **Instalaci a diagnostiku**.
+
 ## 0.50.0 — 15. 10. 2026 — Servis: práva, interní servis, požadovaný termín
 
 - **Práva v Servisu:** lokality zakládá a lokality i soubory upravuje **správce servisu, vedení a administrátor**; **mazat** (lokalitu, požadavek, servisní list) smí jen **vedení a administrátor**. Dispečer zapisuje a odbavuje požadavky a servisní listy (zakládá listy, objednává, zapisuje provedení).

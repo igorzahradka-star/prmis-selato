@@ -105,6 +105,8 @@ export interface ServiceJob {
   invoiceNumber?: string;
   cancelReason?: string;
   createdByName?: string;
+  /** Přihlašovací jméno toho, kdo list vystavil (pro podpis na PDF). */
+  createdByLogin?: string;
   createdAt?: Date;
 }
 
@@ -187,6 +189,8 @@ export interface JobActionInput {
   material?: string;
   photosUrl?: string;
   proofKind?: string;
+  /** Počet fotek a příloh nahraných k provedení (stačí k dokladu „Fotka“ místo odkazu na složku). */
+  photoCount?: number;
   /** Kdo provedení ověřil na dálku. */
   verifiedBy?: string;
   /** Objednávka (`order`). */
@@ -223,7 +227,7 @@ export function applyJobAction(job: ServiceJob, action: JobAction, input: JobAct
     }
     case 'report': {
       const report = (input.workReport || '').trim();
-      const photos = (input.photosUrl || job.photosUrl || '').trim();
+      const photos = (input.photosUrl || job.photosUrl || '').trim() || ((input.photoCount ?? 0) > 0 ? 'přílohy' : '');
       const verifiedBy = (input.verifiedBy || '').trim();
       // Bez výslovné volby se doklad pozná podle toho, co je vyplněno (popis, pak fotky).
       const proof = input.proofKind || (report !== '' ? 'Popis' : photos !== '' ? 'Fotka' : undefined);
@@ -234,7 +238,7 @@ export function applyJobAction(job: ServiceJob, action: JobAction, input: JobAct
         throw new ServiceFlowError('Popište, co se provedlo (zpráva o provedení).');
       }
       if (proof === 'Fotka' && photos === '') {
-        throw new ServiceFlowError('Doložte fotky: vložte odkaz na složku s fotkami.');
+        throw new ServiceFlowError('Doložte fotky: nahrajte aspoň jednu fotku (nebo vložte odkaz na složku s fotkami).');
       }
       if (proof === 'Vzdálené ověření' && verifiedBy === '') {
         throw new ServiceFlowError('Uveďte, kdo provedení ověřil na dálku (např. dispečer podle dat ve vizualizaci).');
@@ -246,7 +250,7 @@ export function applyJobAction(job: ServiceJob, action: JobAction, input: JobAct
           workReport: report || undefined,
           hours: input.hours,
           material: (input.material || '').trim() || undefined,
-          photosUrl: photos || undefined,
+          photosUrl: (input.photosUrl || job.photosUrl || '').trim() || undefined,
           proofKind: proof,
           verifiedByName: proof === 'Vzdálené ověření' ? verifiedBy : undefined,
           verifiedAt: proof === 'Vzdálené ověření' ? now : undefined

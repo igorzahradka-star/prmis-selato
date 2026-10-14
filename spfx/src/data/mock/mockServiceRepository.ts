@@ -4,9 +4,10 @@
  */
 
 import { CurrentUser } from '../../core/types';
-import { canDeleteInService, canManageSites, canWorkInService, jobDeletionProblem, nextSiteNumber, siteDeletionProblem, requestDeletionProblem, validateDeviceNumber, validateSiteNumber, ServiceDevice, ServiceSite } from '../../core/service';
+import { canDeleteInService, canManageSites, canWorkInService, jobDeletionProblem, uniqueAttachmentName, nextSiteNumber, siteDeletionProblem, requestDeletionProblem, validateDeviceNumber, validateSiteNumber, ServiceDevice, ServiceSite } from '../../core/service';
 import { JobAction, JobActionInput, JobStatus, RequestStatus, ServiceFlowError, ServiceJob, ServiceRequest, applyJobAction, requestStatusFrom } from '../../core/serviceJobs';
-import { INumberingRepository, IProjectRepository, IServiceRepository, ServiceDeviceInput, ServiceJobInput, ServiceRequestInput, ServiceSiteInput } from '../repositories';
+import { OrderAttachment, validateAttachment } from '../../core/orders';
+import { INumberingRepository, IProjectRepository, IServiceRepository, ServiceAttachmentTarget, ServiceDeviceInput, ServiceJobInput, ServiceRequestInput, ServiceSiteInput } from '../repositories';
 
 const day = (y: number, m: number, d: number): Date => new Date(y, m - 1, d);
 
@@ -167,6 +168,41 @@ export class MockServiceRepository implements IServiceRepository {
     return Promise.resolve({ ...updated });
   }
 
+  private attachments: Record<string, { name: string; blob: Blob }[]> = {};
+
+  public listAttachments(target: ServiceAttachmentTarget): Promise<OrderAttachment[]> {
+    return Promise.resolve((this.attachments[`${target.kind}:${target.id}`] ?? []).map((a) => ({ name: a.name, url: '#', sizeBytes: a.blob.size })));
+  }
+
+  public addAttachment(target: ServiceAttachmentTarget, file: File, actor: CurrentUser): Promise<OrderAttachment> {
+    if (!canWorkInService(actor.roles)) {
+      return Promise.reject(new Error('Přílohy smí přidávat jen správce servisu, dispečer a administrátor.'));
+    }
+    const problem = validateAttachment(file.name, file.size);
+    if (problem) {
+      return Promise.reject(new Error(problem));
+    }
+    const key = `${target.kind}:${target.id}`;
+    const list = this.attachments[key] ?? [];
+    const name = uniqueAttachmentName(file.name, list.map((a) => a.name));
+    this.attachments[key] = [...list, { name, blob: file }];
+    return Promise.resolve({ name, url: '#', sizeBytes: file.size });
+  }
+
+  public removeAttachment(target: ServiceAttachmentTarget, fileName: string, actor: CurrentUser): Promise<void> {
+    if (!canWorkInService(actor.roles)) {
+      return Promise.reject(new Error('Přílohy smí odebírat jen správce servisu, dispečer a administrátor.'));
+    }
+    const key = `${target.kind}:${target.id}`;
+    this.attachments[key] = (this.attachments[key] ?? []).filter((a) => a.name !== fileName);
+    return Promise.resolve();
+  }
+
+  public readAttachment(target: ServiceAttachmentTarget, fileName: string): Promise<Blob> {
+    const found = (this.attachments[`${target.kind}:${target.id}`] ?? []).filter((a) => a.name === fileName)[0];
+    return found ? Promise.resolve(found.blob) : Promise.reject(new Error('Příloha nebyla nalezena.'));
+  }
+
   public deleteRequest(requestId: number, actor: CurrentUser): Promise<void> {
     if (!canDeleteInService(actor.roles)) {
       return Promise.reject(new Error('Požadavek smí smazat jen vedení a administrátor.'));
@@ -234,7 +270,7 @@ export class MockServiceRepository implements IServiceRepository {
     }
     const request = input.requestId ? this.requests.filter((r) => r.id === input.requestId)[0] : undefined;
     const number = await this.numbering.allocateNumber('SL');
-    const job: ServiceJob = { ...input, id: this.nextId++, number, title: input.title.trim(), status: JobStatus.Naplanovano, requestNumber: request ? request.number : undefined, createdByName: actor.displayName, createdAt: new Date() };
+    const job: ServiceJob = { ...input, id: this.nextId++, number, title: input.title.trim(), status: JobStatus.Naplanovano, requestNumber: request ? request.number : undefined, createdByName: actor.displayName, createdByLogin: actor.loginName, createdAt: new Date() };
     this.jobs = [...this.jobs, job];
     this.syncRequest(input.requestId);
     return { ...job };
