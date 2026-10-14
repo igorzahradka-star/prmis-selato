@@ -201,3 +201,11 @@ Web PRM: `https://revoltum.sharepoint.com/sites/RevoltumEngineeringServices`. Ap
 „PRM Abra – stahování“ (jen tento tenant). Identifikátory (nejsou tajné, jsou i v `integrations/abra-sync/src/sharepoint.js`): ID aplikace `b259e855-edcd-4d09-a0a3-d4c1e7c1e544`,
 ID objektu `48930735-90ac-4fef-a5c5-106ed922e430`, ID adresáře `8579e1d3-b836-4335-af18-ce92b06f0620`. Zbývá: oprávnění `Sites.Selected` + souhlas správce, přidělení práva Write webu PRM, tajný klíč (jen do prostředníka).
 Kód: `src/sharepoint.js` (Graph klient: přihlášení klíčem aplikace, čtení a zápis položek; **zapisovat lze jen do `PRM_AbraDocs` a `PRM_AbraSync`**, žádné mazání) + testy s falešným Graphem.
+
+### Hlavní příkaz prostředníka: `node src/sync.js` (14. 10. 2026)
+`integrations/abra-sync/src/sync.js` — stáhne z Abry zápisy účetního deníku a zálohové doklady (`abraFetch.js`), porovná s `PRM_AbraDocs`, zapíše změny, zapíše výsledek do `PRM_AbraSync` (`Kind = Stav`) a uzavře čekající žádosti (`syncRun.js`).
+- **Bez přepínače `--write` je to jen náhled** (SharePoint se jen čte). `--since=RRRR-MM-DD` mění začátek období (výchozí 2026-01-01).
+- Přihlašovací údaje: Abra `ABRA_USER` / `ABRA_PASSWORD` (jinak se program zeptá, heslo skrytě); SharePoint `PRM_CLIENT_SECRET` (tajný klíč registrace aplikace, jinak skrytý dotaz). Nikdy v kódu, repozitáři ani chatu.
+- Pojistky: zapisuje jen do `PRM_AbraDocs` a `PRM_AbraSync`; nemaže; při chybě Abry se nic neoznačí jako „zmizelé“; prázdná pole (`DueDate`, `AmountNetCzk`) se při vytvoření vynechávají (sloupec `AmountNetCzk` existuje až od schématu 24 — po Instalaci v aplikaci).
+- Pole `SyncedAt` („Staženo“) se aktualizuje jen u řádků, které se změnily; čas posledního běhu je v `PRM_AbraSync`.
+- Testy (51) běží na falešném Abře a Graphu; ostrý zápis se zkouší až s klíčem na počítači Igora.
