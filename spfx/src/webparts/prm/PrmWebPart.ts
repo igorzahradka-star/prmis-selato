@@ -105,7 +105,7 @@ export default class PrmWebPart extends BaseClientSideWebPart<IPrmWebPartProps> 
       profiles,
       budgets: new SpBudgetRepository(this.context, projects),
       abraDocs: new SpAbraDocRepository(this.context),
-      service: new SpServiceRepository(this.context, numbering, projects),
+      service: new SpServiceRepository(this.context, numbering, projects, settings),
       catalog: new SpCatalogRepository(this.context),
       mail: new SpMailRepository(this.context),
       numbering,

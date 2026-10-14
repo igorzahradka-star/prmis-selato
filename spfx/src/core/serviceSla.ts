@@ -22,10 +22,13 @@ export interface SlaRule {
 
 export interface ServiceSettings {
   slaRules: SlaRule[];
+  /** Kořenová složka Servisu v knihovně dokumentů (např. General/02_SERVIS); pod ní vznikají složky lokalit a souborů. */
+  folderRoot: string;
 }
 
 /** Výchozí lhůty — návrh, upřesní zadavatel v Nastavení → Servis. */
 export const DEFAULT_SERVICE_SETTINGS: ServiceSettings = {
+  folderRoot: 'General/02_SERVIS',
   slaRules: [
     { priority: 'Havárie', reactionHours: 4, resolveHours: 24 },
     { priority: 'Vysoká', reactionHours: 8, resolveHours: 48 },
@@ -37,7 +40,10 @@ export const DEFAULT_SERVICE_SETTINGS: ServiceSettings = {
 
 /** Doplní chybějící části nastavení Servisu výchozími hodnotami. */
 export function serviceSettingsWithDefaults(stored: Partial<ServiceSettings> | undefined): ServiceSettings {
-  return { slaRules: Array.isArray(stored?.slaRules) ? (stored?.slaRules as SlaRule[]) : DEFAULT_SERVICE_SETTINGS.slaRules.map((r) => ({ ...r })) };
+  return {
+    slaRules: Array.isArray(stored?.slaRules) ? (stored?.slaRules as SlaRule[]) : DEFAULT_SERVICE_SETTINGS.slaRules.map((r) => ({ ...r })),
+    folderRoot: stored?.folderRoot && stored.folderRoot.trim() !== '' ? stored.folderRoot.trim() : DEFAULT_SERVICE_SETTINGS.folderRoot
+  };
 }
 
 /** Problémy v pravidlech SLA (české věty); prázdné pole = v pořádku. */

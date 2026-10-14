@@ -5,6 +5,13 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.49.0 — 15. 10. 2026 — Servis: mapa v nabídce, složky, list na celou lokalitu, velikost fotek
+
+- **Mapa servisu** jako samostatná položka nabídky Servis (vedle záložky Mapa na stránce Servis). Z karty vybraného bodu jde založit požadavek nebo upravit lokalitu / soubor.
+- **Složky lokality a souboru** se zakládají samy při založení (tlačítko Uložit): `General/02_SERVIS/<číslo> - <název>` s podsložkami (lokalita: Smlouva a podmínky, Servisní požadavky, Objednávky a faktury, Dokumentace lokality, Společné zásahy lokality; soubor: Plán údržby a revize, Servisní listy, Dokumentace souboru, Objednávky a faktury). Existující složky se najdou podle čísla a nepřepisují. U lokalit a souborů bez složky je tlačítko **Založit složky**. Kořen se mění v Nastavení → Servis.
+- **Servisní list na celou lokalitu** (CCTV, EZS, sečení trávy…): v nabídce Soubor je „celá lokalita“; objednávky a fakturace se vedou na skrytém servisním projektu lokality (její číslo). Opravuje hlášku „Soubor neexistuje“ u požadavků bez souboru.
+- **Nastavení → Fotky:** největší rozměr a kvalita zmenšení fotek při ukládání (výchozí 2000 bodů, 85 %); platí pro celou aplikaci. Bez změny schématu.
+
 ## 0.48.0 — 15. 10. 2026 — Servis: druh listu, doklad o provedení, SLA (etapa 3)
 
 - **Druh servisního listu:** Plánovaná (v paušálu: revize, pravidelné) / Nahodilá (mimo paušál: porucha, havárie). Nikdy půl na půl; přesah se zadá jako nový požadavek. Volí se při založení listu, ukazuje se v seznamu i v detailu.

@@ -23,7 +23,8 @@ export enum SettingKey {
   Company = 'company',
   WebList = 'webList',
   Links = 'links',
-  Service = 'service'
+  Service = 'service',
+  Photos = 'photos'
 }
 
 /** Uzel stromu šablony složek projektu. */
@@ -176,7 +177,17 @@ export interface AppSettings {
   links: HeaderLinksSettings;
   /** Servis: lhůty SLA (reakce a vyřešení podle druhu a priority požadavku). */
   service: ServiceSettings;
+  /** Zmenšení fotek při ukládání přes aplikaci (projekty i servis) — šetří místo v SharePointu. */
+  photos: PhotoSettings;
 }
+
+/** Fotky nahrané přes aplikaci se zmenší na nejvýš `maxSide` bodů na delší straně a uloží jako JPEG s danou kvalitou (v %). */
+export interface PhotoSettings {
+  maxSide: number;
+  quality: number;
+}
+
+export const DEFAULT_PHOTO_SETTINGS: PhotoSettings = { maxSide: 2000, quality: 85 };
 
 /**
  * Odkazy v záhlaví: tlačítko **RES CRM** vede na stránku RES CRM (sesterská aplikace). Prázdná adresa = výchozí
@@ -305,7 +316,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   },
   webList: DEFAULT_WEB_LIST,
   links: DEFAULT_HEADER_LINKS,
-  service: DEFAULT_SERVICE_SETTINGS
+  service: DEFAULT_SERVICE_SETTINGS,
+  photos: DEFAULT_PHOTO_SETTINGS
 };
 
 /**
@@ -327,7 +339,8 @@ export function withDefaults(stored: Partial<AppSettings> | undefined): AppSetti
     company: { ...DEFAULT_SETTINGS.company, ...(s.company ?? {}) },
     webList: webListWithDefaults(s.webList),
     links: { ...DEFAULT_HEADER_LINKS, ...(s.links ?? {}) },
-    service: serviceSettingsWithDefaults(s.service)
+    service: serviceSettingsWithDefaults(s.service),
+    photos: { ...DEFAULT_PHOTO_SETTINGS, ...(s.photos ?? {}) }
   };
 }
 
@@ -337,6 +350,12 @@ export function withDefaults(stored: Partial<AppSettings> | undefined): AppSetti
  */
 export function validateSettings(settings: AppSettings): string[] {
   const problems: string[] = [...validateWebList(settings.webList), ...validateSlaRules(settings.service.slaRules)];
+  if (!(settings.photos.maxSide >= 600 && settings.photos.maxSide <= 8000)) {
+    problems.push('Největší rozměr fotky musí být mezi 600 a 8000 body.');
+  }
+  if (!(settings.photos.quality >= 40 && settings.photos.quality <= 100)) {
+    problems.push('Kvalita fotky (JPEG) musí být mezi 40 a 100 %.');
+  }
   if (settings.links.crmUrl.trim() !== '' && !/^https?:\/\//i.test(settings.links.crmUrl.trim())) {
     problems.push('Adresa tlačítka RES CRM musí začínat https:// (nebo ji nechte prázdnou pro výchozí adresu).');
   }

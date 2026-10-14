@@ -784,7 +784,7 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
         try {
           setProgress(`Nahrávám ${added.length + failed.length + 1} z ${list.length}…`);
           const isImg = f.type.indexOf('image/') === 0 || isImageFile(f.name);
-          const blob = isImg ? await resizeImage(f, { maxSide: 3000, quality: 0.9 }) : f;
+          const blob = isImg ? await resizeImage(f) : f;
           const ext = fileExtension(f.name) || extensionForType(blob.type);
           const base = f.name.indexOf('.') === -1 ? f.name : f.name.slice(0, f.name.lastIndexOf('.'));
           const name = uniqueFileName(`${isImg && blob !== f ? base + (extensionForType(blob.type) || ext) : base + ext}`, Object.keys(lateFiles).concat(added));
@@ -829,7 +829,7 @@ export const EntryPanel: React.FC<EntryPanelProps> = ({ isOpen, entryId, project
     setProgress('Nahrávám podepsaný sken…');
     try {
       const name = entryFileName(entry.projectNumber, entry.entryNo, 'podepsano.pdf', entry.kind).replace(/\.pdf$/, ext === '.jpeg' ? '.jpg' : ext);
-      const blob = ext === '.pdf' ? file : await resizeImage(file, { maxSide: 3000, quality: 0.9 });
+      const blob = ext === '.pdf' ? file : await resizeImage(file);
       const url = await repos.documents.saveProjectFile(project, entry.folderPath, name, blob);
       const signed = await repos.diary.attachScan(entry.id, url, user);
       afterChange(signed);

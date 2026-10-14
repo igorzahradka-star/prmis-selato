@@ -7,6 +7,13 @@
 
 import { SIGNATURE_MAX_CHARS, signatureAlpha } from '../../core/signatures';
 
+/** Výchozí zmenšení fotek z Nastavení → Fotky (nastavuje se při startu aplikace). */
+let photoDefaults = { maxSide: 2000, quality: 0.85 };
+
+export function setPhotoDefaults(maxSide: number, qualityPercent: number): void {
+  photoDefaults = { maxSide: maxSide > 0 ? maxSide : 2000, quality: qualityPercent > 0 ? Math.min(1, qualityPercent / 100) : 0.85 };
+}
+
 /** Rozměry po zmenšení tak, aby delší strana nepřekročila `maxSide`; menší obrázek se nezvětšuje. */
 export function fitSize(width: number, height: number, maxSide: number): { width: number; height: number } {
   const longest = Math.max(width, height);
@@ -48,8 +55,8 @@ export async function resizeImage(
   file: Blob,
   options: { maxSide?: number; quality?: number; keepBelowBytes?: number } = {}
 ): Promise<Blob> {
-  const maxSide = options.maxSide ?? 2000;
-  const quality = options.quality ?? 0.85;
+  const maxSide = options.maxSide ?? photoDefaults.maxSide;
+  const quality = options.quality ?? photoDefaults.quality;
   const keepBelow = options.keepBelowBytes ?? 1.5 * 1024 * 1024;
   if ((file.type === 'image/png' || file.type === 'image/gif') && file.size <= keepBelow) {
     return file;

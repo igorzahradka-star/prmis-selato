@@ -9,10 +9,12 @@
 import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { CurrentUser } from '../../core/types';
 import { toDate } from '../../core/format';
-import { canAdministerService, canWorkInService, nextSiteNumber, validateDeviceNumber, validateSiteNumber, ServiceDevice, ServiceSite } from '../../core/service';
+import { canAdministerService, canWorkInService, nextSiteNumber, serviceFolderPlan, validateDeviceNumber, validateSiteNumber, ServiceDevice, ServiceSite } from '../../core/service';
 import { JobAction, JobActionInput, JobStatus, RequestStatus, ServiceFlowError, ServiceJob, ServiceRequest, applyJobAction, requestStatusFrom } from '../../core/serviceJobs';
-import { INumberingRepository, IProjectRepository, IServiceRepository, ServiceDeviceInput, ServiceJobInput, ServiceRequestInput, ServiceSiteInput } from '../repositories';
-import { getSp, describeSpError } from './spContext';
+import { INumberingRepository, IProjectRepository, ISettingsRepository, IServiceRepository, ServiceDeviceInput, ServiceJobInput, ServiceRequestInput, ServiceSiteInput } from '../repositories';
+import { getSp, getSpForSite, describeSpError } from './spContext';
+import { resolveFolderPath } from './spFolders';
+import { resolveLibrary } from './spLibrary';
 
 const SITES = 'PRM_ServiceSites';
 const DEVICES = 'PRM_ServiceDevices';
@@ -128,7 +130,8 @@ export class SpServiceRepository implements IServiceRepository {
   public constructor(
     private readonly context: WebPartContext,
     private readonly numbering: INumberingRepository,
-    private readonly projects: IProjectRepository
+    private readonly projects: IProjectRepository,
+    private readonly settings: ISettingsRepository
   ) {}
 
   private async readAll(list: string): Promise<Item[]> {
@@ -175,6 +178,60 @@ export class SpServiceRepository implements IServiceRepository {
     }
   }
 
+  /**
+   * Založí složky lokality (a souboru) podle struktury Servisu a vrátí odkaz na ně; `undefined`, když není v Nastavení knihovna.
+   * Existující složky se najdou podle čísla na začátku a znovu se nezakládají. Nic nemaže ani nepřesouvá.
+   */
+  private async buildFolders(site: { number: string; name: string }, device?: { number: string; name: string }): Promise<string | undefined> {
+    const settings = await this.settings.get();
+    const folders = settings.folders;
+    if (!folders.libraryTitle.trim()) {
+      return undefined;
+    }
+    const sp = folders.siteUrl ? getSpForSite(this.context, folders.siteUrl) : getSp(this.context);
+    const libraryRoot = (await resolveLibrary(sp, folders.libraryTitle)).serverRelativeUrl;
+    const plan = serviceFolderPlan(settings.service.folderRoot, site, device);
+    const rootPath = (await resolveFolderPath(sp, libraryRoot, plan.rootSegments, true)) as string;
+    const sitePath = (await resolveFolderPath(sp, rootPath, [plan.siteFolder], true)) as string;
+    for (const sub of plan.siteSubfolders) {
+      await resolveFolderPath(sp, sitePath, [sub], true);
+    }
+    let target = sitePath;
+    if (device && plan.deviceFolder) {
+      target = (await resolveFolderPath(sp, sitePath, [plan.deviceFolder], true)) as string;
+      for (const sub of plan.deviceSubfolders) {
+        await resolveFolderPath(sp, target, [sub], true);
+      }
+    }
+    return `${new URL(folders.siteUrl || this.context.pageContext.web.absoluteUrl).origin}${target}`;
+  }
+
+  public async ensureFolders(siteNumber: string, deviceNumber: string | undefined, actor: CurrentUser): Promise<string | undefined> {
+    if (!canAdministerService(actor.roles)) {
+      throw new Error('Složky Servisu smí zakládat jen správce servisu a administrátor.');
+    }
+    const [sites, devices] = await Promise.all([this.listSites(), this.listDevices()]);
+    const site = sites.filter((s) => s.number === siteNumber)[0];
+    const device = deviceNumber ? devices.filter((d) => d.number === deviceNumber)[0] : undefined;
+    if (!site || (deviceNumber && !device)) {
+      throw new Error('Lokalita nebo soubor nebyl nalezen.');
+    }
+    let url: string | undefined;
+    try {
+      url = await this.buildFolders(site, device);
+    } catch (error) {
+      throw new Error(describeSpError(error, 'Složky Servisu se nepodařilo založit'));
+    }
+    if (url && device) {
+      await this.update(DEVICES, device.id, { FolderUrl: url }, 'Odkaz na složku souboru se nepodařilo uložit');
+      await this.audit('Servis – soubor', device.number, actor, 'Založeny složky souboru');
+    } else if (url) {
+      await this.update(SITES, site.id, { FolderUrl: url }, 'Odkaz na složku lokality se nepodařilo uložit');
+      await this.audit('Servis – lokalita', site.number, actor, 'Založeny složky lokality');
+    }
+    return url;
+  }
+
   // --- lokality ---
 
   public async listSites(): Promise<ServiceSite[]> {
@@ -194,6 +251,14 @@ export class SpServiceRepository implements IServiceRepository {
     if (input.name.trim() === '') {
       throw new Error('Vyplňte název lokality.');
     }
+    let siteFolderUrl = input.folderUrl;
+    if (!input.id && !siteFolderUrl) {
+      try {
+        siteFolderUrl = await this.buildFolders({ number, name: input.name.trim() });
+      } catch {
+        // Složky jde založit později tlačítkem „Založit složky“ u lokality.
+      }
+    }
     const fields = {
       Title: input.name.trim(),
       SiteNumber: number,
@@ -204,7 +269,7 @@ export class SpServiceRepository implements IServiceRepository {
       Longitude: input.longitude ?? null,
       Contact: input.contact ?? '',
       Note: input.note ?? '',
-      FolderUrl: input.folderUrl ?? '',
+      FolderUrl: siteFolderUrl ?? '',
       IsActive: input.isActive
     };
     let id = input.id;
@@ -215,7 +280,7 @@ export class SpServiceRepository implements IServiceRepository {
       id = await this.add(SITES, fields, 'Lokalitu se nepodařilo založit');
       await this.audit('Servis – lokalita', number, actor, 'Založena lokalita');
     }
-    return { ...input, id: id as number, number, name: input.name.trim() };
+    return { ...input, folderUrl: siteFolderUrl, id: id as number, number, name: input.name.trim() };
   }
 
   // --- zařízení ---
@@ -241,6 +306,14 @@ export class SpServiceRepository implements IServiceRepository {
     if (input.name.trim() === '') {
       throw new Error('Vyplňte název souboru.');
     }
+    let deviceFolderUrl = input.folderUrl;
+    if (!input.id && !deviceFolderUrl) {
+      try {
+        deviceFolderUrl = await this.buildFolders(site, { number: input.number, name: input.name.trim() });
+      } catch {
+        // Složky jde založit později tlačítkem „Založit složky“ u souboru.
+      }
+    }
     const fields = {
       Title: input.name.trim(),
       DeviceNumber: input.number,
@@ -253,7 +326,7 @@ export class SpServiceRepository implements IServiceRepository {
       ContractTo: iso(input.contractTo),
       ContractNote: input.contractNote ?? '',
       ContractUrl: input.contractUrl ?? '',
-      FolderUrl: input.folderUrl ?? '',
+      FolderUrl: deviceFolderUrl ?? '',
       IsActive: input.isActive
     };
     let id = input.id;
@@ -268,12 +341,12 @@ export class SpServiceRepository implements IServiceRepository {
         shortName: input.name.trim(),
         customerName: input.customerName ?? site.customerName,
         projectManagerName: actor.displayName,
-        folderUrl: input.folderUrl
+        folderUrl: deviceFolderUrl
       });
       id = await this.add(DEVICES, fields, 'Soubor se nepodařilo založit');
       await this.audit('Servis – soubor', input.number, actor, 'Založen soubor (servisní projekt)');
     }
-    return { ...input, id: id as number, name: input.name.trim() };
+    return { ...input, folderUrl: deviceFolderUrl, id: id as number, name: input.name.trim() };
   }
 
   // --- požadavky ---
@@ -373,8 +446,18 @@ export class SpServiceRepository implements IServiceRepository {
       throw new Error('Vyplňte název servisního listu.');
     }
     const devices = await this.listDevices();
-    if (!devices.some((d) => d.number === input.deviceNumber)) {
-      throw new Error(`Soubor ${input.deviceNumber} neexistuje — servisní list se zakládá na souboru.`);
+    const allSites = await this.listSites();
+    const siteWide = input.deviceNumber === input.siteNumber;
+    if (!siteWide && !devices.some((d) => d.number === input.deviceNumber)) {
+      throw new Error(`Soubor ${input.deviceNumber} neexistuje — servisní list se zakládá na souboru nebo na celé lokalitě.`);
+    }
+    if (siteWide) {
+      const site = allSites.filter((s) => s.number === input.siteNumber)[0];
+      if (!site) {
+        throw new Error(`Lokalita ${input.siteNumber} neexistuje.`);
+      }
+      // Skrytý servisní projekt lokality (společné zásahy) — na něm se vedou objednávky a fakturace.
+      await this.projects.ensureServiceProject({ projectNumber: site.number, title: `${site.number} ${site.name} – společné zásahy`, shortName: 'Společné zásahy', customerName: site.customerName, projectManagerName: actor.displayName, folderUrl: site.folderUrl });
     }
     const request = input.requestId ? (await this.listRequests()).filter((r) => r.id === input.requestId)[0] : undefined;
     const number = await this.numbering.allocateNumber('SL');

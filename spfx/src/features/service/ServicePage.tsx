@@ -14,6 +14,7 @@ import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 
 import { useApp } from '../../ui/AppContext';
 import { RES } from '../../ui/theme';
+import { buildHash, RouteName } from '../../ui/router';
 import { PageHeading } from '../../ui/components/PageHeading';
 import { Partner } from '../../core/types';
 import { formatDate } from '../../core/format';
@@ -39,7 +40,10 @@ const Tile: React.FC<{ label: string; value: number; hint: string; warn?: boolea
   </div>
 );
 
-export const ServicePage: React.FC = () => {
+/**
+ * `param` přichází z Mapy servisu: `pozadavek-<lokalita>` otevře nový požadavek, `lokalita-<číslo>` a `soubor-<číslo>` úpravu.
+ */
+export const ServicePage: React.FC<{ param?: string }> = ({ param }) => {
   const { repos, user, settings } = useApp();
   const [loaded, setLoaded] = React.useState(false);
   const [error, setError] = React.useState<string | undefined>(undefined);
@@ -94,6 +98,38 @@ export const ServicePage: React.FC = () => {
   }, [repos, mayView, reloadKey]);
 
   const reload = (): void => setReloadKey((k) => k + 1);
+  const createFolders = (siteNumber: string, deviceNumber?: string): void => {
+    repos.service
+      .ensureFolders(siteNumber, deviceNumber, user)
+      .then((url) => {
+        setNotice(url ? 'Složky jsou založené.' : 'Nejdřív vyplňte knihovnu pro složky v Nastavení → Složky projektů.');
+        reload();
+      })
+      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
+  };
+
+  // Akce vyvolaná z Mapy servisu — provede se jednou po načtení dat a pak se vyčistí adresa.
+  React.useEffect(() => {
+    if (!loaded || !param || !canViewService(user.roles)) {
+      return;
+    }
+    const [what, number] = [param.slice(0, param.indexOf('-')), param.slice(param.indexOf('-') + 1)];
+    if (what === 'pozadavek' && canWorkInService(user.roles)) {
+      setRequestDlg({ siteNumber: number });
+    } else if (what === 'lokalita' && canAdministerService(user.roles)) {
+      const site = sites.filter((s) => s.number === number)[0];
+      if (site) {
+        setSiteDlg({ site });
+      }
+    } else if (what === 'soubor' && canAdministerService(user.roles)) {
+      const device = devices.filter((d) => d.number === number)[0];
+      const site = device ? sites.filter((s) => s.number === device.siteNumber)[0] : undefined;
+      if (device && site) {
+        setDeviceDlg({ site, device });
+      }
+    }
+    window.location.hash = buildHash(RouteName.Service);
+  }, [loaded, param]);
   const siteName = (n: string): string => {
     const s = sites.filter((x) => x.number === n)[0];
     return s ? `${s.number} ${s.name}` : n;
@@ -103,7 +139,7 @@ export const ServicePage: React.FC = () => {
       return 'celá lokalita';
     }
     const d = devices.filter((x) => x.number === n)[0];
-    return d ? `${d.number} ${d.name}` : n;
+    return d ? `${d.number} ${d.name}` : sites.some((s) => s.number === n) ? 'celá lokalita' : n;
   };
   const matches = (...parts: (string | undefined)[]): boolean => search.trim() === '' || norm(parts.filter((p) => !!p).join(' ')).indexOf(norm(search.trim())) !== -1;
 
@@ -313,6 +349,7 @@ export const ServicePage: React.FC = () => {
                       Složka lokality
                     </Link>
                   )}
+                  {mayAdmin && !s.folderUrl && <ActionButton text="Založit složky" iconProps={{ iconName: 'NewFolder' }} title="Založí složku lokality a její podsložky v 02_SERVIS (existující se nepřepisují)" onClick={() => createFolders(s.number)} styles={{ root: { height: 28 } }} />}
                   {mayAdmin && <ActionButton text="Upravit" onClick={() => setSiteDlg({ site: s })} styles={{ root: { height: 28 } }} />}
                   {mayAdmin && <ActionButton text="Přidat soubor" iconProps={{ iconName: 'Add' }} onClick={() => setDeviceDlg({ site: s })} styles={{ root: { height: 28 } }} />}
                 </div>
@@ -346,6 +383,12 @@ export const ServicePage: React.FC = () => {
                                 <Link href={d.folderUrl} target="_blank">
                                   Složka
                                 </Link>
+                              </>
+                            )}
+                            {mayAdmin && !d.folderUrl && (
+                              <>
+                                {' · '}
+                                <Link onClick={() => createFolders(s.number, d.number)}>Založit složky</Link>
                               </>
                             )}
                             {d.contractUrl && (

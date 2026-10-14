@@ -79,7 +79,8 @@ export const SettingsPage: React.FC = () => {
         'roles',
         'company',
         'webList',
-        'service'
+        'service',
+        'photos'
       ];
       for (const key of keys) {
         if (JSON.stringify(draft[key]) !== JSON.stringify(settings[key])) {
@@ -487,6 +488,29 @@ export const SettingsPage: React.FC = () => {
           </Panel>
         </PivotItem>
 
+        <PivotItem headerText="Fotky" itemIcon="Camera">
+          <Panel>
+            <Hint>
+              Fotky nahrané přes aplikaci (fotodokumentace, stavební deník, přílohy, později i Servis) se <strong>před uložením zmenší</strong>, aby nezabíraly místo v SharePointu.
+              Platí pro nově nahrávané fotky; už uložené se nemění. Mobilní fotka má běžně 4–12 MB, po zmenšení na 2000 bodů a kvalitu 85 % kolem 0,5–1 MB.
+            </Hint>
+            <TextField
+              label="Největší rozměr (body na delší straně)"
+              description="600–8000. Menší fotky se nezvětšují."
+              value={String(draft.photos.maxSide)}
+              onChange={(_, v) => patch('photos', { maxSide: Math.round(Number(v)) || 0 })}
+              styles={{ root: { maxWidth: 260 } }}
+            />
+            <TextField
+              label="Kvalita JPEG (%)"
+              description="40–100. Doporučeno 80–90."
+              value={String(draft.photos.quality)}
+              onChange={(_, v) => patch('photos', { quality: Math.round(Number(v)) || 0 })}
+              styles={{ root: { maxWidth: 260 } }}
+            />
+          </Panel>
+        </PivotItem>
+
         <PivotItem headerText="Servis" itemIcon="Repair">
           <Panel>
             <Hint>
@@ -495,6 +519,12 @@ export const SettingsPage: React.FC = () => {
               pravidlo (druh i priorita, pak jen druh, pak jen priorita, pak obecné). Prázdná lhůta = nesleduje se. Čas se počítá v běžných hodinách (celý den). Hodnoty jsou návrh,
               upřesněte je podle smluv.
             </Hint>
+            <TextField
+              label="Kořenová složka Servisu"
+              description="Kde v knihovně dokumentů (nastavené ve Složky projektů) vznikají složky lokalit a souborů, např. General/02_SERVIS. Existující složky se najdou podle čísla a nepřepisují se."
+              value={draft.service.folderRoot}
+              onChange={(_, v) => patch('service', { folderRoot: v ?? '' })}
+            />
             <SlaRulesEditor rules={draft.service.slaRules} onChange={(slaRules) => patch('service', { slaRules })} />
           </Panel>
         </PivotItem>

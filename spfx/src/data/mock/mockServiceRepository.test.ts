@@ -98,3 +98,29 @@ describe('MockServiceRepository — tok servisního listu', () => {
     expect((await r.service.rejectRequest(requestId, 'Mimo smlouvu', dispecer)).status).toBe(RequestStatus.Zamitnuto);
   });
 });
+
+describe('MockServiceRepository — složky', () => {
+  it('nová lokalita i soubor dostanou odkaz na složku; složky lokality zakládá jen správce servisu', async () => {
+    const r = createMockRepositories();
+    const site = await r.service.saveSite({ number: '10520', name: 'Nová', isActive: true }, spravce);
+    expect(site.folderUrl).toBeTruthy();
+    const device = await r.service.saveDevice({ number: '10521', siteNumber: '10520', name: 'FVE Nová 1', kind: 'FVE', isActive: true }, spravce);
+    expect(device.folderUrl).toBeTruthy();
+    await expect(r.service.ensureFolders('10520', undefined, dispecer)).rejects.toThrow(/správce servisu/);
+    expect(await r.service.ensureFolders('10520', '10521', spravce)).toBeTruthy();
+    await expect(r.service.ensureFolders('99990', undefined, spravce)).rejects.toThrow(/nebyl nalezen/);
+  });
+});
+
+describe('MockServiceRepository — servisní list na celou lokalitu', () => {
+  it('list s číslem lokality jako souborem vznikne a založí skrytý servisní projekt lokality', async () => {
+    const r = createMockRepositories();
+    const req = await r.service.saveRequest({ siteNumber: '10500', title: 'Sečení trávy', priority: 'Nízká', kind: 'Ostatní' }, dispecer);
+    const job = await r.service.createJob({ requestId: req.id, siteNumber: '10500', deviceNumber: '10500', title: 'Sečení trávy v areálu' }, dispecer);
+    expect(job.number).toMatch(/^SL-\d{4}-\d{4}$/);
+    const project = await r.projects.getByNumber('10500');
+    expect(project?.projectType).toBe('Servis');
+    await expect(r.service.createJob({ siteNumber: '10500', deviceNumber: '10599', title: 'x' }, dispecer)).rejects.toThrow(/neexistuje/);
+    await expect(r.service.createJob({ siteNumber: '10590', deviceNumber: '10590', title: 'x' }, dispecer)).rejects.toThrow(/Lokalita 10590 neexistuje/);
+  });
+});

@@ -68,7 +68,7 @@ describe('skupiny a zvýraznění', () => {
 describe('nabídka čtenáře', () => {
   it('čtenář vidí jen přehled projektů, mapu, kusovník, Čeká na mě, Partnery, Servis a Nápovědu', () => {
     const items = flattenNavigation(buildNavigation({ ...nic, service: true, reader: true })).map((i) => i.route);
-    expect(items).toEqual([RouteName.Dashboard, RouteName.Map, RouteName.Catalog, RouteName.WaitingForMe, RouteName.Partners, RouteName.Service, RouteName.Help]);
+    expect(items).toEqual([RouteName.Dashboard, RouteName.Map, RouteName.Catalog, RouteName.WaitingForMe, RouteName.Partners, RouteName.Service, RouteName.ServiceMap, RouteName.Help]);
   });
 
   it('čtenář nesmí otevřít objednávky, fakturaci ani nastavení; ostatní role beze změny', () => {

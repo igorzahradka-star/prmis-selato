@@ -154,6 +154,43 @@ export function serviceFolderPath(serviceRoot: string, site: { number: string; n
   return parts.join('/');
 }
 
+/** Kořenová složka Servisu v knihovně dokumentů (nastavuje se v Nastavení → Servis). */
+export const DEFAULT_SERVICE_FOLDER_ROOT = 'General/02_SERVIS';
+
+/** Podsložky lokality: smlouva a podmínky, požadavky, objednávky a faktury, dokumentace, společné zásahy (CCTV, EZS, sečení trávy…). */
+export const SERVICE_SITE_SUBFOLDERS = ['01-Smlouva a podmínky', '02-Servisní požadavky', '03-Objednávky a faktury', '04-Dokumentace lokality', '05-Společné zásahy lokality'];
+
+/** Podsložky souboru (FVE, BESS…): plán údržby a revize, servisní listy (fotky a protokoly), dokumentace, objednávky a faktury. */
+export const SERVICE_DEVICE_SUBFOLDERS = ['01-Plán údržby a revize', '02-Servisní listy', '03-Dokumentace souboru', '04-Objednávky a faktury'];
+
+export interface ServiceFolderPlan {
+  /** Cesta ke kořeni Servisu po dílech (např. General, 02_SERVIS). */
+  rootSegments: string[];
+  /** Složka lokality: `10500 - Mastířovice`. */
+  siteFolder: string;
+  siteSubfolders: string[];
+  /** Složka souboru uvnitř složky lokality: `10501 - Mastířovice I. FVE`. */
+  deviceFolder?: string;
+  deviceSubfolders: string[];
+}
+
+/** Co se má při založení lokality (nebo souboru) vytvořit. Existující složky se podle čísla na začátku najdou a znovu se nezakládají. */
+export function serviceFolderPlan(root: string, site: { number: string; name: string }, device?: { number: string; name: string }): ServiceFolderPlan {
+  return {
+    rootSegments: (root || DEFAULT_SERVICE_FOLDER_ROOT).split('/').map((s) => sanitizeFolderName(s)).filter((s) => s !== ''),
+    siteFolder: serviceFolderName(site.number, site.name),
+    siteSubfolders: SERVICE_SITE_SUBFOLDERS,
+    deviceFolder: device ? serviceFolderName(device.number, device.name) : undefined,
+    deviceSubfolders: device ? SERVICE_DEVICE_SUBFOLDERS : []
+  };
+}
+
+/**
+ * Servisní list na **celou lokalitu** (společné zásahy: CCTV, EZS, sečení trávy, dispečerské pracoviště) má jako `deviceNumber` číslo lokality;
+ * objednávky a fakturace se pak vedou na skrytém servisním projektu lokality (číslo lokality, např. 10500).
+ */
+export const isSiteWideJob = (job: { siteNumber: string; deviceNumber: string }): boolean => job.deviceNumber === job.siteNumber;
+
 // --- smlouva ---------------------------------------------------------------------
 
 export type ContractState = 'bez' | 'platna' | 'konci' | 'vyprsela';

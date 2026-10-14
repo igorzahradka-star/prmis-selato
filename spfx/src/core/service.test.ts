@@ -12,6 +12,8 @@ import {
   nextDeviceNumber,
   nextSiteNumber,
   serviceFolderPath,
+  serviceFolderPlan,
+  isSiteWideJob,
   siteNumberOfDevice,
   validateDeviceNumber,
   validateSiteNumber
@@ -110,5 +112,31 @@ describe('servisní smlouva zařízení', () => {
     expect(contractState({ contractTo: new Date(2026, 10, 20) }, today)).toBe('konci');
     expect(contractState({ contractTo: new Date(2026, 9, 13) }, today)).toBe('vyprsela');
     expect(contractState({ contractTo: new Date(2026, 9, 14) }, today)).toBe('konci'); // platí do konce dne
+  });
+});
+
+describe('složky Servisu', () => {
+  it('plán: lokalita s podsložkami, soubor uvnitř lokality s vlastními podsložkami', () => {
+    const plan = serviceFolderPlan('General/02_SERVIS', { number: '10500', name: 'Mastířovice' }, { number: '10501', name: 'Mastířovice I. FVE' });
+    expect(plan.rootSegments).toEqual(['General', '02_SERVIS']);
+    expect(plan.siteFolder).toBe('10500 - Mastířovice');
+    expect(plan.deviceFolder).toBe('10501 - Mastířovice I. FVE');
+    expect(plan.siteSubfolders).toEqual(['01-Smlouva a podmínky', '02-Servisní požadavky', '03-Objednávky a faktury', '04-Dokumentace lokality', '05-Společné zásahy lokality']);
+    expect(plan.deviceSubfolders).toEqual(['01-Plán údržby a revize', '02-Servisní listy', '03-Dokumentace souboru', '04-Objednávky a faktury']);
+  });
+
+  it('bez souboru jen lokalita; prázdný kořen = výchozí; nepovolené znaky v názvu se očistí', () => {
+    const plan = serviceFolderPlan('', { number: '10510', name: 'Boršov: FVE/BESS' });
+    expect(plan.rootSegments).toEqual(['General', '02_SERVIS']);
+    expect(plan.deviceFolder).toBeUndefined();
+    expect(plan.deviceSubfolders).toEqual([]);
+    expect(plan.siteFolder).not.toMatch(/[:/]/);
+  });
+});
+
+describe('list na celou lokalitu', () => {
+  it('je to list, jehož číslo souboru je číslo lokality', () => {
+    expect(isSiteWideJob({ siteNumber: '10500', deviceNumber: '10500' })).toBe(true);
+    expect(isSiteWideJob({ siteNumber: '10500', deviceNumber: '10501' })).toBe(false);
   });
 });

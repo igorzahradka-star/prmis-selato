@@ -4,6 +4,7 @@
  */
 
 import { ServicePage } from '../../../features/service/ServicePage';
+import { ServiceMapPage } from '../../../features/service/ServiceMapPage';
 import { CatalogPage } from '../../../features/catalog/CatalogPage';
 import { ProfilePage } from '../../../features/profile/ProfilePage';
 import * as React from 'react';
@@ -21,6 +22,7 @@ import { AppSettings } from '../../../core/settings';
 import { CurrentUser, Role } from '../../../core/types';
 import { actingUser, canSeeOverhead, isReaderOnly } from '../../../core/roles';
 import { withRoleGuards } from '../../../data/roleGuards';
+import { setPhotoDefaults } from '../../../features/diary/imageUtils';
 import { isRouteAllowed } from '../../../ui/layout/navigation';
 
 import { DashboardPage } from '../../../features/projects/DashboardPage';
@@ -55,6 +57,13 @@ export const PrmApp: React.FC<IPrmAppProps> = ({ repos, dataSource, financeSiteU
   const [route, setRoute] = React.useState<Route>(parseHash(window.location.hash));
 
   React.useEffect(() => subscribeToRoute(setRoute), []);
+
+  // Zmenšení fotek podle Nastavení → Fotky platí pro všechna místa, kde se fotky nahrávají.
+  React.useEffect(() => {
+    if (settings) {
+      setPhotoDefaults(settings.photos.maxSide, settings.photos.quality);
+    }
+  }, [settings]);
 
   // Role se berou z uživatele (i při zkoušení role); musí být nad prvním return (pravidlo hooků).
   const effectiveUser = user ? actingUser(user, actAs) : undefined;
@@ -173,7 +182,9 @@ function renderRoute(route: Route): React.ReactNode {
         />
       );
     case RouteName.Service:
-      return <ServicePage />;
+      return <ServicePage param={route.param} />;
+    case RouteName.ServiceMap:
+      return <ServiceMapPage />;
     case RouteName.Finance:
       return (
         <ComingSoonPage

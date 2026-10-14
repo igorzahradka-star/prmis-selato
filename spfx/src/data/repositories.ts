@@ -971,6 +971,11 @@ export interface IServiceRepository {
   /** Uloží lokalitu (nová dostane číslo z nabídky, které správce smí přepsat). Smí správce servisu a administrátor. */
   saveSite(input: ServiceSiteInput, actor: CurrentUser): Promise<ServiceSite>;
   listDevices(): Promise<ServiceDevice[]>;
+  /**
+   * Založí složky lokality (a souboru, je-li zadán) podle struktury Servisu a uloží jejich odkaz. Existující složky se najdou podle čísla a
+   * nezakládají se znovu; nic se nemaže ani nepřesouvá. Vrací odkaz na složku lokality, resp. souboru.
+   */
+  ensureFolders(siteNumber: string, deviceNumber: string | undefined, actor: CurrentUser): Promise<string | undefined>;
   /** Uloží zařízení; nové zároveň založí skrytý servisní projekt. Smí správce servisu a administrátor. */
   saveDevice(input: ServiceDeviceInput, actor: CurrentUser): Promise<ServiceDevice>;
   listRequests(): Promise<ServiceRequest[]>;

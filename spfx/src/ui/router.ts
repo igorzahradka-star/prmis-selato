@@ -22,6 +22,7 @@ export enum RouteName {
   Finance = 'firemni-cashflow',
   Benchmark = 'benchmark',
   Service = 'servis',
+  ServiceMap = 'servis-mapa',
   Users = 'uzivatele',
   Settings = 'nastaveni',
   Install = 'instalace',

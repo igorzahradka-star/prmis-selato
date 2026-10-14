@@ -277,6 +277,11 @@ export const RequestDialog: React.FC<{ request?: ServiceRequest; sites: ServiceS
 
 // --- servisní list ----------------------------------------------------------------
 
+/** Výchozí „soubor“ nového listu: bez souboru v požadavku se list zakládá na celou lokalitu (její číslo). */
+function startSite0(job: ServiceJob | undefined, request: ServiceRequest | undefined, sites: ServiceSite[]): string {
+  return job ? job.siteNumber : request ? request.siteNumber : sites[0] ? sites[0].number : '';
+}
+
 export const JobDialog: React.FC<{
   job?: ServiceJob;
   request?: ServiceRequest;
@@ -287,7 +292,7 @@ export const JobDialog: React.FC<{
   onSaved: () => void;
   onClose: () => void;
 }> = ({ job, request, sites, devices, partners, save, onSaved, onClose }) => {
-  const startDevice = job ? job.deviceNumber : request && request.deviceNumber ? request.deviceNumber : '';
+  const startDevice = job ? job.deviceNumber : request && request.deviceNumber ? request.deviceNumber : startSite0(job, request, sites);
   const startSite = job ? job.siteNumber : request ? request.siteNumber : '';
   const [siteNumber, setSiteNumber] = React.useState(startSite || (sites[0] ? sites[0].number : ''));
   const [deviceNumber, setDeviceNumber] = React.useState(startDevice);
@@ -323,12 +328,12 @@ export const JobDialog: React.FC<{
           onChange={(_, o) => {
             if (o) {
               setSiteNumber(String(o.key));
-              setDeviceNumber('');
+              setDeviceNumber(String(o.key));
             }
           }}
           styles={{ root: { flex: '1 1 240px' } }}
         />
-        <Dropdown label="Soubor" required selectedKey={deviceNumber || undefined} placeholder="Vyberte soubor" disabled={!!job} options={siteDevices.map((d) => ({ key: d.number, text: `${d.number} ${d.name}` }))} onChange={(_, o) => o && setDeviceNumber(String(o.key))} styles={{ root: { flex: '1 1 240px' } }} />
+        <Dropdown label="Soubor" required selectedKey={deviceNumber || undefined} placeholder="Vyberte soubor" disabled={!!job} options={[{ key: siteNumber, text: '— celá lokalita (společné zásahy: CCTV, EZS, sečení trávy…) —' }, ...siteDevices.map((d) => ({ key: d.number, text: `${d.number} ${d.name}` }))]} onChange={(_, o) => o && setDeviceNumber(String(o.key))} styles={{ root: { flex: '1 1 240px' } }} />
       </div>
       <Dropdown
         label="Druh listu"

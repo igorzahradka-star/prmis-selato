@@ -40,6 +40,7 @@ export const READER_ROUTES: RouteName[] = [
   RouteName.Map,
   RouteName.Catalog,
   RouteName.Service,
+  RouteName.ServiceMap,
   RouteName.Partners,
   RouteName.WaitingForMe,
   RouteName.Photos,
@@ -90,7 +91,10 @@ export function buildNavigation(flags: NavFlags): NavEntry[] {
         key: 'servis',
         label: 'Servis',
         icon: 'Repair',
-        children: [{ route: RouteName.Service, label: 'Servis', icon: 'Repair' }]
+        children: [
+          { route: RouteName.Service, label: 'Servis', icon: 'Repair' },
+          { route: RouteName.ServiceMap, label: 'Mapa servisu', icon: 'MapPin' }
+        ]
       }
     });
   }

@@ -10,6 +10,11 @@ import { INumberingRepository, IProjectRepository, IServiceRepository, ServiceDe
 
 const day = (y: number, m: number, d: number): Date => new Date(y, m - 1, d);
 
+/** Ukázkový odkaz na složku (v ukázkovém režimu nic nevzniká). */
+function mockFolderUrl(key: string, name: string): string {
+  return `https://ukazka.sharepoint.com/General/02_SERVIS/${encodeURIComponent(key)}-${encodeURIComponent(name)}`;
+}
+
 export class MockServiceRepository implements IServiceRepository {
   private nextId = 100;
   private sites: ServiceSite[] = [
@@ -51,9 +56,32 @@ export class MockServiceRepository implements IServiceRepository {
     if (input.name.trim() === '') {
       return Promise.reject(new Error('Vyplňte název lokality.'));
     }
-    const site: ServiceSite = { ...input, id: input.id ?? this.nextId++, number, name: input.name.trim() };
+    const folderUrl = input.folderUrl || (self ? undefined : mockFolderUrl(number, input.name.trim()));
+    const site: ServiceSite = { ...input, folderUrl, id: input.id ?? this.nextId++, number, name: input.name.trim() };
     this.sites = self ? this.sites.map((s) => (s.id === site.id ? site : s)) : [...this.sites, site];
     return Promise.resolve({ ...site });
+  }
+
+  public async ensureFolders(siteNumber: string, deviceNumber: string | undefined, actor: CurrentUser): Promise<string | undefined> {
+    if (!canAdministerService(actor.roles)) {
+      throw new Error('Složky Servisu smí zakládat jen správce servisu a administrátor.');
+    }
+    if (deviceNumber) {
+      const device = this.devices.filter((d) => d.number === deviceNumber)[0];
+      if (!device) {
+        throw new Error('Lokalita nebo soubor nebyl nalezen.');
+      }
+      const url = mockFolderUrl(siteNumber + '/' + deviceNumber, device.name);
+      this.devices = this.devices.map((d) => (d.number === deviceNumber ? { ...d, folderUrl: url } : d));
+      return url;
+    }
+    const site = this.sites.filter((s) => s.number === siteNumber)[0];
+    if (!site) {
+      throw new Error('Lokalita nebo soubor nebyl nalezen.');
+    }
+    const url = mockFolderUrl(siteNumber, site.name);
+    this.sites = this.sites.map((s) => (s.number === siteNumber ? { ...s, folderUrl: url } : s));
+    return url;
   }
 
   public listDevices(): Promise<ServiceDevice[]> {
@@ -79,7 +107,7 @@ export class MockServiceRepository implements IServiceRepository {
     if (!self) {
       await this.projects.ensureServiceProject({ projectNumber: input.number, title: `${input.number} ${site.name} – ${input.name.trim()}`, shortName: input.name.trim(), customerName: input.customerName ?? site.customerName, projectManagerName: actor.displayName, folderUrl: input.folderUrl });
     }
-    const device: ServiceDevice = { ...input, id: input.id ?? this.nextId++, name: input.name.trim() };
+    const device: ServiceDevice = { ...input, folderUrl: input.folderUrl || (self ? undefined : mockFolderUrl(site.number + '/' + input.number, input.name.trim())), id: input.id ?? this.nextId++, name: input.name.trim() };
     this.devices = self ? this.devices.map((d) => (d.id === device.id ? device : d)) : [...this.devices, device];
     return { ...device };
   }
@@ -143,8 +171,17 @@ export class MockServiceRepository implements IServiceRepository {
     if (input.title.trim() === '') {
       throw new Error('Vyplňte název servisního listu.');
     }
-    if (!this.devices.some((d) => d.number === input.deviceNumber)) {
-      throw new Error(`Soubor ${input.deviceNumber} neexistuje — servisní list se zakládá na souboru.`);
+    const siteWide = input.deviceNumber === input.siteNumber;
+    if (!siteWide && !this.devices.some((d) => d.number === input.deviceNumber)) {
+      throw new Error(`Soubor ${input.deviceNumber} neexistuje — servisní list se zakládá na souboru nebo na celé lokalitě.`);
+    }
+    if (siteWide) {
+      const site = this.sites.filter((s) => s.number === input.siteNumber)[0];
+      if (!site) {
+        throw new Error(`Lokalita ${input.siteNumber} neexistuje.`);
+      }
+      // Skrytý servisní projekt lokality (společné zásahy) — na něm se vedou objednávky a fakturace.
+      await this.projects.ensureServiceProject({ projectNumber: site.number, title: `${site.number} ${site.name} – společné zásahy`, shortName: 'Společné zásahy', customerName: site.customerName, projectManagerName: actor.displayName, folderUrl: site.folderUrl });
     }
     const request = input.requestId ? this.requests.filter((r) => r.id === input.requestId)[0] : undefined;
     const number = await this.numbering.allocateNumber('SL');

@@ -160,7 +160,7 @@ export const JobPanel: React.FC<{
           {isJobOverdue(job) && <span style={{ color: RES.red, fontSize: 12 }}>po plánovaném termínu</span>}
         </div>
         <Fact label="Lokalita / soubor">
-          {site ? `${site.number} ${site.name}` : job.siteNumber} · {device ? `${device.number} ${device.name}` : job.deviceNumber}{' '}
+          {site ? `${site.number} ${site.name}` : job.siteNumber} · {device ? `${device.number} ${device.name}` : job.deviceNumber === job.siteNumber ? 'celá lokalita (společné zásahy)' : job.deviceNumber}{' '}
           <Link href={`#/projekt/${job.deviceNumber}`}>servisní projekt</Link>
         </Fact>
         <Fact label="Druh listu">
