@@ -88,6 +88,8 @@ if (!first || first.status === 401) {
 }
 await fetchAndSave('faktura-vydana-vlastnosti', base, 'faktura-vydana/properties.json', {}, auth);
 await fetchAndSave('faktura-prijata-vlastnosti', base, 'faktura-prijata/properties.json', {}, auth);
+await fetchAndSave('ucetni-denik-3', base, 'ucetni-denik.json', { limit: 3, detail: 'full' }, auth);
+await fetchAndSave('ucetni-denik-vlastnosti', base, 'ucetni-denik/properties.json', {}, auth);
 await fetchAndSave('zakazka-3', base, 'zakazka.json', { limit: 3 }, auth);
 const list = await fetchAndSave('seznam-evidenci', base, 'evidence-list.json', {}, auth);
 
