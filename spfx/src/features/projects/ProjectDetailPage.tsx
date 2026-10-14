@@ -22,7 +22,7 @@ import { PageHeading } from '../../ui/components/PageHeading';
 import { BudgetBadge, StatusBadge } from '../../ui/components/StatusBadge';
 import { Project } from '../../core/types';
 import { formatDate, formatMoney } from '../../core/format';
-import { canDeleteProject, canEditProject } from '../../core/roles';
+import { canDeleteProject, canEditProject, isReaderOnly } from '../../core/roles';
 import { canManageProjectAccess } from '../../core/projectAccess';
 import { EditProjectPanel } from './EditProjectPanel';
 import { DeadlinesTab } from './DeadlinesTab';
@@ -33,7 +33,6 @@ import { DeleteProjectDialog } from './DeleteProjectDialog';
 import { ProjectFoldersDialog } from './ProjectFoldersDialog';
 import { ProjectReportDialog } from '../reports/ProjectReportDialog';
 import { ProjectOverviewDialog } from '../reports/ProjectOverviewDialog';
-import { EXTERNAL_LINK_PROPS } from '../../ui/components/ExternalLink';
 import { ProjectOrdersTab } from '../orders/ProjectOrdersTab';
 import { ProjectInvoicesTab } from '../invoicing/ProjectInvoicesTab';
 import { ProjectDiaryTab } from '../diary/ProjectDiaryTab';
@@ -50,6 +49,7 @@ export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projec
   const [editOpen, setEditOpen] = React.useState(false);
   const [deleteOpen, setDeleteOpen] = React.useState(false);
   const [reportOpen, setReportOpen] = React.useState(false);
+  const [tab, setTab] = React.useState('prehled');
   const [overviewOpen, setOverviewOpen] = React.useState(false);
   const [foldersDialog, setFoldersDialog] = React.useState(false);
   const [overheadBusy, setOverheadBusy] = React.useState(false);
@@ -98,6 +98,7 @@ export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projec
     );
   }
 
+  const reader = isReaderOnly(user.roles);
   const mayEdit = canEditProject(user.roles, user.loginName, {
     projectManagerLogin: project.projectManagerLogin,
     assistantLogins: project.assistantLogins
@@ -175,28 +176,12 @@ export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projec
                 onClick={() => setEditOpen(true)}
               />
             )}
-            {!project.isOverhead && (
-              <DefaultButton
-                iconProps={{ iconName: 'PDF' }}
-                text="Report projektu"
-                title="PDF se stavem projektu ve stylu RES prezentace"
-                onClick={() => setReportOpen(true)}
-              />
-            )}
             {!project.isOverhead && mayEdit && (
               <DefaultButton
                 iconProps={{ iconName: 'ReportDocument' }}
                 text="Project overview"
                 title="Marketingový přehled realizace pro zákazníky (PDF, česky nebo anglicky)"
                 onClick={() => setOverviewOpen(true)}
-              />
-            )}
-            {project.folderUrl && (
-              <DefaultButton
-                iconProps={{ iconName: 'FolderHorizontal' }}
-                text="Otevřít složku projektu"
-                href={project.folderUrl}
-                {...EXTERNAL_LINK_PROPS}
               />
             )}
             {settingsItems.length > 0 && (
@@ -259,6 +244,18 @@ export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projec
       {/* Záložky jsou menší a při nedostatku místa se zalomí do druhé řady (nic se neschovává do nabídky „…“); nejdůležitější jsou první. */}
       <Pivot
         aria-label="Části projektu"
+        selectedKey={tab}
+        onLinkClick={(item) => {
+          const key = item && item.props.itemKey;
+          // „Report projektu“ a „Složka projektu“ jsou akce, ne záložky: otevřou dialog nebo složku a záložka zůstane.
+          if (key === 'report') {
+            setReportOpen(true);
+          } else if (key === 'slozka') {
+            window.open(project.folderUrl, '_blank', 'noopener,noreferrer');
+          } else if (key) {
+            setTab(key);
+          }
+        }}
         styles={{
           root: { display: 'flex', flexWrap: 'wrap', rowGap: 0, whiteSpace: 'normal' },
           link: { fontSize: 13, height: 34, lineHeight: '34px', padding: '0 8px', marginRight: 2 },
@@ -266,28 +263,28 @@ export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projec
           icon: { fontSize: 13, marginRight: 4 }
         }}
       >
-        <PivotItem headerText="Přehled" itemIcon="Info">
+        <PivotItem itemKey="prehled" headerText="Přehled" itemIcon="Info">
           <Overview project={project} />
         </PivotItem>
-        <PivotItem headerText="Objednávky" itemIcon="ShoppingCart">
+        {!reader && <PivotItem itemKey="objednavky" headerText="Objednávky" itemIcon="ShoppingCart">
           <ProjectOrdersTab project={project} />
-        </PivotItem>
-        <PivotItem headerText="Fakturace" itemIcon="M365InvoicingLogo">
+        </PivotItem>}
+        {!reader && <PivotItem itemKey="fakturace" headerText="Fakturace" itemIcon="M365InvoicingLogo">
           <ProjectInvoicesTab project={project} />
-        </PivotItem>
-        <PivotItem headerText="Stavební deník" itemIcon="Dictionary">
+        </PivotItem>}
+        {!reader && <PivotItem itemKey="denik" headerText="Stavební deník" itemIcon="Dictionary">
           <ProjectDiaryTab project={project} />
-        </PivotItem>
-        <PivotItem headerText="Předávací protokoly" itemIcon="DocumentApproval">
+        </PivotItem>}
+        {!reader && <PivotItem itemKey="protokoly" headerText="Předávací protokoly" itemIcon="DocumentApproval">
           <ProjectHandoverTab project={project} />
-        </PivotItem>
-        <PivotItem headerText="Fotodokumentace" itemIcon="Camera">
+        </PivotItem>}
+        <PivotItem itemKey="foto" headerText="Fotodokumentace" itemIcon="Camera">
           <ProjectPhotos project={project} />
         </PivotItem>
-        <PivotItem headerText="Dokumenty" itemIcon="DocumentSet">
+        {!reader && <PivotItem itemKey="dokumenty" headerText="Dokumenty" itemIcon="DocumentSet">
           <DocumentsTab project={project} />
-        </PivotItem>
-        <PivotItem headerText="Termíny" itemIcon="Clock">
+        </PivotItem>}
+        {!reader && <PivotItem itemKey="terminy" headerText="Termíny" itemIcon="Clock">
           <DeadlinesTab
             project={project}
             onChanged={() => {
@@ -301,19 +298,25 @@ export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projec
                 });
             }}
           />
-        </PivotItem>
-        <PivotItem headerText="Realizační rozpočet" itemIcon="Table">
+        </PivotItem>}
+        {!reader && <PivotItem itemKey="rozpocet" headerText="Realizační rozpočet" itemIcon="Table">
           <BudgetTab project={project} onProjectChanged={(p) => setProject(p)} />
-        </PivotItem>
-        <PivotItem headerText="Data z účetnictví" itemIcon="Financial">
+        </PivotItem>}
+        {!reader && <PivotItem itemKey="ucetnictvi" headerText="Data z účetnictví" itemIcon="Financial">
           <AccountingDataTab project={project} />
-        </PivotItem>
-        <PivotItem headerText="Cashflow" itemIcon="Money">
+        </PivotItem>}
+        {!reader && <PivotItem itemKey="cashflow" headerText="Cashflow" itemIcon="Money">
           <CashflowTab project={project} />
-        </PivotItem>
-        <PivotItem headerText="Harmonogram" itemIcon="TimelineProgress">
+        </PivotItem>}
+        {!reader && <PivotItem itemKey="harmonogram" headerText="Harmonogram" itemIcon="TimelineProgress">
           <ScheduleTab project={project} />
-        </PivotItem>
+        </PivotItem>}
+        {!project.isOverhead && !reader && (
+          <PivotItem itemKey="report" headerText="Report projektu" itemIcon="PDF" headerButtonProps={{ title: 'PDF se stavem projektu ve stylu RES prezentace' }} />
+        )}
+        {project.folderUrl && (
+          <PivotItem itemKey="slozka" headerText="Složka projektu" itemIcon="FolderHorizontal" headerButtonProps={{ title: 'Otevřít složku projektu v knihovně dokumentů (nová karta)' }} />
+        )}
       </Pivot>
     </>
   );

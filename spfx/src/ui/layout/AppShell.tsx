@@ -16,7 +16,7 @@ import { useApp } from '../AppContext';
 import { RES, LAYOUT, RES_FONT_FAMILY } from '../theme';
 import { Route, RouteName, buildHash } from '../router';
 import { ROLE_LABELS, Role } from '../../core/types';
-import { canActAs, canOpenAdmin, canOpenBenchmark, canOpenFinance } from '../../core/roles';
+import { canActAs, canOpenAdmin, canOpenBenchmark, canOpenFinance, isReaderOnly } from '../../core/roles';
 import { crmLinkUrl, isWebViewMode, siteHomeUrl, toggleWebViewUrl } from '../fullscreen';
 import { NavEntry, NavGroup, NavItem, activeItemRoute, buildNavigation, flattenNavigation, groupKeyOf } from './navigation';
 
@@ -119,7 +119,8 @@ function useNavEntries(): NavEntry[] {
     benchmark: canOpenBenchmark(user.roles),
     finance: canOpenFinance(user.roles, user.hasFinanceAccess && !!financeSiteUrl),
     admin: canOpenAdmin(user.roles),
-    service: canViewService(user.roles)
+    service: canViewService(user.roles),
+    reader: isReaderOnly(user.roles)
   });
 }
 

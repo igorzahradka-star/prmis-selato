@@ -69,6 +69,16 @@ export function resolveRoles(
   return roles;
 }
 
+/** Projekty Režie smí vidět a otevřít jen vedení, jednatel, finance a administrátor. */
+export function canSeeOverhead(userRoles: Role[]): boolean {
+  return hasAnyRole(userRoles, Role.Administrator, Role.Vedeni, Role.Jednatel, Role.Finance);
+}
+
+/** Je uživatel jen čtenář (má roli Čtenář a žádnou jinou)? Vidí omezenou nabídku a jen úvod projektu a fotodokumentaci. */
+export function isReaderOnly(userRoles: Role[]): boolean {
+  return userRoles.indexOf(Role.Ctenar) !== -1 && userRoles.every((r) => r === Role.Ctenar);
+}
+
 /** Má uživatel alespoň jednu z uvedených rolí? */
 export function hasAnyRole(userRoles: Role[], ...required: Role[]): boolean {
   return required.some((r) => userRoles.indexOf(r) !== -1);

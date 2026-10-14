@@ -5,6 +5,13 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.47.1 — 15. 10. 2026 — Role: Režie jen pro vedení, role Čtenář, jednotné menu projektu
+
+- **Projekty Režie** vidí a otevře jen Vedení, Jednatel, Finance a Administrátor (seznamy, mapa, objednávky i otevření detailu ostatním Režii nevrátí).
+- **Role Čtenář** (bez dalších rolí): nabídka jen Přehled projektů, Mapa projektů, Kusovník, Čeká na mě, Partneři, Servis (jen čtení, včetně mapy servisu) a Nápověda; ostatní obrazovky nelze otevřít ani zadáním adresy. V detailu projektu vidí jen Přehled, Fotodokumentaci a odkaz Složka projektu.
+- **Report projektu** a **Složka projektu** přesunuty z tlačítek v záhlaví do menu záložek projektu (jednotné ovládání). Čtenář Report nevidí.
+- Bez změny schématu.
+
 ## 0.47.0 — 15. 10. 2026 — Servis: soubory a mapa (etapa 1 podle `docs/SERVIS_NAVRH.md`)
 
 - „Zařízení“ se v celém Servisu jmenuje **soubor** (FVE, BESS…). Technické názvy sloupců v seznamech zůstávají.

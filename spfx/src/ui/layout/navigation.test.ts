@@ -1,4 +1,4 @@
-import { activeItemRoute, buildNavigation, flattenNavigation, groupKeyOf } from './navigation';
+import { activeItemRoute, buildNavigation, flattenNavigation, groupKeyOf, isRouteAllowed } from './navigation';
 import { RouteName } from '../router';
 
 const nic = { benchmark: false, finance: false, admin: false };
@@ -62,5 +62,18 @@ describe('skupiny a zvýraznění', () => {
   it('detail projektu patří do skupiny Projekty a zvýrazní Přehled projektů', () => {
     expect(activeItemRoute(RouteName.ProjectDetail)).toBe(RouteName.Dashboard);
     expect(groupKeyOf(e, RouteName.ProjectDetail)).toBe('projekty');
+  });
+});
+
+describe('nabídka čtenáře', () => {
+  it('čtenář vidí jen přehled projektů, mapu, kusovník, Čeká na mě, Partnery, Servis a Nápovědu', () => {
+    const items = flattenNavigation(buildNavigation({ ...nic, service: true, reader: true })).map((i) => i.route);
+    expect(items).toEqual([RouteName.Dashboard, RouteName.Map, RouteName.Catalog, RouteName.WaitingForMe, RouteName.Partners, RouteName.Service, RouteName.Help]);
+  });
+
+  it('čtenář nesmí otevřít objednávky, fakturaci ani nastavení; ostatní role beze změny', () => {
+    expect([RouteName.Orders, RouteName.Invoicing, RouteName.Settings, RouteName.Diary].map((r) => isRouteAllowed(r, true))).toEqual([false, false, false, false]);
+    expect([RouteName.Dashboard, RouteName.ProjectDetail, RouteName.Photos, RouteName.Service].map((r) => isRouteAllowed(r, true))).toEqual([true, true, true, true]);
+    expect(isRouteAllowed(RouteName.Orders, false)).toBe(true);
   });
 });

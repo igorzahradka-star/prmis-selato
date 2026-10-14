@@ -59,9 +59,9 @@ export interface ServiceDevice {
 
 // --- práva -----------------------------------------------------------------------
 
-/** Smí uživatel Servis vidět? Správce, dispečer, administrátor a vedení (vedení jen čte). */
+/** Smí uživatel Servis vidět? Správce, dispečer, administrátor, vedení a čtenář (vedení a čtenář jen čtou). */
 export function canViewService(roles: Role[]): boolean {
-  return hasAnyRole(roles, Role.Administrator, Role.Vedeni, Role.SpravceServisu, Role.Dispecer);
+  return hasAnyRole(roles, Role.Administrator, Role.Vedeni, Role.SpravceServisu, Role.Dispecer, Role.Ctenar);
 }
 
 /** Smí uživatel v Servisu pracovat (požadavky, servisní listy, objednávky)? */

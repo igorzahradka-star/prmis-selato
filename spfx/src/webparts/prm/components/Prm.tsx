@@ -19,7 +19,9 @@ import { Route, RouteName, parseHash, subscribeToRoute } from '../../../ui/route
 import { RepositorySet } from '../../../data/repositories';
 import { AppSettings } from '../../../core/settings';
 import { CurrentUser, Role } from '../../../core/types';
-import { actingUser } from '../../../core/roles';
+import { actingUser, canSeeOverhead, isReaderOnly } from '../../../core/roles';
+import { withRoleGuards } from '../../../data/roleGuards';
+import { isRouteAllowed } from '../../../ui/layout/navigation';
 
 import { DashboardPage } from '../../../features/projects/DashboardPage';
 import { ProjectDetailPage } from '../../../features/projects/ProjectDetailPage';
@@ -53,6 +55,11 @@ export const PrmApp: React.FC<IPrmAppProps> = ({ repos, dataSource, financeSiteU
   const [route, setRoute] = React.useState<Route>(parseHash(window.location.hash));
 
   React.useEffect(() => subscribeToRoute(setRoute), []);
+
+  // Role se berou z uživatele (i při zkoušení role); musí být nad prvním return (pravidlo hooků).
+  const effectiveUser = user ? actingUser(user, actAs) : undefined;
+  const hideOverhead = effectiveUser ? !canSeeOverhead(effectiveUser.roles) : true;
+  const guardedRepos = React.useMemo(() => withRoleGuards(repos, { hideOverhead }), [repos, hideOverhead]);
 
   const load = React.useCallback(async (): Promise<void> => {
     // Nastavení musí být první — jsou v něm názvy skupin, podle kterých
@@ -102,13 +109,15 @@ export const PrmApp: React.FC<IPrmAppProps> = ({ repos, dataSource, financeSiteU
     );
   }
 
+  const reader = isReaderOnly((effectiveUser as CurrentUser).roles);
+
   const value: AppContextValue = {
-    user: actingUser(user, actAs),
+    user: effectiveUser as CurrentUser,
     realUser: user,
     actAs,
     setActAs,
     settings,
-    repos,
+    repos: guardedRepos,
     dataSource,
     financeSiteUrl,
     reloadSettings
@@ -117,7 +126,7 @@ export const PrmApp: React.FC<IPrmAppProps> = ({ repos, dataSource, financeSiteU
   return (
     <ThemeProvider theme={resTheme}>
       <AppContext.Provider value={value}>
-        <AppShell route={route}>{renderRoute(route)}</AppShell>
+        <AppShell route={route}>{renderRoute(isRouteAllowed(route.name, reader) ? route : { name: RouteName.Dashboard })}</AppShell>
       </AppContext.Provider>
     </ThemeProvider>
   );

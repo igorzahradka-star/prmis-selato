@@ -29,6 +29,27 @@ export interface NavFlags {
   admin: boolean;
   /** Uživatel smí vidět modul Servis (správce, dispečer, vedení, administrátor). */
   service?: boolean;
+  /** Uživatel je jen čtenář: omezená nabídka (viz `READER_ROUTES`). */
+  reader?: boolean;
+}
+
+/** Obrazovky, které smí otevřít čtenář (role Čtenář bez dalších rolí). */
+export const READER_ROUTES: RouteName[] = [
+  RouteName.Dashboard,
+  RouteName.ProjectDetail,
+  RouteName.Map,
+  RouteName.Catalog,
+  RouteName.Service,
+  RouteName.Partners,
+  RouteName.WaitingForMe,
+  RouteName.Photos,
+  RouteName.Profile,
+  RouteName.Help
+];
+
+/** Smí uživatel otevřít danou obrazovku? Čtenář jen vyjmenované; ostatní řídí oprávnění a nabídka. */
+export function isRouteAllowed(route: RouteName, reader: boolean): boolean {
+  return !reader || READER_ROUTES.indexOf(route) !== -1;
 }
 
 const item = (route: RouteName, label: string, icon: string, comingSoon?: boolean): NavEntry => ({
@@ -96,6 +117,17 @@ export function buildNavigation(flags: NavFlags): NavEntry[] {
     });
   }
   entries.push(item(RouteName.Help, 'Nápověda', 'Help'));
+  if (flags.reader) {
+    return entries
+      .map((e): NavEntry | undefined => {
+        if (e.kind === 'item') {
+          return isRouteAllowed(e.item.route, true) ? e : undefined;
+        }
+        const children = e.group.children.filter((c) => isRouteAllowed(c.route, true));
+        return children.length > 0 ? { kind: 'group', group: { ...e.group, children } } : undefined;
+      })
+      .filter((e): e is NavEntry => !!e);
+  }
   return entries;
 }
 

@@ -59,13 +59,14 @@ describe('číslování Servisu', () => {
 });
 
 describe('práva Servisu', () => {
-  it('Servis vidí správce, dispečer, administrátor a vedení; běžný PM, asistent a čtenář ne', () => {
-    expect([Role.SpravceServisu, Role.Dispecer, Role.Administrator, Role.Vedeni].map((r) => canViewService([r]))).toEqual([true, true, true, true]);
-    expect([Role.ProjektovyManazer, Role.AsistentPM, Role.Ctenar, Role.Finance, Role.Jednatel].map((r) => canViewService([r]))).toEqual([false, false, false, false, false]);
+  it('Servis vidí správce, dispečer, administrátor, vedení a čtenář; běžný PM, asistent, finance a jednatel ne', () => {
+    expect([Role.SpravceServisu, Role.Dispecer, Role.Administrator, Role.Vedeni, Role.Ctenar].map((r) => canViewService([r]))).toEqual([true, true, true, true, true]);
+    expect([Role.ProjektovyManazer, Role.AsistentPM, Role.Finance, Role.Jednatel].map((r) => canViewService([r]))).toEqual([false, false, false, false]);
   });
   it('pracovat smí správce, dispečer a administrátor; vedení jen čte', () => {
     expect([Role.SpravceServisu, Role.Dispecer, Role.Administrator].map((r) => canWorkInService([r]))).toEqual([true, true, true]);
     expect(canWorkInService([Role.Vedeni])).toBe(false);
+    expect(canWorkInService([Role.Ctenar])).toBe(false);
   });
   it('lokality, zařízení, kontrolu a fakturaci spravuje jen správce servisu a administrátor, ne dispečer', () => {
     expect(canAdministerService([Role.SpravceServisu])).toBe(true);
