@@ -181,3 +181,9 @@ Přihlášení uživatelem s povoleným API vrací **200**. Důležité: **adres
 - Existují evidence: `faktura-prijata(-polozka)`, `faktura-vydana(-polozka)`, `typ-faktury-prijate/-vydane`, `ucetni-denik`, `predpis-zauctovani`, `zaloha-k-odpoctu` (jen jako relace — zálohy se odečítají z konečné faktury, `sumZalohy`), celkem 228 evidencí.
   **Samostatná evidence zálohových faktur není**; zálohová faktura je nejspíš doklad v `faktura-prijata/-vydana` s jiným typem dokladu (`typDoklK` v `typ-faktury-…`). Ověří se výpisem `typ-faktury-prijate/-vydane` (sonda ho teď stahuje).
 - `src/dryrun.js` — zkušební běh jen pro čtení: stáhne deník od zvoleného data, převede na řádky, vypíše součty po projektech a uloží `radky.json` do `vystupy/`. Nic nezapisuje.
+
+### Zkušební běh nad živým API (14. 10. 2026) + typy faktur
+- Stažených 276 zápisů deníku → 81 řádků PRMIS (0 přeskočeno kromě 1 zápisu bez zakázky na nákladovém účtu). Cizoměnové řádky (EUR) mají `AmountNet` v EUR a `AmountNetCzk` z `sumTuz`.
+- Součty se od ručního exportu z 13. 10. liší **jen kvůli změnám dat v Abře** (např. vydaná faktura VF1-0004/2026 byla přeřazena na zakázku 26005, takže 26001 má výnos 197 100,00 a 26005 3 795 958,24 Kč); logika mapování zůstala stejná.
+- **Typy faktur potvrzeny:** `typDoklK` = `typDokladu.faktura` | `typDokladu.dobropis` (Opravný daňový doklad) | `typDokladu.zalohFaktura` (Zálohová faktura) | `typDokladu.zdd` (Zálohový daňový doklad).
+  Zálohy jsou tedy doklady v `faktura-prijata` / `faktura-vydana` s těmito typy (`DocType` = `zaloha-prijata` / `zaloha-vydana`); `buildTypeIndex` + `mapFlexiDoc` je rozpoznají podle evidencí `typ-faktury-prijate/-vydane`, dobropisy podle typu (ne podle názvu). Zkušební běh je stahuje zvlášť; do součtů se nepočítají.
