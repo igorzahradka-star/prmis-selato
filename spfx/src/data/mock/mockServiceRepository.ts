@@ -26,7 +26,7 @@ export class MockServiceRepository implements IServiceRepository {
     { id: 2, number: 'SPO-2026-0002', siteNumber: '10510', deviceNumber: '10511', title: 'Roční prohlídka FVE', priority: 'Běžná', kind: 'Preventivní prohlídka', receivedAt: day(2026, 10, 12), receivedByName: 'Dispečer servisu', status: RequestStatus.Prijato }
   ];
   private jobs: ServiceJob[] = [
-    { id: 1, number: 'SL-2026-0001', requestId: 1, requestNumber: 'SPO-2026-0001', siteNumber: '10500', deviceNumber: '10501', title: 'Oprava střídače č. 3', description: 'Diagnostika a oprava střídače, případně výměna.', status: JobStatus.Objednano, plannedDate: day(2026, 10, 20), supplierName: 'FVE Servis Morava s.r.o.', orderNumber: 'OBJ-2026-0007', createdByName: 'Dispečer servisu' }
+    { id: 1, number: 'SL-2026-0001', requestId: 1, requestNumber: 'SPO-2026-0001', siteNumber: '10500', deviceNumber: '10501', title: 'Oprava střídače č. 3', description: 'Diagnostika a oprava střídače, případně výměna.', status: JobStatus.Objednano, plannedDate: day(2026, 10, 20), supplierName: 'FVE Servis Morava s.r.o.', orderNumber: 'OBJ-2026-0007', jobKind: 'Nahodilá', createdByName: 'Dispečer servisu', createdAt: day(2026, 10, 9) }
   ];
 
   public constructor(
@@ -164,7 +164,7 @@ export class MockServiceRepository implements IServiceRepository {
     } catch (e) {
       return Promise.reject(new Error(e instanceof Error ? e.message : String(e)));
     }
-    const updated: ServiceJob = { ...job, siteNumber: input.siteNumber, deviceNumber: input.deviceNumber, title: input.title.trim(), description: input.description, plannedDate: input.plannedDate, supplierId: input.supplierId, supplierName: input.supplierName };
+    const updated: ServiceJob = { ...job, siteNumber: input.siteNumber, deviceNumber: input.deviceNumber, title: input.title.trim(), description: input.description, plannedDate: input.plannedDate, jobKind: input.jobKind || job.jobKind, supplierId: input.supplierId, supplierName: input.supplierName };
     this.jobs = this.jobs.map((j) => (j.id === job.id ? updated : j));
     return Promise.resolve({ ...updated });
   }

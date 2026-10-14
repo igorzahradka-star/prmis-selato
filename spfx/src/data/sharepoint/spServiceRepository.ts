@@ -26,6 +26,11 @@ const str = (v: unknown): string | undefined => (typeof v === 'string' && v.trim
 const numOrUndef = (v: unknown): number | undefined => (typeof v === 'number' && isFinite(v) ? v : undefined);
 const iso = (d: Date | undefined): string | null => (d ? d.toISOString() : null);
 
+/** Chyba SharePointu „vlastnost neexistuje“ = seznam ještě nemá sloupec z nové verze (chybí Instalace). */
+function missingColumnHint(error: unknown): boolean {
+  return /does not exist on type/i.test(error instanceof Error ? error.message : String(error));
+}
+
 function mapSite(i: Item): ServiceSite {
   return {
     id: i.Id,
@@ -95,6 +100,7 @@ function mapJob(i: Item): ServiceJob {
     description: str(i.Description),
     status,
     plannedDate: toDate(str(i.PlannedDate)),
+    jobKind: str(i.JobKind) || 'Nahodilá',
     supplierId: numOrUndef(i.SupplierId),
     supplierName: str(i.SupplierName),
     orderId: numOrUndef(i.OrderId),
@@ -104,6 +110,10 @@ function mapJob(i: Item): ServiceJob {
     hours: numOrUndef(i.Hours),
     material: str(i.Material),
     photosUrl: str(i.PhotosUrl),
+    proofKind: str(i.ProofKind),
+    verifiedByName: str(i.VerifiedByName),
+    verifiedAt: toDate(str(i.VerifiedAt)),
+    createdAt: toDate(str(i.Created)),
     checkedByName: str(i.CheckedByName),
     checkedAt: toDate(str(i.CheckedAt)),
     checkNote: str(i.CheckNote),
@@ -136,7 +146,7 @@ export class SpServiceRepository implements IServiceRepository {
       const data = (added as { data?: { Id?: number }; Id?: number }).data ?? (added as { Id?: number });
       return (data as { Id?: number }).Id ?? 0;
     } catch (error) {
-      throw new Error(describeSpError(error, what));
+      throw new Error(missingColumnHint(error) ? what + ': v seznamu chybí nový sloupec. Po nahrání nové verze spusťte „Instalace a diagnostika“ (doplní chybějící sloupce) a zkuste to znovu.' : describeSpError(error, what));
     }
   }
 
@@ -144,7 +154,7 @@ export class SpServiceRepository implements IServiceRepository {
     try {
       await getSp(this.context).web.lists.getByTitle(list).items.getById(id).update(fields);
     } catch (error) {
-      throw new Error(describeSpError(error, what));
+      throw new Error(missingColumnHint(error) ? what + ': v seznamu chybí nový sloupec. Po nahrání nové verze spusťte „Instalace a diagnostika“ (doplní chybějící sloupce) a zkuste to znovu.' : describeSpError(error, what));
     }
   }
 
@@ -349,6 +359,7 @@ export class SpServiceRepository implements IServiceRepository {
       DeviceNumber: input.deviceNumber,
       Description: input.description ?? '',
       PlannedDate: iso(input.plannedDate),
+      JobKind: input.jobKind || 'Nahodilá',
       SupplierId: input.supplierId ?? null,
       SupplierName: input.supplierName ?? ''
     };
@@ -413,6 +424,9 @@ export class SpServiceRepository implements IServiceRepository {
       ['hours', 'Hours', (v) => v],
       ['material', 'Material', (v) => v],
       ['photosUrl', 'PhotosUrl', (v) => v],
+      ['proofKind', 'ProofKind', (v) => v],
+      ['verifiedByName', 'VerifiedByName', (v) => v],
+      ['verifiedAt', 'VerifiedAt', (v: Date) => v.toISOString()],
       ['checkedByName', 'CheckedByName', (v) => v],
       ['checkedAt', 'CheckedAt', (v: Date) => v.toISOString()],
       ['checkNote', 'CheckNote', (v) => v],

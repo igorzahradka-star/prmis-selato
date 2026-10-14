@@ -956,6 +956,8 @@ export interface ServiceJobInput {
   title: string;
   description?: string;
   plannedDate?: Date;
+  /** Plánovaná (v paušálu) / Nahodilá (mimo paušál). */
+  jobKind?: string;
   supplierId?: number;
   supplierName?: string;
 }

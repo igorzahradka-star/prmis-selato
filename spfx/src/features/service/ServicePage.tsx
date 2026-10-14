@@ -24,7 +24,8 @@ import { notifyServiceManagers, serviceLink } from './serviceNotify';
 import { serviceRequestMail } from '../../core/notifications';
 import { JobPanel } from './JobPanel';
 import { ServiceMap } from './ServiceMap';
-import { ContractBadge, JobStatusBadge, PriorityBadge, RequestStatusBadge, TD, TH } from './serviceUi';
+import { ContractBadge, JobKindBadge, JobStatusBadge, PriorityBadge, RequestStatusBadge, SlaIndicator, TD, TH } from './serviceUi';
+import { isSlaBreached, slaProgress } from '../../core/serviceSla';
 
 type JobFilter = 'open' | 'all' | JobStatus;
 type RequestFilter = 'open' | 'all' | RequestStatus;
@@ -132,6 +133,7 @@ export const ServicePage: React.FC = () => {
   const overdueJobs = jobs.filter((j) => isJobOverdue(j)).length;
   const toCheck = jobs.filter((j) => j.status === JobStatus.Provedeno).length;
   const toInvoice = jobs.filter((j) => j.status === JobStatus.KFakturaci).length;
+  const slaBreached = requests.filter((r) => (r.status === RequestStatus.Prijato || r.status === RequestStatus.Zpracovava) && isSlaBreached(slaProgress(r, jobs, settings.service.slaRules))).length;
   const contractsEnding = devices.filter((d) => d.isActive && (contractState(d) === 'konci' || contractState(d) === 'vyprsela')).length;
 
   return (
@@ -152,6 +154,7 @@ export const ServicePage: React.FC = () => {
         <Tile label="Po termínu" value={overdueJobs} hint="servisní listy naplánované nebo objednané, jejichž termín už minul" warn={overdueJobs > 0} />
         <Tile label="Ke kontrole" value={toCheck} hint="provedené servisní listy, které čekají na kontrolu správcem" warn={toCheck > 0} />
         <Tile label="K fakturaci" value={toInvoice} hint="zkontrolované listy, ke kterým se má založit podklad pro fakturaci" />
+        <Tile label="SLA po lhůtě" value={slaBreached} hint="otevřené požadavky, u kterých už uplynula lhůta reakce nebo vyřešení (jen indikace, bez sankcí; lhůty jsou v Nastavení → Servis)" warn={slaBreached > 0} />
         <Tile label="Smlouvy končí / vypršely" value={contractsEnding} hint="soubory, jejichž smlouva končí do 60 dnů nebo už vypršela" warn={contractsEnding > 0} />
       </div>
       {!mayWork && (
@@ -176,6 +179,7 @@ export const ServicePage: React.FC = () => {
                 <th style={TH}>Požadavek</th>
                 <th style={TH}>Priorita</th>
                 <th style={TH}>Stav</th>
+                <th style={TH} title="Čas reakce a vyřešení podle lhůt v Nastavení → Servis (jen indikace)">SLA</th>
                 <th style={TH}>Servisní listy</th>
                 <th style={TH} />
               </tr>
@@ -204,6 +208,9 @@ export const ServicePage: React.FC = () => {
                     <RequestStatusBadge status={r.status} />
                   </td>
                   <td style={TD}>
+                    <SlaIndicator progress={slaProgress(r, jobs, settings.service.slaRules)} />
+                  </td>
+                  <td style={TD}>
                     {jobsOfRequest(r.id).map((j) => (
                       <div key={j.id}>
                         <Link onClick={() => setOpenJobId(j.id)}>{j.number}</Link> <JobStatusBadge status={j.status} />
@@ -220,7 +227,7 @@ export const ServicePage: React.FC = () => {
               ))}
               {shownRequests.length === 0 && (
                 <tr>
-                  <td colSpan={8} style={{ ...TD, color: RES.gray, padding: 14 }}>
+                  <td colSpan={9} style={{ ...TD, color: RES.gray, padding: 14 }}>
                     {requests.length === 0 ? 'Zatím žádný požadavek.' : 'Filtru neodpovídá žádný požadavek.'}
                   </td>
                 </tr>
@@ -242,6 +249,7 @@ export const ServicePage: React.FC = () => {
                 <th style={TH}>Číslo</th>
                 <th style={TH}>Soubor</th>
                 <th style={TH}>Název</th>
+                <th style={TH}>Druh</th>
                 <th style={TH}>Dodavatel</th>
                 <th style={TH}>Termín</th>
                 <th style={TH}>Stav</th>
@@ -260,6 +268,9 @@ export const ServicePage: React.FC = () => {
                     <div style={{ color: RES.gray, fontSize: 12 }}>{siteName(j.siteNumber)}</div>
                   </td>
                   <td style={TD}>{j.title}</td>
+                  <td style={TD}>
+                    <JobKindBadge kind={j.jobKind} />
+                  </td>
                   <td style={TD}>{j.supplierName || '—'}</td>
                   <td style={{ ...TD, whiteSpace: 'nowrap', color: isJobOverdue(j) ? RES.red : undefined }}>{j.plannedDate ? formatDate(j.plannedDate) : '—'}</td>
                   <td style={TD}>
@@ -271,7 +282,7 @@ export const ServicePage: React.FC = () => {
               ))}
               {shownJobs.length === 0 && (
                 <tr>
-                  <td colSpan={8} style={{ ...TD, color: RES.gray, padding: 14 }}>
+                  <td colSpan={9} style={{ ...TD, color: RES.gray, padding: 14 }}>
                     {jobs.length === 0 ? 'Zatím žádný servisní list. Zakládá se z požadavku, nebo tlačítkem Nový servisní list.' : 'Filtru neodpovídá žádný servisní list.'}
                   </td>
                 </tr>

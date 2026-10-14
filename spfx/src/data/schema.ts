@@ -18,7 +18,7 @@
  * Verze schématu. Ukládá se do PRM_Settings pod klíčem `schemaVersion`.
  * Průvodce porovná uloženou verzi s touto a nabídne doplnění rozdílu.
  */
-export const SCHEMA_VERSION = 26;
+export const SCHEMA_VERSION = 27;
 
 /** Typ sloupce v SharePointu. */
 export type FieldType =
@@ -778,6 +778,7 @@ const PRM_SERVICE_JOBS: ListDef = {
     { name: 'Description', title: 'Zadání práce', type: 'Note' },
     { name: 'JobStatus', title: 'Stav', type: 'Choice', choices: ['Naplánováno', 'Dodavatel objednán', 'Provedeno', 'K fakturaci', 'Vyfakturováno', 'Uzavřeno', 'Zrušeno'], defaultValue: 'Naplánováno', indexed: true },
     { name: 'PlannedDate', title: 'Plánovaný termín', type: 'DateTime' },
+    { name: 'JobKind', title: 'Druh listu', type: 'Choice', choices: ['Nahodilá', 'Plánovaná'], defaultValue: 'Nahodilá', description: 'Plánovaná = v paušálu (revize, pravidelné); Nahodilá = mimo paušál (porucha, havárie).' },
     { name: 'SupplierId', title: 'Dodavatel (ID partnera)', type: 'Number', decimals: 0, indexed: true },
     { name: 'SupplierName', title: 'Dodavatel', type: 'Text' },
     { name: 'OrderId', title: 'ID objednávky', type: 'Number', decimals: 0 },
@@ -787,6 +788,9 @@ const PRM_SERVICE_JOBS: ListDef = {
     { name: 'Hours', title: 'Odpracované hodiny', type: 'Number', decimals: 2 },
     { name: 'Material', title: 'Použitý materiál', type: 'Note' },
     { name: 'PhotosUrl', title: 'Fotky (složka)', type: 'Text' },
+    { name: 'ProofKind', title: 'Doklad o provedení', type: 'Choice', choices: ['Popis', 'Fotka', 'Vzdálené ověření'] },
+    { name: 'VerifiedByName', title: 'Ověřil na dálku', type: 'Text' },
+    { name: 'VerifiedAt', title: 'Ověřeno', type: 'DateTime' },
     { name: 'CheckedByName', title: 'Zkontroloval', type: 'Text' },
     { name: 'CheckedAt', title: 'Zkontrolováno', type: 'DateTime' },
     { name: 'CheckNote', title: 'Poznámka kontroly', type: 'Note' },

@@ -5,6 +5,15 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.48.0 — 15. 10. 2026 — Servis: druh listu, doklad o provedení, SLA (etapa 3)
+
+- **Druh servisního listu:** Plánovaná (v paušálu: revize, pravidelné) / Nahodilá (mimo paušál: porucha, havárie). Nikdy půl na půl; přesah se zadá jako nový požadavek. Volí se při založení listu, ukazuje se v seznamu i v detailu.
+- **Doklad o provedení:** dodavatel nebo dispečer doloží provedení **popisem, fotkami (odkaz), nebo ověřením na dálku** (kdo ověřil); stačí jedno. Bez dokladu se provedení nezapíše.
+- **SLA:** v seznamu požadavků nový sloupec — čas reakce (do založení prvního listu) a vyřešení (do provedení všech listů) proti lhůtám; nahoře dlaždice „SLA po lhůtě“. Jen indikace, bez sankcí. Lhůty (druh a priorita požadavku → hodiny) se nastavují v **Nastavení → Servis** (výchozí hodnoty jsou návrh).
+- **Oprava:** úprava lokality a souboru je boční panel jako úprava projektu — mapa v dialogu se nedala posouvat.
+- Srozumitelná hláška, když seznam ještě nemá nový sloupec (po nahrání nové verze chybí spustit Instalaci).
+- **Schéma 27** (sloupce JobKind, ProofKind, VerifiedByName, VerifiedAt u servisních listů) — po nahrání spustit **Instalaci a diagnostiku**.
+
 ## 0.47.1 — 15. 10. 2026 — Role: Režie jen pro vedení, role Čtenář, jednotné menu projektu
 
 - **Projekty Režie** vidí a otevře jen Vedení, Jednatel, Finance a Administrátor (seznamy, mapa, objednávky i otevření detailu ostatním Režii nevrátí).

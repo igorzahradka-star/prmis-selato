@@ -4,6 +4,7 @@
 
 import * as React from 'react';
 import { Dialog, DialogFooter, DialogType } from '@fluentui/react/lib/Dialog';
+import { Panel, PanelType } from '@fluentui/react/lib/Panel';
 import { DefaultButton, PrimaryButton } from '@fluentui/react/lib/Button';
 import { Dropdown, IDropdownOption } from '@fluentui/react/lib/Dropdown';
 import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
@@ -13,15 +14,42 @@ import { Toggle } from '@fluentui/react/lib/Toggle';
 import { RES } from '../../ui/theme';
 import { Partner, PartnerType } from '../../core/types';
 import { DEVICE_KINDS, ServiceDevice, ServiceSite, nextDeviceNumber, nextSiteNumber, validateDeviceNumber, validateSiteNumber } from '../../core/service';
-import { REQUEST_KINDS, REQUEST_PRIORITIES, ServiceJob, ServiceRequest } from '../../core/serviceJobs';
+import { DEFAULT_JOB_KIND, JOB_KINDS, REQUEST_KINDS, REQUEST_PRIORITIES, ServiceJob, ServiceRequest } from '../../core/serviceJobs';
 import { ServiceDeviceInput, ServiceJobInput, ServiceRequestInput, ServiceSiteInput } from '../../data/repositories';
 import { LocationPicker } from '../map/LocationPicker';
 import { DATE_INPUT, dateToInput, inputToDate } from './serviceUi';
 
 const ROW: React.CSSProperties = { display: 'flex', gap: 10, flexWrap: 'wrap' };
 
-/** Dialog se zprávou o chybě a tlačítky; sdílená kostra. */
-const Shell: React.FC<{ title: string; subText?: string; error?: string; busy: boolean; confirm: string; onConfirm: () => void; onClose: () => void; width?: number; children: React.ReactNode }> = ({ title, subText, error, busy, confirm, onConfirm, onClose, width, children }) => (
+/**
+ * Dialog se zprávou o chybě a tlačítky; sdílená kostra. Formuláře s mapou (lokalita, soubor) jsou boční panel stejně jako úprava
+ * projektu — mapa v modálním dialogu se nedala posouvat (dialog zachytává tažení myší).
+ */
+const Shell: React.FC<{ title: string; subText?: string; error?: string; busy: boolean; confirm: string; onConfirm: () => void; onClose: () => void; width?: number; panel?: boolean; children: React.ReactNode }> = ({ title, subText, error, busy, confirm, onConfirm, onClose, width, panel, children }) =>
+  panel ? (
+    <Panel
+      isOpen
+      onDismiss={busy ? undefined : onClose}
+      type={PanelType.medium}
+      headerText={title}
+      closeButtonAriaLabel="Zavřít"
+      isFooterAtBottom
+      onRenderFooterContent={() => (
+        <div style={{ display: 'flex', gap: 8 }}>
+          <PrimaryButton text={busy ? 'Ukládám…' : confirm} disabled={busy} onClick={onConfirm} />
+          <DefaultButton text="Zrušit" disabled={busy} onClick={onClose} />
+        </div>
+      )}
+    >
+      {subText && <p style={{ margin: '0 0 8px', color: RES.gray, fontSize: 13 }}>{subText}</p>}
+      {error && (
+        <MessageBar messageBarType={MessageBarType.error} isMultiline>
+          {error}
+        </MessageBar>
+      )}
+      {children}
+    </Panel>
+  ) : (
   <Dialog hidden={false} onDismiss={busy ? undefined : onClose} dialogContentProps={{ type: DialogType.normal, title, subText }} modalProps={{ isBlocking: true }} minWidth={width ?? 560}>
     {error && (
       <MessageBar messageBarType={MessageBarType.error} isMultiline>
@@ -34,7 +62,7 @@ const Shell: React.FC<{ title: string; subText?: string; error?: string; busy: b
       <DefaultButton text="Zrušit" disabled={busy} onClick={onClose} />
     </DialogFooter>
   </Dialog>
-);
+  );
 
 const customerOptions = (partners: Partner[]): IDropdownOption[] =>
   [{ key: 0, text: '— bez vazby na partnera —' }, ...partners.filter((p) => p.isActive && (p.partnerType === PartnerType.Zakaznik || p.partnerType === PartnerType.Oboji)).map((p) => ({ key: p.id, text: p.name }))];
@@ -77,6 +105,7 @@ export const SiteDialog: React.FC<{ site?: ServiceSite; sites: ServiceSite[]; pa
 
   return (
     <Shell
+      panel
       title={site ? `Lokalita ${site.number}` : 'Nová lokalita'}
       subText="Lokalita je místo zákazníka; pod ní se zakládají soubory (FVE, BESS…), každé se svým číslem, smlouvou a fakturací."
       error={error}
@@ -131,6 +160,7 @@ export const DeviceDialog: React.FC<{ site: ServiceSite; device?: ServiceDevice;
 
   return (
     <Shell
+      panel
       title={device ? `Soubor ${device.number}` : `Nový soubor v lokalitě ${site.number} ${site.name}`}
       subText={device ? undefined : 'Soubor je servisní zakázka: má vlastní číslo, složku, objednávky a fakturaci. V přehledu projektů se neukazuje.'}
       error={error}
@@ -265,6 +295,7 @@ export const JobDialog: React.FC<{
   const [description, setDescription] = React.useState(job ? job.description ?? '' : request ? request.description ?? '' : '');
   const [supplierId, setSupplierId] = React.useState<number>(job && job.supplierId ? job.supplierId : 0);
   const [planned, setPlanned] = React.useState(dateToInput(job ? job.plannedDate : undefined));
+  const [jobKind, setJobKind] = React.useState(job && job.jobKind ? job.jobKind : request && request.kind === 'Preventivní prohlídka' ? 'Plánovaná' : DEFAULT_JOB_KIND);
   const { busy, error, run } = useSave(onSaved);
   const siteDevices = devices.filter((d) => d.siteNumber === siteNumber && d.isActive);
   const suppliers = partners.filter((p) => p.isActive && (p.partnerType === PartnerType.Dodavatel || p.partnerType === PartnerType.Oboji));
@@ -279,7 +310,7 @@ export const JobDialog: React.FC<{
       onClose={onClose}
       onConfirm={() => {
         const supplier = suppliers.filter((p) => p.id === supplierId)[0];
-        run(() => save({ id: job ? job.id : undefined, requestId: job ? job.requestId : request ? request.id : undefined, siteNumber, deviceNumber, title, description: description.trim() || undefined, plannedDate: inputToDate(planned), supplierId: supplier ? supplier.id : undefined, supplierName: supplier ? supplier.name : undefined }));
+        run(() => save({ id: job ? job.id : undefined, requestId: job ? job.requestId : request ? request.id : undefined, siteNumber, deviceNumber, title, description: description.trim() || undefined, plannedDate: inputToDate(planned), jobKind, supplierId: supplier ? supplier.id : undefined, supplierName: supplier ? supplier.name : undefined }));
       }}
     >
       <div style={ROW}>
@@ -299,6 +330,12 @@ export const JobDialog: React.FC<{
         />
         <Dropdown label="Soubor" required selectedKey={deviceNumber || undefined} placeholder="Vyberte soubor" disabled={!!job} options={siteDevices.map((d) => ({ key: d.number, text: `${d.number} ${d.name}` }))} onChange={(_, o) => o && setDeviceNumber(String(o.key))} styles={{ root: { flex: '1 1 240px' } }} />
       </div>
+      <Dropdown
+        label="Druh listu"
+        selectedKey={jobKind}
+        options={JOB_KINDS.map((k) => ({ key: k, text: k === 'Plánovaná' ? 'Plánovaná — v paušálu (revize, pravidelné činnosti)' : 'Nahodilá — mimo paušál (porucha, havárie)' }))}
+        onChange={(_, o) => o && setJobKind(String(o.key))}
+      />
       <TextField label="Název" required value={title} onChange={(_, v) => setTitle(v ?? '')} />
       <TextField label="Zadání práce pro dodavatele" multiline rows={4} value={description} onChange={(_, v) => setDescription(v ?? '')} />
       <div style={ROW}>

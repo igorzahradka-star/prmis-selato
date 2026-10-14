@@ -41,6 +41,7 @@ import { parseListText, sameList } from '../../core/listText';
 import { buildHash, RouteName } from '../../ui/router';
 import { ImportProjectsPanel } from '../admin/ImportProjectsPanel';
 import { RatesTab } from './RatesTab';
+import { SlaRulesEditor } from './SlaRulesEditor';
 import { DefaultApproversEditor } from './DefaultApproversEditor';
 import { DeleteOrderCard } from './DeleteOrderCard';
 
@@ -77,7 +78,8 @@ export const SettingsPage: React.FC = () => {
         'approvals',
         'roles',
         'company',
-        'webList'
+        'webList',
+        'service'
       ];
       for (const key of keys) {
         if (JSON.stringify(draft[key]) !== JSON.stringify(settings[key])) {
@@ -482,6 +484,18 @@ export const SettingsPage: React.FC = () => {
                 onChange={(_, v) => patch('roles', { [role]: v || '' } as Partial<AppSettings['roles']>)}
               />
             ))}
+          </Panel>
+        </PivotItem>
+
+        <PivotItem headerText="Servis" itemIcon="Repair">
+          <Panel>
+            <Hint>
+              <strong>Lhůty SLA servisních požadavků.</strong> Aplikace měří čas od přijetí požadavku do <strong>první reakce</strong> (založení servisního listu) a do
+              <strong> vyřešení</strong> (provedení práce na všech listech) a jen to <strong>ukazuje</strong> v seznamu požadavků — nic nesankcionuje. Použije se nejpřesnější shodné
+              pravidlo (druh i priorita, pak jen druh, pak jen priorita, pak obecné). Prázdná lhůta = nesleduje se. Čas se počítá v běžných hodinách (celý den). Hodnoty jsou návrh,
+              upřesněte je podle smluv.
+            </Hint>
+            <SlaRulesEditor rules={draft.service.slaRules} onChange={(slaRules) => patch('service', { slaRules })} />
           </Panel>
         </PivotItem>
 

@@ -9,6 +9,7 @@
 
 import { CURRENCY_CODES, CurrencyCode } from './currency';
 import { DEFAULT_ROLE_GROUPS, RoleGroupMapping } from './roles';
+import { DEFAULT_SERVICE_SETTINGS, ServiceSettings, serviceSettingsWithDefaults, validateSlaRules } from './serviceSla';
 import { DEFAULT_WEB_LIST, WebListSettings, validateWebList, webListWithDefaults } from './webProjects';
 
 /** Klíče v seznamu PRM_Settings. Jeden klíč = jedna položka seznamu. */
@@ -21,7 +22,8 @@ export enum SettingKey {
   Roles = 'roles',
   Company = 'company',
   WebList = 'webList',
-  Links = 'links'
+  Links = 'links',
+  Service = 'service'
 }
 
 /** Uzel stromu šablony složek projektu. */
@@ -172,6 +174,8 @@ export interface AppSettings {
   webList: WebListSettings;
   /** Odkazy v záhlaví aplikace (tlačítko „RES CRM“). */
   links: HeaderLinksSettings;
+  /** Servis: lhůty SLA (reakce a vyřešení podle druhu a priority požadavku). */
+  service: ServiceSettings;
 }
 
 /**
@@ -300,7 +304,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
     claim: 'Revoltujte s námi za moderní decentralizovanou energetiku'
   },
   webList: DEFAULT_WEB_LIST,
-  links: DEFAULT_HEADER_LINKS
+  links: DEFAULT_HEADER_LINKS,
+  service: DEFAULT_SERVICE_SETTINGS
 };
 
 /**
@@ -321,7 +326,8 @@ export function withDefaults(stored: Partial<AppSettings> | undefined): AppSetti
     roles: { ...DEFAULT_SETTINGS.roles, ...(s.roles ?? {}) },
     company: { ...DEFAULT_SETTINGS.company, ...(s.company ?? {}) },
     webList: webListWithDefaults(s.webList),
-    links: { ...DEFAULT_HEADER_LINKS, ...(s.links ?? {}) }
+    links: { ...DEFAULT_HEADER_LINKS, ...(s.links ?? {}) },
+    service: serviceSettingsWithDefaults(s.service)
   };
 }
 
@@ -330,7 +336,7 @@ export function withDefaults(stored: Partial<AppSettings> | undefined): AppSetti
  * Prázdné pole = nastavení je v pořádku.
  */
 export function validateSettings(settings: AppSettings): string[] {
-  const problems: string[] = [...validateWebList(settings.webList)];
+  const problems: string[] = [...validateWebList(settings.webList), ...validateSlaRules(settings.service.slaRules)];
   if (settings.links.crmUrl.trim() !== '' && !/^https?:\/\//i.test(settings.links.crmUrl.trim())) {
     problems.push('Adresa tlačítka RES CRM musí začínat https:// (nebo ji nechte prázdnou pro výchozí adresu).');
   }

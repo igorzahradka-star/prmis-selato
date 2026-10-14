@@ -12,6 +12,13 @@ import { hasAnyRole } from './roles';
 export const REQUEST_PRIORITIES = ['Nízká', 'Běžná', 'Vysoká', 'Havárie'] as const;
 export const REQUEST_KINDS = ['Porucha', 'Preventivní prohlídka', 'Ostatní'] as const;
 
+/** Druh servisního listu: plánovaná práce je v paušálu (revize, pravidelné), nahodilá je mimo paušál (porucha, havárie). Nikdy půl na půl. */
+export const JOB_KINDS = ['Nahodilá', 'Plánovaná'] as const;
+export const DEFAULT_JOB_KIND = 'Nahodilá';
+
+/** Doklad o provedení: stačí jeden — popis práce, fotky, nebo ověření na dálku (např. dispečer podle dat ve vizualizaci). */
+export const PROOF_KINDS = ['Popis', 'Fotka', 'Vzdálené ověření'] as const;
+
 export enum RequestStatus {
   Prijato = 'Přijato',
   Zpracovava = 'Zpracovává se',
@@ -66,6 +73,8 @@ export interface ServiceJob {
   description?: string;
   status: JobStatus;
   plannedDate?: Date;
+  /** Plánovaná (v paušálu) / Nahodilá (mimo paušál). */
+  jobKind?: string;
   supplierId?: number;
   supplierName?: string;
   /** Objednávka dodavateli (PRM_PurchaseOrders). */
@@ -78,6 +87,11 @@ export interface ServiceJob {
   material?: string;
   /** Odkaz na složku s fotkami z provedení. */
   photosUrl?: string;
+  /** Čím je provedení doloženo (Popis / Fotka / Vzdálené ověření). */
+  proofKind?: string;
+  /** Kdo provedení ověřil na dálku (při dokladu Vzdálené ověření). */
+  verifiedByName?: string;
+  verifiedAt?: Date;
   /** Kontrola správcem a odemknutí fakturace. */
   checkedByName?: string;
   checkedAt?: Date;
@@ -155,6 +169,9 @@ export interface JobActionInput {
   hours?: number;
   material?: string;
   photosUrl?: string;
+  proofKind?: string;
+  /** Kdo provedení ověřil na dálku. */
+  verifiedBy?: string;
   /** Objednávka (`order`). */
   orderId?: number;
   orderNumber?: string;
@@ -189,13 +206,35 @@ export function applyJobAction(job: ServiceJob, action: JobAction, input: JobAct
     }
     case 'report': {
       const report = (input.workReport || '').trim();
-      if (report === '') {
+      const photos = (input.photosUrl || job.photosUrl || '').trim();
+      const verifiedBy = (input.verifiedBy || '').trim();
+      // Bez výslovné volby se doklad pozná podle toho, co je vyplněno (popis, pak fotky).
+      const proof = input.proofKind || (report !== '' ? 'Popis' : photos !== '' ? 'Fotka' : undefined);
+      if (!proof) {
+        throw new ServiceFlowError('Popište, co se provedlo, přiložte fotky (odkaz), nebo uveďte ověření na dálku.');
+      }
+      if (proof === 'Popis' && report === '') {
         throw new ServiceFlowError('Popište, co se provedlo (zpráva o provedení).');
+      }
+      if (proof === 'Fotka' && photos === '') {
+        throw new ServiceFlowError('Doložte fotky: vložte odkaz na složku s fotkami.');
+      }
+      if (proof === 'Vzdálené ověření' && verifiedBy === '') {
+        throw new ServiceFlowError('Uveďte, kdo provedení ověřil na dálku (např. dispečer podle dat ve vizualizaci).');
       }
       return {
         status: JobStatus.Provedeno,
-        patch: { doneAt: input.doneAt || now, workReport: report, hours: input.hours, material: (input.material || '').trim() || undefined, photosUrl: input.photosUrl || job.photosUrl },
-        audit: 'Zapsáno provedení servisu'
+        patch: {
+          doneAt: input.doneAt || now,
+          workReport: report || undefined,
+          hours: input.hours,
+          material: (input.material || '').trim() || undefined,
+          photosUrl: photos || undefined,
+          proofKind: proof,
+          verifiedByName: proof === 'Vzdálené ověření' ? verifiedBy : undefined,
+          verifiedAt: proof === 'Vzdálené ověření' ? now : undefined
+        },
+        audit: `Zapsáno provedení servisu (doklad: ${proof.toLowerCase()})`
       };
     }
     case 'returnToSupplier':

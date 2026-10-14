@@ -6,6 +6,7 @@
 import * as React from 'react';
 import { DefaultButton, PrimaryButton } from '@fluentui/react/lib/Button';
 import { Dialog, DialogFooter, DialogType } from '@fluentui/react/lib/Dialog';
+import { ChoiceGroup } from '@fluentui/react/lib/ChoiceGroup';
 import { Dropdown } from '@fluentui/react/lib/Dropdown';
 import { Link } from '@fluentui/react/lib/Link';
 import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
@@ -26,7 +27,7 @@ import { ServiceJobInput } from '../../data/repositories';
 import { CommentDialog, JobDialog } from './ServiceDialogs';
 import { notifyServiceManagers, serviceLink } from './serviceNotify';
 import { serviceJobToCheckMail } from '../../core/notifications';
-import { DATE_INPUT, Fact, JobStatusBadge, dateToInput, inputToDate } from './serviceUi';
+import { DATE_INPUT, Fact, JobKindBadge, JobStatusBadge, dateToInput, inputToDate } from './serviceUi';
 
 const ACTION_LABELS: Record<JobAction, string> = {
   edit: 'Upravit',
@@ -89,6 +90,8 @@ export const JobPanel: React.FC<{
   const invoiceOptions = invoices.filter((i) => !usedInvoices.has(i.id) && i.status !== InvoiceStatus.Storno).map((i) => ({ key: i.id, text: `${i.number} · ${i.customerName || '—'} (${i.status})` }));
 
   const [reportText, setReportText] = React.useState(job.workReport ?? '');
+  const [proofKind, setProofKind] = React.useState<string>(job.proofKind ?? 'Popis');
+  const [verifiedBy, setVerifiedBy] = React.useState(user.displayName);
   const [hours, setHours] = React.useState(job.hours !== undefined ? String(job.hours).replace('.', ',') : '');
   const [material, setMaterial] = React.useState(job.material ?? '');
   const [photosUrl, setPhotosUrl] = React.useState(job.photosUrl ?? '');
@@ -160,6 +163,9 @@ export const JobPanel: React.FC<{
           {site ? `${site.number} ${site.name}` : job.siteNumber} · {device ? `${device.number} ${device.name}` : job.deviceNumber}{' '}
           <Link href={`#/projekt/${job.deviceNumber}`}>servisní projekt</Link>
         </Fact>
+        <Fact label="Druh listu">
+          <JobKindBadge kind={job.jobKind} />
+        </Fact>
         {job.requestNumber && <Fact label="Požadavek">{job.requestNumber}</Fact>}
         <Fact label="Zadání práce">{job.description && <span style={{ whiteSpace: 'pre-wrap' }}>{job.description}</span>}</Fact>
         <Fact label="Dodavatel">{job.supplierName}</Fact>
@@ -170,6 +176,7 @@ export const JobPanel: React.FC<{
           <div style={{ borderTop: `1px solid ${RES.grayBlue}`, paddingTop: 8, marginTop: 4 }}>
             <div style={{ fontWeight: 600, color: RES.navy, marginBottom: 6 }}>Provedení</div>
             <Fact label="Provedeno dne">{job.doneAt ? formatDate(job.doneAt) : ''}</Fact>
+            <Fact label="Doklad o provedení">{job.proofKind ? (job.proofKind === 'Vzdálené ověření' && job.verifiedByName ? `Ověření na dálku — ${job.verifiedByName}${job.verifiedAt ? ', ' + formatDateTime(job.verifiedAt) : ''}` : job.proofKind) : ''}</Fact>
             <Fact label="Zpráva o provedení">{job.workReport && <span style={{ whiteSpace: 'pre-wrap' }}>{job.workReport}</span>}</Fact>
             <Fact label="Odpracované hodiny">{job.hours !== undefined ? String(job.hours).replace('.', ',') : ''}</Fact>
             <Fact label="Materiál">{job.material}</Fact>
@@ -275,12 +282,24 @@ export const JobPanel: React.FC<{
             <div>Provedeno dne</div>
             <input type="date" value={doneAt} onChange={(e) => setDoneAt(e.target.value)} style={DATE_INPUT} />
           </label>
-          <TextField label="Co se provedlo" required multiline rows={4} value={reportText} onChange={(_, v) => setReportText(v ?? '')} />
+          <ChoiceGroup
+            label="Čím je provedení doloženo"
+            selectedKey={proofKind}
+            options={[
+              { key: 'Popis', text: 'Popis práce (textem)' },
+              { key: 'Fotka', text: 'Fotky (odkaz na složku)' },
+              { key: 'Vzdálené ověření', text: 'Ověření na dálku (např. dispečer podle dat ve vizualizaci)' }
+            ]}
+            onChange={(_, o) => o && setProofKind(o.key)}
+            styles={{ flexContainer: { display: 'flex', flexDirection: 'column', gap: 4 } }}
+          />
+          <TextField label="Co se provedlo" required={proofKind === 'Popis'} multiline rows={4} value={reportText} onChange={(_, v) => setReportText(v ?? '')} />
+          {proofKind === 'Vzdálené ověření' && <TextField label="Kdo provedení ověřil na dálku" required value={verifiedBy} onChange={(_, v) => setVerifiedBy(v ?? '')} />}
           <div style={{ display: 'flex', gap: 10 }}>
             <TextField label="Odpracované hodiny" value={hours} onChange={(_, v) => setHours(v ?? '')} styles={{ root: { width: 160 } }} />
             <TextField label="Použitý materiál" value={material} onChange={(_, v) => setMaterial(v ?? '')} styles={{ root: { flex: '1 1 auto' } }} />
           </div>
-          <TextField label="Fotky (odkaz na složku)" value={photosUrl} onChange={(_, v) => setPhotosUrl(v ?? '')} />
+          <TextField label="Fotky (odkaz na složku)" required={proofKind === 'Fotka'} value={photosUrl} onChange={(_, v) => setPhotosUrl(v ?? '')} />
           <DialogFooter>
             <PrimaryButton
               text={busy ? 'Ukládám…' : 'Zapsat provedení'}
@@ -291,7 +310,7 @@ export const JobPanel: React.FC<{
                   setDlgError('Odpracované hodiny nejsou číslo.');
                   return;
                 }
-                submit('report', { workReport: reportText, hours: h, material, photosUrl: photosUrl.trim() || undefined, doneAt: inputToDate(doneAt) });
+                submit('report', { workReport: reportText, hours: h, material, photosUrl: photosUrl.trim() || undefined, doneAt: inputToDate(doneAt), proofKind, verifiedBy });
               }}
             />
             <DefaultButton text="Zrušit" disabled={busy} onClick={closeDialog} />

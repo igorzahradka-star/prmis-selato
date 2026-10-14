@@ -18,7 +18,7 @@ webu / mobilní aplikaci (paralelní session). V PRMIS je evidence, stav, faktur
 - **Schvalovací limity Servisu** se upřesní později; zatím platí stejné limity jako u projektů, krok „PM“ schvaluje správce servisu.
 
 ## Aktuální stav
-Návrh dalšího vývoje je v `docs/SERVIS_NAVRH.md` (schválen 15. 10. 2026). **Etapa 1 hotová (0.47.0.0):** pojem „soubor“, GPS poloha a záložka Mapa (schéma 26). Dále: etapa 2 checklist a smlouva se sazbami, etapa 3 druh listu / doklad o provedení / SLA časy, etapa 4 portál dodavatele.
+Návrh dalšího vývoje je v `docs/SERVIS_NAVRH.md` (schválen 15. 10. 2026). **Etapa 1 hotová (0.47.0.0):** pojem „soubor“, GPS poloha a záložka Mapa (schéma 26). **Etapa 3 hotová (0.48.0.0):** druh listu (plánovaná/nahodilá), doklad o provedení (popis / fotky / ověření na dálku), SLA indikace s lhůtami v Nastavení → Servis (schéma 27). Dále: etapa 2 checklist a smlouva se sazbami (čeká na první návrh smlouvy od Igora), etapa 4 portál dodavatele (před ní rozhodnout o hostingu).
 
 ## Hotovo (0.45.1.0)
 - Role Správce servisu a Dispečer (SharePoint skupiny `PRM Správci servisu`, `PRM Dispečeři servisu` — vytvoří Instalace), práva `core/service.ts`.

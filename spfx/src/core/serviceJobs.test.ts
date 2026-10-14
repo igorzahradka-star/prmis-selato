@@ -98,3 +98,29 @@ describe('po termínu', () => {
     expect(isJobOverdue({ status: JobStatus.Naplanovano }, today)).toBe(false);
   });
 });
+
+describe('doklad o provedení', () => {
+  const objednano = (): ServiceJob => job({ status: JobStatus.Objednano });
+
+  it('stačí popis, fotky, nebo ověření na dálku', () => {
+    const popis = applyJobAction(objednano(), 'report', { workReport: 'Vyměněn konektor, komunikace obnovena', proofKind: 'Popis' }, dispecer);
+    expect(popis.patch.proofKind).toBe('Popis');
+    const foto = applyJobAction(objednano(), 'report', { proofKind: 'Fotka', photosUrl: 'https://x/foto' }, dispecer);
+    expect([foto.patch.proofKind, foto.patch.photosUrl, foto.patch.workReport]).toEqual(['Fotka', 'https://x/foto', undefined]);
+    const dalka = applyJobAction(objednano(), 'report', { proofKind: 'Vzdálené ověření', verifiedBy: 'David Dispečer' }, dispecer);
+    expect([dalka.patch.proofKind, dalka.patch.verifiedByName]).toEqual(['Vzdálené ověření', 'David Dispečer']);
+    expect(dalka.patch.verifiedAt).toBeInstanceOf(Date);
+  });
+
+  it('bez dokladu nebo s chybějící částí se provedení odmítne srozumitelně', () => {
+    expect(() => applyJobAction(objednano(), 'report', {}, dispecer)).toThrow(/Popište/);
+    expect(() => applyJobAction(objednano(), 'report', { proofKind: 'Fotka' }, dispecer)).toThrow(/fotky/);
+    expect(() => applyJobAction(objednano(), 'report', { proofKind: 'Vzdálené ověření' }, dispecer)).toThrow(/ověřil na dálku/);
+    expect(() => applyJobAction(objednano(), 'report', { proofKind: 'Popis', workReport: ' ' }, dispecer)).toThrow(/Popište/);
+  });
+
+  it('bez výslovné volby se doklad pozná podle vyplněného (popis, pak fotky)', () => {
+    expect(applyJobAction(objednano(), 'report', { workReport: 'Hotovo' }, dispecer).patch.proofKind).toBe('Popis');
+    expect(applyJobAction(objednano(), 'report', { photosUrl: 'https://x/f' }, dispecer).patch.proofKind).toBe('Fotka');
+  });
+});

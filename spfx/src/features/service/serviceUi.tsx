@@ -6,6 +6,7 @@ import * as React from 'react';
 import { RES } from '../../ui/theme';
 import { JobStatus, RequestStatus } from '../../core/serviceJobs';
 import { CONTRACT_STATE_LABELS, ContractState } from '../../core/service';
+import { SlaPart, SlaProgress, formatHours } from '../../core/serviceSla';
 
 export const TH: React.CSSProperties = { textAlign: 'left', fontWeight: 600, fontSize: 12, color: RES.gray, padding: '6px 8px', whiteSpace: 'nowrap', position: 'sticky', top: 0, background: RES.white, zIndex: 1, boxShadow: `0 1px 0 ${RES.grayBlue}` };
 export const TD: React.CSSProperties = { padding: '6px 8px', fontSize: 13, verticalAlign: 'top' };
@@ -40,6 +41,51 @@ export const RequestStatusBadge: React.FC<{ status: RequestStatus }> = ({ status
 export const PriorityBadge: React.FC<{ priority: string }> = ({ priority }) => {
   const c = priority === 'Havárie' ? { bg: '#F6DADA', fg: '#8A2A2A' } : priority === 'Vysoká' ? { bg: '#FDE4CF', fg: '#8A4B12' } : priority === 'Nízká' ? { bg: '#EEEEEE', fg: '#555555' } : { bg: '#E8EEF4', fg: '#34506B' };
   return <span style={{ ...PILL, background: c.bg, color: c.fg }}>{priority}</span>;
+};
+
+/** Druh listu: plánovaná práce je v paušálu, nahodilá mimo něj. */
+export const JobKindBadge: React.FC<{ kind?: string }> = ({ kind }) => {
+  const planned = kind === 'Plánovaná';
+  return (
+    <span style={{ ...PILL, background: planned ? '#E4F6EC' : '#FDE4CF', color: planned ? '#1D7A4B' : '#8A4B12' }} title={planned ? 'Plánovaná práce — v paušálu' : 'Nahodilá práce — mimo paušál'}>
+      {planned ? 'Plánovaná (paušál)' : 'Nahodilá'}
+    </span>
+  );
+};
+
+const SLA_COLORS = { running: '#34506B', warning: '#8A4B12', breached: '#8A2A2A', met: '#1D7A4B', metLate: '#8A4B12', none: '#9AA3AD' } as const;
+
+const slaText = (name: string, p: SlaPart): string => {
+  switch (p.state) {
+    case 'none':
+      return '';
+    case 'met':
+      return `${name} splněna (${formatHours(p.elapsedHours)} z ${formatHours(p.limitHours as number)})`;
+    case 'metLate':
+      return `${name} po lhůtě (${formatHours(p.elapsedHours)} z ${formatHours(p.limitHours as number)})`;
+    case 'breached':
+      return `${name}: lhůta překročena (${formatHours(p.elapsedHours)} z ${formatHours(p.limitHours as number)})`;
+    default:
+      return `${name}: ${formatHours(p.elapsedHours)} z ${formatHours(p.limitHours as number)}`;
+  }
+};
+
+/** Indikace SLA požadavku (jen informace, bez sankcí): reakce a vyřešení. */
+export const SlaIndicator: React.FC<{ progress: SlaProgress }> = ({ progress }) => {
+  const parts: [string, SlaPart][] = [['Reakce', progress.reaction], ['Vyřešení', progress.resolve]];
+  const shown = parts.filter(([, p]) => p.state !== 'none');
+  if (shown.length === 0) {
+    return <span style={{ color: RES.gray }}>—</span>;
+  }
+  return (
+    <div style={{ fontSize: 12 }}>
+      {shown.map(([name, p]) => (
+        <div key={name} style={{ color: SLA_COLORS[p.state], fontWeight: p.state === 'breached' ? 600 : 400 }}>
+          {slaText(name, p)}
+        </div>
+      ))}
+    </div>
+  );
 };
 
 export const ContractBadge: React.FC<{ state: ContractState }> = ({ state }) => {
