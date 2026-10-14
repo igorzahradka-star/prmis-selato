@@ -79,6 +79,7 @@ export const ServiceMap: React.FC<ServiceMapProps> = ({ sites, devices, requests
         layerRef.current = L.layerGroup().addTo(map);
         mapRef.current = map;
         setMapReady(true);
+        window.setTimeout(() => map.invalidateSize(), 350);
       })
       .catch(() => {
         if (!cancelled) {

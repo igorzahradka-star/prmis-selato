@@ -191,6 +191,38 @@ export function serviceFolderPlan(root: string, site: { number: string; name: st
  */
 export const isSiteWideJob = (job: { siteNumber: string; deviceNumber: string }): boolean => job.deviceNumber === job.siteNumber;
 
+/**
+ * Lokalitu jde smazat jen tehdy, když je prázdná — nemá žádný soubor, požadavek ani servisní list. Jinak by se ztratila historie;
+ * takovou lokalitu je lepší označit jako neaktivní. Vrací důvod, proč smazat nejde, nebo prázdný text.
+ */
+export function siteDeletionProblem(
+  siteNumber: string,
+  devices: { siteNumber: string }[],
+  requests: { siteNumber: string }[],
+  jobs: { siteNumber: string }[]
+): string {
+  const parts: string[] = [];
+  const d = devices.filter((x) => x.siteNumber === siteNumber).length;
+  const r = requests.filter((x) => x.siteNumber === siteNumber).length;
+  const j = jobs.filter((x) => x.siteNumber === siteNumber).length;
+  if (d > 0) {
+    parts.push(`${d} souborů`);
+  }
+  if (r > 0) {
+    parts.push(`${r} požadavků`);
+  }
+  if (j > 0) {
+    parts.push(`${j} servisních listů`);
+  }
+  return parts.length === 0 ? '' : `Lokalitu nejde smazat, má ${parts.join(', ')}. Označte ji raději jako neaktivní (Upravit → Aktivní).`;
+}
+
+/** Požadavek jde smazat jen bez servisních listů (jinak by se ztratila návaznost objednávek a fakturace); vrací důvod, proč ne, nebo prázdný text. */
+export function requestDeletionProblem(requestId: number, jobs: { requestId?: number }[]): string {
+  const n = jobs.filter((j) => j.requestId === requestId).length;
+  return n === 0 ? '' : `Požadavek nejde smazat, má ${n} servisních listů. Zrušte nebo uzavřete listy, případně požadavek zamítněte.`;
+}
+
 // --- smlouva ---------------------------------------------------------------------
 
 export type ContractState = 'bez' | 'platna' | 'konci' | 'vyprsela';

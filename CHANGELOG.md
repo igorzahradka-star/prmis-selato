@@ -5,6 +5,12 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.49.1 — 15. 10. 2026 — Servis: mazání prázdné lokality a požadavku
+
+- **Smazat lokalitu:** tlačítko Smazat u **prázdné** lokality (bez souborů, požadavků a servisních listů); smaže se do koše webu, složky v knihovně dokumentů zůstanou. Lokalita s historií se maže nedá — označí se jako neaktivní. Smí správce servisu a administrátor.
+- **Smazat požadavek:** tlačítko Smazat u požadavku **bez servisních listů** (omylem zapsaný); do koše webu. Smí správce servisu, dispečer a administrátor.
+- Mapa v panelu lokality a na záložce Mapa si po otevření přepočítá velikost (panel se vysouvá animací). Bez změny schématu.
+
 ## 0.49.0 — 15. 10. 2026 — Servis: mapa v nabídce, složky, list na celou lokalitu, velikost fotek
 
 - **Mapa servisu** jako samostatná položka nabídky Servis (vedle záložky Mapa na stránce Servis). Z karty vybraného bodu jde založit požadavek nebo upravit lokalitu / soubor.

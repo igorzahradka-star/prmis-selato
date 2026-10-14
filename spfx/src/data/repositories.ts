@@ -970,6 +970,11 @@ export interface IServiceRepository {
   listSites(): Promise<ServiceSite[]>;
   /** Uloží lokalitu (nová dostane číslo z nabídky, které správce smí přepsat). Smí správce servisu a administrátor. */
   saveSite(input: ServiceSiteInput, actor: CurrentUser): Promise<ServiceSite>;
+  /**
+   * Smaže **prázdnou** lokalitu (bez souborů, požadavků a servisních listů); v SharePointu do koše webu. Složky v knihovně dokumentů se nemažou.
+   * Smí správce servisu a administrátor.
+   */
+  deleteSite(siteNumber: string, actor: CurrentUser): Promise<void>;
   listDevices(): Promise<ServiceDevice[]>;
   /**
    * Založí složky lokality (a souboru, je-li zadán) podle struktury Servisu a uloží jejich odkaz. Existující složky se najdou podle čísla a
@@ -983,6 +988,8 @@ export interface IServiceRepository {
   saveRequest(input: ServiceRequestInput, actor: CurrentUser): Promise<ServiceRequest>;
   /** Zamítne požadavek s důvodem. */
   rejectRequest(requestId: number, note: string, actor: CurrentUser): Promise<ServiceRequest>;
+  /** Smaže požadavek **bez servisních listů** (omylem zapsaný); v SharePointu do koše webu. Smí správce servisu, dispečer a administrátor. */
+  deleteRequest(requestId: number, actor: CurrentUser): Promise<void>;
   listJobs(): Promise<ServiceJob[]>;
   /** Založí servisní list (číslo SL-RRRR-NNNN) a požadavek přepne na Zpracovává se. */
   createJob(input: ServiceJobInput, actor: CurrentUser): Promise<ServiceJob>;

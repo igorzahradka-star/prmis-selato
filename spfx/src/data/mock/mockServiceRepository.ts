@@ -4,7 +4,7 @@
  */
 
 import { CurrentUser } from '../../core/types';
-import { canAdministerService, canWorkInService, nextSiteNumber, validateDeviceNumber, validateSiteNumber, ServiceDevice, ServiceSite } from '../../core/service';
+import { canAdministerService, canWorkInService, nextSiteNumber, siteDeletionProblem, requestDeletionProblem, validateDeviceNumber, validateSiteNumber, ServiceDevice, ServiceSite } from '../../core/service';
 import { JobAction, JobActionInput, JobStatus, RequestStatus, ServiceFlowError, ServiceJob, ServiceRequest, applyJobAction, requestStatusFrom } from '../../core/serviceJobs';
 import { INumberingRepository, IProjectRepository, IServiceRepository, ServiceDeviceInput, ServiceJobInput, ServiceRequestInput, ServiceSiteInput } from '../repositories';
 
@@ -84,6 +84,22 @@ export class MockServiceRepository implements IServiceRepository {
     return url;
   }
 
+  public deleteSite(siteNumber: string, actor: CurrentUser): Promise<void> {
+    if (!canAdministerService(actor.roles)) {
+      return Promise.reject(new Error('Lokalitu smí smazat jen správce servisu a administrátor.'));
+    }
+    const site = this.sites.filter((s) => s.number === siteNumber)[0];
+    if (!site) {
+      return Promise.reject(new Error('Lokalita nebyla nalezena.'));
+    }
+    const problem = siteDeletionProblem(siteNumber, this.devices, this.requests, this.jobs);
+    if (problem) {
+      return Promise.reject(new Error(problem));
+    }
+    this.sites = this.sites.filter((s) => s.number !== siteNumber);
+    return Promise.resolve();
+  }
+
   public listDevices(): Promise<ServiceDevice[]> {
     return Promise.resolve(this.devices.map((d) => ({ ...d })).sort((a, b) => a.number.localeCompare(b.number)));
   }
@@ -149,6 +165,21 @@ export class MockServiceRepository implements IServiceRepository {
     const updated = { ...found, status: RequestStatus.Zamitnuto, note: note.trim() };
     this.requests = this.requests.map((r) => (r.id === requestId ? updated : r));
     return Promise.resolve({ ...updated });
+  }
+
+  public deleteRequest(requestId: number, actor: CurrentUser): Promise<void> {
+    if (!canWorkInService(actor.roles)) {
+      return Promise.reject(new Error('Požadavek smí smazat jen správce servisu, dispečer a administrátor.'));
+    }
+    if (!this.requests.some((r) => r.id === requestId)) {
+      return Promise.reject(new Error('Požadavek nebyl nalezen.'));
+    }
+    const problem = requestDeletionProblem(requestId, this.jobs);
+    if (problem) {
+      return Promise.reject(new Error(problem));
+    }
+    this.requests = this.requests.filter((r) => r.id !== requestId);
+    return Promise.resolve();
   }
 
   public listJobs(): Promise<ServiceJob[]> {

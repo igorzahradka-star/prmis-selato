@@ -18,7 +18,7 @@ import { buildHash, RouteName } from '../../ui/router';
 import { PageHeading } from '../../ui/components/PageHeading';
 import { Partner } from '../../core/types';
 import { formatDate } from '../../core/format';
-import { canAdministerService, canViewService, canWorkInService, contractState, ServiceDevice, ServiceSite } from '../../core/service';
+import { canAdministerService, canViewService, canWorkInService, contractState, requestDeletionProblem, siteDeletionProblem, ServiceDevice, ServiceSite } from '../../core/service';
 import { JobStatus, RequestStatus, ServiceJob, ServiceRequest, isJobOverdue } from '../../core/serviceJobs';
 import { CommentDialog, DeviceDialog, JobDialog, RequestDialog, SiteDialog } from './ServiceDialogs';
 import { notifyServiceManagers, serviceLink } from './serviceNotify';
@@ -63,6 +63,8 @@ export const ServicePage: React.FC<{ param?: string }> = ({ param }) => {
   const [requestDlg, setRequestDlg] = React.useState<{ request?: ServiceRequest; siteNumber?: string } | undefined>(undefined);
   const [jobDlg, setJobDlg] = React.useState<{ request?: ServiceRequest } | undefined>(undefined);
   const [rejectDlg, setRejectDlg] = React.useState<ServiceRequest | undefined>(undefined);
+  const [deleteSiteDlg, setDeleteSiteDlg] = React.useState<ServiceSite | undefined>(undefined);
+  const [deleteRequestDlg, setDeleteRequestDlg] = React.useState<ServiceRequest | undefined>(undefined);
   const [openJobId, setOpenJobId] = React.useState<number | undefined>(undefined);
 
   const mayView = canViewService(user.roles);
@@ -256,6 +258,7 @@ export const ServicePage: React.FC<{ param?: string }> = ({ param }) => {
                   </td>
                   <td style={{ ...TD, whiteSpace: 'nowrap' }}>
                     {mayWork && (r.status === RequestStatus.Prijato || r.status === RequestStatus.Zpracovava) && <ActionButton text="Založit servisní list" iconProps={{ iconName: 'Add' }} onClick={() => setJobDlg({ request: r })} styles={{ root: { height: 28 } }} />}
+                    {mayWork && requestDeletionProblem(r.id, jobs) === '' && <ActionButton text="Smazat" iconProps={{ iconName: 'Delete' }} title="Smazat omylem zapsaný požadavek (jen bez servisních listů)" onClick={() => setDeleteRequestDlg(r)} styles={{ root: { height: 28 } }} />}
                     {mayWork && r.status === RequestStatus.Prijato && <ActionButton text="Zamítnout" onClick={() => setRejectDlg(r)} styles={{ root: { height: 28 } }} />}
                     {mayWork && <ActionButton text="Upravit" onClick={() => setRequestDlg({ request: r })} styles={{ root: { height: 28 } }} />}
                   </td>
@@ -351,6 +354,7 @@ export const ServicePage: React.FC<{ param?: string }> = ({ param }) => {
                   )}
                   {mayAdmin && !s.folderUrl && <ActionButton text="Založit složky" iconProps={{ iconName: 'NewFolder' }} title="Založí složku lokality a její podsložky v 02_SERVIS (existující se nepřepisují)" onClick={() => createFolders(s.number)} styles={{ root: { height: 28 } }} />}
                   {mayAdmin && <ActionButton text="Upravit" onClick={() => setSiteDlg({ site: s })} styles={{ root: { height: 28 } }} />}
+                  {mayAdmin && siteDeletionProblem(s.number, devices, requests, jobs) === '' && <ActionButton text="Smazat" iconProps={{ iconName: 'Delete' }} title="Smazat prázdnou lokalitu (bez souborů, požadavků a listů)" onClick={() => setDeleteSiteDlg(s)} styles={{ root: { height: 28 } }} />}
                   {mayAdmin && <ActionButton text="Přidat soubor" iconProps={{ iconName: 'Add' }} onClick={() => setDeviceDlg({ site: s })} styles={{ root: { height: 28 } }} />}
                 </div>
                 {s.contact && <div style={{ padding: '4px 12px', fontSize: 12, color: RES.gray, whiteSpace: 'pre-wrap' }}>Kontakt: {s.contact}</div>}
@@ -432,6 +436,38 @@ export const ServicePage: React.FC<{ param?: string }> = ({ param }) => {
         </PivotItem>
       </Pivot>
 
+      {deleteRequestDlg && (
+        <CommentDialog
+          title={`Smazat požadavek ${deleteRequestDlg.number}?`}
+          subText={`„${deleteRequestDlg.title}“ — požadavek nemá žádný servisní list. Smaže se do koše webu. Pokud je jen nepotřebný, můžete ho místo toho zamítnout.`}
+          label="Poznámka (nepovinná)"
+          required={false}
+          confirm="Smazat požadavek"
+          onConfirm={() => repos.service.deleteRequest(deleteRequestDlg.id, user)}
+          onSaved={() => {
+            setDeleteRequestDlg(undefined);
+            setNotice('Požadavek je smazaný.');
+            reload();
+          }}
+          onClose={() => setDeleteRequestDlg(undefined)}
+        />
+      )}
+      {deleteSiteDlg && (
+        <CommentDialog
+          title={`Smazat lokalitu ${deleteSiteDlg.number} ${deleteSiteDlg.name}?`}
+          subText="Lokalita je prázdná (bez souborů, požadavků a servisních listů). Smaže se do koše webu; složky v knihovně dokumentů zůstanou, smažte je případně ručně."
+          label="Poznámka (nepovinná)"
+          required={false}
+          confirm="Smazat lokalitu"
+          onConfirm={() => repos.service.deleteSite(deleteSiteDlg.number, user)}
+          onSaved={() => {
+            setDeleteSiteDlg(undefined);
+            setNotice('Lokalita je smazaná.');
+            reload();
+          }}
+          onClose={() => setDeleteSiteDlg(undefined)}
+        />
+      )}
       {siteDlg && <SiteDialog site={siteDlg.site} sites={sites} partners={partners} save={(input) => repos.service.saveSite(input, user)} onSaved={() => { setSiteDlg(undefined); setNotice('Lokalita je uložená.'); reload(); }} onClose={() => setSiteDlg(undefined)} />}
       {deviceDlg && <DeviceDialog site={deviceDlg.site} device={deviceDlg.device} devices={devices} save={(input) => repos.service.saveDevice(input, user)} onSaved={() => { setDeviceDlg(undefined); setNotice('Soubor je uložený.'); reload(); }} onClose={() => setDeviceDlg(undefined)} />}
       {requestDlg && <RequestDialog request={requestDlg.request} defaultSite={requestDlg.siteNumber} sites={sites} devices={devices} save={async (input) => {

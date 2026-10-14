@@ -14,6 +14,8 @@ import {
   serviceFolderPath,
   serviceFolderPlan,
   isSiteWideJob,
+  siteDeletionProblem,
+  requestDeletionProblem,
   siteNumberOfDevice,
   validateDeviceNumber,
   validateSiteNumber
@@ -138,5 +140,22 @@ describe('list na celou lokalitu', () => {
   it('je to list, jehož číslo souboru je číslo lokality', () => {
     expect(isSiteWideJob({ siteNumber: '10500', deviceNumber: '10500' })).toBe(true);
     expect(isSiteWideJob({ siteNumber: '10500', deviceNumber: '10501' })).toBe(false);
+  });
+});
+
+describe('smazání lokality', () => {
+  it('prázdnou lokalitu jde smazat; s položkami ne a hlášení řekne proč', () => {
+    expect(siteDeletionProblem('10520', [], [], [])).toBe('');
+    expect(siteDeletionProblem('10520', [{ siteNumber: '10500' }], [{ siteNumber: '10500' }], [])).toBe('');
+    const p = siteDeletionProblem('10500', [{ siteNumber: '10500' }, { siteNumber: '10500' }], [{ siteNumber: '10500' }], [{ siteNumber: '10500' }]);
+    expect(p).toMatch(/2 souborů, 1 požadavků, 1 servisních listů/);
+    expect(p).toMatch(/neaktivní/);
+  });
+});
+
+describe('smazání požadavku', () => {
+  it('požadavek bez listů jde smazat; s listy ne', () => {
+    expect(requestDeletionProblem(1, [{ requestId: 2 }, {}])).toBe('');
+    expect(requestDeletionProblem(1, [{ requestId: 1 }, { requestId: 1 }])).toMatch(/2 servisních listů/);
   });
 });

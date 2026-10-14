@@ -9,7 +9,7 @@
 import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { CurrentUser } from '../../core/types';
 import { toDate } from '../../core/format';
-import { canAdministerService, canWorkInService, nextSiteNumber, serviceFolderPlan, validateDeviceNumber, validateSiteNumber, ServiceDevice, ServiceSite } from '../../core/service';
+import { canAdministerService, canWorkInService, nextSiteNumber, serviceFolderPlan, siteDeletionProblem, requestDeletionProblem, validateDeviceNumber, validateSiteNumber, ServiceDevice, ServiceSite } from '../../core/service';
 import { JobAction, JobActionInput, JobStatus, RequestStatus, ServiceFlowError, ServiceJob, ServiceRequest, applyJobAction, requestStatusFrom } from '../../core/serviceJobs';
 import { INumberingRepository, IProjectRepository, ISettingsRepository, IServiceRepository, ServiceDeviceInput, ServiceJobInput, ServiceRequestInput, ServiceSiteInput } from '../repositories';
 import { getSp, getSpForSite, describeSpError } from './spContext';
@@ -283,6 +283,27 @@ export class SpServiceRepository implements IServiceRepository {
     return { ...input, folderUrl: siteFolderUrl, id: id as number, number, name: input.name.trim() };
   }
 
+  public async deleteSite(siteNumber: string, actor: CurrentUser): Promise<void> {
+    if (!canAdministerService(actor.roles)) {
+      throw new Error('Lokalitu smí smazat jen správce servisu a administrátor.');
+    }
+    const [sites, devices, requests, jobs] = await Promise.all([this.listSites(), this.listDevices(), this.listRequests(), this.listJobs()]);
+    const site = sites.filter((s) => s.number === siteNumber)[0];
+    if (!site) {
+      throw new Error('Lokalita nebyla nalezena.');
+    }
+    const problem = siteDeletionProblem(siteNumber, devices, requests, jobs);
+    if (problem) {
+      throw new Error(problem);
+    }
+    try {
+      await getSp(this.context).web.lists.getByTitle(SITES).items.getById(site.id).recycle();
+    } catch (error) {
+      throw new Error(describeSpError(error, 'Lokalitu se nepodařilo smazat'));
+    }
+    await this.audit('Servis – lokalita', site.number, actor, `Smazána prázdná lokalita ${site.name} (do koše webu)`);
+  }
+
   // --- zařízení ---
 
   public async listDevices(): Promise<ServiceDevice[]> {
@@ -401,6 +422,27 @@ export class SpServiceRepository implements IServiceRepository {
     await this.update(REQUESTS, requestId, { RequestStatus: RequestStatus.Zamitnuto, Note: note.trim() }, 'Požadavek se nepodařilo zamítnout');
     await this.audit('Servisní požadavek', found.number, actor, `Zamítnut: ${note.trim()}`, found.status, RequestStatus.Zamitnuto);
     return { ...found, status: RequestStatus.Zamitnuto, note: note.trim() };
+  }
+
+  public async deleteRequest(requestId: number, actor: CurrentUser): Promise<void> {
+    if (!canWorkInService(actor.roles)) {
+      throw new Error('Požadavek smí smazat jen správce servisu, dispečer a administrátor.');
+    }
+    const [requests, jobs] = await Promise.all([this.listRequests(), this.listJobs()]);
+    const found = requests.filter((r) => r.id === requestId)[0];
+    if (!found) {
+      throw new Error('Požadavek nebyl nalezen.');
+    }
+    const problem = requestDeletionProblem(requestId, jobs);
+    if (problem) {
+      throw new Error(problem);
+    }
+    try {
+      await getSp(this.context).web.lists.getByTitle(REQUESTS).items.getById(requestId).recycle();
+    } catch (error) {
+      throw new Error(describeSpError(error, 'Požadavek se nepodařilo smazat'));
+    }
+    await this.audit('Servisní požadavek', found.number, actor, `Smazán požadavek ${found.title} (do koše webu)`, found.status);
   }
 
   // --- servisní listy ---

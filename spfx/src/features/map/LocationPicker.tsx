@@ -178,6 +178,8 @@ const PickerMap: React.FC<{
         map.on('click', (e: LeafletTypes.LeafletMouseEvent) => onPickRef.current(e.latlng.lat, e.latlng.lng));
         mapRef.current = map;
         setReady(true);
+        // Panel se vysouvá animací — po jejím skončení se mapě přepočítá velikost (jinak může být posun a dlaždice nepřesné).
+        window.setTimeout(() => map.invalidateSize(), 350);
       })
       .catch(() => {
         if (!cancelled) {
