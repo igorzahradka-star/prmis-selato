@@ -5,6 +5,11 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.46.0 — 15. 10. 2026 — Zobrazit jako (zkoušení rolí)
+
+- V záhlaví výběr **Zobrazit jako…** (jen pro administrátora): aplikace se chová, jako byste měl zvolenou roli (nabídka, tlačítka, pravidla). Nahoře svítí pruh s odkazem **Vrátit se k administrátorovi**; po obnovení stránky se vracíte automaticky.
+- Mění se jen chování aplikace. **Oprávnění SharePointu zůstávají vaše** — pro jejich ověření je potřeba skutečný testovací účet. Bez změny schématu.
+
 ## 0.45.1 — 15. 10. 2026 — Servis: přehled a upozornění e-mailem
 
 - Nahoře na stránce Servis **přehled**: nové požadavky, listy po termínu, ke kontrole, k fakturaci a smlouvy, které končí nebo vypršely.

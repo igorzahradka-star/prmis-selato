@@ -18,7 +18,8 @@ import { AppShell } from '../../../ui/layout/AppShell';
 import { Route, RouteName, parseHash, subscribeToRoute } from '../../../ui/router';
 import { RepositorySet } from '../../../data/repositories';
 import { AppSettings } from '../../../core/settings';
-import { CurrentUser } from '../../../core/types';
+import { CurrentUser, Role } from '../../../core/types';
+import { actingUser } from '../../../core/roles';
 
 import { DashboardPage } from '../../../features/projects/DashboardPage';
 import { ProjectDetailPage } from '../../../features/projects/ProjectDetailPage';
@@ -47,6 +48,7 @@ export interface IPrmAppProps {
 export const PrmApp: React.FC<IPrmAppProps> = ({ repos, dataSource, financeSiteUrl }) => {
   const [user, setUser] = React.useState<CurrentUser | undefined>(undefined);
   const [settings, setSettings] = React.useState<AppSettings | undefined>(undefined);
+  const [actAs, setActAs] = React.useState<Role[] | undefined>(undefined);
   const [error, setError] = React.useState<string | undefined>(undefined);
   const [route, setRoute] = React.useState<Route>(parseHash(window.location.hash));
 
@@ -101,7 +103,10 @@ export const PrmApp: React.FC<IPrmAppProps> = ({ repos, dataSource, financeSiteU
   }
 
   const value: AppContextValue = {
-    user,
+    user: actingUser(user, actAs),
+    realUser: user,
+    actAs,
+    setActAs,
     settings,
     repos,
     dataSource,

@@ -15,8 +15,8 @@ import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
 import { useApp } from '../AppContext';
 import { RES, LAYOUT, RES_FONT_FAMILY } from '../theme';
 import { Route, RouteName, buildHash } from '../router';
-import { ROLE_LABELS } from '../../core/types';
-import { canOpenAdmin, canOpenBenchmark, canOpenFinance } from '../../core/roles';
+import { ROLE_LABELS, Role } from '../../core/types';
+import { canActAs, canOpenAdmin, canOpenBenchmark, canOpenFinance } from '../../core/roles';
 import { crmLinkUrl, isWebViewMode, siteHomeUrl, toggleWebViewUrl } from '../fullscreen';
 import { NavEntry, NavGroup, NavItem, activeItemRoute, buildNavigation, flattenNavigation, groupKeyOf } from './navigation';
 
@@ -54,6 +54,8 @@ export const AppShell: React.FC<AppShellProps> = ({ route, children }) => {
   return (
     <div style={{ fontFamily: RES_FONT_FAMILY, background: RES.background, minHeight: 600 }}>
       <Header onToggleNav={() => setNavOpen((v) => !v)} />
+
+      <ActAsBar />
 
       {dataSource === 'mock' && (
         <MessageBar messageBarType={MessageBarType.warning} isMultiline={false}>
@@ -261,6 +263,7 @@ const Header: React.FC<{ onToggleNav: () => void }> = ({ onToggleNav }) => {
       <span style={{ fontSize: 17, fontWeight: 600, letterSpacing: 0.2 }}>PRM Revoltum</span>
 
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 18 }}>
+        <ActAsPicker />
         <HeaderTools />
         {settings.links.showCrm && <CrmButton url={settings.links.crmUrl} />}
         <a href={buildHash(RouteName.Profile)} title="Můj profil a podpis" style={{ textDecoration: 'none', color: 'inherit' }}>
@@ -278,6 +281,58 @@ const Header: React.FC<{ onToggleNav: () => void }> = ({ onToggleNav }) => {
         {dataSource !== 'mock' && <FullScreenButton />}
       </div>
     </header>
+  );
+};
+
+/** Výběr role ke zkoušení — jen pro administrátora. Mění pouze to, co aplikace zobrazí a povolí; SharePoint dál vidí skutečného uživatele. */
+const ActAsPicker: React.FC = () => {
+  const { realUser, actAs, setActAs } = useApp();
+  if (!canActAs(realUser)) {
+    return null;
+  }
+  return (
+    <TooltipHost content="Zkoušení aplikace v jiné roli (jen vzhled a pravidla aplikace, oprávnění SharePointu zůstávají vaše)">
+      <select
+        aria-label="Zobrazit jako"
+        value={actAs && actAs.length === 1 ? actAs[0] : ''}
+        onChange={(e) => {
+          const v = e.target.value;
+          setActAs(v ? [v as Role] : undefined);
+          window.location.hash = buildHash(RouteName.Dashboard);
+        }}
+        style={{ fontFamily: 'inherit', fontSize: 13, padding: '4px 6px', borderRadius: 4, border: `1px solid ${RES.grayBlue}`, background: RES.navyDark, color: RES.white }}
+      >
+        <option value="">Zobrazit jako: moje role</option>
+        {Object.keys(ROLE_LABELS).map((k) => (
+          <option key={k} value={k}>
+            {ROLE_LABELS[k as Role]}
+          </option>
+        ))}
+      </select>
+    </TooltipHost>
+  );
+};
+
+/** Výrazný pruh, dokud administrátor zkouší jinou roli. */
+const ActAsBar: React.FC = () => {
+  const { actAs, setActAs } = useApp();
+  if (!actAs || actAs.length === 0) {
+    return null;
+  }
+  return (
+    <MessageBar messageBarType={MessageBarType.severeWarning} isMultiline={false}>
+      <strong>Zkoušíte roli: {actAs.map((r) => ROLE_LABELS[r]).join(', ')}.</strong> Aplikace se chová, jako byste měl jen tuto roli (oprávnění SharePointu zůstávají vaše).{' '}
+      <a
+        href="#"
+        onClick={(e) => {
+          e.preventDefault();
+          setActAs(undefined);
+          window.location.hash = buildHash(RouteName.Dashboard);
+        }}
+      >
+        Vrátit se k administrátorovi
+      </a>
+    </MessageBar>
   );
 };
 

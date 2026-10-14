@@ -168,3 +168,19 @@ export function normalizeLogin(login: string | undefined): string {
   const parts = login.split('|');
   return parts[parts.length - 1].trim().toLocaleLowerCase('cs-CZ');
 }
+
+/** Smí uživatel zkoušet aplikaci v jiné roli („Zobrazit jako“)? Jen skutečný administrátor. */
+export function canActAs(user: { roles: Role[]; isSiteAdmin: boolean }): boolean {
+  return user.isSiteAdmin || user.roles.indexOf(Role.Administrator) !== -1;
+}
+
+/**
+ * Uživatel, jako by měl jen zvolené role. Mění se jen to, co aplikace zobrazí a povolí;
+ * oprávnění v SharePointu zůstávají skutečná. Bez zvolených rolí (nebo bez práva zkoušet) se vrací skutečný uživatel.
+ */
+export function actingUser<U extends { roles: Role[]; isSiteAdmin: boolean; hasFinanceAccess: boolean }>(real: U, roles: Role[] | undefined): U {
+  if (!roles || roles.length === 0 || !canActAs(real)) {
+    return real;
+  }
+  return { ...real, roles, isSiteAdmin: false, hasFinanceAccess: real.hasFinanceAccess && roles.indexOf(Role.Finance) !== -1 };
+}

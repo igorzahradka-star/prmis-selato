@@ -6,12 +6,18 @@
  */
 
 import * as React from 'react';
-import { CurrentUser } from '../core/types';
+import { CurrentUser, Role } from '../core/types';
 import { AppSettings, DEFAULT_SETTINGS } from '../core/settings';
 import { RepositorySet } from '../data/repositories';
 
 export interface AppContextValue {
+  /** Uživatel, jak ho aplikace vidí — při zkoušení role („Zobrazit jako“) má jen zvolené role. */
   user: CurrentUser;
+  /** Skutečný přihlášený uživatel (vždy se skutečnými rolemi). */
+  realUser: CurrentUser;
+  /** Zkoušené role, nebo `undefined` = skutečné role. Jen administrátor. */
+  actAs: Role[] | undefined;
+  setActAs: (roles: Role[] | undefined) => void;
   settings: AppSettings;
   repos: RepositorySet;
   /** Zdroj dat — `mock` se zobrazuje v hlavičce, aby bylo jasné, že data nejsou ostrá. */
@@ -22,16 +28,21 @@ export interface AppContextValue {
   reloadSettings: () => Promise<void>;
 }
 
+const placeholderUser: CurrentUser = {
+  id: 0,
+  loginName: '',
+  displayName: '',
+  email: '',
+  roles: [],
+  isSiteAdmin: false,
+  hasFinanceAccess: false
+};
+
 const placeholder: AppContextValue = {
-  user: {
-    id: 0,
-    loginName: '',
-    displayName: '',
-    email: '',
-    roles: [],
-    isSiteAdmin: false,
-    hasFinanceAccess: false
-  },
+  user: placeholderUser,
+  realUser: placeholderUser,
+  actAs: undefined,
+  setActAs: () => undefined,
   settings: DEFAULT_SETTINGS,
   repos: undefined as unknown as RepositorySet,
   dataSource: 'mock',
