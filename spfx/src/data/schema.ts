@@ -18,7 +18,7 @@
  * Verze schématu. Ukládá se do PRM_Settings pod klíčem `schemaVersion`.
  * Průvodce porovná uloženou verzi s touto a nabídne doplnění rozdílu.
  */
-export const SCHEMA_VERSION = 27;
+export const SCHEMA_VERSION = 28;
 
 /** Typ sloupce v SharePointu. */
 export type FieldType =
@@ -755,6 +755,7 @@ const PRM_SERVICE_REQUESTS: ListDef = {
     { name: 'RequestKind', title: 'Druh', type: 'Choice', choices: ['Porucha', 'Preventivní prohlídka', 'Ostatní'], defaultValue: 'Porucha' },
     { name: 'ReportedBy', title: 'Nahlásil', type: 'Text' },
     { name: 'ReceivedAt', title: 'Přijato', type: 'DateTime' },
+    { name: 'RequiredDate', title: 'Požadovaný termín', type: 'DateTime', description: 'Přenáší se do plánovaného termínu servisního listu a do termínu dodání objednávky.' },
     { name: 'ReceivedByName', title: 'Přijal', type: 'Text' },
     { name: 'ReceivedByLogin', title: 'Přijal (login)', type: 'Text' },
     { name: 'RequestStatus', title: 'Stav', type: 'Choice', choices: ['Přijato', 'Zpracovává se', 'Vyřešeno', 'Zamítnuto'], defaultValue: 'Přijato', indexed: true },
@@ -779,6 +780,7 @@ const PRM_SERVICE_JOBS: ListDef = {
     { name: 'JobStatus', title: 'Stav', type: 'Choice', choices: ['Naplánováno', 'Dodavatel objednán', 'Provedeno', 'K fakturaci', 'Vyfakturováno', 'Uzavřeno', 'Zrušeno'], defaultValue: 'Naplánováno', indexed: true },
     { name: 'PlannedDate', title: 'Plánovaný termín', type: 'DateTime' },
     { name: 'JobKind', title: 'Druh listu', type: 'Choice', choices: ['Nahodilá', 'Plánovaná'], defaultValue: 'Nahodilá', description: 'Plánovaná = v paušálu (revize, pravidelné); Nahodilá = mimo paušál (porucha, havárie).' },
+    { name: 'IsInternal', title: 'Interní servis', type: 'Boolean', defaultValue: '0', description: 'Práci provede dispečer nebo interní zdroj — bez dodavatele a objednávky.' },
     { name: 'SupplierId', title: 'Dodavatel (ID partnera)', type: 'Number', decimals: 0, indexed: true },
     { name: 'SupplierName', title: 'Dodavatel', type: 'Text' },
     { name: 'OrderId', title: 'ID objednávky', type: 'Number', decimals: 0 },

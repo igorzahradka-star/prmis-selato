@@ -9,7 +9,7 @@
 import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { CurrentUser } from '../../core/types';
 import { toDate } from '../../core/format';
-import { canAdministerService, canWorkInService, nextSiteNumber, serviceFolderPlan, siteDeletionProblem, requestDeletionProblem, validateDeviceNumber, validateSiteNumber, ServiceDevice, ServiceSite } from '../../core/service';
+import { canDeleteInService, canManageSites, canWorkInService, jobDeletionProblem, nextSiteNumber, serviceFolderPlan, siteDeletionProblem, requestDeletionProblem, validateDeviceNumber, validateSiteNumber, ServiceDevice, ServiceSite } from '../../core/service';
 import { JobAction, JobActionInput, JobStatus, RequestStatus, ServiceFlowError, ServiceJob, ServiceRequest, applyJobAction, requestStatusFrom } from '../../core/serviceJobs';
 import { INumberingRepository, IProjectRepository, ISettingsRepository, IServiceRepository, ServiceDeviceInput, ServiceJobInput, ServiceRequestInput, ServiceSiteInput } from '../repositories';
 import { getSp, getSpForSite, describeSpError } from './spContext';
@@ -84,6 +84,7 @@ function mapRequest(i: Item): ServiceRequest {
     receivedAt: toDate(str(i.ReceivedAt)) || new Date(),
     receivedByName: str(i.ReceivedByName) || '',
     receivedByLogin: str(i.ReceivedByLogin),
+    requiredDate: toDate(str(i.RequiredDate)),
     status,
     note: str(i.Note)
   };
@@ -103,6 +104,7 @@ function mapJob(i: Item): ServiceJob {
     status,
     plannedDate: toDate(str(i.PlannedDate)),
     jobKind: str(i.JobKind) || 'Nahodilá',
+    isInternal: i.IsInternal === true,
     supplierId: numOrUndef(i.SupplierId),
     supplierName: str(i.SupplierName),
     orderId: numOrUndef(i.OrderId),
@@ -207,8 +209,8 @@ export class SpServiceRepository implements IServiceRepository {
   }
 
   public async ensureFolders(siteNumber: string, deviceNumber: string | undefined, actor: CurrentUser): Promise<string | undefined> {
-    if (!canAdministerService(actor.roles)) {
-      throw new Error('Složky Servisu smí zakládat jen správce servisu a administrátor.');
+    if (!canManageSites(actor.roles)) {
+      throw new Error('Složky Servisu smí zakládat jen správce servisu, vedení a administrátor.');
     }
     const [sites, devices] = await Promise.all([this.listSites(), this.listDevices()]);
     const site = sites.filter((s) => s.number === siteNumber)[0];
@@ -239,8 +241,8 @@ export class SpServiceRepository implements IServiceRepository {
   }
 
   public async saveSite(input: ServiceSiteInput, actor: CurrentUser): Promise<ServiceSite> {
-    if (!canAdministerService(actor.roles)) {
-      throw new Error('Lokality smí spravovat jen správce servisu a administrátor.');
+    if (!canManageSites(actor.roles)) {
+      throw new Error('Lokality smí spravovat jen správce servisu, vedení a administrátor.');
     }
     const sites = await this.listSites();
     const number = input.number || nextSiteNumber(sites.map((s) => s.number));
@@ -284,8 +286,8 @@ export class SpServiceRepository implements IServiceRepository {
   }
 
   public async deleteSite(siteNumber: string, actor: CurrentUser): Promise<void> {
-    if (!canAdministerService(actor.roles)) {
-      throw new Error('Lokalitu smí smazat jen správce servisu a administrátor.');
+    if (!canDeleteInService(actor.roles)) {
+      throw new Error('Lokalitu smí smazat jen vedení a administrátor.');
     }
     const [sites, devices, requests, jobs] = await Promise.all([this.listSites(), this.listDevices(), this.listRequests(), this.listJobs()]);
     const site = sites.filter((s) => s.number === siteNumber)[0];
@@ -311,8 +313,8 @@ export class SpServiceRepository implements IServiceRepository {
   }
 
   public async saveDevice(input: ServiceDeviceInput, actor: CurrentUser): Promise<ServiceDevice> {
-    if (!canAdministerService(actor.roles)) {
-      throw new Error('Soubory smí spravovat jen správce servisu a administrátor.');
+    if (!canManageSites(actor.roles)) {
+      throw new Error('Soubory smí spravovat jen správce servisu, vedení a administrátor.');
     }
     const [sites, devices] = await Promise.all([this.listSites(), this.listDevices()]);
     const site = sites.filter((s) => s.number === input.siteNumber)[0];
@@ -390,6 +392,7 @@ export class SpServiceRepository implements IServiceRepository {
       Description: input.description ?? '',
       Priority: input.priority,
       RequestKind: input.kind,
+      RequiredDate: iso(input.requiredDate),
       ReportedBy: input.reportedBy ?? '',
       Note: input.note ?? ''
     };
@@ -425,8 +428,8 @@ export class SpServiceRepository implements IServiceRepository {
   }
 
   public async deleteRequest(requestId: number, actor: CurrentUser): Promise<void> {
-    if (!canWorkInService(actor.roles)) {
-      throw new Error('Požadavek smí smazat jen správce servisu, dispečer a administrátor.');
+    if (!canDeleteInService(actor.roles)) {
+      throw new Error('Požadavek smí smazat jen vedení a administrátor.');
     }
     const [requests, jobs] = await Promise.all([this.listRequests(), this.listJobs()]);
     const found = requests.filter((r) => r.id === requestId)[0];
@@ -437,12 +440,38 @@ export class SpServiceRepository implements IServiceRepository {
     if (problem) {
       throw new Error(problem);
     }
+    const own = jobs.filter((j) => j.requestId === requestId);
     try {
+      for (const j of own) {
+        await getSp(this.context).web.lists.getByTitle(JOBS).items.getById(j.id).recycle();
+        await this.audit('Servisní list', j.number, actor, `Smazán spolu s požadavkem ${found.number} (do koše webu)`, j.status);
+      }
       await getSp(this.context).web.lists.getByTitle(REQUESTS).items.getById(requestId).recycle();
     } catch (error) {
       throw new Error(describeSpError(error, 'Požadavek se nepodařilo smazat'));
     }
     await this.audit('Servisní požadavek', found.number, actor, `Smazán požadavek ${found.title} (do koše webu)`, found.status);
+  }
+
+  public async deleteJob(jobId: number, actor: CurrentUser): Promise<void> {
+    if (!canDeleteInService(actor.roles)) {
+      throw new Error('Servisní list smí smazat jen vedení a administrátor.');
+    }
+    const job = (await this.listJobs()).filter((j) => j.id === jobId)[0];
+    if (!job) {
+      throw new Error('Servisní list nebyl nalezen.');
+    }
+    const problem = jobDeletionProblem(job);
+    if (problem) {
+      throw new Error(problem);
+    }
+    try {
+      await getSp(this.context).web.lists.getByTitle(JOBS).items.getById(jobId).recycle();
+    } catch (error) {
+      throw new Error(describeSpError(error, 'Servisní list se nepodařilo smazat'));
+    }
+    await this.audit('Servisní list', job.number, actor, 'Smazán servisní list (do koše webu)', job.status);
+    await this.syncRequestStatus(job.requestId, actor);
   }
 
   // --- servisní listy ---
@@ -475,6 +504,7 @@ export class SpServiceRepository implements IServiceRepository {
       Description: input.description ?? '',
       PlannedDate: iso(input.plannedDate),
       JobKind: input.jobKind || 'Nahodilá',
+      IsInternal: input.isInternal === true,
       SupplierId: input.supplierId ?? null,
       SupplierName: input.supplierName ?? ''
     };

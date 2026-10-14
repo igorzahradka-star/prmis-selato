@@ -142,11 +142,11 @@ export function canManageOrder(order: PurchaseOrder, project: WorkflowProject, a
 }
 
 /**
- * Člen vedení smí **schválit** vlastní objednávku v kroku „vedení“ (vedení si schvaluje samo). Jinak nikdo neschvaluje
- * vlastní objednávku; vrátit ani zamítnout si ji nesmí nikdo. Jednatel, PM ani administrátor tuto výjimku nemají.
+ * Člen vedení smí **schválit** vlastní objednávku v kroku „vedení“ a jednatel v kroku „jednatel“ (schvalují sami sebe). Jinak nikdo
+ * neschvaluje vlastní objednávku; vrátit ani zamítnout si ji nesmí nikdo. PM ani administrátor tuto výjimku nemají.
  */
 export function mayApproveOwn(level: ApprovalLevel, actor: Actor): boolean {
-  return level === 'vedeni' && hasAnyRole(actor.roles, Role.Vedeni);
+  return (level === 'vedeni' && hasAnyRole(actor.roles, Role.Vedeni)) || (level === 'jednatel' && hasAnyRole(actor.roles, Role.Jednatel));
 }
 
 /**
@@ -706,7 +706,7 @@ export function canRemoveAttachment(order: PurchaseOrder, project: WorkflowProje
  * Kdo může být v daném kroku schvalovatelem — z těchto lidí si žadatel vybírá.
  *  - PM: členové role Projektový manažer a PM projektu (i kdyby v roli nebyl zapsaný),
  *  - vedení: členové role Vedení, jednatel: členové role Jednatel.
- * Vystavitel se nenabízí, vlastní objednávku nikdo neschvaluje. Jména se neopakují, řadí se česky.
+ * Vystavitel se nenabízí, kromě vedení a jednatele (ti si smí vybrat sami sebe). Jména se neopakují, řadí se česky.
  */
 export function approverCandidates(
   level: ApprovalLevel,
@@ -716,8 +716,10 @@ export function approverCandidates(
 ): Assignee[] {
   const role = level === 'pm' ? (project.isService ? Role.SpravceServisu : Role.ProjektovyManazer) : level === 'vedeni' ? Role.Vedeni : Role.Jednatel;
   const result: Assignee[] = [];
+  // Vedení a jednatel si smí vybrat sami sebe (viz `mayApproveOwn`); u ostatních úrovní se vystavitel nenabízí.
+  const selfAllowed = level === 'vedeni' || level === 'jednatel';
   const add = (login: string | undefined, name: string | undefined): void => {
-    if (!login || sameLogin(login, requesterLogin)) {
+    if (!login || (!selfAllowed && sameLogin(login, requesterLogin))) {
       return;
     }
     if (result.some((r) => sameLogin(r.login, login))) {

@@ -8,6 +8,7 @@ import { DefaultButton, PrimaryButton } from '@fluentui/react/lib/Button';
 import { Dialog, DialogFooter, DialogType } from '@fluentui/react/lib/Dialog';
 import { ChoiceGroup } from '@fluentui/react/lib/ChoiceGroup';
 import { Dropdown } from '@fluentui/react/lib/Dropdown';
+import { EXTERNAL_LINK_PROPS } from '../../ui/components/ExternalLink';
 import { Link } from '@fluentui/react/lib/Link';
 import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
 import { Panel, PanelType } from '@fluentui/react/lib/Panel';
@@ -168,7 +169,7 @@ export const JobPanel: React.FC<{
         </Fact>
         {job.requestNumber && <Fact label="Požadavek">{job.requestNumber}</Fact>}
         <Fact label="Zadání práce">{job.description && <span style={{ whiteSpace: 'pre-wrap' }}>{job.description}</span>}</Fact>
-        <Fact label="Dodavatel">{job.supplierName}</Fact>
+        <Fact label="Dodavatel">{job.isInternal ? 'Interní servis (bez dodavatele a objednávky)' : job.supplierName}</Fact>
         <Fact label="Plánovaný termín">{job.plannedDate ? formatDate(job.plannedDate) : ''}</Fact>
         <Fact label="Objednávka dodavateli">{orderLink}</Fact>
 
@@ -180,7 +181,7 @@ export const JobPanel: React.FC<{
             <Fact label="Zpráva o provedení">{job.workReport && <span style={{ whiteSpace: 'pre-wrap' }}>{job.workReport}</span>}</Fact>
             <Fact label="Odpracované hodiny">{job.hours !== undefined ? String(job.hours).replace('.', ',') : ''}</Fact>
             <Fact label="Materiál">{job.material}</Fact>
-            <Fact label="Fotky">{job.photosUrl && <Link href={job.photosUrl} target="_blank">Otevřít složku s fotkami</Link>}</Fact>
+            <Fact label="Fotky">{job.photosUrl && <Link href={job.photosUrl} {...EXTERNAL_LINK_PROPS}>Otevřít složku s fotkami</Link>}</Fact>
           </div>
         )}
         {(job.checkedAt || job.checkNote) && (
@@ -321,7 +322,7 @@ export const JobPanel: React.FC<{
       <OrderPanel
         isOpen={orderOpen}
         projectNumber={job.deviceNumber}
-        prefill={{ subject: `${job.title} (${job.number})`, supplierName: job.supplierName, currency: 'CZK', lines: [{ description: job.title, quantity: 1, unit: 'kpl', unitPriceNet: 0 }] }}
+        prefill={{ subject: `${job.title} (${job.number})`, supplierName: job.supplierName, deliveryDate: job.plannedDate, currency: 'CZK', lines: [{ description: job.title, quantity: 1, unit: 'kpl', unitPriceNet: 0 }] }}
         onDismiss={() => setOrderOpen(false)}
         onChanged={() => setReload((k) => k + 1)}
       />

@@ -4,7 +4,7 @@
  */
 
 import { CurrentUser } from '../../core/types';
-import { canAdministerService, canWorkInService, nextSiteNumber, siteDeletionProblem, requestDeletionProblem, validateDeviceNumber, validateSiteNumber, ServiceDevice, ServiceSite } from '../../core/service';
+import { canDeleteInService, canManageSites, canWorkInService, jobDeletionProblem, nextSiteNumber, siteDeletionProblem, requestDeletionProblem, validateDeviceNumber, validateSiteNumber, ServiceDevice, ServiceSite } from '../../core/service';
 import { JobAction, JobActionInput, JobStatus, RequestStatus, ServiceFlowError, ServiceJob, ServiceRequest, applyJobAction, requestStatusFrom } from '../../core/serviceJobs';
 import { INumberingRepository, IProjectRepository, IServiceRepository, ServiceDeviceInput, ServiceJobInput, ServiceRequestInput, ServiceSiteInput } from '../repositories';
 
@@ -44,8 +44,8 @@ export class MockServiceRepository implements IServiceRepository {
   }
 
   public saveSite(input: ServiceSiteInput, actor: CurrentUser): Promise<ServiceSite> {
-    if (!canAdministerService(actor.roles)) {
-      return Promise.reject(new Error('Lokality smí spravovat jen správce servisu a administrátor.'));
+    if (!canManageSites(actor.roles)) {
+      return Promise.reject(new Error('Lokality smí spravovat jen správce servisu, vedení a administrátor.'));
     }
     const number = input.number || nextSiteNumber(this.sites.map((s) => s.number));
     const self = input.id ? this.sites.filter((s) => s.id === input.id)[0] : undefined;
@@ -63,8 +63,8 @@ export class MockServiceRepository implements IServiceRepository {
   }
 
   public async ensureFolders(siteNumber: string, deviceNumber: string | undefined, actor: CurrentUser): Promise<string | undefined> {
-    if (!canAdministerService(actor.roles)) {
-      throw new Error('Složky Servisu smí zakládat jen správce servisu a administrátor.');
+    if (!canManageSites(actor.roles)) {
+      throw new Error('Složky Servisu smí zakládat jen správce servisu, vedení a administrátor.');
     }
     if (deviceNumber) {
       const device = this.devices.filter((d) => d.number === deviceNumber)[0];
@@ -85,8 +85,8 @@ export class MockServiceRepository implements IServiceRepository {
   }
 
   public deleteSite(siteNumber: string, actor: CurrentUser): Promise<void> {
-    if (!canAdministerService(actor.roles)) {
-      return Promise.reject(new Error('Lokalitu smí smazat jen správce servisu a administrátor.'));
+    if (!canDeleteInService(actor.roles)) {
+      return Promise.reject(new Error('Lokalitu smí smazat jen vedení a administrátor.'));
     }
     const site = this.sites.filter((s) => s.number === siteNumber)[0];
     if (!site) {
@@ -105,8 +105,8 @@ export class MockServiceRepository implements IServiceRepository {
   }
 
   public async saveDevice(input: ServiceDeviceInput, actor: CurrentUser): Promise<ServiceDevice> {
-    if (!canAdministerService(actor.roles)) {
-      throw new Error('Soubory smí spravovat jen správce servisu a administrátor.');
+    if (!canManageSites(actor.roles)) {
+      throw new Error('Soubory smí spravovat jen správce servisu, vedení a administrátor.');
     }
     const site = this.sites.filter((s) => s.number === input.siteNumber)[0];
     if (!site) {
@@ -168,8 +168,8 @@ export class MockServiceRepository implements IServiceRepository {
   }
 
   public deleteRequest(requestId: number, actor: CurrentUser): Promise<void> {
-    if (!canWorkInService(actor.roles)) {
-      return Promise.reject(new Error('Požadavek smí smazat jen správce servisu, dispečer a administrátor.'));
+    if (!canDeleteInService(actor.roles)) {
+      return Promise.reject(new Error('Požadavek smí smazat jen vedení a administrátor.'));
     }
     if (!this.requests.some((r) => r.id === requestId)) {
       return Promise.reject(new Error('Požadavek nebyl nalezen.'));
@@ -178,7 +178,25 @@ export class MockServiceRepository implements IServiceRepository {
     if (problem) {
       return Promise.reject(new Error(problem));
     }
+    this.jobs = this.jobs.filter((j) => j.requestId !== requestId);
     this.requests = this.requests.filter((r) => r.id !== requestId);
+    return Promise.resolve();
+  }
+
+  public deleteJob(jobId: number, actor: CurrentUser): Promise<void> {
+    if (!canDeleteInService(actor.roles)) {
+      return Promise.reject(new Error('Servisní list smí smazat jen vedení a administrátor.'));
+    }
+    const job = this.jobs.filter((j) => j.id === jobId)[0];
+    if (!job) {
+      return Promise.reject(new Error('Servisní list nebyl nalezen.'));
+    }
+    const problem = jobDeletionProblem(job);
+    if (problem) {
+      return Promise.reject(new Error(problem));
+    }
+    this.jobs = this.jobs.filter((j) => j.id !== jobId);
+    this.syncRequest(job.requestId);
     return Promise.resolve();
   }
 
@@ -232,7 +250,7 @@ export class MockServiceRepository implements IServiceRepository {
     } catch (e) {
       return Promise.reject(new Error(e instanceof Error ? e.message : String(e)));
     }
-    const updated: ServiceJob = { ...job, siteNumber: input.siteNumber, deviceNumber: input.deviceNumber, title: input.title.trim(), description: input.description, plannedDate: input.plannedDate, jobKind: input.jobKind || job.jobKind, supplierId: input.supplierId, supplierName: input.supplierName };
+    const updated: ServiceJob = { ...job, siteNumber: input.siteNumber, deviceNumber: input.deviceNumber, title: input.title.trim(), description: input.description, plannedDate: input.plannedDate, jobKind: input.jobKind || job.jobKind, isInternal: input.isInternal ?? job.isInternal, supplierId: input.supplierId, supplierName: input.supplierName };
     this.jobs = this.jobs.map((j) => (j.id === job.id ? updated : j));
     return Promise.resolve({ ...updated });
   }

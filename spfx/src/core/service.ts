@@ -69,7 +69,17 @@ export function canWorkInService(roles: Role[]): boolean {
   return hasAnyRole(roles, Role.Administrator, Role.SpravceServisu, Role.Dispecer);
 }
 
-/** Smí uživatel spravovat lokality a zařízení, kontrolovat provedení a odemykat fakturaci? Jen správce servisu a administrátor. */
+/** Smí uživatel zakládat lokality a upravovat lokality a soubory? Správce servisu, vedení a administrátor (dispečer ne). */
+export function canManageSites(roles: Role[]): boolean {
+  return hasAnyRole(roles, Role.Administrator, Role.Vedeni, Role.SpravceServisu);
+}
+
+/** Smí uživatel mazat lokality, požadavky a servisní listy? Jen vedení a administrátor. */
+export function canDeleteInService(roles: Role[]): boolean {
+  return hasAnyRole(roles, Role.Administrator, Role.Vedeni);
+}
+
+/** Smí uživatel kontrolovat provedení a odemykat fakturaci? Jen správce servisu a administrátor. */
 export function canAdministerService(roles: Role[]): boolean {
   return hasAnyRole(roles, Role.Administrator, Role.SpravceServisu);
 }
@@ -217,10 +227,16 @@ export function siteDeletionProblem(
   return parts.length === 0 ? '' : `Lokalitu nejde smazat, má ${parts.join(', ')}. Označte ji raději jako neaktivní (Upravit → Aktivní).`;
 }
 
-/** Požadavek jde smazat jen bez servisních listů (jinak by se ztratila návaznost objednávek a fakturace); vrací důvod, proč ne, nebo prázdný text. */
-export function requestDeletionProblem(requestId: number, jobs: { requestId?: number }[]): string {
-  const n = jobs.filter((j) => j.requestId === requestId).length;
-  return n === 0 ? '' : `Požadavek nejde smazat, má ${n} servisních listů. Zrušte nebo uzavřete listy, případně požadavek zamítněte.`;
+/** Servisní list jde smazat jen zrušený nebo ještě nezpracovaný (naplánovaný bez objednávky); jinak by se ztratila návaznost objednávek a fakturace. */
+export function jobDeletionProblem(job: { status?: string; orderId?: number; invoiceId?: number }): string {
+  const ok = job.status === 'Zrušeno' || (job.status === 'Naplánováno' && !job.orderId && !job.invoiceId);
+  return ok ? '' : 'Servisní list nejde smazat — je objednaný, provedený nebo vyfakturovaný. Smazat jde jen zrušený nebo ještě nezpracovaný list.';
+}
+
+/** Požadavek jde smazat, když všechny jeho servisní listy jdou smazat (smažou se spolu s ním); vrací důvod, proč ne, nebo prázdný text. */
+export function requestDeletionProblem(requestId: number, jobs: { requestId?: number; status?: string; orderId?: number; invoiceId?: number }[]): string {
+  const blocked = jobs.filter((j) => j.requestId === requestId && jobDeletionProblem(j) !== '');
+  return blocked.length === 0 ? '' : `Požadavek nejde smazat, má ${blocked.length} servisních listů, které už nejde smazat (objednané, provedené nebo vyfakturované).`;
 }
 
 // --- smlouva ---------------------------------------------------------------------

@@ -92,6 +92,8 @@ export interface OrderPrefill {
   lines: { description: string; quantity: number; unit?: string; unitPriceNet: number }[];
   budgetItemId?: string;
   budgetItemName?: string;
+  /** Termín dodání nové objednávky (např. plánovaný termín servisního listu); v objednávce se dá změnit. */
+  deliveryDate?: Date;
 }
 
 export interface OrderPanelProps {
@@ -200,6 +202,9 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
     setFBudgetItem(o && o.budgetItemId ? { id: o.budgetItemId, name: o.budgetItemName || '' } : undefined);
     if (!o && prefill) {
       setFSubject(prefill.subject);
+      if (prefill.deliveryDate) {
+        setFDelivery(prefill.deliveryDate);
+      }
       setFCurrency((prefill.currency as Currency) || 'CZK');
       setFLines(
         prefill.lines.length > 0

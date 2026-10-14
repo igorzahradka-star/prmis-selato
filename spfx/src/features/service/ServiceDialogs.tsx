@@ -132,7 +132,6 @@ export const SiteDialog: React.FC<{ site?: ServiceSite; sites: ServiceSite[]; pa
         }}
       />
       <TextField label="Kontakt na lokalitě" multiline rows={2} value={contact} onChange={(_, v) => setContact(v ?? '')} />
-      <TextField label="Složka lokality (odkaz)" value={folderUrl} onChange={(_, v) => setFolderUrl(v ?? '')} description="Odkaz na složku v knihovně Dokumenty (02_SERVIS)." />
       <TextField label="Poznámka" multiline rows={2} value={note} onChange={(_, v) => setNote(v ?? '')} />
       <Toggle label="Aktivní" inlineLabel checked={isActive} onChange={(_, v) => setActive(!!v)} />
     </Shell>
@@ -218,7 +217,6 @@ export const DeviceDialog: React.FC<{ site: ServiceSite; device?: ServiceDevice;
       </div>
       <TextField label="Odkaz na dokument smlouvy" value={contractUrl} onChange={(_, v) => setContractUrl(v ?? '')} />
       <TextField label="Poznámka ke smlouvě (paušál, reakční doba…)" multiline rows={2} value={contractNote} onChange={(_, v) => setContractNote(v ?? '')} />
-      <TextField label="Složka souboru (odkaz)" value={folderUrl} onChange={(_, v) => setFolderUrl(v ?? '')} description="Odkaz na složku souboru v knihovně Dokumenty." />
       <Toggle label="Aktivní" inlineLabel checked={isActive} onChange={(_, v) => setActive(!!v)} />
     </Shell>
   );
@@ -235,6 +233,7 @@ export const RequestDialog: React.FC<{ request?: ServiceRequest; sites: ServiceS
   const [kind, setKind] = React.useState(request ? request.kind : 'Porucha');
   const [reportedBy, setReportedBy] = React.useState(request ? request.reportedBy ?? '' : '');
   const [note, setNote] = React.useState(request ? request.note ?? '' : '');
+  const [required, setRequired] = React.useState(dateToInput(request ? request.requiredDate : undefined));
   const { busy, error, run } = useSave(onSaved);
   const siteDevices = devices.filter((d) => d.siteNumber === siteNumber && d.isActive);
 
@@ -245,7 +244,7 @@ export const RequestDialog: React.FC<{ request?: ServiceRequest; sites: ServiceS
       busy={busy}
       confirm="Uložit"
       onClose={onClose}
-      onConfirm={() => run(() => save({ id: request ? request.id : undefined, siteNumber, deviceNumber: deviceNumber || undefined, title, description: description.trim() || undefined, priority, kind, reportedBy: reportedBy.trim() || undefined, note: note.trim() || undefined }))}
+      onConfirm={() => run(() => save({ id: request ? request.id : undefined, siteNumber, deviceNumber: deviceNumber || undefined, title, description: description.trim() || undefined, priority, kind, reportedBy: reportedBy.trim() || undefined, requiredDate: inputToDate(required), note: note.trim() || undefined }))}
     >
       <div style={ROW}>
         <Dropdown
@@ -270,6 +269,10 @@ export const RequestDialog: React.FC<{ request?: ServiceRequest; sites: ServiceS
         <Dropdown label="Priorita" selectedKey={priority} options={REQUEST_PRIORITIES.map((k) => ({ key: k, text: k }))} onChange={(_, o) => o && setPriority(String(o.key))} styles={{ root: { flex: '1 1 140px' } }} />
         <TextField label="Nahlásil (kontakt u zákazníka)" value={reportedBy} onChange={(_, v) => setReportedBy(v ?? '')} styles={{ root: { flex: '1 1 220px' } }} />
       </div>
+      <label style={{ fontSize: 14, display: 'block', margin: '6px 0' }}>
+        <div>Požadovaný termín vyřízení</div>
+        <input type="date" value={required} onChange={(e) => setRequired(e.target.value)} style={DATE_INPUT} />
+      </label>
       <TextField label="Poznámka" multiline rows={2} value={note} onChange={(_, v) => setNote(v ?? '')} />
     </Shell>
   );
@@ -299,7 +302,8 @@ export const JobDialog: React.FC<{
   const [title, setTitle] = React.useState(job ? job.title : request ? request.title : '');
   const [description, setDescription] = React.useState(job ? job.description ?? '' : request ? request.description ?? '' : '');
   const [supplierId, setSupplierId] = React.useState<number>(job && job.supplierId ? job.supplierId : 0);
-  const [planned, setPlanned] = React.useState(dateToInput(job ? job.plannedDate : undefined));
+  const [planned, setPlanned] = React.useState(dateToInput(job ? job.plannedDate : request ? request.requiredDate : undefined));
+  const [isInternal, setIsInternal] = React.useState(!!(job && job.isInternal));
   const [jobKind, setJobKind] = React.useState(job && job.jobKind ? job.jobKind : request && request.kind === 'Preventivní prohlídka' ? 'Plánovaná' : DEFAULT_JOB_KIND);
   const { busy, error, run } = useSave(onSaved);
   const siteDevices = devices.filter((d) => d.siteNumber === siteNumber && d.isActive);
@@ -315,7 +319,7 @@ export const JobDialog: React.FC<{
       onClose={onClose}
       onConfirm={() => {
         const supplier = suppliers.filter((p) => p.id === supplierId)[0];
-        run(() => save({ id: job ? job.id : undefined, requestId: job ? job.requestId : request ? request.id : undefined, siteNumber, deviceNumber, title, description: description.trim() || undefined, plannedDate: inputToDate(planned), jobKind, supplierId: supplier ? supplier.id : undefined, supplierName: supplier ? supplier.name : undefined }));
+        run(() => save({ id: job ? job.id : undefined, requestId: job ? job.requestId : request ? request.id : undefined, siteNumber, deviceNumber, title, description: description.trim() || undefined, plannedDate: inputToDate(planned), jobKind, isInternal, supplierId: !isInternal && supplier ? supplier.id : undefined, supplierName: !isInternal && supplier ? supplier.name : undefined }));
       }}
     >
       <div style={ROW}>
@@ -343,8 +347,9 @@ export const JobDialog: React.FC<{
       />
       <TextField label="Název" required value={title} onChange={(_, v) => setTitle(v ?? '')} />
       <TextField label="Zadání práce pro dodavatele" multiline rows={4} value={description} onChange={(_, v) => setDescription(v ?? '')} />
+      <Toggle label="Interní servis (práci provede dispečer nebo interní zdroj — bez dodavatele a objednávky)" checked={isInternal} onChange={(_, v) => setIsInternal(!!v)} disabled={!!job && job.status !== 'Naplánováno'} />
       <div style={ROW}>
-        <Dropdown label="Dodavatel" selectedKey={supplierId} options={[{ key: 0, text: '— zatím nevybrán —' }, ...suppliers.map((p) => ({ key: p.id, text: p.name }))]} onChange={(_, o) => o && setSupplierId(Number(o.key))} styles={{ root: { flex: '1 1 300px' } }} />
+        {!isInternal && <Dropdown label="Dodavatel" selectedKey={supplierId} options={[{ key: 0, text: '— zatím nevybrán —' }, ...suppliers.map((p) => ({ key: p.id, text: p.name }))]} onChange={(_, o) => o && setSupplierId(Number(o.key))} styles={{ root: { flex: '1 1 300px' } }} />}
         <label style={{ fontSize: 14 }}>
           <div>Plánovaný termín</div>
           <input type="date" value={planned} onChange={(e) => setPlanned(e.target.value)} style={DATE_INPUT} />

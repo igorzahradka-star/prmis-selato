@@ -15,10 +15,11 @@ import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 import { useApp } from '../../ui/AppContext';
 import { RES } from '../../ui/theme';
 import { buildHash, RouteName } from '../../ui/router';
+import { EXTERNAL_LINK_PROPS } from '../../ui/components/ExternalLink';
 import { PageHeading } from '../../ui/components/PageHeading';
 import { Partner } from '../../core/types';
 import { formatDate } from '../../core/format';
-import { canAdministerService, canViewService, canWorkInService, contractState, requestDeletionProblem, siteDeletionProblem, ServiceDevice, ServiceSite } from '../../core/service';
+import { canDeleteInService, canManageSites, canViewService, canWorkInService, contractState, jobDeletionProblem, requestDeletionProblem, siteDeletionProblem, ServiceDevice, ServiceSite } from '../../core/service';
 import { JobStatus, RequestStatus, ServiceJob, ServiceRequest, isJobOverdue } from '../../core/serviceJobs';
 import { CommentDialog, DeviceDialog, JobDialog, RequestDialog, SiteDialog } from './ServiceDialogs';
 import { notifyServiceManagers, serviceLink } from './serviceNotify';
@@ -65,11 +66,13 @@ export const ServicePage: React.FC<{ param?: string }> = ({ param }) => {
   const [rejectDlg, setRejectDlg] = React.useState<ServiceRequest | undefined>(undefined);
   const [deleteSiteDlg, setDeleteSiteDlg] = React.useState<ServiceSite | undefined>(undefined);
   const [deleteRequestDlg, setDeleteRequestDlg] = React.useState<ServiceRequest | undefined>(undefined);
+  const [deleteJobDlg, setDeleteJobDlg] = React.useState<ServiceJob | undefined>(undefined);
   const [openJobId, setOpenJobId] = React.useState<number | undefined>(undefined);
 
   const mayView = canViewService(user.roles);
   const mayWork = canWorkInService(user.roles);
-  const mayAdmin = canAdministerService(user.roles);
+  const mayAdmin = canManageSites(user.roles);
+  const mayDelete = canDeleteInService(user.roles);
 
   React.useEffect(() => {
     if (!mayView) {
@@ -118,12 +121,12 @@ export const ServicePage: React.FC<{ param?: string }> = ({ param }) => {
     const [what, number] = [param.slice(0, param.indexOf('-')), param.slice(param.indexOf('-') + 1)];
     if (what === 'pozadavek' && canWorkInService(user.roles)) {
       setRequestDlg({ siteNumber: number });
-    } else if (what === 'lokalita' && canAdministerService(user.roles)) {
+    } else if (what === 'lokalita' && canManageSites(user.roles)) {
       const site = sites.filter((s) => s.number === number)[0];
       if (site) {
         setSiteDlg({ site });
       }
-    } else if (what === 'soubor' && canAdministerService(user.roles)) {
+    } else if (what === 'soubor' && canManageSites(user.roles)) {
       const device = devices.filter((d) => d.number === number)[0];
       const site = device ? sites.filter((s) => s.number === device.siteNumber)[0] : undefined;
       if (device && site) {
@@ -208,6 +211,7 @@ export const ServicePage: React.FC<{ param?: string }> = ({ param }) => {
             <span style={{ flex: '1 1 auto' }} />
             {mayWork && <PrimaryButton iconProps={{ iconName: 'Add' }} text="Nový požadavek" disabled={sites.length === 0} onClick={() => setRequestDlg({})} title={sites.length === 0 ? 'Nejdřív založte lokalitu' : undefined} />}
           </div>
+          <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', background: RES.white, border: `1px solid ${RES.grayBlue}` }}>
             <thead>
               <tr>
@@ -258,7 +262,7 @@ export const ServicePage: React.FC<{ param?: string }> = ({ param }) => {
                   </td>
                   <td style={{ ...TD, whiteSpace: 'nowrap' }}>
                     {mayWork && (r.status === RequestStatus.Prijato || r.status === RequestStatus.Zpracovava) && <ActionButton text="Založit servisní list" iconProps={{ iconName: 'Add' }} onClick={() => setJobDlg({ request: r })} styles={{ root: { height: 28 } }} />}
-                    {mayWork && requestDeletionProblem(r.id, jobs) === '' && <ActionButton text="Smazat" iconProps={{ iconName: 'Delete' }} title="Smazat omylem zapsaný požadavek (jen bez servisních listů)" onClick={() => setDeleteRequestDlg(r)} styles={{ root: { height: 28 } }} />}
+                    {mayDelete && requestDeletionProblem(r.id, jobs) === '' && <ActionButton text="Smazat" iconProps={{ iconName: 'Delete' }} title="Smazat požadavek (i s jeho zrušenými a nezpracovanými listy)" onClick={() => setDeleteRequestDlg(r)} styles={{ root: { height: 28 } }} />}
                     {mayWork && r.status === RequestStatus.Prijato && <ActionButton text="Zamítnout" onClick={() => setRejectDlg(r)} styles={{ root: { height: 28 } }} />}
                     {mayWork && <ActionButton text="Upravit" onClick={() => setRequestDlg({ request: r })} styles={{ root: { height: 28 } }} />}
                   </td>
@@ -273,6 +277,7 @@ export const ServicePage: React.FC<{ param?: string }> = ({ param }) => {
               )}
             </tbody>
           </table>
+          </div>
         </PivotItem>
 
         <PivotItem headerText={`Servisní listy (${jobs.filter((j) => j.status !== JobStatus.Uzavreno && j.status !== JobStatus.Zruseno).length})`} itemIcon="TaskList">
@@ -282,6 +287,7 @@ export const ServicePage: React.FC<{ param?: string }> = ({ param }) => {
             <span style={{ flex: '1 1 auto' }} />
             {mayWork && <PrimaryButton iconProps={{ iconName: 'Add' }} text="Nový servisní list" disabled={devices.length === 0} onClick={() => setJobDlg({})} title={devices.length === 0 ? 'Nejdřív založte soubor' : undefined} />}
           </div>
+          <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', background: RES.white, border: `1px solid ${RES.grayBlue}` }}>
             <thead>
               <tr>
@@ -294,6 +300,7 @@ export const ServicePage: React.FC<{ param?: string }> = ({ param }) => {
                 <th style={TH}>Stav</th>
                 <th style={TH}>Objednávka</th>
                 <th style={TH}>Fakturace</th>
+                <th style={TH} />
               </tr>
             </thead>
             <tbody>
@@ -310,24 +317,28 @@ export const ServicePage: React.FC<{ param?: string }> = ({ param }) => {
                   <td style={TD}>
                     <JobKindBadge kind={j.jobKind} />
                   </td>
-                  <td style={TD}>{j.supplierName || '—'}</td>
+                  <td style={TD}>{j.isInternal ? 'Interní servis' : j.supplierName || '—'}</td>
                   <td style={{ ...TD, whiteSpace: 'nowrap', color: isJobOverdue(j) ? RES.red : undefined }}>{j.plannedDate ? formatDate(j.plannedDate) : '—'}</td>
                   <td style={TD}>
                     <JobStatusBadge status={j.status} />
                   </td>
                   <td style={TD}>{j.orderNumber || '—'}</td>
                   <td style={TD}>{j.invoiceNumber || '—'}</td>
+                  <td style={TD} onClick={(e) => e.stopPropagation()}>
+                    {mayDelete && jobDeletionProblem(j) === '' && <ActionButton text="Smazat" iconProps={{ iconName: 'Delete' }} title="Smazat zrušený nebo nezpracovaný servisní list" onClick={() => setDeleteJobDlg(j)} styles={{ root: { height: 28 } }} />}
+                  </td>
                 </tr>
               ))}
               {shownJobs.length === 0 && (
                 <tr>
-                  <td colSpan={9} style={{ ...TD, color: RES.gray, padding: 14 }}>
+                  <td colSpan={10} style={{ ...TD, color: RES.gray, padding: 14 }}>
                     {jobs.length === 0 ? 'Zatím žádný servisní list. Zakládá se z požadavku, nebo tlačítkem Nový servisní list.' : 'Filtru neodpovídá žádný servisní list.'}
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
+          </div>
         </PivotItem>
 
         <PivotItem headerText={`Lokality a soubory (${sites.length})`} itemIcon="MapPin">
@@ -348,13 +359,13 @@ export const ServicePage: React.FC<{ param?: string }> = ({ param }) => {
                   <span style={{ color: RES.gray, fontSize: 13 }}>{[s.customerName, s.address].filter((x) => !!x).join(' · ')}</span>
                   <span style={{ flex: '1 1 auto' }} />
                   {s.folderUrl && (
-                    <Link href={s.folderUrl} target="_blank">
+                    <Link href={s.folderUrl} {...EXTERNAL_LINK_PROPS}>
                       Složka lokality
                     </Link>
                   )}
                   {mayAdmin && !s.folderUrl && <ActionButton text="Založit složky" iconProps={{ iconName: 'NewFolder' }} title="Založí složku lokality a její podsložky v 02_SERVIS (existující se nepřepisují)" onClick={() => createFolders(s.number)} styles={{ root: { height: 28 } }} />}
                   {mayAdmin && <ActionButton text="Upravit" onClick={() => setSiteDlg({ site: s })} styles={{ root: { height: 28 } }} />}
-                  {mayAdmin && siteDeletionProblem(s.number, devices, requests, jobs) === '' && <ActionButton text="Smazat" iconProps={{ iconName: 'Delete' }} title="Smazat prázdnou lokalitu (bez souborů, požadavků a listů)" onClick={() => setDeleteSiteDlg(s)} styles={{ root: { height: 28 } }} />}
+                  {mayDelete && siteDeletionProblem(s.number, devices, requests, jobs) === '' && <ActionButton text="Smazat" iconProps={{ iconName: 'Delete' }} title="Smazat prázdnou lokalitu (bez souborů, požadavků a listů)" onClick={() => setDeleteSiteDlg(s)} styles={{ root: { height: 28 } }} />}
                   {mayAdmin && <ActionButton text="Přidat soubor" iconProps={{ iconName: 'Add' }} onClick={() => setDeviceDlg({ site: s })} styles={{ root: { height: 28 } }} />}
                 </div>
                 {s.contact && <div style={{ padding: '4px 12px', fontSize: 12, color: RES.gray, whiteSpace: 'pre-wrap' }}>Kontakt: {s.contact}</div>}
@@ -384,7 +395,7 @@ export const ServicePage: React.FC<{ param?: string }> = ({ param }) => {
                             {d.folderUrl && (
                               <>
                                 {' · '}
-                                <Link href={d.folderUrl} target="_blank">
+                                <Link href={d.folderUrl} {...EXTERNAL_LINK_PROPS}>
                                   Složka
                                 </Link>
                               </>
@@ -398,7 +409,7 @@ export const ServicePage: React.FC<{ param?: string }> = ({ param }) => {
                             {d.contractUrl && (
                               <>
                                 {' · '}
-                                <Link href={d.contractUrl} target="_blank">
+                                <Link href={d.contractUrl} {...EXTERNAL_LINK_PROPS}>
                                   Smlouva
                                 </Link>
                               </>
@@ -436,10 +447,26 @@ export const ServicePage: React.FC<{ param?: string }> = ({ param }) => {
         </PivotItem>
       </Pivot>
 
+      {deleteJobDlg && (
+        <CommentDialog
+          title={`Smazat servisní list ${deleteJobDlg.number}?`}
+          subText="Smazat jde jen zrušený nebo ještě nezpracovaný list (bez objednávky). Smaže se do koše webu."
+          label="Poznámka (nepovinná)"
+          required={false}
+          confirm="Smazat servisní list"
+          onConfirm={() => repos.service.deleteJob(deleteJobDlg.id, user)}
+          onSaved={() => {
+            setDeleteJobDlg(undefined);
+            setNotice('Servisní list je smazaný.');
+            reload();
+          }}
+          onClose={() => setDeleteJobDlg(undefined)}
+        />
+      )}
       {deleteRequestDlg && (
         <CommentDialog
           title={`Smazat požadavek ${deleteRequestDlg.number}?`}
-          subText={`„${deleteRequestDlg.title}“ — požadavek nemá žádný servisní list. Smaže se do koše webu. Pokud je jen nepotřebný, můžete ho místo toho zamítnout.`}
+          subText={`„${deleteRequestDlg.title}“ — smaže se do koše webu i se svými zrušenými nebo nezpracovanými servisními listy. Pokud je jen nepotřebný, můžete ho místo toho zamítnout.`}
           label="Poznámka (nepovinná)"
           required={false}
           confirm="Smazat požadavek"

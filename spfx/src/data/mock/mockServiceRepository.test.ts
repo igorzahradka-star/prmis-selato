@@ -13,6 +13,7 @@ function uzivatel(login: string, name: string, roles: Role[]): CurrentUser {
 const spravce = uzivatel('spravce', 'Sára Správce', [Role.SpravceServisu]);
 const dispecer = uzivatel('dispecer', 'David Dispečer', [Role.Dispecer]);
 const pm = uzivatel('pm', 'Běžný PM', [Role.ProjektovyManazer]);
+const vedeni = uzivatel('vedeni', 'Vendelín Vedení', [Role.Vedeni]);
 
 describe('MockServiceRepository — práva', () => {
   it('lokalitu a zařízení zakládá správce servisu, ne dispečer ani běžný PM', async () => {
@@ -129,11 +130,12 @@ describe('MockServiceRepository — smazání lokality', () => {
   it('prázdnou lokalitu smaže správce, dispečer ne; lokalitu se soubory nesmaže', async () => {
     const r = createMockRepositories();
     await r.service.saveSite({ number: '10530', name: 'Omylem', isActive: true }, spravce);
-    await expect(r.service.deleteSite('10530', dispecer)).rejects.toThrow(/správce servisu/);
-    await r.service.deleteSite('10530', spravce);
+    await expect(r.service.deleteSite('10530', dispecer)).rejects.toThrow(/vedení a administrátor/);
+    await expect(r.service.deleteSite('10530', spravce)).rejects.toThrow(/vedení a administrátor/);
+    await r.service.deleteSite('10530', vedeni);
     expect((await r.service.listSites()).some((s) => s.number === '10530')).toBe(false);
-    await expect(r.service.deleteSite('10500', spravce)).rejects.toThrow(/nejde smazat/);
-    await expect(r.service.deleteSite('10530', spravce)).rejects.toThrow(/nebyla nalezena/);
+    await expect(r.service.deleteSite('10500', vedeni)).rejects.toThrow(/nejde smazat/);
+    await expect(r.service.deleteSite('10530', vedeni)).rejects.toThrow(/nebyla nalezena/);
   });
 });
 
@@ -141,10 +143,11 @@ describe('MockServiceRepository — smazání požadavku', () => {
   it('požadavek bez listů smaže dispečer; požadavek s listem ani cizí role ne', async () => {
     const r = createMockRepositories();
     const req = await r.service.saveRequest({ siteNumber: '10500', title: 'Omylem', priority: 'Běžná', kind: 'Ostatní' }, dispecer);
-    await expect(r.service.deleteRequest(req.id, pm)).rejects.toThrow(/správce servisu, dispečer/);
-    await r.service.deleteRequest(req.id, dispecer);
+    await expect(r.service.deleteRequest(req.id, dispecer)).rejects.toThrow(/vedení a administrátor/);
+    await expect(r.service.deleteRequest(req.id, spravce)).rejects.toThrow(/vedení a administrátor/);
+    await r.service.deleteRequest(req.id, vedeni);
     expect((await r.service.listRequests()).some((x) => x.id === req.id)).toBe(false);
-    await expect(r.service.deleteRequest(req.id, dispecer)).rejects.toThrow(/nebyl nalezen/);
-    await expect(r.service.deleteRequest(1, dispecer)).rejects.toThrow(/nejde smazat/);
+    await expect(r.service.deleteRequest(req.id, vedeni)).rejects.toThrow(/nebyl nalezen/);
+    await expect(r.service.deleteRequest(1, vedeni)).rejects.toThrow(/nejde smazat/);
   });
 });

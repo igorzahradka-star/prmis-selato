@@ -5,6 +5,16 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.50.0 — 15. 10. 2026 — Servis: práva, interní servis, požadovaný termín
+
+- **Práva v Servisu:** lokality zakládá a lokality i soubory upravuje **správce servisu, vedení a administrátor**; **mazat** (lokalitu, požadavek, servisní list) smí jen **vedení a administrátor**. Dispečer zapisuje a odbavuje požadavky a servisní listy (zakládá listy, objednává, zapisuje provedení).
+- **Mazání:** požadavek jde smazat i s jeho **zrušenými a nezpracovanými** listy (objednaný, provedený a vyfakturovaný list mazat nejde). Nové tlačítko **Smazat** u zrušeného nebo nezpracovaného servisního listu.
+- **Interní servis:** u listu jde zaškrtnout „Interní servis“ — práci provede dispečer nebo interní zdroj, nevybírá se dodavatel a neobjednává se; provedení se zapisuje rovnou.
+- **Požadovaný termín** u požadavku se přenáší do plánovaného termínu servisního listu a z něj do termínu dodání objednávky (v objednávce jde změnit).
+- **Schvalování objednávek:** člen vedení (v kroku vedení) i jednatel (v kroku jednatele) se smí vybrat jako schvalovatel sám a svou objednávku schválit.
+- Odkaz na složku lokality a souboru zmizel z formulářů (složky zakládá aplikace sama); odkazy na složky se otevírají v novém okně; tabulky v Servisu se dají posouvat vodorovně.
+- **Schéma 28** (sloupce RequiredDate u požadavků a IsInternal u listů) — po nahrání spustit **Instalaci a diagnostiku**.
+
 ## 0.49.1 — 15. 10. 2026 — Servis: mazání prázdné lokality a požadavku
 
 - **Smazat lokalitu:** tlačítko Smazat u **prázdné** lokality (bez souborů, požadavků a servisních listů); smaže se do koše webu, složky v knihovně dokumentů zůstanou. Lokalita s historií se maže nedá — označí se jako neaktivní. Smí správce servisu a administrátor.

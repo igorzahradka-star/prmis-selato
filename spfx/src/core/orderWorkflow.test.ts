@@ -257,7 +257,7 @@ describe('decideOrder', () => {
     expect(decideOrder(vlastniVedeni, 'approve', '', ctx(vedeni2)).status).toBe(OrderStatus.Schvaleno);
   });
 
-  it('výjimka platí jen pro vedení a jen v kroku vedení: jednatel, PM a krok jednatele ne', () => {
+  it('výjimka platí jen pro vedení v kroku vedení a jednatele v kroku jednatele; člen vedení v kroku jednatele ani PM ne', () => {
     const vlastniVedeniJednatel = objednavka({
       requestedByLogin: VEDENI,
       requestedByName: vedeni.displayName,
@@ -273,7 +273,10 @@ describe('decideOrder', () => {
       approvalChain: [{ level: 'jednatel', approved: false }],
       currentApprovalLevel: 'jednatel'
     });
-    expect(() => decideOrder(vlastniJednatel, 'approve', '', ctx(jednatel))).toThrow(/Vlastní objednávku/);
+    // jednatel si v kroku jednatele schválí vlastní objednávku sám, vrátit ani zamítnout ji nesmí
+    expect(decideOrder(vlastniJednatel, 'approve', '', ctx(jednatel)).status).toBe(OrderStatus.Schvaleno);
+    expect(() => decideOrder(vlastniJednatel, 'return', 'změnit', ctx(jednatel))).toThrow(/Vlastní objednávku/);
+    expect(() => decideOrder(vlastniJednatel, 'reject', 'důvod', ctx(jednatel))).toThrow(/Vlastní objednávku/);
   });
 
   it('PM nesmí schválit objednávku, kterou sám vystavil, ani kdyby byl na řadě', () => {
@@ -697,8 +700,10 @@ describe('approverCandidates', () => {
     expect(approverCandidates('jednatel', clenstvi, projektBezJmena, ASISTENT).map((c) => c.login)).toEqual([JEDNATEL]);
   });
 
-  it('vystavitel se nenabízí, ani když v roli je', () => {
-    expect(approverCandidates('vedeni', clenstvi, projektBezJmena, VEDENI).map((c) => c.login)).toEqual([VEDENI2]);
+  it('vedení a jednatel se nabízí i sám sobě; vystavitel u kroku PM ne', () => {
+    expect(approverCandidates('vedeni', clenstvi, projektBezJmena, VEDENI).map((c) => c.login)).toEqual([VEDENI2, VEDENI]);
+    expect(approverCandidates('jednatel', clenstvi, projektBezJmena, JEDNATEL).map((c) => c.login)).toEqual([JEDNATEL]);
+    expect(approverCandidates('pm', clenstvi, projektBezJmena, PM).map((c) => c.login)).toEqual([]);
   });
 
   it('u PM se přidá PM projektu, i když v roli není zapsaný, a bez duplicity', () => {

@@ -10,7 +10,7 @@ import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 import { useApp } from '../../ui/AppContext';
 import { PageHeading } from '../../ui/components/PageHeading';
 import { navigate, RouteName } from '../../ui/router';
-import { canAdministerService, canViewService, canWorkInService, ServiceDevice, ServiceSite } from '../../core/service';
+import { canManageSites, canViewService, canWorkInService, ServiceDevice, ServiceSite } from '../../core/service';
 import { ServiceJob, ServiceRequest } from '../../core/serviceJobs';
 import { ServiceMap } from './ServiceMap';
 
@@ -77,7 +77,7 @@ export const ServiceMapPage: React.FC = () => {
           devices={devices}
           requests={requests}
           jobs={jobs}
-          mayAdmin={canAdministerService(user.roles)}
+          mayAdmin={canManageSites(user.roles)}
           mayWork={canWorkInService(user.roles)}
           onNewRequest={(siteNumber) => navigate(RouteName.Service, `pozadavek-${siteNumber}`)}
           onEditSite={(site) => navigate(RouteName.Service, `lokalita-${site.number}`)}

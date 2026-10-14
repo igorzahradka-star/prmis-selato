@@ -42,6 +42,8 @@ export interface ServiceRequest {
   receivedAt: Date;
   receivedByName: string;
   receivedByLogin?: string;
+  /** Požadovaný termín vyřízení — přenáší se do plánovaného termínu listu a do termínu dodání objednávky. */
+  requiredDate?: Date;
   status: RequestStatus;
   note?: string;
 }
@@ -75,6 +77,8 @@ export interface ServiceJob {
   plannedDate?: Date;
   /** Plánovaná (v paušálu) / Nahodilá (mimo paušál). */
   jobKind?: string;
+  /** Interní servis: práci provede dispečer / interně — bez dodavatele a objednávky. */
+  isInternal?: boolean;
   supplierId?: number;
   supplierName?: string;
   /** Objednávka dodavateli (PRM_PurchaseOrders). */
@@ -135,10 +139,23 @@ function mayDo(action: JobAction, roles: Role[]): boolean {
   }
 }
 
+/** Může se akce v daném stavu listu provést? Interní servis se neobjednává a provedení se zapisuje rovnou z naplánovaného stavu. */
+function statusAllows(action: JobAction, job: Pick<ServiceJob, 'status' | 'isInternal'>): boolean {
+  if (job.isInternal) {
+    if (action === 'order') {
+      return false;
+    }
+    if (action === 'report') {
+      return job.status === JobStatus.Naplanovano;
+    }
+  }
+  return ORDER_BY_ACTION[action].indexOf(job.status) !== -1;
+}
+
 /** Akce, které se u listu nabízejí (tlačítka). Pravidla se znovu ověřují při zápisu. */
-export function availableJobActions(job: Pick<ServiceJob, 'status' | 'invoiceId'>, roles: Role[]): JobAction[] {
+export function availableJobActions(job: Pick<ServiceJob, 'status' | 'invoiceId' | 'isInternal'>, roles: Role[]): JobAction[] {
   return (Object.keys(ORDER_BY_ACTION) as JobAction[]).filter((a) => {
-    if (ORDER_BY_ACTION[a].indexOf(job.status) === -1 || !mayDo(a, roles)) {
+    if (!statusAllows(a, job) || !mayDo(a, roles)) {
       return false;
     }
     // Podklad pro fakturaci se zakládá jednou; „vyfakturováno“ jde až s podkladem.
@@ -185,8 +202,8 @@ export interface JobActionInput {
  * Nic nezapisuje — zápis dělá datová vrstva, která tuhle funkci volá znovu těsně před uložením.
  */
 export function applyJobAction(job: ServiceJob, action: JobAction, input: JobActionInput, actor: { displayName: string; roles: Role[] }, now: Date = new Date()): JobChange {
-  if (ORDER_BY_ACTION[action].indexOf(job.status) === -1) {
-    throw new ServiceFlowError(`Servisní list ${job.number} je ve stavu „${job.status}“, tuto akci v něm nejde provést.`);
+  if (!statusAllows(action, job)) {
+    throw new ServiceFlowError(job.isInternal && action === 'order' ? 'Interní servis se neobjednává — zapište rovnou provedení.' : `Servisní list ${job.number} je ve stavu „${job.status}“, tuto akci v něm nejde provést.`);
   }
   if (!mayDo(action, actor.roles)) {
     throw new ServiceFlowError(action === 'edit' || action === 'order' || action === 'report' || action === 'cancel' ? 'K této akci v Servisu nemáte oprávnění.' : 'Tuto akci smí provést jen správce servisu.');
