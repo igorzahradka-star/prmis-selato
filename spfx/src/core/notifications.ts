@@ -171,7 +171,7 @@ export function serviceJobToCheckMail(input: ServiceJobMailInput): { subject: st
     '',
     `servisní list ${input.number} je provedený a čeká na vaši kontrolu.`,
     '',
-    `Zařízení: ${input.deviceName}`,
+    `Soubor: ${input.deviceName}`,
     `Název: ${input.title}`,
     input.supplierName ? `Dodavatel: ${input.supplierName}` : '',
     `Provedení zapsal(a): ${input.reportedBy}`,

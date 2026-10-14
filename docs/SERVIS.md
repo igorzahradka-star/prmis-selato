@@ -17,6 +17,9 @@ webu / mobilní aplikaci (paralelní session). V PRMIS je evidence, stav, faktur
 - **Fakturace:** zákazníkovi (lokalitě) jednak **pravidelný paušál**, jednak **jednotlivé činnosti** (z servisního listu). Dodavatelé fakturují nám (přijaté faktury přes Abru).
 - **Schvalovací limity Servisu** se upřesní později; zatím platí stejné limity jako u projektů, krok „PM“ schvaluje správce servisu.
 
+## Aktuální stav
+Návrh dalšího vývoje je v `docs/SERVIS_NAVRH.md` (schválen 15. 10. 2026). **Etapa 1 hotová (0.47.0.0):** pojem „soubor“, GPS poloha a záložka Mapa (schéma 26). Dále: etapa 2 checklist a smlouva se sazbami, etapa 3 druh listu / doklad o provedení / SLA časy, etapa 4 portál dodavatele.
+
 ## Hotovo (0.45.1.0)
 - Role Správce servisu a Dispečer (SharePoint skupiny `PRM Správci servisu`, `PRM Dispečeři servisu` — vytvoří Instalace), práva `core/service.ts`.
 - Číslování a validace lokalit a zařízení, složky, stav smlouvy; stránka **Servis** (nabídka jen pro oprávněné) se třemi záložkami: Požadavky, Servisní listy, Lokality a zařízení.

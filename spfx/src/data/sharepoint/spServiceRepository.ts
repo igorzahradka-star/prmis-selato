@@ -34,6 +34,8 @@ function mapSite(i: Item): ServiceSite {
     customerId: numOrUndef(i.CustomerId),
     customerName: str(i.CustomerName),
     address: str(i.Address),
+    latitude: numOrUndef(i.Latitude),
+    longitude: numOrUndef(i.Longitude),
     contact: str(i.Contact),
     note: str(i.Note),
     folderUrl: str(i.FolderUrl),
@@ -48,6 +50,8 @@ function mapDevice(i: Item): ServiceDevice {
     siteNumber: str(i.SiteNumber) || '',
     name: i.Title || '',
     kind: str(i.DeviceKind) || 'Jiné',
+    latitude: numOrUndef(i.Latitude),
+    longitude: numOrUndef(i.Longitude),
     customerName: str(i.CustomerName),
     contractFrom: toDate(str(i.ContractFrom)),
     contractTo: toDate(str(i.ContractTo)),
@@ -186,6 +190,8 @@ export class SpServiceRepository implements IServiceRepository {
       CustomerId: input.customerId ?? null,
       CustomerName: input.customerName ?? '',
       Address: input.address ?? '',
+      Latitude: input.latitude ?? null,
+      Longitude: input.longitude ?? null,
       Contact: input.contact ?? '',
       Note: input.note ?? '',
       FolderUrl: input.folderUrl ?? '',
@@ -210,7 +216,7 @@ export class SpServiceRepository implements IServiceRepository {
 
   public async saveDevice(input: ServiceDeviceInput, actor: CurrentUser): Promise<ServiceDevice> {
     if (!canAdministerService(actor.roles)) {
-      throw new Error('Zařízení smí spravovat jen správce servisu a administrátor.');
+      throw new Error('Soubory smí spravovat jen správce servisu a administrátor.');
     }
     const [sites, devices] = await Promise.all([this.listSites(), this.listDevices()]);
     const site = sites.filter((s) => s.number === input.siteNumber)[0];
@@ -223,13 +229,15 @@ export class SpServiceRepository implements IServiceRepository {
       throw new Error(check.error);
     }
     if (input.name.trim() === '') {
-      throw new Error('Vyplňte název zařízení.');
+      throw new Error('Vyplňte název souboru.');
     }
     const fields = {
       Title: input.name.trim(),
       DeviceNumber: input.number,
       SiteNumber: input.siteNumber,
       DeviceKind: input.kind,
+      Latitude: input.latitude ?? null,
+      Longitude: input.longitude ?? null,
       CustomerName: input.customerName ?? site.customerName ?? '',
       ContractFrom: iso(input.contractFrom),
       ContractTo: iso(input.contractTo),
@@ -240,8 +248,8 @@ export class SpServiceRepository implements IServiceRepository {
     };
     let id = input.id;
     if (id) {
-      await this.update(DEVICES, id, fields, 'Zařízení se nepodařilo uložit');
-      await this.audit('Servis – zařízení', input.number, actor, 'Upraveno zařízení');
+      await this.update(DEVICES, id, fields, 'Soubor se nepodařilo uložit');
+      await this.audit('Servis – soubor', input.number, actor, 'Upraven soubor');
     } else {
       // Zařízení je servisní zakázka: skrytý projekt typu Servis s omezeným přístupem.
       await this.projects.ensureServiceProject({
@@ -252,8 +260,8 @@ export class SpServiceRepository implements IServiceRepository {
         projectManagerName: actor.displayName,
         folderUrl: input.folderUrl
       });
-      id = await this.add(DEVICES, fields, 'Zařízení se nepodařilo založit');
-      await this.audit('Servis – zařízení', input.number, actor, 'Založeno zařízení (servisní projekt)');
+      id = await this.add(DEVICES, fields, 'Soubor se nepodařilo založit');
+      await this.audit('Servis – soubor', input.number, actor, 'Založen soubor (servisní projekt)');
     }
     return { ...input, id: id as number, name: input.name.trim() };
   }
@@ -355,7 +363,7 @@ export class SpServiceRepository implements IServiceRepository {
     }
     const devices = await this.listDevices();
     if (!devices.some((d) => d.number === input.deviceNumber)) {
-      throw new Error(`Zařízení ${input.deviceNumber} neexistuje — servisní list se zakládá na zařízení.`);
+      throw new Error(`Soubor ${input.deviceNumber} neexistuje — servisní list se zakládá na souboru.`);
     }
     const request = input.requestId ? (await this.listRequests()).filter((r) => r.id === input.requestId)[0] : undefined;
     const number = await this.numbering.allocateNumber('SL');

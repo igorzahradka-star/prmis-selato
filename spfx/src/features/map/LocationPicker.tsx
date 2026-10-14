@@ -29,11 +29,13 @@ export interface LocationValue {
 }
 
 export interface LocationPickerProps {
+  /** Popisek textového pole (výchozí „Lokalita“). */
+  label?: string;
   value: LocationValue;
   onChange: (value: LocationValue) => void;
 }
 
-export const LocationPicker: React.FC<LocationPickerProps> = ({ value, onChange }) => {
+export const LocationPicker: React.FC<LocationPickerProps> = ({ value, onChange, label }) => {
   const [mapOpen, setMapOpen] = React.useState(false);
   const [searching, setSearching] = React.useState(false);
   const [message, setMessage] = React.useState<{ text: string; type: MessageBarType } | undefined>(undefined);
@@ -70,7 +72,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({ value, onChange 
   return (
     <div>
       <TextField
-        label="Lokalita"
+        label={label ?? 'Lokalita'}
         value={value.location}
         onChange={(_, v) => onChange({ ...value, location: v ?? '' })}
         onKeyDown={(e) => {

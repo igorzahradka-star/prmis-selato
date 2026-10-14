@@ -13,13 +13,13 @@ const day = (y: number, m: number, d: number): Date => new Date(y, m - 1, d);
 export class MockServiceRepository implements IServiceRepository {
   private nextId = 100;
   private sites: ServiceSite[] = [
-    { id: 1, number: '10500', name: 'Mastířovice', customerName: 'REVOLTUM Energy a.s.', address: 'Mastířovice 12, 675 31', contact: 'Ing. Karel Dvořák, +420 777 111 222', isActive: true },
-    { id: 2, number: '10510', name: 'Boršov', customerName: 'REVOLTUM Energy a.s.', address: 'Boršov 3, 373 71', isActive: true }
+    { id: 1, number: '10500', name: 'Mastířovice', customerName: 'REVOLTUM Energy a.s.', address: 'Mastířovice 12, 675 31', latitude: 49.1713, longitude: 16.1167, contact: 'Ing. Karel Dvořák, +420 777 111 222', isActive: true },
+    { id: 2, number: '10510', name: 'Boršov', customerName: 'REVOLTUM Energy a.s.', address: 'Boršov 3, 373 71', latitude: 48.9875, longitude: 14.4735, isActive: true }
   ];
   private devices: ServiceDevice[] = [
     { id: 1, number: '10501', siteNumber: '10500', name: 'Mastířovice I. FVE', kind: 'FVE', customerName: 'REVOLTUM Energy a.s.', contractFrom: day(2026, 1, 1), contractTo: day(2026, 12, 31), contractNote: 'Paušál 12 000 Kč / měsíc, reakce do 48 h', isActive: true },
     { id: 2, number: '10511', siteNumber: '10510', name: 'Boršov 1', kind: 'FVE', customerName: 'REVOLTUM Energy a.s.', contractFrom: day(2026, 3, 1), contractTo: day(2026, 11, 20), isActive: true },
-    { id: 3, number: '10512', siteNumber: '10510', name: 'Boršov 2 – BESS', kind: 'BESS', customerName: 'REVOLTUM Energy a.s.', isActive: true }
+    { id: 3, number: '10512', siteNumber: '10510', name: 'Boršov 2 – BESS', kind: 'BESS', latitude: 48.9884, longitude: 14.4752, customerName: 'REVOLTUM Energy a.s.', isActive: true }
   ];
   private requests: ServiceRequest[] = [
     { id: 1, number: 'SPO-2026-0001', siteNumber: '10500', deviceNumber: '10501', title: 'Výpadek střídače č. 3', description: 'Střídač hlásí chybu izolace, výroba klesla o třetinu.', priority: 'Vysoká', kind: 'Porucha', reportedBy: 'Karel Dvořák', receivedAt: day(2026, 10, 9), receivedByName: 'Dispečer servisu', status: RequestStatus.Zpracovava },
@@ -62,7 +62,7 @@ export class MockServiceRepository implements IServiceRepository {
 
   public async saveDevice(input: ServiceDeviceInput, actor: CurrentUser): Promise<ServiceDevice> {
     if (!canAdministerService(actor.roles)) {
-      throw new Error('Zařízení smí spravovat jen správce servisu a administrátor.');
+      throw new Error('Soubory smí spravovat jen správce servisu a administrátor.');
     }
     const site = this.sites.filter((s) => s.number === input.siteNumber)[0];
     if (!site) {
@@ -74,7 +74,7 @@ export class MockServiceRepository implements IServiceRepository {
       throw new Error(check.error);
     }
     if (input.name.trim() === '') {
-      throw new Error('Vyplňte název zařízení.');
+      throw new Error('Vyplňte název souboru.');
     }
     if (!self) {
       await this.projects.ensureServiceProject({ projectNumber: input.number, title: `${input.number} ${site.name} – ${input.name.trim()}`, shortName: input.name.trim(), customerName: input.customerName ?? site.customerName, projectManagerName: actor.displayName, folderUrl: input.folderUrl });
@@ -144,7 +144,7 @@ export class MockServiceRepository implements IServiceRepository {
       throw new Error('Vyplňte název servisního listu.');
     }
     if (!this.devices.some((d) => d.number === input.deviceNumber)) {
-      throw new Error(`Zařízení ${input.deviceNumber} neexistuje — servisní list se zakládá na zařízení.`);
+      throw new Error(`Soubor ${input.deviceNumber} neexistuje — servisní list se zakládá na souboru.`);
     }
     const request = input.requestId ? this.requests.filter((r) => r.id === input.requestId)[0] : undefined;
     const number = await this.numbering.allocateNumber('SL');

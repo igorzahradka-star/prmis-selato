@@ -1,6 +1,6 @@
 /**
- * Modul Servis: požadavky, servisní listy a lokality se zařízeními. Vidí a obsluhuje ho jen Správce servisu, Dispečer a administrátor
- * (vedení jen čte). Servisní zakázky (zařízení) se v přehledu projektů neukazují — žijí tady.
+ * Modul Servis: požadavky, servisní listy a lokality se soubory. Vidí a obsluhuje ho jen Správce servisu, Dispečer a administrátor
+ * (vedení jen čte). Servisní zakázky (soubory) se v přehledu projektů neukazují — žijí tady.
  */
 
 import * as React from 'react';
@@ -23,6 +23,7 @@ import { CommentDialog, DeviceDialog, JobDialog, RequestDialog, SiteDialog } fro
 import { notifyServiceManagers, serviceLink } from './serviceNotify';
 import { serviceRequestMail } from '../../core/notifications';
 import { JobPanel } from './JobPanel';
+import { ServiceMap } from './ServiceMap';
 import { ContractBadge, JobStatusBadge, PriorityBadge, RequestStatusBadge, TD, TH } from './serviceUi';
 
 type JobFilter = 'open' | 'all' | JobStatus;
@@ -54,7 +55,7 @@ export const ServicePage: React.FC = () => {
 
   const [siteDlg, setSiteDlg] = React.useState<{ site?: ServiceSite } | undefined>(undefined);
   const [deviceDlg, setDeviceDlg] = React.useState<{ site: ServiceSite; device?: ServiceDevice } | undefined>(undefined);
-  const [requestDlg, setRequestDlg] = React.useState<{ request?: ServiceRequest } | undefined>(undefined);
+  const [requestDlg, setRequestDlg] = React.useState<{ request?: ServiceRequest; siteNumber?: string } | undefined>(undefined);
   const [jobDlg, setJobDlg] = React.useState<{ request?: ServiceRequest } | undefined>(undefined);
   const [rejectDlg, setRejectDlg] = React.useState<ServiceRequest | undefined>(undefined);
   const [openJobId, setOpenJobId] = React.useState<number | undefined>(undefined);
@@ -135,7 +136,7 @@ export const ServicePage: React.FC = () => {
 
   return (
     <>
-      <PageHeading title="Servis" subtitle="Lokality a zařízení, servisní požadavky a servisní listy. Objednávky a faktury se vedou na servisních projektech zařízení." />
+      <PageHeading title="Servis" subtitle="Lokality a soubory, servisní požadavky a servisní listy. Objednávky a faktury se vedou na servisních projektech souborů." />
       {error && (
         <MessageBar messageBarType={MessageBarType.error} isMultiline onDismiss={() => setError(undefined)}>
           {error}
@@ -151,7 +152,7 @@ export const ServicePage: React.FC = () => {
         <Tile label="Po termínu" value={overdueJobs} hint="servisní listy naplánované nebo objednané, jejichž termín už minul" warn={overdueJobs > 0} />
         <Tile label="Ke kontrole" value={toCheck} hint="provedené servisní listy, které čekají na kontrolu správcem" warn={toCheck > 0} />
         <Tile label="K fakturaci" value={toInvoice} hint="zkontrolované listy, ke kterým se má založit podklad pro fakturaci" />
-        <Tile label="Smlouvy končí / vypršely" value={contractsEnding} hint="zařízení, jejichž smlouva končí do 60 dnů nebo už vypršela" warn={contractsEnding > 0} />
+        <Tile label="Smlouvy končí / vypršely" value={contractsEnding} hint="soubory, jejichž smlouva končí do 60 dnů nebo už vypršela" warn={contractsEnding > 0} />
       </div>
       {!mayWork && (
         <MessageBar messageBarType={MessageBarType.info} isMultiline>
@@ -171,7 +172,7 @@ export const ServicePage: React.FC = () => {
               <tr>
                 <th style={TH}>Číslo</th>
                 <th style={TH}>Přijato</th>
-                <th style={TH}>Lokalita / zařízení</th>
+                <th style={TH}>Lokalita / soubor</th>
                 <th style={TH}>Požadavek</th>
                 <th style={TH}>Priorita</th>
                 <th style={TH}>Stav</th>
@@ -231,15 +232,15 @@ export const ServicePage: React.FC = () => {
         <PivotItem headerText={`Servisní listy (${jobs.filter((j) => j.status !== JobStatus.Uzavreno && j.status !== JobStatus.Zruseno).length})`} itemIcon="TaskList">
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', margin: '12px 0 8px' }}>
             <Dropdown label="Stav" selectedKey={jobFilter} options={[{ key: 'open', text: 'Otevřené' }, { key: 'all', text: 'Všechny' }, ...Object.keys(JobStatus).map((k) => ({ key: JobStatus[k as keyof typeof JobStatus], text: JobStatus[k as keyof typeof JobStatus] }))]} onChange={(_, o) => o && setJobFilter(o.key as JobFilter)} styles={{ root: { width: 190 } }} />
-            <SearchBox placeholder="Hledat číslo, dodavatele, zařízení…" value={search} onChange={(_, v) => setSearch(v ?? '')} onClear={() => setSearch('')} styles={{ root: { width: 280 } }} />
+            <SearchBox placeholder="Hledat číslo, dodavatele, soubor…" value={search} onChange={(_, v) => setSearch(v ?? '')} onClear={() => setSearch('')} styles={{ root: { width: 280 } }} />
             <span style={{ flex: '1 1 auto' }} />
-            {mayWork && <PrimaryButton iconProps={{ iconName: 'Add' }} text="Nový servisní list" disabled={devices.length === 0} onClick={() => setJobDlg({})} title={devices.length === 0 ? 'Nejdřív založte zařízení' : undefined} />}
+            {mayWork && <PrimaryButton iconProps={{ iconName: 'Add' }} text="Nový servisní list" disabled={devices.length === 0} onClick={() => setJobDlg({})} title={devices.length === 0 ? 'Nejdřív založte soubor' : undefined} />}
           </div>
           <table style={{ width: '100%', borderCollapse: 'collapse', background: RES.white, border: `1px solid ${RES.grayBlue}` }}>
             <thead>
               <tr>
                 <th style={TH}>Číslo</th>
-                <th style={TH}>Zařízení</th>
+                <th style={TH}>Soubor</th>
                 <th style={TH}>Název</th>
                 <th style={TH}>Dodavatel</th>
                 <th style={TH}>Termín</th>
@@ -279,9 +280,9 @@ export const ServicePage: React.FC = () => {
           </table>
         </PivotItem>
 
-        <PivotItem headerText={`Lokality a zařízení (${sites.length})`} itemIcon="MapPin">
+        <PivotItem headerText={`Lokality a soubory (${sites.length})`} itemIcon="MapPin">
           <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', margin: '12px 0 8px' }}>
-            <span style={{ fontSize: 13, color: RES.gray }}>Lokalita je místo zákazníka (číslo po desítkách), zařízení pod ní má vlastní číslo, smlouvu a fakturaci.</span>
+            <span style={{ fontSize: 13, color: RES.gray }}>Lokalita je místo zákazníka (číslo po desítkách), soubor pod ní (FVE, BESS…) má vlastní číslo, smlouvu a fakturaci.</span>
             <span style={{ flex: '1 1 auto' }} />
             {mayAdmin && <PrimaryButton iconProps={{ iconName: 'Add' }} text="Nová lokalita" onClick={() => setSiteDlg({})} />}
           </div>
@@ -302,7 +303,7 @@ export const ServicePage: React.FC = () => {
                     </Link>
                   )}
                   {mayAdmin && <ActionButton text="Upravit" onClick={() => setSiteDlg({ site: s })} styles={{ root: { height: 28 } }} />}
-                  {mayAdmin && <ActionButton text="Přidat zařízení" iconProps={{ iconName: 'Add' }} onClick={() => setDeviceDlg({ site: s })} styles={{ root: { height: 28 } }} />}
+                  {mayAdmin && <ActionButton text="Přidat soubor" iconProps={{ iconName: 'Add' }} onClick={() => setDeviceDlg({ site: s })} styles={{ root: { height: 28 } }} />}
                 </div>
                 {s.contact && <div style={{ padding: '4px 12px', fontSize: 12, color: RES.gray, whiteSpace: 'pre-wrap' }}>Kontakt: {s.contact}</div>}
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -351,7 +352,7 @@ export const ServicePage: React.FC = () => {
                     })}
                     {siteDevices.length === 0 && (
                       <tr>
-                        <td style={{ ...TD, color: RES.gray }}>Lokalita zatím nemá zařízení.</td>
+                        <td style={{ ...TD, color: RES.gray }}>Lokalita zatím nemá soubory.</td>
                       </tr>
                     )}
                   </tbody>
@@ -361,11 +362,25 @@ export const ServicePage: React.FC = () => {
           })}
           {sites.length === 0 && <MessageBar messageBarType={MessageBarType.info}>Zatím není žádná lokalita. {mayAdmin ? 'Založte první tlačítkem Nová lokalita (např. 10500).' : 'Lokality zakládá správce servisu.'}</MessageBar>}
         </PivotItem>
+
+        <PivotItem headerText="Mapa" itemIcon="Globe">
+          <ServiceMap
+            sites={sites}
+            devices={devices}
+            requests={requests}
+            jobs={jobs}
+            mayAdmin={mayAdmin}
+            mayWork={mayWork}
+            onNewRequest={(siteNumber) => setRequestDlg({ siteNumber })}
+            onEditSite={(site) => setSiteDlg({ site })}
+            onEditDevice={(site, device) => setDeviceDlg({ site, device })}
+          />
+        </PivotItem>
       </Pivot>
 
       {siteDlg && <SiteDialog site={siteDlg.site} sites={sites} partners={partners} save={(input) => repos.service.saveSite(input, user)} onSaved={() => { setSiteDlg(undefined); setNotice('Lokalita je uložená.'); reload(); }} onClose={() => setSiteDlg(undefined)} />}
-      {deviceDlg && <DeviceDialog site={deviceDlg.site} device={deviceDlg.device} devices={devices} save={(input) => repos.service.saveDevice(input, user)} onSaved={() => { setDeviceDlg(undefined); setNotice('Zařízení je uložené.'); reload(); }} onClose={() => setDeviceDlg(undefined)} />}
-      {requestDlg && <RequestDialog request={requestDlg.request} sites={sites} devices={devices} save={async (input) => {
+      {deviceDlg && <DeviceDialog site={deviceDlg.site} device={deviceDlg.device} devices={devices} save={(input) => repos.service.saveDevice(input, user)} onSaved={() => { setDeviceDlg(undefined); setNotice('Soubor je uložený.'); reload(); }} onClose={() => setDeviceDlg(undefined)} />}
+      {requestDlg && <RequestDialog request={requestDlg.request} defaultSite={requestDlg.siteNumber} sites={sites} devices={devices} save={async (input) => {
         const saved = await repos.service.saveRequest(input, user);
         if (!input.id) {
           const site = sites.filter((s) => s.number === saved.siteNumber)[0];

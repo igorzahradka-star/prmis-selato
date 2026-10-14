@@ -1,8 +1,8 @@
 /**
  * Modul Servis — čistá logika bez SharePointu a Reactu.
  *
- * Struktura: **lokalita** (místo zákazníka, číslo po desítkách: 10500, 10510…) → **zařízení** (FVE, BESS…; číslo lokality + 1 až 9:
- * 10501…). Zařízení je „servisní zakázka“: má vlastní číslo, složku, smlouvu a fakturaci a v aplikaci je to skrytý projekt typu Servis
+ * Struktura: **lokalita** (místo zákazníka, číslo po desítkách: 10500, 10510…) → **soubor** (FVE, BESS…; dříve „zařízení“; číslo lokality + 1 až 9:
+ * 10501…). Soubor je „servisní zakázka“: má vlastní číslo, složku, smlouvu a fakturaci a v aplikaci je to skrytý projekt typu Servis
  * (nezobrazuje se v přehledu projektů). Pod lokalitou se vydávají servisní požadavky a z nich servisní listy.
  * Práva: Servis vidí a obsluhuje jen Správce servisu, Dispečer a administrátor (vedení jen čte).
  */
@@ -27,6 +27,9 @@ export interface ServiceSite {
   customerId?: number;
   customerName?: string;
   address?: string;
+  /** Poloha lokality na mapě (zeměpisná šířka a délka). */
+  latitude?: number;
+  longitude?: number;
   contact?: string;
   note?: string;
   /** Odkaz na složku lokality v knihovně Dokumenty. */
@@ -41,6 +44,9 @@ export interface ServiceDevice {
   siteNumber: string;
   name: string;
   kind: string;
+  /** Poloha souboru na mapě; bez ní platí poloha lokality. */
+  latitude?: number;
+  longitude?: number;
   customerName?: string;
   /** Servisní smlouva: dokument s komerčními podmínkami uložený u zařízení; zde jen platnost a odkaz. */
   contractFrom?: Date;
@@ -125,10 +131,10 @@ export function validateSiteNumber(number: string, existing: string[], selfNumbe
 /** Kontrola čísla zařízení; číslo mimo rozsah lokality jen upozorní (správce ho smí přepsat), duplicita je chyba. */
 export function validateDeviceNumber(number: string, siteNumber: string, existing: string[], selfNumber?: string): { error: string; warning: string } {
   if (!isDeviceNumber(number)) {
-    return { error: 'Číslo zařízení musí být pětimístné a nesmí být dělitelné deseti (např. 10511).', warning: '' };
+    return { error: 'Číslo souboru musí být pětimístné a nesmí být dělitelné deseti (např. 10511).', warning: '' };
   }
   if (number !== selfNumber && existing.indexOf(number) !== -1) {
-    return { error: `Zařízení s číslem ${number} už existuje.`, warning: '' };
+    return { error: `Soubor s číslem ${number} už existuje.`, warning: '' };
   }
   return { error: '', warning: siteNumberOfDevice(number) !== siteNumber ? `Číslo ${number} je mimo rozsah lokality ${siteNumber} (${num(siteNumber) + 1}–${num(siteNumber) + 9}).` : '' };
 }

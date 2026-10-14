@@ -1,5 +1,5 @@
 /**
- * Dialogy Servisu: lokalita, zařízení, požadavek, servisní list a obecný dialog s komentářem.
+ * Dialogy Servisu: lokalita, soubor, požadavek, servisní list a obecný dialog s komentářem.
  */
 
 import * as React from 'react';
@@ -15,6 +15,7 @@ import { Partner, PartnerType } from '../../core/types';
 import { DEVICE_KINDS, ServiceDevice, ServiceSite, nextDeviceNumber, nextSiteNumber, validateDeviceNumber, validateSiteNumber } from '../../core/service';
 import { REQUEST_KINDS, REQUEST_PRIORITIES, ServiceJob, ServiceRequest } from '../../core/serviceJobs';
 import { ServiceDeviceInput, ServiceJobInput, ServiceRequestInput, ServiceSiteInput } from '../../data/repositories';
+import { LocationPicker } from '../map/LocationPicker';
 import { DATE_INPUT, dateToInput, inputToDate } from './serviceUi';
 
 const ROW: React.CSSProperties = { display: 'flex', gap: 10, flexWrap: 'wrap' };
@@ -65,6 +66,8 @@ export const SiteDialog: React.FC<{ site?: ServiceSite; sites: ServiceSite[]; pa
   const [name, setName] = React.useState(site ? site.name : '');
   const [customerId, setCustomerId] = React.useState<number>(site && site.customerId ? site.customerId : 0);
   const [address, setAddress] = React.useState(site ? site.address ?? '' : '');
+  const [latitude, setLatitude] = React.useState<number | undefined>(site ? site.latitude : undefined);
+  const [longitude, setLongitude] = React.useState<number | undefined>(site ? site.longitude : undefined);
   const [contact, setContact] = React.useState(site ? site.contact ?? '' : '');
   const [note, setNote] = React.useState(site ? site.note ?? '' : '');
   const [folderUrl, setFolderUrl] = React.useState(site ? site.folderUrl ?? '' : '');
@@ -75,14 +78,14 @@ export const SiteDialog: React.FC<{ site?: ServiceSite; sites: ServiceSite[]; pa
   return (
     <Shell
       title={site ? `Lokalita ${site.number}` : 'Nová lokalita'}
-      subText="Lokalita je místo zákazníka; pod ní se zakládají zařízení (FVE, BESS…), každé se svým číslem, smlouvou a fakturací."
+      subText="Lokalita je místo zákazníka; pod ní se zakládají soubory (FVE, BESS…), každé se svým číslem, smlouvou a fakturací."
       error={error}
       busy={busy}
       confirm="Uložit"
       onClose={onClose}
       onConfirm={() => {
         const partner = partners.filter((p) => p.id === customerId)[0];
-        run(() => save({ id: site ? site.id : undefined, number, name, customerId: partner ? partner.id : undefined, customerName: partner ? partner.name : site ? site.customerName : undefined, address: address.trim() || undefined, contact: contact.trim() || undefined, note: note.trim() || undefined, folderUrl: folderUrl.trim() || undefined, isActive }));
+        run(() => save({ id: site ? site.id : undefined, number, name, customerId: partner ? partner.id : undefined, customerName: partner ? partner.name : site ? site.customerName : undefined, address: address.trim() || undefined, latitude, longitude, contact: contact.trim() || undefined, note: note.trim() || undefined, folderUrl: folderUrl.trim() || undefined, isActive }));
       }}
     >
       <div style={ROW}>
@@ -90,7 +93,15 @@ export const SiteDialog: React.FC<{ site?: ServiceSite; sites: ServiceSite[]; pa
         <TextField label="Název lokality" required value={name} onChange={(_, v) => setName(v ?? '')} styles={{ root: { flex: '1 1 260px' } }} />
       </div>
       <Dropdown label="Zákazník" selectedKey={customerId} options={customerOptions(partners)} onChange={(_, o) => o && setCustomerId(Number(o.key))} />
-      <TextField label="Adresa" multiline rows={2} value={address} onChange={(_, v) => setAddress(v ?? '')} />
+      <LocationPicker
+        label="Adresa (podle ní se hledá místo na mapě)"
+        value={{ location: address, latitude, longitude }}
+        onChange={(v) => {
+          setAddress(v.location);
+          setLatitude(v.latitude);
+          setLongitude(v.longitude);
+        }}
+      />
       <TextField label="Kontakt na lokalitě" multiline rows={2} value={contact} onChange={(_, v) => setContact(v ?? '')} />
       <TextField label="Složka lokality (odkaz)" value={folderUrl} onChange={(_, v) => setFolderUrl(v ?? '')} description="Odkaz na složku v knihovně Dokumenty (02_SERVIS)." />
       <TextField label="Poznámka" multiline rows={2} value={note} onChange={(_, v) => setNote(v ?? '')} />
@@ -99,13 +110,16 @@ export const SiteDialog: React.FC<{ site?: ServiceSite; sites: ServiceSite[]; pa
   );
 };
 
-// --- zařízení ---------------------------------------------------------------------
+// --- soubor ---------------------------------------------------------------------
 
 export const DeviceDialog: React.FC<{ site: ServiceSite; device?: ServiceDevice; devices: ServiceDevice[]; save: (input: ServiceDeviceInput) => Promise<unknown>; onSaved: () => void; onClose: () => void }> = ({ site, device, devices, save, onSaved, onClose }) => {
   const used = devices.map((d) => d.number);
   const [number, setNumber] = React.useState(device ? device.number : nextDeviceNumber(site.number, used) ?? '');
   const [name, setName] = React.useState(device ? device.name : '');
   const [kind, setKind] = React.useState(device ? device.kind : 'FVE');
+  const [place, setPlace] = React.useState(site.address ?? '');
+  const [latitude, setLatitude] = React.useState<number | undefined>(device ? device.latitude : undefined);
+  const [longitude, setLongitude] = React.useState<number | undefined>(device ? device.longitude : undefined);
   const [from, setFrom] = React.useState(dateToInput(device ? device.contractFrom : undefined));
   const [to, setTo] = React.useState(dateToInput(device ? device.contractTo : undefined));
   const [contractNote, setContractNote] = React.useState(device ? device.contractNote ?? '' : '');
@@ -117,8 +131,8 @@ export const DeviceDialog: React.FC<{ site: ServiceSite; device?: ServiceDevice;
 
   return (
     <Shell
-      title={device ? `Zařízení ${device.number}` : `Nové zařízení v lokalitě ${site.number} ${site.name}`}
-      subText={device ? undefined : 'Zařízení je servisní zakázka: má vlastní číslo, složku, objednávky a fakturaci. V přehledu projektů se neukazuje.'}
+      title={device ? `Soubor ${device.number}` : `Nový soubor v lokalitě ${site.number} ${site.name}`}
+      subText={device ? undefined : 'Soubor je servisní zakázka: má vlastní číslo, složku, objednávky a fakturaci. V přehledu projektů se neukazuje.'}
       error={error}
       busy={busy}
       confirm="Uložit"
@@ -131,6 +145,8 @@ export const DeviceDialog: React.FC<{ site: ServiceSite; device?: ServiceDevice;
             siteNumber: site.number,
             name,
             kind,
+            latitude,
+            longitude,
             customerName: site.customerName,
             contractFrom: inputToDate(from),
             contractTo: inputToDate(to),
@@ -143,10 +159,21 @@ export const DeviceDialog: React.FC<{ site: ServiceSite; device?: ServiceDevice;
       }
     >
       <div style={ROW}>
-        <TextField label="Číslo zařízení" required value={number} disabled={!!device} onChange={(_, v) => setNumber(v ?? '')} errorMessage={check.error || undefined} description={check.warning || `Rozsah lokality: ${parseInt(site.number, 10) + 1}–${parseInt(site.number, 10) + 9}`} styles={{ root: { width: 190 } }} />
-        <TextField label="Název zařízení" required value={name} onChange={(_, v) => setName(v ?? '')} styles={{ root: { flex: '1 1 240px' } }} />
+        <TextField label="Číslo souboru" required value={number} disabled={!!device} onChange={(_, v) => setNumber(v ?? '')} errorMessage={check.error || undefined} description={check.warning || `Rozsah lokality: ${parseInt(site.number, 10) + 1}–${parseInt(site.number, 10) + 9}`} styles={{ root: { width: 190 } }} />
+        <TextField label="Název souboru" required value={name} onChange={(_, v) => setName(v ?? '')} styles={{ root: { flex: '1 1 240px' } }} />
         <Dropdown label="Druh" selectedKey={kind} options={DEVICE_KINDS.map((k) => ({ key: k, text: k }))} onChange={(_, o) => o && setKind(String(o.key))} styles={{ root: { width: 150 } }} />
       </div>
+      <div style={{ fontWeight: 600, margin: '10px 0 2px', color: RES.navy }}>Poloha na mapě (nepovinná)</div>
+      <div style={{ fontSize: 12, color: RES.gray, marginBottom: 4 }}>Bez vlastní polohy se soubor ukáže na poloze lokality.</div>
+      <LocationPicker
+        label="Místo souboru"
+        value={{ location: place, latitude, longitude }}
+        onChange={(v) => {
+          setPlace(v.location);
+          setLatitude(v.latitude);
+          setLongitude(v.longitude);
+        }}
+      />
       <div style={{ fontWeight: 600, margin: '10px 0 2px', color: RES.navy }}>Servisní smlouva</div>
       <div style={{ fontSize: 12, color: RES.gray, marginBottom: 4 }}>Smlouva (komerční podmínky) je dokument uložený u lokality; zde je jen platnost, odkaz a poznámka.</div>
       <div style={ROW}>
@@ -161,7 +188,7 @@ export const DeviceDialog: React.FC<{ site: ServiceSite; device?: ServiceDevice;
       </div>
       <TextField label="Odkaz na dokument smlouvy" value={contractUrl} onChange={(_, v) => setContractUrl(v ?? '')} />
       <TextField label="Poznámka ke smlouvě (paušál, reakční doba…)" multiline rows={2} value={contractNote} onChange={(_, v) => setContractNote(v ?? '')} />
-      <TextField label="Složka zařízení (odkaz)" value={folderUrl} onChange={(_, v) => setFolderUrl(v ?? '')} description="Odkaz na složku zařízení v knihovně Dokumenty." />
+      <TextField label="Složka souboru (odkaz)" value={folderUrl} onChange={(_, v) => setFolderUrl(v ?? '')} description="Odkaz na složku souboru v knihovně Dokumenty." />
       <Toggle label="Aktivní" inlineLabel checked={isActive} onChange={(_, v) => setActive(!!v)} />
     </Shell>
   );
@@ -204,7 +231,7 @@ export const RequestDialog: React.FC<{ request?: ServiceRequest; sites: ServiceS
           }}
           styles={{ root: { flex: '1 1 240px' } }}
         />
-        <Dropdown label="Zařízení" selectedKey={deviceNumber} options={[{ key: '', text: '— celá lokalita —' }, ...siteDevices.map((d) => ({ key: d.number, text: `${d.number} ${d.name}` }))]} onChange={(_, o) => o && setDeviceNumber(String(o.key))} styles={{ root: { flex: '1 1 240px' } }} />
+        <Dropdown label="Soubor" selectedKey={deviceNumber} options={[{ key: '', text: '— celá lokalita —' }, ...siteDevices.map((d) => ({ key: d.number, text: `${d.number} ${d.name}` }))]} onChange={(_, o) => o && setDeviceNumber(String(o.key))} styles={{ root: { flex: '1 1 240px' } }} />
       </div>
       <TextField label="Stručně" required value={title} onChange={(_, v) => setTitle(v ?? '')} />
       <TextField label="Popis" multiline rows={4} value={description} onChange={(_, v) => setDescription(v ?? '')} />
@@ -270,7 +297,7 @@ export const JobDialog: React.FC<{
           }}
           styles={{ root: { flex: '1 1 240px' } }}
         />
-        <Dropdown label="Zařízení" required selectedKey={deviceNumber || undefined} placeholder="Vyberte zařízení" disabled={!!job} options={siteDevices.map((d) => ({ key: d.number, text: `${d.number} ${d.name}` }))} onChange={(_, o) => o && setDeviceNumber(String(o.key))} styles={{ root: { flex: '1 1 240px' } }} />
+        <Dropdown label="Soubor" required selectedKey={deviceNumber || undefined} placeholder="Vyberte soubor" disabled={!!job} options={siteDevices.map((d) => ({ key: d.number, text: `${d.number} ${d.name}` }))} onChange={(_, o) => o && setDeviceNumber(String(o.key))} styles={{ root: { flex: '1 1 240px' } }} />
       </div>
       <TextField label="Název" required value={title} onChange={(_, v) => setTitle(v ?? '')} />
       <TextField label="Zadání práce pro dodavatele" multiline rows={4} value={description} onChange={(_, v) => setDescription(v ?? '')} />

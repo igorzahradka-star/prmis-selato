@@ -18,7 +18,7 @@
  * Verze schématu. Ukládá se do PRM_Settings pod klíčem `schemaVersion`.
  * Průvodce porovná uloženou verzi s touto a nabídne doplnění rozdílu.
  */
-export const SCHEMA_VERSION = 25;
+export const SCHEMA_VERSION = 26;
 
 /** Typ sloupce v SharePointu. */
 export type FieldType =
@@ -707,6 +707,8 @@ const PRM_SERVICE_SITES: ListDef = {
     { name: 'CustomerId', title: 'Zákazník (ID partnera)', type: 'Number', decimals: 0 },
     { name: 'CustomerName', title: 'Zákazník', type: 'Text' },
     { name: 'Address', title: 'Adresa', type: 'Note' },
+    { name: 'Latitude', title: 'Zeměpisná šířka', type: 'Number', decimals: 6, description: 'Poloha lokality na mapě Servisu.' },
+    { name: 'Longitude', title: 'Zeměpisná délka', type: 'Number', decimals: 6, description: 'Poloha lokality na mapě Servisu.' },
     { name: 'Contact', title: 'Kontakt na lokalitě', type: 'Note' },
     { name: 'Note', title: 'Poznámka', type: 'Note' },
     { name: 'FolderUrl', title: 'Složka lokality', type: 'Text' },
@@ -725,6 +727,8 @@ const PRM_SERVICE_DEVICES: ListDef = {
     { name: 'DeviceNumber', title: 'Číslo zařízení', type: 'Text', required: true, indexed: true },
     { name: 'SiteNumber', title: 'Číslo lokality', type: 'Text', required: true, indexed: true },
     { name: 'DeviceKind', title: 'Druh zařízení', type: 'Choice', choices: ['FVE', 'BESS', 'MVE', 'Kogenerace', 'Jiné'], defaultValue: 'FVE' },
+    { name: 'Latitude', title: 'Zeměpisná šířka', type: 'Number', decimals: 6, description: 'Poloha souboru na mapě Servisu; bez ní platí poloha lokality.' },
+    { name: 'Longitude', title: 'Zeměpisná délka', type: 'Number', decimals: 6, description: 'Poloha souboru na mapě Servisu; bez ní platí poloha lokality.' },
     { name: 'CustomerName', title: 'Zákazník', type: 'Text' },
     { name: 'ContractFrom', title: 'Smlouva od', type: 'DateTime' },
     { name: 'ContractTo', title: 'Smlouva do', type: 'DateTime' },

@@ -156,7 +156,7 @@ export const JobPanel: React.FC<{
           <JobStatusBadge status={job.status} />
           {isJobOverdue(job) && <span style={{ color: RES.red, fontSize: 12 }}>po plánovaném termínu</span>}
         </div>
-        <Fact label="Lokalita / zařízení">
+        <Fact label="Lokalita / soubor">
           {site ? `${site.number} ${site.name}` : job.siteNumber} · {device ? `${device.number} ${device.name}` : job.deviceNumber}{' '}
           <Link href={`#/projekt/${job.deviceNumber}`}>servisní projekt</Link>
         </Fact>
@@ -224,8 +224,8 @@ export const JobPanel: React.FC<{
             title: dlg === 'order' ? 'Objednávka dodavateli' : 'Podklad pro fakturaci',
             subText:
               dlg === 'order'
-                ? 'Vystavte objednávku na servisní projekt zařízení a navažte ji na servisní list. Dodavatel musí být vybraný v servisním listu.'
-                : 'Založte podklad pro fakturaci zákazníkovi (lokalitě) na servisní projekt zařízení a navažte ho na servisní list.'
+                ? 'Vystavte objednávku na servisní projekt souboru a navažte ji na servisní list. Dodavatel musí být vybraný v servisním listu.'
+                : 'Založte podklad pro fakturaci zákazníkovi (lokalitě) na servisní projekt souboru a navažte ho na servisní list.'
           }}
           modalProps={{ isBlocking: true }}
           minWidth={600}

@@ -5,6 +5,13 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.47.0 — 15. 10. 2026 — Servis: soubory a mapa (etapa 1 podle `docs/SERVIS_NAVRH.md`)
+
+- „Zařízení“ se v celém Servisu jmenuje **soubor** (FVE, BESS…). Technické názvy sloupců v seznamech zůstávají.
+- **GPS poloha** lokality (Adresa → „Najít na mapě“) a volitelně i souboru; soubor bez vlastní polohy leží na poloze lokality.
+- Nová záložka **Mapa** na stránce Servis: lokality jako špendlíky, po oddálení se slučují, **přiblížením se skupina rozdělí** a u lokality se ukážou soubory. Barva podle stavu (zelená v pořádku, oranžová otevřený požadavek nebo končící smlouva, červená list po termínu). Kliknutí na bod ukáže kartu s tlačítky Nový požadavek / Upravit.
+- **Schéma 26** (sloupce Latitude a Longitude u lokalit a souborů) — po nahrání spustit Instalaci.
+
 ## 0.46.0 — 15. 10. 2026 — Zobrazit jako (zkoušení rolí)
 
 - V záhlaví výběr **Zobrazit jako…** (jen pro administrátora): aplikace se chová, jako byste měl zvolenou roli (nabídka, tlačítka, pravidla). Nahoře svítí pruh s odkazem **Vrátit se k administrátorovi**; po obnovení stránky se vracíte automaticky.
