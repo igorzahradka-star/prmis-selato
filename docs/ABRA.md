@@ -196,3 +196,8 @@ Web PRM: `https://revoltum.sharepoint.com/sites/RevoltumEngineeringServices`. Ap
    `Connect-PnPOnline https://revoltum-admin.sharepoint.com -Interactive` a pak
    `Grant-PnPAzureADAppSitePermission -AppId <ID aplikace> -DisplayName "PRM Abra – stahování" -Site https://revoltum.sharepoint.com/sites/RevoltumEngineeringServices -Permissions Write`.
 4. **Přihlašovací údaj aplikace:** *Certifikáty a tajné klíče → Nový tajný klíč klienta* (platnost 12–24 měsíců). **Hodnotu klíče vidět jen jednou — uložit ji jen do prostředníka** (proměnná prostředí / šifrovaný soubor na počítači, kde aplikace poběží), nikdy do chatu, kódu ani repozitáře. Lepší je certifikát (doplníme později).
+
+### Registrace aplikace hotová (14. 10. 2026)
+„PRM Abra – stahování“ (jen tento tenant). Identifikátory (nejsou tajné, jsou i v `integrations/abra-sync/src/sharepoint.js`): ID aplikace `b259e855-edcd-4d09-a0a3-d4c1e7c1e544`,
+ID objektu `48930735-90ac-4fef-a5c5-106ed922e430`, ID adresáře `8579e1d3-b836-4335-af18-ce92b06f0620`. Zbývá: oprávnění `Sites.Selected` + souhlas správce, přidělení práva Write webu PRM, tajný klíč (jen do prostředníka).
+Kód: `src/sharepoint.js` (Graph klient: přihlášení klíčem aplikace, čtení a zápis položek; **zapisovat lze jen do `PRM_AbraDocs` a `PRM_AbraSync`**, žádné mazání) + testy s falešným Graphem.
