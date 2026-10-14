@@ -187,3 +187,12 @@ Přihlášení uživatelem s povoleným API vrací **200**. Důležité: **adres
 - Součty se od ručního exportu z 13. 10. liší **jen kvůli změnám dat v Abře** (např. vydaná faktura VF1-0004/2026 byla přeřazena na zakázku 26005, takže 26001 má výnos 197 100,00 a 26005 3 795 958,24 Kč); logika mapování zůstala stejná.
 - **Typy faktur potvrzeny:** `typDoklK` = `typDokladu.faktura` | `typDokladu.dobropis` (Opravný daňový doklad) | `typDokladu.zalohFaktura` (Zálohová faktura) | `typDokladu.zdd` (Zálohový daňový doklad).
   Zálohy jsou tedy doklady v `faktura-prijata` / `faktura-vydana` s těmito typy (`DocType` = `zaloha-prijata` / `zaloha-vydana`); `buildTypeIndex` + `mapFlexiDoc` je rozpoznají podle evidencí `typ-faktury-prijate/-vydane`, dobropisy podle typu (ne podle názvu). Zkušební běh je stahuje zvlášť; do součtů se nepočítají.
+
+### Zápis do SharePointu — návod pro správce (varianta „samostatná aplikace“, 14. 10. 2026)
+Web PRM: `https://revoltum.sharepoint.com/sites/RevoltumEngineeringServices`. Aplikace se k SharePointu přihlásí **vlastní identitou (registrace aplikace v Entra ID)** s právem **Sites.Selected** — smí jen na web PRM, nic jiného ve firmě nevidí. Aplikace smí zapisovat **jen do seznamů `PRM_AbraDocs` a `PRM_AbraSync`** (hlídá to kód).
+1. **Registrace:** https://entra.microsoft.com → *Identita → Aplikace → Registrace aplikací → Nová registrace*; název „PRM Abra – stahování“, *Pouze tento adresář*, bez Redirect URI. Opsat **ID aplikace (klient)** a **ID adresáře (tenant)** (nejsou tajné).
+2. **Oprávnění:** *Oprávnění rozhraní API → Přidat → Microsoft Graph → Oprávnění aplikace → `Sites.Selected`* → **Udělit souhlas správce** (vyžaduje roli Globální správce nebo Správce privilegovaných rolí).
+3. **Přidělit přístup jen k webu PRM** (PnP PowerShell, jako správce SharePointu):
+   `Connect-PnPOnline https://revoltum-admin.sharepoint.com -Interactive` a pak
+   `Grant-PnPAzureADAppSitePermission -AppId <ID aplikace> -DisplayName "PRM Abra – stahování" -Site https://revoltum.sharepoint.com/sites/RevoltumEngineeringServices -Permissions Write`.
+4. **Přihlašovací údaj aplikace:** *Certifikáty a tajné klíče → Nový tajný klíč klienta* (platnost 12–24 měsíců). **Hodnotu klíče vidět jen jednou — uložit ji jen do prostředníka** (proměnná prostředí / šifrovaný soubor na počítači, kde aplikace poběží), nikdy do chatu, kódu ani repozitáře. Lepší je certifikát (doplníme později).
