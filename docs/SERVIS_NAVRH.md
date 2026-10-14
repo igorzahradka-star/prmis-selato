@@ -15,6 +15,7 @@ Vychází ze studie „REVOLTUM – zadání: návrh servisní O&M aplikace“ a
 - Role: **Dispečer** (zadává, objednává), **Správce servisu** (administrativní: faktury, kontrola, správa lokalit). Dnes jedna osoba, role zůstávají oddělené.
 - Limity objednávání se **nastavují v Nastavení**, hodnoty doplní Igor později.
 - Fotky z aplikace se **zmenšují při ukládání** (celá aplikace, projekty i servis).
+- **Mapa Servisu** (doplněno 15. 10.): lokality jako body na mapě; při přiblížení se rozdělí skupiny a ukážou se konkrétní soubory lokality.
 
 ---
 
@@ -37,8 +38,8 @@ Stávající seznamy zůstávají (`PRM_ServiceSites`, `PRM_ServiceDevices` → 
 
 | Seznam | Účel | Nové / klíčové sloupce |
 |---|---|---|
-| PRM_ServiceSites | lokalita | **Customer** (interní zákazník, vazba na partnera), adresa, kontakt na místě |
-| PRM_ServiceDevices | soubor | typ (FVE, BESS…), výkon, uvedení do provozu |
+| PRM_ServiceSites | lokalita | **GPS souřadnice** (zeměpisná šířka a délka), **Customer** (interní zákazník, vazba na partnera), adresa, kontakt na místě |
+| PRM_ServiceDevices | soubor | **GPS souřadnice** (jinak se použije poloha lokality), typ (FVE, BESS…), výkon, uvedení do provozu |
 | **PRM_ServiceContracts** (nový) | smlouva lokality | lokalita, zákazník, platnost od–do, stav (Návrh / Podepsáno / Ukončena), **Checklist (JSON)**, odkaz na dokument, verze |
 | **PRM_ServiceRates** (nový) | sazby z checklistu | smlouva, kategorie činnosti, jednotka (hod., výjezd, paušál/rok), cena, platnost od–do (historie = nové řádky, staré se nepřepisují) |
 | **PRM_ServicePlans** (nový) | plán údržby | lokalita nebo soubor, činnost, četnost, příští termín, v paušálu |
@@ -62,6 +63,7 @@ Dodavatel je mimo tuto matici (portál). Vedení schvaluje objednávky nad limit
 
 ## 5. Obrazovky
 - **Servis – přehled:** dlaždice (nové požadavky, po termínu, ke kontrole, k fakturaci, smlouvy končí, **SLA po lhůtě**).
+- **Mapa Servisu:** vedle záložek Požadavky / Listy / Lokality přibude záložka **Mapa**. Body = lokality, barva podle stavu (v pořádku, otevřený požadavek, list po termínu, smlouva končí). Při oddálení se blízké lokality sloučí do skupiny s počtem; **přiblížením se skupina rozdělí**, a po dostatečném přiblížení se u lokality ukážou body jednotlivých **souborů** (FVE, BESS…). Kliknutí na bod otevře lokalitu nebo soubor (otevřené požadavky, listy, kontakt). Souřadnice se zadávají výběrem na mapě (jako u projektů). Využije se stávající mapa projektů (Leaflet, shlukování bodů); servisní data zůstávají oddělená od mapy projektů.
 - **Požadavky**, **Servisní listy**, **Lokality a soubory** (stávající, doplněné o stav smlouvy).
 - **Detail lokality:** soubory, smlouva a checklist, plán údržby, historie zásahů, složky.
 - **Checklist smlouvy:** formulář podle prvního návrhu smlouvy; tlačítko „Vytvořit návrh smlouvy (Word)“.
@@ -90,7 +92,8 @@ Změna se ukládá s datem a autorem (verzování seznamu nastavení + audit); s
 - sjednocení pojmů (soubor), složky lokality a souboru tlačítkem, doplnění stávajícího toku o druh listu (plánovaná / nahodilá), druh dokladu a časy pro SLA,
 - checklist a smlouva (návrh Word) včetně sazeb s historií,
 - portál dodavatele: e-mail, potvrzení přijetí, doložení provedení, hotovo,
-- přehled s indikací SLA, zmenšování fotek.
+- přehled s indikací SLA, zmenšování fotek,
+- **mapa lokalit a souborů** (základní: body, shlukování, přiblížení na soubory, odkaz do detailu; stavové barvy přijdou s hotovým tokem).
 
 **2. etapa:** plán údržby s kalendářem a automatickými požadavky, paušál v cash flow, ekonomické přehledy (marže servisu, SLA reporty), párování přijatých faktur s Abrou podle listu, přidělení technika, import stávajících lokalit.
 
@@ -100,4 +103,4 @@ Změna se ukládá s datem a autorem (verzování seznamu nastavení + audit); s
 **Otevřeno:** 1) první návrh smlouvy od Igora (z něj checklist); 2) volba hostingu portálu; 3) limity objednávání; 4) kdo je interní zákazník u první lokality (Mastířovice); 5) text smlouvy za Revoltum Engineering & Services (právní znění připraví Igor / právník); 6) velikost fotek.
 
 ## 10. Co z existující aplikace se využije
-Servis (0.45.1): lokality, soubory, požadavky, listy a jejich tok, číslování (SPO, SL), skryté servisní projekty, role, e-maily, přehled. K tomu: objednávky a schvalování, podklady k fakturaci, Data z účetnictví (Abra), modul fotek, zakládání složek, Nastavení, audit, upozornění a „Zobrazit jako“. Z nového vývoje je největší **portál dodavatele** a **checklist se smlouvou**.
+Servis (0.45.1): lokality, soubory, požadavky, listy a jejich tok, číslování (SPO, SL), skryté servisní projekty, role, e-maily, přehled. K tomu: objednávky a schvalování, podklady k fakturaci, Data z účetnictví (Abra), modul fotek, zakládání složek, Nastavení, audit, upozornění a „Zobrazit jako“. Mapu postavím na stávajícím modulu mapy projektů (`features/map/*`, `core/geo.ts`: shlukování, výběr polohy). Z nového vývoje je největší **portál dodavatele** a **checklist se smlouvou**.
