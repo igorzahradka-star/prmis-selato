@@ -3,7 +3,7 @@
  * Přihlašovací údaje se předávají jen jako parametr za běhu; nikde se neukládají ani nevypisují.
  */
 
-export const DEFAULT_BASE = 'https://revoltum.flexibee.eu/flexi/revoltum_engineering___services_s_r_o_/';
+export const DEFAULT_BASE = 'https://revoltum.flexibee.eu/c/revoltum_engineering___services_s_r_o_/';
 
 /** Povolený server: přihlašovací údaje se nikdy nepošlou nikam jinam než na *.flexibee.eu přes https. */
 export function assertAllowedBase(base) {
