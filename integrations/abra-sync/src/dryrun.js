@@ -12,6 +12,8 @@ import { ask, askHidden } from './credentials.js';
 import { DEFAULT_BASE, assertAllowedBase, buildUrl, basicAuth, flexiGet } from './flexiClient.js';
 import { DEFAULT_SINCE } from './config.js';
 import { JOURNAL_EVIDENCE, mapJournalBatch } from './journalMapping.js';
+import { buildTypeIndex, mapBatch } from './mapping.js';
+import { EVIDENCES, FIELDS } from './config.js';
 import { buildMessage, planSync } from './plan.js';
 
 export const JOURNAL_FIELDS = ['idUcetniDenik', 'doklad', 'modul', 'datUcto', 'datVyst', 'datSplat', 'mdUcet', 'dalUcet', 'sumTuz', 'sumMen', 'mena', 'zakazka', 'popis', 'nazFirmy', 'firma'];
@@ -39,6 +41,23 @@ console.log(`Staženo zápisů deníku: ${records.length}`);
 
 const syncedAt = new Date().toISOString();
 const mapped = mapJournalBatch(records, { syncedAt });
+
+// Zálohové doklady (jen zobrazení, nezapočítávají se): jsou to faktury přijaté/vydané s typem dokladu „záloha“ (typDokladu.zalohFaktura / zdd).
+const invoiceFields = ['id', 'kod', 'firma', 'popis', 'datVyst', 'datSplat', 'mena', 'sumZklCelkem', 'sumZklCelkemMen', 'zakazka', 'typDokl'];
+for (const { evidence, docType } of EVIDENCES) {
+  const typeEvidence = `typ-faktury-${docType === 'prijata' ? 'prijate' : 'vydane'}`;
+  const types = await flexiGet(buildUrl(base, `${typeEvidence}.json`, { limit: 0, detail: 'custom:kod,typDoklK' }), auth);
+  const invoices = await flexiGet(buildUrl(base, `${evidence}/(datVyst gte '${since}').json`, { limit: 0, detail: `custom:${invoiceFields.join(',')}` }), auth);
+  if (!types.ok || !invoices.ok) {
+    console.log(`Zálohy ${evidence}: nepodařilo se stáhnout (typy ${types.status}, doklady ${invoices.status})`);
+    continue;
+  }
+  const typeIndex = buildTypeIndex(types.body.winstrom[typeEvidence] ?? []);
+  const docs = invoices.body.winstrom[evidence] ?? [];
+  const advance = mapBatch(docs.filter((d) => typeIndex.get(String(d[FIELDS.docKind] ?? '').replace(/^code:/, '')) === 'zaloha'), { evidence, docType, syncedAt, typeIndex });
+  console.log(`Zálohy ${evidence}: dokladů celkem ${docs.length}, zálohových se zakázkou ${advance.rows.length}`);
+  mapped.rows.push(...advance.rows);
+}
 const plan = planSync([], mapped.rows, { since });
 console.log(`Řádků pro PRMIS: ${mapped.rows.length}`);
 console.log(`Zpráva do PRM_AbraSync by byla: ${buildMessage(plan, mapped)}`);
@@ -46,6 +65,9 @@ console.log(`Zpráva do PRM_AbraSync by byla: ${buildMessage(plan, mapped)}`);
 const totals = {};
 for (const r of mapped.rows) {
   const t = (totals[r.ProjectNumber] ??= { naklad: 0, vynos: 0, rows: 0 });
+  if (r.DocType.indexOf('zaloha') === 0) {
+    continue; // zálohy se do součtů nepočítají
+  }
   t[r.DocType === 'prijata' ? 'naklad' : 'vynos'] += r.AmountNetCzk ?? r.AmountNet;
   t.rows += 1;
 }

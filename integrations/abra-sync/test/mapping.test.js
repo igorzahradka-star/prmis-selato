@@ -1,7 +1,7 @@
 // Testy na VYMYŠLENÝCH ukázkách (tvar odpovědi Flexi je odhad podle dokumentace, ne výpis z instance Revoltum).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { allocateProportionally, mapFlexiDoc, mapBatch, refCode, toIsoDate, toNumber } from '../src/mapping.js';
+import { buildTypeIndex, allocateProportionally, mapFlexiDoc, mapBatch, refCode, toIsoDate, toNumber } from '../src/mapping.js';
 import { planSync, buildMessage } from '../src/plan.js';
 
 const SYNCED = '2026-10-14T05:00:00.000Z';
@@ -169,4 +169,25 @@ test('planSync: změna AmountNetCzk je změna řádku', () => {
   const cur = { spId: 1, ...row, AmountNetCzk: 25000 };
   assert.equal(planSync([cur], [row], { since: '2026-01-01' }).update.length, 1);
   assert.equal(planSync([{ spId: 1, ...row }], [row], { since: '2026-01-01' }).unchanged, 1);
+});
+
+const typeIndex = buildTypeIndex([
+  { kod: 'PFT', typDoklK: 'typDokladu.faktura' },
+  { kod: 'DOBROPIS', typDoklK: 'typDokladu.dobropis' },
+  { kod: 'ZÁLOHA', typDoklK: 'typDokladu.zalohFaktura' },
+  { kod: 'ZDD', typDoklK: 'typDokladu.zdd' }
+]);
+
+test('zálohová faktura i zálohový daňový doklad dostanou druh zaloha-*, kladně', () => {
+  for (const code of ['ZÁLOHA', 'ZDD']) {
+    const r = mapFlexiDoc(base({ typDokl: 'code:' + code }), { ...opts, typeIndex });
+    assert.equal(r.row.DocType, 'zaloha-prijata');
+    assert.equal(r.row.AmountNet, 125000);
+  }
+  assert.equal(mapFlexiDoc(base({ typDokl: 'code:ZÁLOHA' }), { ...opts, docType: 'vydana', typeIndex }).row.DocType, 'zaloha-vydana');
+});
+
+test('dobropis se pozná podle indexu typů i bez slova „dobropis“ v kódu', () => {
+  const idx = buildTypeIndex([{ kod: 'OPRAVA', typDoklK: 'typDokladu.dobropis' }]);
+  assert.equal(mapFlexiDoc(base({ typDokl: 'code:OPRAVA', sumZklCelkem: '300' }), { ...opts, typeIndex: idx }).row.AmountNet, -300);
 });

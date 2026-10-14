@@ -59,16 +59,38 @@ function round2(n) {
   return Math.round((n + Number.EPSILON) * 100) / 100;
 }
 
-export function isCreditNote(record) {
-  const kind = `${refCode(record[FIELDS.docKind])} ${record[`${FIELDS.docKind}@showAs`] ?? ''}`;
-  return CREDIT_NOTE_PATTERN.test(kind);
+/**
+ * Index typů faktur z evidencí typ-faktury-prijate / typ-faktury-vydane: kód typu -> 'faktura' | 'dobropis' | 'zaloha'.
+ * Potvrzeno z výpisu: typDoklK = typDokladu.faktura | typDokladu.dobropis | typDokladu.zalohFaktura | typDokladu.zdd (zálohový daňový doklad).
+ */
+export function buildTypeIndex(typeRecords) {
+  const index = new Map();
+  for (const t of typeRecords) {
+    const k = refCode(t.typDoklK);
+    index.set(refCode(t.kod), k === 'typDokladu.dobropis' ? 'dobropis' : k === 'typDokladu.zalohFaktura' || k === 'typDokladu.zdd' ? 'zaloha' : 'faktura');
+  }
+  return index;
+}
+
+/** 'faktura' | 'dobropis' | 'zaloha' — podle indexu typů; bez indexu se dobropis hádá z názvu typu. */
+export function invoiceKind(record, typeIndex) {
+  const code = refCode(record[FIELDS.docKind]);
+  if (typeIndex && typeIndex.has(code)) {
+    return typeIndex.get(code);
+  }
+  const kind = `${code} ${record[`${FIELDS.docKind}@showAs`] ?? ''}`;
+  return CREDIT_NOTE_PATTERN.test(kind) ? 'dobropis' : 'faktura';
+}
+
+export function isCreditNote(record, typeIndex) {
+  return invoiceKind(record, typeIndex) === 'dobropis';
 }
 
 /**
  * Převede jeden doklad.
  *
  * @param {object} record  doklad z Flexi (JSON)
- * @param {{evidence:string, docType:string, accounts?:string[], syncedAt:string}} options
+ * @param {{evidence:string, docType:string, accounts?:string[], syncedAt:string, typeIndex?:Map<string,string>}} options
  * @returns {{ok:true,row:object}|{ok:false,reason:'bez-zakazky'|'zakazka-neodpovida'|'bez-id'|'bez-castky',detail?:string}}
  */
 export function mapFlexiDoc(record, options) {
@@ -91,7 +113,9 @@ export function mapFlexiDoc(record, options) {
   if (rawAmount === undefined) {
     return { ok: false, reason: 'bez-castky', detail: id };
   }
-  const credit = isCreditNote(record);
+  const kindOfInvoice = invoiceKind(record, options.typeIndex);
+  const credit = kindOfInvoice === 'dobropis';
+  const docType = kindOfInvoice === 'zaloha' ? (options.docType === 'vydana' || options.docType === 'zaloha-vydana' ? 'zaloha-vydana' : 'zaloha-prijata') : options.docType;
   const sign = (n) => (credit ? -Math.abs(n) : n);
   const amount = sign(round2(rawAmount));
   // Cizí měna (EUR/USD): přenáší se i částka v Kč, jak ji zaúčtovala Abra (kurz dne zaúčtování) — žádný vlastní přepočet.
@@ -106,7 +130,7 @@ export function mapFlexiDoc(record, options) {
     row: {
       Title: refCode(record[FIELDS.code]) || id,
       AbraId: `${options.evidence}:${id}`,
-      DocType: options.docType,
+      DocType: docType,
       ProjectNumber: project,
       Partner: refLabel(record, FIELDS.partner),
       Description: [baseDescription, convertedNote].filter((t) => t !== '').join(' '),
@@ -124,7 +148,7 @@ export function mapFlexiDoc(record, options) {
 /**
  * Převede dávku dokladů jedné evidence a spočítá, co se přeskočilo (pro zprávu do PRM_AbraSync).
  * @param {object[]} records
- * @param {{evidence:string,docType:string,syncedAt:string,accountsById?:Record<string,string[]>}} options
+ * @param {{evidence:string,docType:string,syncedAt:string,typeIndex?:Map<string,string>,accountsById?:Record<string,string[]>}} options
  */
 export function mapBatch(records, options) {
   const rows = [];
