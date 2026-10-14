@@ -8,49 +8,8 @@
 
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { createInterface } from 'node:readline';
+import { ask, askHidden } from './credentials.js';
 import { DEFAULT_BASE, assertAllowedBase, buildUrl, basicAuth, flexiGet, pickCandidateEvidences } from './flexiClient.js';
-
-function ask(question) {
-  const rl = createInterface({ input: process.stdin, output: process.stdout });
-  return new Promise((resolve) => rl.question(question, (a) => { rl.close(); resolve(a.trim()); }));
-}
-
-/** Načte heslo bez zobrazování znaků. */
-function askHidden(question) {
-  return new Promise((resolve) => {
-    process.stdout.write(question);
-    const stdin = process.stdin;
-    if (!stdin.isTTY) {
-      throw new Error('Heslo se zadává jen z klávesnice v okně příkazové řádky.');
-    }
-    stdin.setRawMode(true);
-    stdin.resume();
-    stdin.setEncoding('utf8');
-    let value = '';
-    const onData = (ch) => {
-      for (const c of ch) {
-        if (c === '\r' || c === '\n' || c === '\u0004') {
-          stdin.setRawMode(false);
-          stdin.pause();
-          stdin.removeListener('data', onData);
-          process.stdout.write('\n');
-          resolve(value);
-          return;
-        }
-        if (c === '\u0003') {
-          process.exit(1);
-        }
-        if (c === '\u007f' || c === '\b') {
-          value = value.slice(0, -1);
-        } else {
-          value += c;
-        }
-      }
-    };
-    stdin.on('data', onData);
-  });
-}
 
 const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
 const outDir = join(process.cwd(), 'vystupy', stamp);
@@ -91,6 +50,8 @@ await fetchAndSave('faktura-prijata-vlastnosti', base, 'faktura-prijata/properti
 await fetchAndSave('ucetni-denik-3', base, 'ucetni-denik.json', { limit: 3, detail: 'full' }, auth);
 await fetchAndSave('ucetni-denik-vlastnosti', base, 'ucetni-denik/properties.json', {}, auth);
 await fetchAndSave('zakazka-3', base, 'zakazka.json', { limit: 3 }, auth);
+await fetchAndSave('typ-faktury-prijate', base, 'typ-faktury-prijate.json', { limit: 50, detail: 'custom:kod,nazev,typDoklK' }, auth);
+await fetchAndSave('typ-faktury-vydane', base, 'typ-faktury-vydane.json', { limit: 50, detail: 'custom:kod,nazev,typDoklK' }, auth);
 const list = await fetchAndSave('seznam-evidenci', base, 'evidence-list.json', {}, auth);
 
 if (list && list.ok && list.body) {

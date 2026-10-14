@@ -38,3 +38,8 @@ test('pickCandidateEvidences najde zálohy a deník podle názvu', () => {
   const list = { evidences: { evidence: [{ evidencePath: 'faktura-prijata' }, { evidencePath: 'zaloha-faktura-prijata' }, { evidencePath: 'ucetni-denik' }, { evidencePath: 'adresar' }] } };
   assert.deepEqual(pickCandidateEvidences(list).sort(), ['ucetni-denik', 'zaloha-faktura-prijata']);
 });
+
+test('buildUrl zvládne filtr ve Flexi (mezery a uvozovky v závorce)', () => {
+  const u = buildUrl(DEFAULT_BASE, "ucetni-denik/(datUcto gte '2026-01-01').json", { limit: 0 });
+  assert.match(u, /^https:\/\/revoltum\.flexibee\.eu\/c\/[^/]+\/ucetni-denik\/\(datUcto(%20| )gte(%20| )'?(%27)?2026-01-01'?(%27)?\)\.json\?limit=0$/);
+});

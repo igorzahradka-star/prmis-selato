@@ -174,3 +174,10 @@ Ruční export XML `ucetni-denik` (267 zápisů, jen u nás v `vystupy/`, mimo g
   Z 267 zápisů se přenáší 78 řádků; zbytek je banka, DPH, závazky a nenákladové účty.
 - **Bez zakázky** jsou u nákladových/výnosových účtů jen 2 zápisy (část PF0033 „práce na ostatních projektech“ 4 300 Kč a drobný interní zbytek 0,03 Kč) → souvisí s rozhodnutím o Režii (viz výše).
 - **Stále neznámé:** zálohy (v deníku se žádné zálohové zápisy nevyskytly — zachytí se, až nějaké budou; zatím žádný `DocType` zaloha-*), tvar JSON z API (kvůli licenci 402), zda API vrací `mdUcet`/`dalUcet` jako „code:…“.
+
+### API funguje (14. 10. 2026)
+Přihlášení uživatelem s povoleným API vrací **200**. Důležité: **adresa API je `https://revoltum.flexibee.eu/c/<firma>/…`** (ne `/flexi/…`, ta vracela 402/406). Z výpisů (`vystupy/2026-10-14T16-49-00/`):
+- `ucetni-denik.json` — tvar JSON potvrzen: `idUcetniDenik`, `doklad`, `modul` (FAP…), `datUcto`/`datVyst`/`datSplat` (`2026-06-24+02:00`), `mdUcet`/`dalUcet` (`code:518001`), `sumTuz`/`sumMen` (text), `mena` (`code:CZK`), `zakazka` (`code:26999`), `popis`, `nazFirmy`. Mapování v `journalMapping.js` s ním funguje beze změny.
+- Existují evidence: `faktura-prijata(-polozka)`, `faktura-vydana(-polozka)`, `typ-faktury-prijate/-vydane`, `ucetni-denik`, `predpis-zauctovani`, `zaloha-k-odpoctu` (jen jako relace — zálohy se odečítají z konečné faktury, `sumZalohy`), celkem 228 evidencí.
+  **Samostatná evidence zálohových faktur není**; zálohová faktura je nejspíš doklad v `faktura-prijata/-vydana` s jiným typem dokladu (`typDoklK` v `typ-faktury-…`). Ověří se výpisem `typ-faktury-prijate/-vydane` (sonda ho teď stahuje).
+- `src/dryrun.js` — zkušební běh jen pro čtení: stáhne deník od zvoleného data, převede na řádky, vypíše součty po projektech a uloží `radky.json` do `vystupy/`. Nic nezapisuje.
