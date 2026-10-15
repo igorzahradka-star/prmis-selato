@@ -6,6 +6,7 @@
 import { ServicePage } from '../../../features/service/ServicePage';
 import { ServiceMapPage } from '../../../features/service/ServiceMapPage';
 import { ServicePlansPage } from '../../../features/service/ServicePlansPage';
+import { ServiceContractsPage } from '../../../features/service/ServiceContractsPage';
 import { CatalogPage } from '../../../features/catalog/CatalogPage';
 import { ProfilePage } from '../../../features/profile/ProfilePage';
 import * as React from 'react';
@@ -188,6 +189,8 @@ function renderRoute(route: Route): React.ReactNode {
       return <ServiceMapPage />;
     case RouteName.ServicePlans:
       return <ServicePlansPage />;
+    case RouteName.ServiceContracts:
+      return <ServiceContractsPage />;
     case RouteName.Finance:
       return (
         <ComingSoonPage

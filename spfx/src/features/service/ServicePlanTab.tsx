@@ -28,6 +28,9 @@ import {
   planItemState,
   templateFromItems
 } from '../../core/servicePlan';
+import { cleanChecklist, evaluateChecklist, isEmptyChecklist } from '../../core/serviceCatalog';
+import { SERVICE_CATALOG as CATALOG } from '../../core/serviceCatalog.data';
+import { newPlanItemsOnly, planFromChecklist } from '../../core/servicePlanCatalog';
 import { PlanItemInput } from '../../data/repositories';
 import { DATE_INPUT, TD, TH, dateToInput, inputToDate } from './serviceUi';
 
@@ -55,6 +58,7 @@ export const ServicePlanTab: React.FC<{
   const [reloadKey, setReloadKey] = React.useState(0);
   const [editing, setEditing] = React.useState<{ item?: PlanItem } | undefined>(undefined);
   const [templateDlg, setTemplateDlg] = React.useState(false);
+  const [checklistDlg, setChecklistDlg] = React.useState(false);
   const [copyDlg, setCopyDlg] = React.useState(false);
   const [saveTplDlg, setSaveTplDlg] = React.useState(false);
   const isAdmin = canDeleteAnyInService(user.roles);
@@ -176,6 +180,7 @@ export const ServicePlanTab: React.FC<{
         />
         <span style={{ flex: '1 1 auto' }} />
         {mayManage && <PrimaryButton iconProps={{ iconName: 'Add' }} text="Přidat činnost" disabled={activeSites.length === 0} onClick={() => setEditing({})} />}
+        {mayManage && <PrimaryButton iconProps={{ iconName: 'CheckList' }} text="Plán ze checklistu…" title="Vytvoří roční plán lokality z jejího checklistu (činnosti katalogu O&M a jejich periody)" disabled={activeSites.length === 0} onClick={() => setChecklistDlg(true)} />}
         {mayManage && <DefaultButton iconProps={{ iconName: 'Library' }} text="Načíst ze šablony…" disabled={activeSites.length === 0} onClick={() => setTemplateDlg(true)} />}
         {mayManage && <DefaultButton iconProps={{ iconName: 'Copy' }} text="Kopírovat do dalšího roku…" disabled={shown.length === 0} onClick={() => setCopyDlg(true)} />}
         {isAdmin && <DefaultButton iconProps={{ iconName: 'SaveTemplate' }} text="Uložit jako šablonu…" disabled={shown.length === 0} onClick={() => setSaveTplDlg(true)} />}
@@ -260,6 +265,23 @@ export const ServicePlanTab: React.FC<{
             })
           }
           onCreateRequest={createRequest}
+        />
+      )}
+      {checklistDlg && (
+        <ChecklistPlanDialog
+          sites={activeSites}
+          devices={devices}
+          plan={plan || []}
+          year={year}
+          defaultSite={site}
+          onClose={() => setChecklistDlg(false)}
+          onApply={(items) =>
+            repos.service.createPlanItems(items, user).then((created) => {
+              setChecklistDlg(false);
+              setNotice(`Z checklistu se do plánu přidalo ${created.length} činností.`);
+              reload();
+            })
+          }
         />
       )}
       {templateDlg && (
@@ -435,6 +457,57 @@ const PlanItemDialog: React.FC<{
       )}
       <Dropdown label="Druh" disabled={!editable} selectedKey={kind} options={PLAN_JOB_KINDS.map((k) => ({ key: k, text: kindText(k) }))} onChange={(_, o) => o && setKind(String(o.key))} />
       <TextField label="Poznámka" disabled={!editable} multiline rows={2} value={note} onChange={(_, v) => setNote(v ?? '')} />
+    </DialogShell>
+  );
+};
+
+/** Roční plán lokality z jejího checklistu: činnosti z katalogu O&M podle příznaků, modulů a periody. Existující položky plánu se nemění ani nemažou. */
+const ChecklistPlanDialog: React.FC<{
+  sites: ServiceSite[];
+  devices: ServiceDevice[];
+  plan: PlanItem[];
+  year: number;
+  defaultSite: string;
+  onClose: () => void;
+  onApply: (items: PlanItemInput[]) => Promise<unknown>;
+}> = ({ sites, devices, plan, year, defaultSite, onClose, onApply }) => {
+  const [siteNumber, setSiteNumber] = React.useState(defaultSite || (sites[0] ? sites[0].number : ''));
+  const [startYear, setStartYear] = React.useState(year);
+  const { busy, error, run } = useAsync();
+  const site = sites.filter((s) => s.number === siteNumber)[0];
+  const siteDevices = devices.filter((d) => d.siteNumber === siteNumber && d.isActive);
+  const checklist = cleanChecklist(CATALOG, (site && site.checklist) || { flags: [], modules: [], disabled: [], enabled: [], periods: {} });
+  const items = evaluateChecklist(CATALOG, checklist, siteDevices.map((d) => d.kind));
+  const all = planFromChecklist(CATALOG, items, siteDevices, { siteNumber, year, startYear });
+  const fresh = newPlanItemsOnly(plan, all);
+  const monitoring = items.filter((i) => i.active).length - new Set(all.map((a) => a.title)).size;
+
+  return (
+    <DialogShell
+      title={`Plán lokality z checklistu na rok ${year}`}
+      subText="Z činností checklistu lokality (Servis → Lokality a soubory → Checklist) se do ročního plánu přidají ty, které mají pevnou periodu. Činnosti lokality jdou na lokalitu, činnosti zařízení na soubory jejich typu. Už existující položky plánu se nemění ani nemažou."
+      error={error}
+      busy={busy}
+      confirm={fresh.length > 0 ? `Přidat ${fresh.length} činností` : 'Není co přidat'}
+      onConfirm={() => {
+        if (fresh.length === 0) {
+          run(() => Promise.reject(new Error('Všechny činnosti z checklistu už v plánu jsou, nebo checklist žádné s pevnou periodou nemá.')));
+          return;
+        }
+        run(() => onApply(fresh));
+      }}
+      onClose={onClose}
+    >
+      <Dropdown label="Lokalita" selectedKey={siteNumber} options={sites.map((s) => ({ key: s.number, text: `${s.number} ${s.name}` }))} onChange={(_, o) => o && setSiteNumber(String(o.key))} />
+      <Dropdown label="První rok smlouvy (pro činnosti jednou za více let)" selectedKey={startYear} options={[year - 2, year - 1, year, year + 1].map((y) => ({ key: y, text: String(y) }))} onChange={(_, o) => o && setStartYear(Number(o.key))} styles={{ root: { width: 220 } }} />
+      {site && isEmptyChecklist(checklist) && <MessageBar messageBarType={MessageBarType.warning} isMultiline>Lokalita nemá vyplněný checklist (příznaky a moduly), nabídnou se jen činnosti základního servisu. Checklist upravíte v Servis → Lokality a soubory → Checklist.</MessageBar>}
+      {site && siteDevices.length === 0 && <MessageBar messageBarType={MessageBarType.info} isMultiline>Lokalita nemá žádný soubor — vzniknou jen činnosti lokality a vyvedení výkonu.</MessageBar>}
+      <div style={{ fontSize: 13, marginTop: 8 }}>
+        V checklistu je <strong>{items.filter((i) => i.active).length}</strong> činností; do plánu na rok {year} se jich podle period vytvoří <strong>{all.length}</strong> položek, z toho <strong>{fresh.length}</strong> nových ({all.length - fresh.length} už v plánu je).
+      </div>
+      <div style={{ fontSize: 12, color: RES.gray, marginTop: 4 }}>
+        Do plánu se nezařazují činnosti bez pevné periody (monitoring 24/7, denní a týdenní kontroly, sezónní a nárazové činnosti){monitoring > 0 ? ` — v tomto checklistu ${monitoring}` : ''}. Měsíce se rozkládají rovnoměrně; po vytvoření je lze v plánu upravit.
+      </div>
     </DialogShell>
   );
 };

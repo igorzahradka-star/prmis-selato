@@ -9,6 +9,7 @@
 
 import { JobStatus, RequestStatus, ServiceJob, ServiceRequest } from './serviceJobs';
 import { PlanTemplate, planTemplatesWithDefaults } from './servicePlan';
+import { ContractSettings, contractSettingsWithDefaults } from './serviceContractSettings';
 
 export interface SlaRule {
   /** Druh požadavku (Porucha, Preventivní prohlídka…); prázdné = všechny druhy. */
@@ -27,12 +28,15 @@ export interface ServiceSettings {
   folderRoot: string;
   /** Šablony ročního plánu servisu (FVE, BESS…) — načítají se do plánu lokality nebo souboru. */
   planTemplates: PlanTemplate[];
+  /** Údaje pro servisní smlouvy (zhotovitel, asset manager, výchozí parametry, sazebník, autorizace OEM…). */
+  contract: ContractSettings;
 }
 
 /** Výchozí lhůty — návrh, upřesní zadavatel v Nastavení → Servis. */
 export const DEFAULT_SERVICE_SETTINGS: ServiceSettings = {
   folderRoot: 'General/02_SERVIS',
   planTemplates: planTemplatesWithDefaults(undefined),
+  contract: contractSettingsWithDefaults(undefined),
   slaRules: [
     { priority: 'Havárie', reactionHours: 4, resolveHours: 24 },
     { priority: 'Vysoká', reactionHours: 8, resolveHours: 48 },
@@ -47,7 +51,8 @@ export function serviceSettingsWithDefaults(stored: Partial<ServiceSettings> | u
   return {
     slaRules: Array.isArray(stored?.slaRules) ? (stored?.slaRules as SlaRule[]) : DEFAULT_SERVICE_SETTINGS.slaRules.map((r) => ({ ...r })),
     folderRoot: stored?.folderRoot && stored.folderRoot.trim() !== '' ? stored.folderRoot.trim() : DEFAULT_SERVICE_SETTINGS.folderRoot,
-    planTemplates: planTemplatesWithDefaults(stored?.planTemplates)
+    planTemplates: planTemplatesWithDefaults(stored?.planTemplates),
+    contract: contractSettingsWithDefaults(stored?.contract)
   };
 }
 

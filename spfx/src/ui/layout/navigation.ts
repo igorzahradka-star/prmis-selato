@@ -29,6 +29,8 @@ export interface NavFlags {
   admin: boolean;
   /** Uživatel smí vidět modul Servis (správce, dispečer, vedení, administrátor). */
   service?: boolean;
+  /** Uživatel smí spravovat servisní smlouvy (správce servisu, vedení, administrátor) — obsahují ceny. */
+  contracts?: boolean;
   /** Uživatel je jen čtenář: omezená nabídka (viz `READER_ROUTES`). */
   reader?: boolean;
 }
@@ -95,6 +97,7 @@ export function buildNavigation(flags: NavFlags): NavEntry[] {
         children: [
           { route: RouteName.Service, label: 'Servis', icon: 'Repair' },
           { route: RouteName.ServicePlans, label: 'Servisní plány', icon: 'Calendar' },
+          ...(flags.contracts ? [{ route: RouteName.ServiceContracts, label: 'Správa smluv', icon: 'PageList' }] : []),
           { route: RouteName.ServiceMap, label: 'Mapa servisu', icon: 'MapPin' }
         ]
       }

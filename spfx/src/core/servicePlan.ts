@@ -4,6 +4,9 @@
  * Plán jde načíst ze **šablony** (FVE, BESS…), zkopírovat do dalšího roku a z položky plánu vytvořit servisní požadavek.
  */
 
+import { SERVICE_CATALOG } from './serviceCatalog.data';
+import { templatesFromCatalog } from './servicePlanCatalog';
+
 export const PLAN_JOB_KINDS = ['Plánovaná', 'Nahodilá'] as const;
 
 export const MONTH_NAMES = ['leden', 'únor', 'březen', 'duben', 'květen', 'červen', 'červenec', 'srpen', 'září', 'říjen', 'listopad', 'prosinec'];
@@ -47,41 +50,8 @@ export interface PlanTemplate {
   items: PlanTemplateItem[];
 }
 
-/** Výchozí šablony — návrh, který administrátor upraví v Nastavení → Servis. */
-export const DEFAULT_PLAN_TEMPLATES: PlanTemplate[] = [
-  {
-    name: 'Fotovoltaická elektrárna (FVE)',
-    kind: 'FVE',
-    items: [
-      { title: 'Roční prohlídka a kontrola FVE (panely, konstrukce, kabeláž)', month: 4, jobKind: 'Plánovaná' },
-      { title: 'Kontrola a servis střídačů', month: 5, jobKind: 'Plánovaná' },
-      { title: 'Termovizní kontrola panelů a rozvaděčů', month: 7, jobKind: 'Plánovaná' },
-      { title: 'Revize elektrického zařízení (výchozí a pravidelná)', month: 9, jobKind: 'Plánovaná' },
-      { title: 'Kontrola monitoringu a komunikace', month: 11, jobKind: 'Plánovaná' },
-      { title: 'Čištění panelů', month: 6, jobKind: 'Nahodilá' }
-    ]
-  },
-  {
-    name: 'Bateriové úložiště (BESS)',
-    kind: 'BESS',
-    items: [
-      { title: 'Roční prohlídka BESS (baterie, měniče, chlazení)', month: 3, jobKind: 'Plánovaná' },
-      { title: 'Kontrola stavu baterií a kapacity (SoH)', month: 6, jobKind: 'Plánovaná' },
-      { title: 'Revize elektrického zařízení a hasicího systému', month: 9, jobKind: 'Plánovaná' },
-      { title: 'Aktualizace řídicího SW a kontrola komunikace', month: 11, jobKind: 'Plánovaná' }
-    ]
-  },
-  {
-    name: 'Lokalita — společné činnosti',
-    kind: 'Lokalita',
-    items: [
-      { title: 'Kontrola EZS a CCTV', month: 3, jobKind: 'Plánovaná' },
-      { title: 'Údržba zeleně (sečení trávy) — jaro', month: 5, jobKind: 'Plánovaná' },
-      { title: 'Údržba zeleně (sečení trávy) — léto', month: 8, jobKind: 'Plánovaná' },
-      { title: 'Kontrola oplocení a přístupových cest', month: 10, jobKind: 'Plánovaná' }
-    ]
-  }
-];
+/** Výchozí šablony — základní servis podle katalogu O&M činností (`serviceCatalog.data.ts`); administrátor je upraví v Servis → Servisní plány → Šablony. Plán konkrétní lokality se lépe tvoří z jejího checklistu (`planFromChecklist`). */
+export const DEFAULT_PLAN_TEMPLATES: PlanTemplate[] = templatesFromCatalog(SERVICE_CATALOG);
 
 /** Doplní chybějící šablony výchozími (pokud nastavení šablony ještě nemá). */
 export function planTemplatesWithDefaults(stored: PlanTemplate[] | undefined): PlanTemplate[] {

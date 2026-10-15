@@ -1,4 +1,4 @@
-import { mapAresResponse } from './ares';
+import { capitalizeName, mapAresRegister, mapAresResponse } from './ares';
 
 describe('mapAresResponse', () => {
   it('namapuje název, adresu, DIČ a plátce DPH ze skutečné odpovědi ARES', () => {
@@ -34,5 +34,46 @@ describe('mapAresResponse', () => {
   it('chybějící název nahradí prázdným řetězcem, ne undefined', () => {
     const result = mapAresResponse({});
     expect(result.name).toBe('');
+  });
+});
+
+describe('mapAresRegister', () => {
+  const rec = {
+    zaznamy: [
+      {
+        primarniZaznam: true,
+        spisovaZnacka: [{ soud: 'KSHK', oddil: 'C', vlozka: 57052 }],
+        statutarniOrgany: [
+          {
+            zpusobJednani: [{ hodnota: 'Každý z jednatelů zastupuje samostatně.' }],
+            clenoveOrganu: [
+              { clenstvi: { funkce: { nazev: 'Jednatel' } }, fyzickaOsoba: { jmeno: 'BRONISLAV', prijmeni: 'PŘEVRÁTIL', titulPredJmenem: 'Ing.', titulZaJmenem: 'Ph.D.' } },
+              { clenstvi: { funkce: { nazev: 'Jednatel', zanikFunkce: '2025-01-01' } }, fyzickaOsoba: { jmeno: 'BYVALÝ', prijmeni: 'JEDNATEL' } },
+              { clenstvi: { funkce: { nazev: 'Jediný člen' } }, pravnickaOsoba: { obchodniJmeno: 'Holding a.s.' } }
+            ]
+          }
+        ]
+      }
+    ]
+  };
+
+  it('složí spisovou značku se soudem a jednatele s tituly', () => {
+    const r = mapAresRegister(rec);
+    expect(r.registration).toBe('C 57052 vedená u Krajského soudu v Hradci Králové');
+    expect(r.representatives).toEqual([
+      { name: 'Ing. Bronislav Převrátil, Ph.D.', role: 'Jednatel', isLegalEntity: false },
+      { name: 'Holding a.s.', role: 'Jediný člen', isLegalEntity: true }
+    ]);
+    expect(r.actingRule).toBe('Každý z jednatelů zastupuje samostatně.');
+  });
+
+  it('prázdná odpověď nebo neznámý soud nespadne', () => {
+    expect(mapAresRegister({})).toEqual({ representatives: [] });
+    expect(mapAresRegister({ zaznamy: [{ spisovaZnacka: [{ soud: 'XXXX', oddil: 'B', vlozka: 1 }] }] }).registration).toBe('B 1 vedená u XXXX');
+  });
+
+  it('velká písmena ve jménech se převedou, spojovník zůstane', () => {
+    expect(capitalizeName('JAN-KAREL')).toBe('Jan-Karel');
+    expect(capitalizeName('NOVÁKOVÁ')).toBe('Nováková');
   });
 });

@@ -5,6 +5,14 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.56.0 — 15. 10. 2026 — Správa smluv (údaje smluv), plán z checklistu, šablony z katalogu
+
+- V nabídce **Servis** nová položka **Správa smluv** (správce servisu, vedení, administrátor — smlouvy obsahují ceny). Záložky: Smlouvy se zákazníky a s dodavateli (zakládání smluv přijde v další etapě) a **Údaje smluv**: zhotovitel, asset manager, výchozí parametry smlouvy, sazebník, registr autorizací OEM, výchozí kontakty a eskalace. Ukládá administrátor; smlouva si z nich při založení vezme kopii.
+- **Načíst z ARES**: z obchodního rejstříku se podle IČO doplní spisová značka se soudem a osoby oprávněné jednat (jednatelé s tituly) a způsob jednání; podepisující osobu vyberete ze seznamu. Bankovní účet se zadává ručně.
+- Logika smlouvy (`core/serviceContract.ts`): číslo smlouvy = číslo lokality + pořadí (10500-01), verze a stavy (Návrh → K podpisu → Podepsaná → Nahrazená), přílohy ze souborů, tabulka SLA, sekce checklistu, kontroly s blokací (P1 ≤ 72 h, 10 let, autorizace OEM pro BESS), popis změn mezi verzemi.
+- **Servisní plány podle katalogu**: výchozí šablony se tvoří z katalogu O&M činností (základní servis FVE, BESS, MVE a společné činnosti lokality). V Roční plány nové tlačítko **Plán ze checklistu**: z činností checklistu lokality (příznaky, moduly, periody) vytvoří roční plán — periodické činnosti se rozloží do měsíců, činnosti lokality jdou na lokalitu, činnosti zařízení na soubory jejich typu; existující položky se nemění ani nemažou. Šablony uložené dřív zůstávají; tlačítko „Vrátit výchozí šablony z katalogu“ je nahradí.
+- Bez změny schématu (32).
+
 ## 0.55.0 — 15. 10. 2026 — Smlouvy, etapa A: katalog činností a checklist lokality
 
 - **Katalog O&M činností** (101 činností, verze 0.1 — návrh k odborné a právní revizi) je součástí aplikace. Výběr činností pro lokalitu je převod funkce `vyber_cinnosti` z referenčního generátoru smluv; testy ho porovnávají s nezávislým zápisem pravidel.

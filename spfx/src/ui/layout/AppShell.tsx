@@ -5,7 +5,7 @@
  * (Skutečnou ochranu dat ale dělá SharePoint, ne tahle komponenta.)
  */
 
-import { canViewService } from '../../core/service';
+import { canManageSites, canViewService } from '../../core/service';
 import { APP_VERSION } from '../../core/version';
 import * as React from 'react';
 import { Icon } from '@fluentui/react/lib/Icon';
@@ -120,6 +120,7 @@ function useNavEntries(): NavEntry[] {
     finance: canOpenFinance(user.roles, user.hasFinanceAccess && !!financeSiteUrl),
     admin: canOpenAdmin(user.roles),
     service: canViewService(user.roles),
+    contracts: canManageSites(user.roles),
     reader: isReaderOnly(user.roles)
   });
 }

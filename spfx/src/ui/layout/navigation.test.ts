@@ -65,6 +65,20 @@ describe('skupiny a zvýraznění', () => {
   });
 });
 
+describe('Správa smluv', () => {
+  it('je v nabídce Servis jen pro ty, kdo smějí spravovat smlouvy', () => {
+    const bez = flattenNavigation(buildNavigation({ ...nic, service: true })).map((i) => i.route);
+    const s = flattenNavigation(buildNavigation({ ...nic, service: true, contracts: true })).map((i) => i.route);
+    expect(bez).not.toContain(RouteName.ServiceContracts);
+    expect(s).toContain(RouteName.ServiceContracts);
+    expect(s.indexOf(RouteName.ServiceContracts)).toBeGreaterThan(s.indexOf(RouteName.ServicePlans));
+  });
+
+  it('čtenář Správu smluv neotevře', () => {
+    expect(isRouteAllowed(RouteName.ServiceContracts, true)).toBe(false);
+  });
+});
+
 describe('nabídka čtenáře', () => {
   it('čtenář vidí jen přehled projektů, mapu, kusovník, Čeká na mě, Partnery, Servis a Nápovědu', () => {
     const items = flattenNavigation(buildNavigation({ ...nic, service: true, reader: true })).map((i) => i.route);

@@ -47,6 +47,9 @@ export const PlanTemplatesPanel: React.FC = () => {
       <div style={{ fontSize: 13, color: RES.gray, marginBottom: 10 }}>
         Šablona je pojmenovaný seznam činností pro druh souboru (FVE, BESS…) nebo pro společné činnosti lokality. V ročním plánu ji tlačítkem <strong>Načíst ze šablony</strong> vložíte
         do lokality nebo souboru a dál upravíte. Činnost má měsíc (volitelně den) a druh: <strong>plánovaná</strong> je v paušálu, <strong>nahodilá</strong> mimo paušál.
+        <br />
+        Výchozí šablony vycházejí z <strong>katalogu O&amp;M činností</strong> (základní servis). Plán konkrétní lokality se přesněji tvoří tlačítkem <strong>Plán ze checklistu</strong> — podle příznaků, modulů a period
+        z checklistu lokality (Servis → Lokality a soubory → Checklist).
       </div>
       {error && (
         <MessageBar messageBarType={MessageBarType.error} isMultiline onDismiss={() => setError(undefined)}>
@@ -68,7 +71,7 @@ export const PlanTemplatesPanel: React.FC = () => {
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '8px 0' }}>
             <PrimaryButton text={saving ? 'Ukládám…' : 'Uložit šablony'} iconProps={{ iconName: 'Save' }} disabled={!changed || saving || problems.length > 0} onClick={save} />
             <DefaultButton text="Zahodit změny" disabled={!changed || saving} onClick={() => setDraft(saved)} />
-            <DefaultButton text="Vrátit výchozí šablony" title="Nahradí šablony výchozím návrhem (FVE, BESS, společné činnosti lokality); platí až po uložení" disabled={saving} onClick={() => setDraft(DEFAULT_PLAN_TEMPLATES.map((t) => ({ ...t, items: t.items.map((i) => ({ ...i })) })))} />
+            <DefaultButton text="Vrátit výchozí šablony z katalogu" title="Nahradí šablony výchozími z katalogu O&M činností (FVE, BESS, MVE, společné činnosti lokality); platí až po uložení" disabled={saving} onClick={() => setDraft(DEFAULT_PLAN_TEMPLATES.map((t) => ({ ...t, items: t.items.map((i) => ({ ...i })) })))} />
           </div>
           {problems.length > 0 && (
             <MessageBar messageBarType={MessageBarType.warning} isMultiline>
