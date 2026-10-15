@@ -47,6 +47,90 @@ export function addBaseLayers(L: LeafletLib, map: LeafletTypes.Map): void {
   });
 }
 
+/**
+ * Posouvání mapy tažením myší nebo prstem přes **pointer události** (s „zachycením“ ukazatele), místo staršího mechanismu Leafletu
+ * (mousedown/mousemove na dokumentu), který na některých počítačích — notebooky s dotykovou obrazovkou, SharePoint v režimu
+ * „celé okno“ — tažení nepřijímá. Kliknutí bez tažení zavolá `onTap` (přesun špendlíku); po tažení se následné kliknutí potlačí,
+ * aby se špendlík nepřesunul. Vrací funkci, která vlastní posouvání zase odpojí.
+ */
+export function enablePointerPan(map: LeafletTypes.Map, options: { onTap?: (latitude: number, longitude: number) => void } = {}): () => void {
+  const el = map.getContainer();
+  map.dragging.disable();
+  el.style.touchAction = 'none';
+  el.style.cursor = 'grab';
+  let gesture: { id: number; x: number; y: number; startX: number; startY: number; moved: boolean } | undefined;
+  let suppressClick = false;
+  const onControl = (t: EventTarget | null): boolean => {
+    const node = t as HTMLElement | null;
+    return !!(node && node.closest && node.closest('.leaflet-control, .leaflet-marker-icon, .leaflet-popup'));
+  };
+  const onDown = (e: PointerEvent): void => {
+    if (e.button !== 0 || !e.isPrimary || onControl(e.target)) {
+      return;
+    }
+    gesture = { id: e.pointerId, x: e.clientX, y: e.clientY, startX: e.clientX, startY: e.clientY, moved: false };
+    try {
+      el.setPointerCapture(e.pointerId);
+    } catch {
+      // Bez zachycení ukazatele se tažení mimo mapu nesleduje — posouvání dál funguje uvnitř mapy.
+    }
+  };
+  const onMove = (e: PointerEvent): void => {
+    if (!gesture || e.pointerId !== gesture.id) {
+      return;
+    }
+    if (!gesture.moved && Math.abs(e.clientX - gesture.startX) + Math.abs(e.clientY - gesture.startY) < 4) {
+      return;
+    }
+    gesture.moved = true;
+    el.style.cursor = 'grabbing';
+    map.panBy([gesture.x - e.clientX, gesture.y - e.clientY], { animate: false });
+    gesture.x = e.clientX;
+    gesture.y = e.clientY;
+  };
+  const onUp = (e: PointerEvent): void => {
+    if (!gesture || e.pointerId !== gesture.id) {
+      return;
+    }
+    const g = gesture;
+    gesture = undefined;
+    el.style.cursor = 'grab';
+    try {
+      el.releasePointerCapture(e.pointerId);
+    } catch {
+      // Ukazatel už byl uvolněn.
+    }
+    if (g.moved) {
+      suppressClick = true;
+      window.setTimeout(() => {
+        suppressClick = false;
+      }, 0);
+    } else if (options.onTap && e.type === 'pointerup') {
+      const rect = el.getBoundingClientRect();
+      const ll = map.containerPointToLatLng([e.clientX - rect.left, e.clientY - rect.top]);
+      options.onTap(ll.lat, ll.lng);
+    }
+  };
+  const onClick = (e: MouseEvent): void => {
+    if (suppressClick) {
+      e.stopImmediatePropagation();
+      e.preventDefault();
+    }
+  };
+  el.addEventListener('pointerdown', onDown);
+  el.addEventListener('pointermove', onMove);
+  el.addEventListener('pointerup', onUp);
+  el.addEventListener('pointercancel', onUp);
+  el.addEventListener('click', onClick, true);
+  return () => {
+    el.removeEventListener('pointerdown', onDown);
+    el.removeEventListener('pointermove', onMove);
+    el.removeEventListener('pointerup', onUp);
+    el.removeEventListener('pointercancel', onUp);
+    el.removeEventListener('click', onClick, true);
+  };
+}
+
 /** Střed a přiblížení, když ještě není žádný špendlík — Česko. */
 export const DEFAULT_CENTER: [number, number] = [49.8, 15.5];
 export const DEFAULT_ZOOM = 7;

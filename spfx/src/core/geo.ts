@@ -373,3 +373,38 @@ export function clusterListHtml(items: PinInfo[], links: boolean, hrefOf: (proje
     `</div>`
   );
 }
+
+/**
+ * Souřadnice z textu — např. zkopírované z Map Google nebo mapy.cz: „49.4063, 15.4333“, „49,4063; 15,4333“, „49.4063°N, 15.4333°E“,
+ * „49.4063 15.4333“. Jižní šířka (S, J) a západní délka (W, Z) dá zápornou hodnotu. Vrací `undefined`, když to nejsou dvě platná čísla.
+ */
+export function parseCoordinatePair(text: string): Coordinates | undefined {
+  // Písmeno světové strany se přilepí k číslu před ním („40.7 N 74.0 W“ → „40.7N 74.0W“).
+  const t = (text || '').replace(/[°º]/g, ' ').replace(/(\d)\s+([NSEWJZ])\b/gi, '$1$2').trim();
+  if (t === '') {
+    return undefined;
+  }
+  let parts: string[];
+  if (t.indexOf(';') !== -1) {
+    parts = t.split(';');
+  } else if (/,\s/.test(t) || ((t.match(/,/g) || []).length === 1 && t.indexOf('.') !== -1)) {
+    parts = t.split(',');
+  } else {
+    parts = t.split(/\s+/);
+  }
+  parts = parts.map((p) => p.trim()).filter((p) => p !== '');
+  if (parts.length !== 2) {
+    return undefined;
+  }
+  const num = (p: string): number | undefined => {
+    const m = p.match(/-?\d+(?:[.,]\d+)?/);
+    if (!m) {
+      return undefined;
+    }
+    const v = parseFloat(m[0].replace(',', '.'));
+    return /[SJWZ]/i.test(p.replace(m[0], '')) ? -Math.abs(v) : v;
+  };
+  const lat = num(parts[0]);
+  const lng = num(parts[1]);
+  return lat !== undefined && lng !== undefined && isValidCoordinates(lat, lng) ? { latitude: lat, longitude: lng } : undefined;
+}

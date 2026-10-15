@@ -9,6 +9,7 @@ import {
   deadlineSignal,
   escapeHtml,
   isValidCoordinates,
+  parseCoordinatePair,
   projectCoordinates,
   projectTypeLabel,
   splitByLocation,
@@ -406,5 +407,28 @@ describe('slučování špendlíků do skupin', () => {
     expect(html).toContain('…a dalších 1');
     expect(html).not.toContain('<b>Název</b>');
     expect(clusterListHtml(items, false, (n) => n)).not.toContain('href=');
+  });
+});
+
+describe('parseCoordinatePair', () => {
+  const ok = { latitude: 49.4063, longitude: 15.4333 };
+  it('rozumí běžným zápisům z map', () => {
+    expect(parseCoordinatePair('49.4063, 15.4333')).toEqual(ok);
+    expect(parseCoordinatePair('49,4063; 15,4333')).toEqual(ok);
+    expect(parseCoordinatePair('49.4063°N, 15.4333°E')).toEqual(ok);
+    expect(parseCoordinatePair('49.4063 15.4333')).toEqual(ok);
+    expect(parseCoordinatePair('49,4063 15,4333')).toEqual(ok);
+    expect(parseCoordinatePair('  49.4063,15.4333 ')).toEqual(ok);
+  });
+  it('jih a západ dají zápornou hodnotu', () => {
+    expect(parseCoordinatePair('33.9 S, 18.4 E')).toEqual({ latitude: -33.9, longitude: 18.4 });
+    expect(parseCoordinatePair('40.7 N 74.0 W')).toEqual({ latitude: 40.7, longitude: -74 });
+  });
+  it('nesmysly a mimo rozsah vrací undefined', () => {
+    expect(parseCoordinatePair('')).toBeUndefined();
+    expect(parseCoordinatePair('Praha')).toBeUndefined();
+    expect(parseCoordinatePair('49.4')).toBeUndefined();
+    expect(parseCoordinatePair('95.0, 15.0')).toBeUndefined();
+    expect(parseCoordinatePair('0, 0')).toBeUndefined();
   });
 });

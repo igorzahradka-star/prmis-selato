@@ -5,6 +5,14 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.54.0 — 15. 10. 2026 — Servisní plány v nabídce, úprava šablon, oprava posouvání mapy
+
+- V nabídce **Servis** nová položka **Servisní plány** — samostatná obrazovka se záložkami **Roční plány** (kalendář, dříve záložka Plán údržby na stránce Servis) a **Šablony**. Další záložky doplníme podle zadání.
+- **Šablony ročních plánů** se upravují přímo tam (záložka Šablony): název, druh souboru, činnosti s popisem, měsícem (volitelně dnem) a druhem (v paušálu / nahodilá); přidat a smazat šablonu nebo činnost, vrátit výchozí šablony. Ukládá je administrátor (jsou součástí nastavení aplikace), ostatní role je vidí. Z Nastavení → Servis se editor šablon přesunul sem.
+- **Mapy se posouvají tažením** (držet tlačítko myši a táhnout) přes vlastní obsluhu pointer událostí — oprava pro počítače s dotykovou obrazovkou a režim „celé okno“, kde původní posouvání nefungovalo (mapa projektů, výběr polohy u projektu, lokality a souboru, Mapa servisu). Kliknutí bez tažení přesune špendlík, po tažení se špendlík nepřesune.
+- **Ruční zadání souřadnic** pod mapou při výběru polohy (např. „49.4063, 15.4333“ z Map Google nebo mapy.cz; Enter).
+- Bez změny schématu (31).
+
 ## 0.53.0 — 15. 10. 2026 — Servis: roční plán údržby a kalendář
 
 - Nová záložka **Plán údržby**: roční plán servisu pro **lokalitu i soubor**. Činnost (revize, pravidelná kontrola…) má popis, období (**jen měsíc, nebo konkrétní datum**) a druh (**plánovaná — v paušálu / nahodilá — mimo paušál**).

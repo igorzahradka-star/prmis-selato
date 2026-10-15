@@ -23,6 +23,7 @@ export enum RouteName {
   Benchmark = 'benchmark',
   Service = 'servis',
   ServiceMap = 'servis-mapa',
+  ServicePlans = 'servis-plany',
   Users = 'uzivatele',
   Settings = 'nastaveni',
   Install = 'instalace',

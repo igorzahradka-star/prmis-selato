@@ -27,7 +27,6 @@ import { serviceRequestMail } from '../../core/notifications';
 import { JobPanel } from './JobPanel';
 import { ServiceMap } from './ServiceMap';
 import { RequestPanel } from './RequestPanel';
-import { ServicePlanTab } from './ServicePlanTab';
 import { ContractBadge, JobKindBadge, JobStatusBadge, PriorityBadge, RequestStatusBadge, ScopeFilters, SlaIndicator, TD, TH } from './serviceUi';
 import { isSlaBreached, slaProgress } from '../../core/serviceSla';
 
@@ -441,10 +440,6 @@ export const ServicePage: React.FC<{ param?: string }> = ({ param }) => {
             );
           })}
           {sites.length === 0 && <MessageBar messageBarType={MessageBarType.info}>Zatím není žádná lokalita. {mayAdmin ? 'Založte první tlačítkem Nová lokalita (např. 10500).' : 'Lokality zakládá správce servisu.'}</MessageBar>}
-        </PivotItem>
-
-        <PivotItem headerText="Plán údržby" itemIcon="Calendar">
-          <ServicePlanTab sites={sites} devices={devices} mayManage={mayAdmin} mayWork={mayWork} onRequestCreated={reload} />
         </PivotItem>
 
         <PivotItem headerText="Mapa" itemIcon="Globe">

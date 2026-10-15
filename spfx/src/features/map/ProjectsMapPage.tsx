@@ -32,7 +32,7 @@ import {
   splitByLocation,
   statusStyle
 } from '../../core/geo';
-import { DEFAULT_CENTER, DEFAULT_ZOOM, LeafletLib, addBaseLayers, clusterIcon, loadLeaflet, pinIcon } from './leaflet';
+import { DEFAULT_CENTER, DEFAULT_ZOOM, LeafletLib, addBaseLayers, clusterIcon, enablePointerPan, loadLeaflet, pinIcon } from './leaflet';
 import type * as LeafletTypes from 'leaflet';
 
 export const ProjectsMapPage: React.FC = () => {
@@ -51,6 +51,7 @@ export const ProjectsMapPage: React.FC = () => {
   const mapRef = React.useRef<LeafletTypes.Map | undefined>(undefined);
   const layerRef = React.useRef<LeafletTypes.LayerGroup | undefined>(undefined);
   const libRef = React.useRef<LeafletLib | undefined>(undefined);
+  const panCleanupRef = React.useRef<(() => void) | undefined>(undefined);
   const fittedRef = React.useRef(false);
   const [mapReady, setMapReady] = React.useState(false);
 
@@ -96,6 +97,7 @@ export const ProjectsMapPage: React.FC = () => {
         const map = L.map(containerRef.current, { scrollWheelZoom: true }).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
         addBaseLayers(L, map);
         layerRef.current = L.layerGroup().addTo(map);
+        panCleanupRef.current = enablePointerPan(map);
         mapRef.current = map;
         setMapReady(true);
       })
@@ -112,6 +114,10 @@ export const ProjectsMapPage: React.FC = () => {
   // Úklid při odchodu ze stránky.
   React.useEffect(
     () => () => {
+      if (panCleanupRef.current) {
+        panCleanupRef.current();
+        panCleanupRef.current = undefined;
+      }
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = undefined;

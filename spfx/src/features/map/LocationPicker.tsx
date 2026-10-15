@@ -18,9 +18,9 @@ import { Link } from '@fluentui/react/lib/Link';
 import type * as LeafletTypes from 'leaflet';
 
 import { RES } from '../../ui/theme';
-import { isValidCoordinates } from '../../core/geo';
+import { isValidCoordinates, parseCoordinatePair } from '../../core/geo';
 import { PlaceResult, searchPlaces } from '../../data/geocode';
-import { DEFAULT_CENTER, DEFAULT_ZOOM, LeafletLib, addBaseLayers, loadLeaflet, pinIcon } from './leaflet';
+import { DEFAULT_CENTER, DEFAULT_ZOOM, LeafletLib, addBaseLayers, enablePointerPan, loadLeaflet, pinIcon } from './leaflet';
 
 export interface LocationValue {
   location: string;
@@ -42,6 +42,8 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({ value, onChange,
   const [results, setResults] = React.useState<PlaceResult[]>([]);
 
   const hasPosition = isValidCoordinates(value.latitude, value.longitude);
+  const [manual, setManual] = React.useState('');
+  const [manualError, setManualError] = React.useState<string | undefined>(undefined);
 
   const findOnMap = (): void => {
     setSearching(true);
@@ -107,6 +109,33 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({ value, onChange,
         )}
       </div>
 
+      <div style={{ marginTop: 8 }}>
+        <TextField
+          label="Nebo zadejte souřadnice ručně"
+          description="Šířka a délka, např. 49.4063, 15.4333 (dají se zkopírovat z Map Google nebo mapy.cz — klik pravým tlačítkem na místo). Potvrďte Enterem."
+          placeholder="49.4063, 15.4333"
+          value={manual}
+          errorMessage={manualError}
+          onChange={(_, v) => {
+            setManual(v ?? '');
+            setManualError(undefined);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              const c = parseCoordinatePair(manual);
+              if (!c) {
+                setManualError('Souřadnice nejsou platné — zadejte šířku a délku, např. 49.4063, 15.4333.');
+                return;
+              }
+              onChange({ ...value, latitude: c.latitude, longitude: c.longitude });
+              setManual('');
+              setMapOpen(true);
+            }
+          }}
+        />
+      </div>
+
       {message && (
         <MessageBar
           messageBarType={message.type}
@@ -155,6 +184,7 @@ const PickerMap: React.FC<{
   const mapRef = React.useRef<LeafletTypes.Map | undefined>(undefined);
   const markerRef = React.useRef<LeafletTypes.Marker | undefined>(undefined);
   const libRef = React.useRef<LeafletLib | undefined>(undefined);
+  const panCleanupRef = React.useRef<(() => void) | undefined>(undefined);
   // Aktuální obsluha — mapa se zakládá jednou, ale `onPick` se mezi překresleními mění.
   const onPickRef = React.useRef(onPick);
   onPickRef.current = onPick;
@@ -176,6 +206,8 @@ const PickerMap: React.FC<{
         map.setView(start, isValidCoordinates(latitude, longitude) ? 13 : DEFAULT_ZOOM);
         addBaseLayers(L, map);
         map.on('click', (e: LeafletTypes.LeafletMouseEvent) => onPickRef.current(e.latlng.lat, e.latlng.lng));
+        // Vlastní posouvání tažením (pointer události) — viz `enablePointerPan`; kliknutí bez tažení přesune špendlík.
+        panCleanupRef.current = enablePointerPan(map, { onTap: (lat, lng) => onPickRef.current(lat, lng) });
         mapRef.current = map;
         setReady(true);
         // Panel se vysouvá animací — po jejím skončení se mapě přepočítá velikost (jinak může být posun a dlaždice nepřesné).
@@ -188,6 +220,10 @@ const PickerMap: React.FC<{
       });
     return () => {
       cancelled = true;
+      if (panCleanupRef.current) {
+        panCleanupRef.current();
+        panCleanupRef.current = undefined;
+      }
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = undefined;

@@ -23,7 +23,7 @@ import {
   serviceSignal,
   siteCoordinates
 } from '../../core/serviceMap';
-import { DEFAULT_CENTER, DEFAULT_ZOOM, LeafletLib, addBaseLayers, clusterIcon, loadLeaflet, pinIcon } from '../map/leaflet';
+import { DEFAULT_CENTER, DEFAULT_ZOOM, LeafletLib, addBaseLayers, clusterIcon, enablePointerPan, loadLeaflet, pinIcon } from '../map/leaflet';
 
 const SIGNAL_STYLE: Record<ServiceSignal, { fill: string; stroke: string }> = {
   green: { fill: '#2E9E5B', stroke: '#1B6B3A' },
@@ -43,6 +43,7 @@ export const ServiceMap: React.FC<ServiceMapProps> = ({ sites, devices, requests
   const mapRef = React.useRef<LeafletTypes.Map | undefined>(undefined);
   const layerRef = React.useRef<LeafletTypes.LayerGroup | undefined>(undefined);
   const libRef = React.useRef<LeafletLib | undefined>(undefined);
+  const panCleanupRef = React.useRef<(() => void) | undefined>(undefined);
   const fittedRef = React.useRef(false);
   const [mapReady, setMapReady] = React.useState(false);
   const [mapError, setMapError] = React.useState<string | undefined>(undefined);
@@ -64,6 +65,7 @@ export const ServiceMap: React.FC<ServiceMapProps> = ({ sites, devices, requests
         const map = L.map(containerRef.current, { scrollWheelZoom: true }).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
         addBaseLayers(L, map);
         layerRef.current = L.layerGroup().addTo(map);
+        panCleanupRef.current = enablePointerPan(map);
         mapRef.current = map;
         setMapReady(true);
         window.setTimeout(() => map.invalidateSize(), 350);
@@ -80,6 +82,10 @@ export const ServiceMap: React.FC<ServiceMapProps> = ({ sites, devices, requests
 
   React.useEffect(
     () => () => {
+      if (panCleanupRef.current) {
+        panCleanupRef.current();
+        panCleanupRef.current = undefined;
+      }
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = undefined;

@@ -5,6 +5,7 @@
 
 import { ServicePage } from '../../../features/service/ServicePage';
 import { ServiceMapPage } from '../../../features/service/ServiceMapPage';
+import { ServicePlansPage } from '../../../features/service/ServicePlansPage';
 import { CatalogPage } from '../../../features/catalog/CatalogPage';
 import { ProfilePage } from '../../../features/profile/ProfilePage';
 import * as React from 'react';
@@ -185,6 +186,8 @@ function renderRoute(route: Route): React.ReactNode {
       return <ServicePage param={route.param} />;
     case RouteName.ServiceMap:
       return <ServiceMapPage />;
+    case RouteName.ServicePlans:
+      return <ServicePlansPage />;
     case RouteName.Finance:
       return (
         <ComingSoonPage

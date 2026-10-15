@@ -28,7 +28,7 @@ export const PlanTemplatesEditor: React.FC<{ templates: PlanTemplate[]; onChange
           <table style={{ borderCollapse: 'collapse', marginTop: 6, width: '100%' }}>
             <thead>
               <tr>
-                {['Činnost', 'Měsíc', 'Den (nepovinný)', 'Druh', ''].map((h) => (
+                {['Činnost a popis', 'Měsíc', 'Den (nepovinný)', 'Druh', ''].map((h) => (
                   <th key={h} style={{ textAlign: 'left', fontSize: 12, color: RES.gray, fontWeight: 600, padding: '4px 6px' }}>
                     {h}
                   </th>
@@ -39,7 +39,8 @@ export const PlanTemplatesEditor: React.FC<{ templates: PlanTemplate[]; onChange
               {t.items.map((it, j) => (
                 <tr key={j}>
                   <td style={{ padding: '2px 6px', width: '46%' }}>
-                    <TextField ariaLabel="Činnost" value={it.title} onChange={(_, v) => setItem(i, j, { title: v ?? '' })} />
+                    <TextField ariaLabel="Činnost" placeholder="Činnost (co se má udělat)" value={it.title} onChange={(_, v) => setItem(i, j, { title: v ?? '' })} />
+                    <TextField ariaLabel="Popis činnosti" placeholder="Popis (nepovinný)" value={it.description ?? ''} onChange={(_, v) => setItem(i, j, { description: v || undefined })} />
                   </td>
                   <td style={{ padding: '2px 6px' }}>
                     <Dropdown ariaLabel="Měsíc" selectedKey={it.month} options={MONTH_NAMES.map((n, m) => ({ key: m + 1, text: n }))} onChange={(_, o) => o && setItem(i, j, { month: Number(o.key) })} styles={{ root: { width: 120 } }} />

@@ -42,7 +42,6 @@ import { buildHash, RouteName } from '../../ui/router';
 import { ImportProjectsPanel } from '../admin/ImportProjectsPanel';
 import { RatesTab } from './RatesTab';
 import { SlaRulesEditor } from './SlaRulesEditor';
-import { PlanTemplatesEditor } from './PlanTemplatesEditor';
 import { DefaultApproversEditor } from './DefaultApproversEditor';
 import { DeleteOrderCard } from './DeleteOrderCard';
 
@@ -528,9 +527,8 @@ export const SettingsPage: React.FC = () => {
             />
             <SlaRulesEditor rules={draft.service.slaRules} onChange={(slaRules) => patch('service', { slaRules })} />
             <Hint>
-              <strong>Šablony ročního plánu servisu.</strong> Šablona je seznam činností (revize, pravidelné kontroly…) pro druh souboru nebo pro společné činnosti lokality. V plánu na záložce Plán údržby se načte do lokality nebo souboru a dá se upravit. Hodnoty jsou návrh — upravte podle smluv a zvyklostí.
+              <strong>Šablony ročních plánů servisu</strong> se upravují v nabídce <strong>Servis → Servisní plány → Šablony</strong>.
             </Hint>
-            <PlanTemplatesEditor templates={draft.service.planTemplates} onChange={(planTemplates) => patch('service', { planTemplates })} />
           </Panel>
         </PivotItem>
 
