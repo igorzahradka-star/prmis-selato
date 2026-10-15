@@ -5,6 +5,12 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.60.0 — 16. 10. 2026 — Kalendář: měsíc a rok, přehled požadavků úspornější
+
+- **Servisní kalendář** má pohledy **Týden**, **Měsíc** a **Rok**. Měsíc je mřížka po týdnech (v dni max. 3 položky + „+ N dalších“), rok je 12 malých kalendářů, kde je každý den obarvený: zeleně plánovaný servis v paušálu, oranžově nahodilý, modře požadavek s termínem, půl na půl při obojím. Po najetí myší na den se ukáže, co v něj připadá; kliknutím na měsíc v ročním pohledu se otevře měsíc. Dříve / Dnes / Později posouvá o týdny, měsíc nebo rok podle pohledu.
+- **Požadavky v přehledech** (Servis → Požadavky a Přehled požadavků) se ukazují úsporně: lokalita, soubor, název a popis jsou na jednom řádku oříznuté (…); celý text požadavku (číslo, název, popis, lokalita, poznámka) se ukáže v bublině po najetí myší.
+- Bez změny schématu (33).
+
 ## 0.59.0 — 16. 10. 2026 — Lokality v nabídce Servis, výběr při plánu z checklistu
 
 - **Servis → Lokality**: lokality a soubory (zakládání, úpravy, Checklist, složky, smazání prázdné lokality) mají vlastní položku v nabídce. Stránka **Servis** má už jen záložky **Požadavky** a **Servisní listy**; mapa je v Servis → Mapa servisu. Pořadí nabídky: Servis, Kalendář, Přehled požadavků, Lokality, Servisní plány, Správa smluv, Mapa servisu.

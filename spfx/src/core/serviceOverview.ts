@@ -187,3 +187,75 @@ export function buildCalendar(plan: PlanItem[], requests: ServiceRequest[], o: C
 export function shiftWeeks(d: Date, n: number): Date {
   return addDays(weekStart(d), n * 7);
 }
+
+// --- měsíční a roční pohled ----------------------------------------------------------------------------------
+
+/** Kolik týdnů (od pondělí) zabírá kalendářní měsíc (`month` 0–11) a pondělí prvního z nich. */
+export function monthSpan(year: number, month: number): { from: Date; weeks: number } {
+  const first = weekStart(new Date(year, month, 1));
+  const last = weekStart(new Date(year, month + 1, 0));
+  return { from: first, weeks: Math.round((last.getTime() - first.getTime()) / (7 * DAY_MS)) + 1 };
+}
+
+export interface YearDay {
+  date: Date;
+  /** Plánované servisy v paušálu / nahodilé / požadavky v tento den. */
+  planned: number;
+  extra: number;
+  requests: number;
+  entries: CalendarEntry[];
+}
+
+export interface YearMonth {
+  /** 0–11. */
+  month: number;
+  /** Pozice prvního dne v týdnu (pondělí = 0) — pro zarovnání mřížky. */
+  offset: number;
+  days: YearDay[];
+  /** Položky plánu jen s měsícem (bez dne). */
+  monthOnly: number;
+}
+
+export interface YearData {
+  months: YearMonth[];
+  overdue: ServiceRequest[];
+  undated: ServiceRequest[];
+  totals: { planned: number; extra: number; requests: number; monthOnly: number };
+}
+
+/** Roční přehled: pro každý den roku počty plánovaných servisů a požadavků (pro grafické zobrazení). */
+export function buildYear(plan: PlanItem[], requests: ServiceRequest[], o: { year: number; sites: string[]; showPlan: boolean; showRequests: boolean; today?: Date }): YearData {
+  const cal = buildCalendar(plan, requests, { from: new Date(o.year, 0, 1), weeks: 54, sites: o.sites, showPlan: o.showPlan, showRequests: o.showRequests, today: o.today });
+  const byDay = new Map<string, CalendarEntry[]>();
+  cal.weeks.forEach((w) =>
+    w.days.forEach((d) => {
+      if (d.entries.length > 0) {
+        byDay.set(`${d.date.getFullYear()}-${d.date.getMonth()}-${d.date.getDate()}`, d.entries);
+      }
+    })
+  );
+  const months: YearMonth[] = [];
+  const totals = { planned: 0, extra: 0, requests: 0, monthOnly: 0 };
+  for (let m = 0; m < 12; m++) {
+    const count = new Date(o.year, m + 1, 0).getDate();
+    const days: YearDay[] = [];
+    for (let d = 1; d <= count; d++) {
+      const entries = byDay.get(`${o.year}-${m}-${d}`) ?? [];
+      const day: YearDay = {
+        date: new Date(o.year, m, d),
+        planned: entries.filter((e) => e.kind === 'plan' && e.badge === 'Plánovaná').length,
+        extra: entries.filter((e) => e.kind === 'plan' && e.badge !== 'Plánovaná').length,
+        requests: entries.filter((e) => e.kind === 'request').length,
+        entries
+      };
+      totals.planned += day.planned;
+      totals.extra += day.extra;
+      totals.requests += day.requests;
+      days.push(day);
+    }
+    const monthOnly = cal.monthOnly.filter((b) => b.year === o.year && b.month === m + 1).reduce((n, b) => n + b.items.length, 0);
+    totals.monthOnly += monthOnly;
+    months.push({ month: m, offset: (new Date(o.year, m, 1).getDay() + 6) % 7, days, monthOnly });
+  }
+  return { months, overdue: cal.overdue, undated: cal.undated, totals };
+}

@@ -4,10 +4,11 @@
 
 import * as React from 'react';
 import { RES } from '../../ui/theme';
-import { JobStatus, RequestStatus } from '../../core/serviceJobs';
+import { JobStatus, RequestStatus, ServiceRequest } from '../../core/serviceJobs';
 import { CONTRACT_STATE_LABELS, ContractState, ServiceDevice, ServiceScope, ServiceSite, SITE_WIDE_FILTER } from '../../core/service';
 import { REQUEST_PRIORITIES } from '../../core/serviceJobs';
 import { Dropdown } from '@fluentui/react/lib/Dropdown';
+import { TooltipHost } from '@fluentui/react/lib/Tooltip';
 import { SlaPart, SlaProgress, formatHours } from '../../core/serviceSla';
 
 export const TH: React.CSSProperties = { textAlign: 'left', fontWeight: 600, fontSize: 12, color: RES.gray, padding: '6px 8px', whiteSpace: 'nowrap', position: 'sticky', top: 0, background: RES.white, zIndex: 1, boxShadow: `0 1px 0 ${RES.grayBlue}` };
@@ -147,5 +148,30 @@ export const Fact: React.FC<{ label: string; children: React.ReactNode }> = ({ l
   <div style={{ marginBottom: 8 }}>
     <div style={{ fontSize: 12, color: RES.gray }}>{label}</div>
     <div style={{ fontSize: 14 }}>{children || '—'}</div>
+  </div>
+);
+
+/** Jednořádkový text oříznutý na danou šířku (…); celý text se ukáže v bublině po najetí myší. */
+export const Clamp: React.FC<{ width: number; tip?: React.ReactElement | string; style?: React.CSSProperties; children: React.ReactNode }> = ({ width, tip, style, children }) => {
+  const box = <div style={{ maxWidth: width, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', ...style }}>{children}</div>;
+  return tip ? (
+    <TooltipHost content={tip} styles={{ root: { display: 'block' } }}>
+      {box}
+    </TooltipHost>
+  ) : (
+    box
+  );
+};
+
+/** Bublina s celým textem požadavku: číslo a název, popis, lokalita a soubor, poznámka a případné uzavření bez listu. */
+export const RequestTip: React.FC<{ request: ServiceRequest; place: string }> = ({ request, place }) => (
+  <div style={{ maxWidth: 460, whiteSpace: 'pre-wrap', fontSize: 13, padding: 4 }}>
+    <div style={{ fontWeight: 600 }}>
+      {request.number} · {request.title}
+    </div>
+    {request.description && <div style={{ marginTop: 4 }}>{request.description}</div>}
+    <div style={{ marginTop: 4, color: RES.gray }}>{place}</div>
+    {request.note && <div style={{ marginTop: 4 }}>Poznámka: {request.note}</div>}
+    {request.resolution && <div style={{ marginTop: 4 }}>Uzavřeno: {request.resolution}</div>}
   </div>
 );

@@ -1,6 +1,6 @@
 import { RequestStatus, ServiceRequest } from './serviceJobs';
 import { PlanItem } from './servicePlan';
-import { buildCalendar, filterRequests, isoWeekNumber, requestGroupCounts, shiftWeeks, weekStart } from './serviceOverview';
+import { buildCalendar, buildYear, filterRequests, isoWeekNumber, monthSpan, requestGroupCounts, shiftWeeks, weekStart } from './serviceOverview';
 
 const req = (id: number, site: string, status: RequestStatus, receivedAt: string, requiredDate?: string): ServiceRequest => ({
   id,
@@ -114,5 +114,42 @@ describe('týdenní kalendář', () => {
   it('v jednom dni jsou požadavky před plánem', () => {
     const c = buildCalendar([plan(1, '10500', 10, '2026-10-15T00:00:00')], REQUESTS, o);
     expect(c.weeks[0].days[3].entries.map((e) => e.kind)).toEqual(['request', 'plan']);
+  });
+});
+
+describe('měsíční a roční pohled', () => {
+  it('počet týdnů měsíce a pondělí prvního', () => {
+    const oct = monthSpan(2026, 9); // říjen 2026: čt 1. 10. – so 31. 10.
+    expect(oct.weeks).toBe(5);
+    expect(oct.from.getMonth()).toBe(8);
+    expect(oct.from.getDate()).toBe(28);
+    expect(monthSpan(2027, 1).weeks).toBe(4); // únor 2027: po 1. 2. – ne 28. 2.
+    expect(monthSpan(2026, 7).weeks).toBe(6); // srpen 2026: so 1. 8. – po 31. 8. zasahuje do šesti týdnů
+  });
+
+  it('roční přehled spočítá dny, požadavky a plán a drží zarovnání měsíců', () => {
+    const y = buildYear(
+      [plan(1, '10500', 10, '2026-10-20T00:00:00'), { ...plan(2, '10500', 10, '2026-10-20T00:00:00'), jobKind: 'Nahodilá' }, plan(3, '10500', 3)],
+      REQUESTS,
+      { year: 2026, sites: [], showPlan: true, showRequests: true, today: new Date(2026, 9, 15) }
+    );
+    expect(y.months).toHaveLength(12);
+    expect(y.months[9].days).toHaveLength(31);
+    expect(y.months[1].days).toHaveLength(28);
+    expect(y.months[9].offset).toBe(3); // 1. 10. 2026 je čtvrtek
+    const day20 = y.months[9].days[19];
+    expect([day20.planned, day20.extra, day20.requests]).toEqual([1, 1, 0]);
+    expect(y.months[9].days[14].requests).toBe(1); // požadavek 2 s termínem 15. 10.
+    expect(y.months[2].monthOnly).toBe(1);
+    expect(y.totals).toEqual({ planned: 1, extra: 1, requests: 2, monthOnly: 1 });
+    expect(y.overdue).toEqual([]); // v ročním pohledu je „po termínu“ jen to, co skončilo před začátkem roku
+    expect(y.months[9].days[6].requests).toBe(1); // požadavek 5 s termínem 7. 10.
+    expect(y.undated.map((r) => r.id)).toEqual([1]);
+  });
+
+  it('filtr lokalit platí i v ročním přehledu', () => {
+    const y = buildYear([plan(1, '10500', 10, '2026-10-20T00:00:00'), plan(2, '10510', 10, '2026-10-21T00:00:00')], [], { year: 2026, sites: ['10510'], showPlan: true, showRequests: true });
+    expect(y.totals.planned).toBe(1);
+    expect(y.months[9].days[20].planned).toBe(1);
   });
 });

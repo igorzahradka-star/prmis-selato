@@ -17,7 +17,7 @@ import { formatDate } from '../../core/format';
 import { canViewService, ServiceDevice, ServiceSite } from '../../core/service';
 import { ServiceRequest } from '../../core/serviceJobs';
 import { filterRequests, REQUEST_GROUPS, RequestGroup, requestGroupCounts } from '../../core/serviceOverview';
-import { PriorityBadge, RequestStatusBadge, TD, TH } from './serviceUi';
+import { Clamp, PriorityBadge, RequestStatusBadge, RequestTip, TD, TH } from './serviceUi';
 
 export const ServiceRequestsPage: React.FC = () => {
   const { repos, user } = useApp();
@@ -132,12 +132,20 @@ export const ServiceRequestsPage: React.FC = () => {
                           <a href="#" onClick={(e) => { e.preventDefault(); navigate(RouteName.Service, `detail-${r.number}`); }}>{r.number}</a>
                         </td>
                         <td style={TD}>
-                          {siteName(r.siteNumber)}
-                          <div style={{ color: RES.gray, fontSize: 12 }}>{deviceName(r.deviceNumber)}</div>
+                          <Clamp width={170}>{siteName(r.siteNumber)}</Clamp>
+                          <Clamp width={170} style={{ color: RES.gray, fontSize: 12 }}>
+                            {deviceName(r.deviceNumber)}
+                          </Clamp>
                         </td>
                         <td style={TD}>
-                          <strong>{r.title}</strong>
-                          {r.description && <div style={{ color: RES.gray, fontSize: 12 }}>{r.description.length > 140 ? `${r.description.slice(0, 140)}…` : r.description}</div>}
+                          <Clamp width={380} tip={<RequestTip request={r} place={`${siteName(r.siteNumber)} · ${deviceName(r.deviceNumber)}`} />}>
+                            <strong>{r.title}</strong>
+                          </Clamp>
+                          {r.description && (
+                            <Clamp width={380} style={{ color: RES.gray, fontSize: 12 }}>
+                              {r.description.replace(/\s+/g, ' ')}
+                            </Clamp>
+                          )}
                         </td>
                         <td style={TD}>
                           <PriorityBadge priority={r.priority} />

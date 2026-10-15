@@ -25,7 +25,7 @@ import { notifyServiceManagers, serviceLink } from './serviceNotify';
 import { serviceRequestMail } from '../../core/notifications';
 import { JobPanel } from './JobPanel';
 import { RequestPanel } from './RequestPanel';
-import { JobKindBadge, JobStatusBadge, PriorityBadge, RequestStatusBadge, ScopeFilters, SlaIndicator, TD, TH } from './serviceUi';
+import { Clamp, RequestTip, JobKindBadge, JobStatusBadge, PriorityBadge, RequestStatusBadge, ScopeFilters, SlaIndicator, TD, TH } from './serviceUi';
 import { isSlaBreached, slaProgress } from '../../core/serviceSla';
 
 type JobFilter = 'open' | 'all' | JobStatus;
@@ -223,13 +223,25 @@ export const ServicePage: React.FC<{ param?: string }> = ({ param }) => {
                   </td>
                   <td style={{ ...TD, whiteSpace: 'nowrap' }}>{formatDate(r.receivedAt)}</td>
                   <td style={TD}>
-                    {siteName(r.siteNumber)}
-                    <div style={{ color: RES.gray, fontSize: 12 }}>{deviceName(r.deviceNumber)}</div>
+                    <Clamp width={170}>{siteName(r.siteNumber)}</Clamp>
+                    <Clamp width={170} style={{ color: RES.gray, fontSize: 12 }}>
+                      {deviceName(r.deviceNumber)}
+                    </Clamp>
                   </td>
-                  <td style={{ ...TD, maxWidth: 380 }}>
-                    <strong>{r.title}</strong>
-                    {r.description && <div style={{ color: RES.gray, fontSize: 12, whiteSpace: 'pre-wrap' }}>{r.description.length > 160 ? r.description.slice(0, 160) + '…' : r.description}</div>}
-                    {r.note && r.status === RequestStatus.Zamitnuto && <div style={{ color: RES.red, fontSize: 12 }}>Zamítnuto: {r.note}</div>}
+                  <td style={TD}>
+                    <Clamp width={340} tip={<RequestTip request={r} place={`${siteName(r.siteNumber)} · ${deviceName(r.deviceNumber)}`} />}>
+                      <strong>{r.title}</strong>
+                    </Clamp>
+                    {r.description && (
+                      <Clamp width={340} style={{ color: RES.gray, fontSize: 12 }}>
+                        {r.description.replace(/\s+/g, ' ')}
+                      </Clamp>
+                    )}
+                    {r.note && r.status === RequestStatus.Zamitnuto && (
+                      <Clamp width={340} style={{ color: RES.red, fontSize: 12 }}>
+                        Zamítnuto: {r.note}
+                      </Clamp>
+                    )}
                   </td>
                   <td style={TD}>
                     <PriorityBadge priority={r.priority} />
