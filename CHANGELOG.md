@@ -5,6 +5,12 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.54.2 — 15. 10. 2026 — Oprava: „Najít na mapě“ přepisovalo uloženou polohu
+
+- Tlačítko **Najít na mapě** (a Enter v poli lokality) při už nastavené poloze špendlík nepřesune zpět do nalezené obce. Stávající poloha zůstane a nalezená místa se nabídnou v seznamu pod mapou (kliknutím se poloha nahradí). Platí pro projekty, lokality i soubory servisu. Dřív po otevření úpravy a stisku Najít na mapě poloha „skočila zpátky“ do středu obce.
+- Uložení polohy do SharePointu fungovalo správně, ověřeno výpisem seznamu.
+- Bez změny schématu (31).
+
 ## 0.54.1 — 15. 10. 2026 — Kontrola zápisu polohy po uložení
 
 - Po uložení polohy (projekt, lokalita, soubor servisu) se položka přečte zpět ze SharePointu a porovná. Pokud se poloha nezapsala, uložení skončí hláškou „Poloha se do SharePointu nezapsala správně: odesláno …, v seznamu … je …“ místo tichého úspěchu. Slouží k dohledání příčiny, proč se poloha po uložení vracela zpět.

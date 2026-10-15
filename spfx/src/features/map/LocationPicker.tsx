@@ -60,6 +60,11 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({ value, onChange,
           });
           return;
         }
+        if (hasPosition) {
+          // Poloha už je nastavená (třeba ručně posunutý špendlík) — hledání ji nepřepíše, nalezená místa se jen nabídnou.
+          setMessage({ text: 'Stávající poloha zůstala. Chcete-li ji nahradit nalezeným místem, vyberte je ze seznamu pod mapou.', type: MessageBarType.info });
+          return;
+        }
         onChange({ ...value, latitude: found[0].latitude, longitude: found[0].longitude });
       })
       .catch((e: Error) => {
@@ -158,9 +163,9 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({ value, onChange,
           <div style={{ fontSize: 12, color: RES.gray, marginTop: 4 }}>
             Špendlík přesunete kliknutím do mapy nebo přetažením.
           </div>
-          {results.length > 1 && (
+          {(results.length > 1 || (hasPosition && results.length > 0)) && (
             <div style={{ marginTop: 8, fontSize: 12 }}>
-              <div style={{ fontWeight: 600, marginBottom: 2 }}>Další nalezená místa:</div>
+              <div style={{ fontWeight: 600, marginBottom: 2 }}>{hasPosition ? 'Nalezená místa (kliknutím nahradíte polohu):' : 'Další nalezená místa:'}</div>
               {results.map((r, i) => (
                 <div key={`${r.latitude},${r.longitude},${i}`}>
                   <Link onClick={() => pickResult(r)}>{r.label}</Link>
