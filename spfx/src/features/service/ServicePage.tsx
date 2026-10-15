@@ -128,6 +128,11 @@ export const ServicePage: React.FC<{ param?: string }> = ({ param }) => {
     const [what, number] = [param.slice(0, param.indexOf('-')), param.slice(param.indexOf('-') + 1)];
     if (what === 'pozadavek' && canWorkInService(user.roles)) {
       setRequestDlg({ siteNumber: number });
+    } else if (what === 'detail') {
+      const found = requests.filter((r) => r.number === number)[0];
+      if (found) {
+        setOpenRequestId(found.id);
+      }
     } else if (what === 'lokalita' && canManageSites(user.roles)) {
       const site = sites.filter((s) => s.number === number)[0];
       if (site) {

@@ -620,6 +620,26 @@ export class SpServiceRepository implements IServiceRepository {
     return out;
   }
 
+  public async deletePlanItems(ids: number[], actor: CurrentUser): Promise<number> {
+    if (!canManageSites(actor.roles)) {
+      throw new Error('Roční plán smí upravovat jen správce servisu, vedení a administrátor.');
+    }
+    const wanted = new Set(ids);
+    const found = (await this.listPlan()).filter((x) => wanted.has(x.id));
+    let deleted = 0;
+    try {
+      for (const item of found) {
+        await getSp(this.context).web.lists.getByTitle(PLAN).items.getById(item.id).recycle();
+        deleted++;
+      }
+    } catch (error) {
+      await this.audit('Servis – roční plán', 'hromadně', actor, `Smazáno ${deleted} položek plánu (do koše webu), pak chyba`);
+      throw new Error(describeSpError(error, `Smazalo se ${deleted} z ${found.length} položek plánu, pak se smazání zastavilo`));
+    }
+    await this.audit('Servis – roční plán', 'hromadně', actor, `Smazáno ${deleted} položek plánu (do koše webu)`);
+    return deleted;
+  }
+
   public async deletePlanItem(id: number, actor: CurrentUser): Promise<void> {
     if (!canManageSites(actor.roles)) {
       throw new Error('Roční plán smí upravovat jen správce servisu, vedení a administrátor.');

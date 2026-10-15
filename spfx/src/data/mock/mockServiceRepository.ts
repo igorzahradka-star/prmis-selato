@@ -237,6 +237,15 @@ export class MockServiceRepository implements IServiceRepository {
     return Promise.resolve(created.map((x) => ({ ...x })));
   }
 
+  public deletePlanItems(ids: number[], actor: CurrentUser): Promise<number> {
+    if (!canManageSites(actor.roles)) {
+      return Promise.reject(new Error('Roční plán smí upravovat jen správce servisu, vedení a administrátor.'));
+    }
+    const before = this.plan.length;
+    this.plan = this.plan.filter((x) => ids.indexOf(x.id) < 0);
+    return Promise.resolve(before - this.plan.length);
+  }
+
   public deletePlanItem(id: number, actor: CurrentUser): Promise<void> {
     if (!canManageSites(actor.roles)) {
       return Promise.reject(new Error('Roční plán smí upravovat jen správce servisu, vedení a administrátor.'));

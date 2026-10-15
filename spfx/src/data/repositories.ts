@@ -1011,6 +1011,8 @@ export interface IServiceRepository {
   /** Založí víc položek najednou (ze šablony nebo kopií plánu do dalšího roku). Smí správce servisu, vedení a administrátor. */
   createPlanItems(items: PlanItemInput[], actor: CurrentUser): Promise<PlanItem[]>;
   deletePlanItem(id: number, actor: CurrentUser): Promise<void>;
+  /** Smaže víc položek plánu najednou (v SharePointu do koše webu, takže jdou obnovit); vrací počet smazaných. Smí správce servisu, vedení a administrátor. */
+  deletePlanItems(ids: number[], actor: CurrentUser): Promise<number>;
   /** Z položky plánu vytvoří servisní požadavek (termín = konkrétní datum, jinak konec měsíce) a položku k němu připojí. Smí správce, dispečer a administrátor. */
   createRequestFromPlan(id: number, actor: CurrentUser): Promise<ServiceRequest>;
   listAttachments(target: ServiceAttachmentTarget): Promise<OrderAttachment[]>;

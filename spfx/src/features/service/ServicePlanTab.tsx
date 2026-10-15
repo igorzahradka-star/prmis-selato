@@ -5,6 +5,8 @@
 
 import * as React from 'react';
 import { DefaultButton, PrimaryButton } from '@fluentui/react/lib/Button';
+import { Checkbox } from '@fluentui/react/lib/Checkbox';
+import { IContextualMenuItem } from '@fluentui/react/lib/ContextualMenu';
 import { ChoiceGroup } from '@fluentui/react/lib/ChoiceGroup';
 import { Dialog, DialogFooter, DialogType } from '@fluentui/react/lib/Dialog';
 import { Dropdown } from '@fluentui/react/lib/Dropdown';
@@ -61,6 +63,8 @@ export const ServicePlanTab: React.FC<{
   const [checklistDlg, setChecklistDlg] = React.useState(false);
   const [copyDlg, setCopyDlg] = React.useState(false);
   const [saveTplDlg, setSaveTplDlg] = React.useState(false);
+  const [selected, setSelected] = React.useState<number[]>([]);
+  const [deleteDlg, setDeleteDlg] = React.useState<PlanItem[] | undefined>(undefined);
   const isAdmin = canDeleteAnyInService(user.roles);
 
   React.useEffect(() => {
@@ -97,6 +101,26 @@ export const ServicePlanTab: React.FC<{
     return d ? `${d.number} ${d.name}` : s ? `${s.number} ${s.name} (celá lokalita)` : i.siteNumber;
   };
   const today = new Date();
+  const shownIds = shown.map((i) => i.id).join(',');
+  React.useEffect(() => {
+    setSelected((cur) => cur.filter((id) => shown.some((i) => i.id === id)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shownIds]);
+  const stats = {
+    pausal: shown.filter((i) => i.jobKind === 'Plánovaná').length,
+    extra: shown.filter((i) => i.jobKind !== 'Plánovaná').length,
+    late: shown.filter((i) => planItemState(i, today) === 'po-terminu').length
+  };
+  const addMenu: IContextualMenuItem[] = [
+    { key: 'one', text: 'Jednu činnost…', iconProps: { iconName: 'Add' }, disabled: activeSites.length === 0, onClick: () => setEditing({}) },
+    { key: 'checklist', text: 'Z checklistu lokality…', iconProps: { iconName: 'CheckList' }, disabled: activeSites.length === 0, onClick: () => setChecklistDlg(true) },
+    { key: 'template', text: 'Ze šablony…', iconProps: { iconName: 'Library' }, disabled: activeSites.length === 0, onClick: () => setTemplateDlg(true) },
+    { key: 'copy', text: 'Zkopírovat zobrazené do jiného roku…', iconProps: { iconName: 'Copy' }, disabled: shown.length === 0, onClick: () => setCopyDlg(true) }
+  ];
+  const moreMenu: IContextualMenuItem[] = [
+    { key: 'delete', text: 'Smazat všechny zobrazené položky…', iconProps: { iconName: 'Delete' }, disabled: shown.length === 0, onClick: () => setDeleteDlg(shown) },
+    ...(isAdmin ? [{ key: 'tpl', text: 'Uložit zobrazené jako šablonu…', iconProps: { iconName: 'SaveTemplate' }, disabled: shown.length === 0, onClick: () => setSaveTplDlg(true) }] : [])
+  ];
 
   const createRequest = (item: PlanItem): void => {
     setError(undefined);
@@ -169,7 +193,7 @@ export const ServicePlanTab: React.FC<{
           selectedKeys={devs}
           options={deviceOptions}
           onChange={(_, o) => o && setDevs((cur) => (o.selected ? [...cur, String(o.key)] : cur.filter((k) => k !== String(o.key))))}
-          styles={{ root: { width: 280 } }}
+          styles={{ root: { width: 260 } }}
         />
         <ChoiceGroup
           label="Zobrazení"
@@ -179,19 +203,26 @@ export const ServicePlanTab: React.FC<{
           styles={{ flexContainer: { display: 'flex', gap: 12 } }}
         />
         <span style={{ flex: '1 1 auto' }} />
-        {mayManage && <PrimaryButton iconProps={{ iconName: 'Add' }} text="Přidat činnost" disabled={activeSites.length === 0} onClick={() => setEditing({})} />}
-        {mayManage && <PrimaryButton iconProps={{ iconName: 'CheckList' }} text="Plán ze checklistu…" title="Vytvoří roční plán lokality z jejího checklistu (činnosti katalogu O&M a jejich periody)" disabled={activeSites.length === 0} onClick={() => setChecklistDlg(true)} />}
-        {mayManage && <DefaultButton iconProps={{ iconName: 'Library' }} text="Načíst ze šablony…" disabled={activeSites.length === 0} onClick={() => setTemplateDlg(true)} />}
-        {mayManage && <DefaultButton iconProps={{ iconName: 'Copy' }} text="Kopírovat do dalšího roku…" disabled={shown.length === 0} onClick={() => setCopyDlg(true)} />}
-        {isAdmin && <DefaultButton iconProps={{ iconName: 'SaveTemplate' }} text="Uložit jako šablonu…" disabled={shown.length === 0} onClick={() => setSaveTplDlg(true)} />}
+        {mayManage && <PrimaryButton iconProps={{ iconName: 'Add' }} text="Přidat do plánu" menuProps={{ items: addMenu }} />}
+        {mayManage && <DefaultButton text="Další" menuProps={{ items: moreMenu }} />}
       </div>
-      <div style={{ fontSize: 12, color: RES.gray, marginBottom: 8 }}>
-        Zeleně činnosti v paušálu, oranžově nahodilé (mimo paušál). Proužek vlevo: červený = po termínu, modrý = aktuální, zelený = požadavek už vytvořen. Kliknutím na činnost ji upravíte nebo z ní vytvoříte servisní požadavek.
+      <div style={{ fontSize: 13, marginBottom: 6 }}>
+        Zobrazeno <strong>{shown.length}</strong> činností na rok {year}
+        {shown.length > 0 && (
+          <span style={{ color: RES.gray }}>
+            {' '}
+            · {stats.pausal} v paušálu · {stats.extra} mimo paušál{stats.late > 0 ? ` · ${stats.late} po termínu` : ''}
+          </span>
+        )}
+        <details style={{ display: 'inline-block', marginLeft: 12, fontSize: 12, color: RES.gray }}>
+          <summary style={{ cursor: 'pointer' }}>Legenda</summary>
+          Zeleně činnosti v paušálu, oranžově nahodilé (mimo paušál). Proužek vlevo: červený = po termínu, modrý = aktuální, zelený = požadavek už vytvořen. Kliknutím na činnost ji upravíte nebo z ní vytvoříte servisní požadavek.
+        </details>
       </div>
       {!plan && <Spinner size={SpinnerSize.large} label="Načítám plán…" />}
       {plan && shown.length === 0 && (
         <MessageBar messageBarType={MessageBarType.info} isMultiline>
-          Pro tento výběr zatím není v plánu na rok {year} žádná činnost. {mayManage ? 'Přidejte činnost, nebo načtěte šablonu.' : ''}
+          Pro tento výběr zatím není v plánu na rok {year} žádná činnost. {mayManage ? 'Použijte Přidat do plánu → Z checklistu lokality, Ze šablony, nebo přidejte jednu činnost.' : ''}
         </MessageBar>
       )}
       {plan && shown.length > 0 && view === 'kalendar' && (
@@ -206,11 +237,23 @@ export const ServicePlanTab: React.FC<{
           ))}
         </div>
       )}
+      {plan && shown.length > 0 && view === 'seznam' && mayManage && selected.length > 0 && (
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', background: RES.bluePale, padding: '6px 10px', marginBottom: 6, borderRadius: 3 }}>
+          <strong>Vybráno {selected.length}</strong>
+          <DefaultButton iconProps={{ iconName: 'Delete' }} text="Smazat vybrané…" onClick={() => setDeleteDlg(shown.filter((i) => selected.indexOf(i.id) >= 0))} />
+          <DefaultButton text="Zrušit výběr" onClick={() => setSelected([])} />
+        </div>
+      )}
       {plan && shown.length > 0 && view === 'seznam' && (
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', background: RES.white, border: `1px solid ${RES.grayBlue}` }}>
             <thead>
               <tr>
+                {mayManage && (
+                  <th style={{ ...TH, width: 36 }}>
+                    <Checkbox ariaLabel="Vybrat všechny zobrazené" checked={selected.length === shown.length && shown.length > 0} indeterminate={selected.length > 0 && selected.length < shown.length} onChange={(_, v) => setSelected(v ? shown.map((i) => i.id) : [])} />
+                  </th>
+                )}
                 <th style={TH}>Období</th>
                 <th style={TH}>Lokalita / soubor</th>
                 <th style={TH}>Činnost</th>
@@ -222,7 +265,12 @@ export const ServicePlanTab: React.FC<{
               {shown.map((i) => {
                 const st = planItemState(i, today);
                 return (
-                  <tr key={i.id} style={{ borderTop: `1px solid ${RES.background}`, cursor: 'pointer' }} onClick={() => setEditing({ item: i })}>
+                  <tr key={i.id} style={{ borderTop: `1px solid ${RES.background}`, cursor: 'pointer', background: selected.indexOf(i.id) >= 0 ? RES.bluePale : undefined }} onClick={() => setEditing({ item: i })}>
+                    {mayManage && (
+                      <td style={TD} onClick={(e) => e.stopPropagation()}>
+                        <Checkbox ariaLabel={`Vybrat ${i.title}`} checked={selected.indexOf(i.id) >= 0} onChange={(_, v) => setSelected((cur) => (v ? [...cur, i.id] : cur.filter((x) => x !== i.id)))} />
+                      </td>
+                    )}
                     <td style={{ ...TD, whiteSpace: 'nowrap' }}>{periodLabel(i)}</td>
                     <td style={TD}>{label(i)}</td>
                     <td style={TD}>
@@ -311,6 +359,21 @@ export const ServicePlanTab: React.FC<{
               setCopyDlg(false);
               setYear(toYear);
               setNotice(`Do plánu na rok ${toYear} se zkopírovalo ${created.length} činností.`);
+              reload();
+            })
+          }
+        />
+      )}
+      {deleteDlg && (
+        <DeleteItemsDialog
+          items={deleteDlg}
+          year={year}
+          onClose={() => setDeleteDlg(undefined)}
+          onApply={() =>
+            repos.service.deletePlanItems(deleteDlg.map((i) => i.id), user).then((n) => {
+              setDeleteDlg(undefined);
+              setSelected([]);
+              setNotice(`Z plánu se smazalo ${n} činností. V SharePointu jsou v koši webu, odkud jdou obnovit.`);
               reload();
             })
           }
@@ -461,6 +524,37 @@ const PlanItemDialog: React.FC<{
   );
 };
 
+/** Potvrzení smazání položek plánu (vybraných, nebo všech zobrazených). */
+const DeleteItemsDialog: React.FC<{ items: PlanItem[]; year: number; onClose: () => void; onApply: () => Promise<unknown> }> = ({ items, year, onClose, onApply }) => {
+  const { busy, error, run } = useAsync();
+  const withRequest = items.filter((i) => i.requestId).length;
+  return (
+    <DialogShell
+      title={`Smazat ${items.length} činností z plánu na rok ${year}?`}
+      subText="Položky se přesunou do koše webu SharePoint, odkud jdou obnovit. Už vytvořené servisní požadavky zůstanou."
+      error={error}
+      busy={busy}
+      confirm={`Smazat ${items.length} činností`}
+      onConfirm={() => run(onApply)}
+      onClose={onClose}
+    >
+      <div style={{ fontSize: 13 }}>
+        {items.slice(0, 5).map((i) => (
+          <div key={i.id}>
+            • {i.title} <span style={{ color: RES.gray }}>({periodLabel(i)})</span>
+          </div>
+        ))}
+        {items.length > 5 && <div style={{ color: RES.gray }}>… a dalších {items.length - 5}</div>}
+      </div>
+      {withRequest > 0 && (
+        <MessageBar messageBarType={MessageBarType.warning} isMultiline styles={{ root: { marginTop: 8 } }}>
+          {withRequest} z těchto činností už má vytvořený servisní požadavek; požadavek se nemaže, jen jeho vazba na plán.
+        </MessageBar>
+      )}
+    </DialogShell>
+  );
+};
+
 /** Roční plán lokality z jejího checklistu: činnosti z katalogu O&M podle příznaků, modulů a periody. Existující položky plánu se nemění ani nemažou. */
 const ChecklistPlanDialog: React.FC<{
   sites: ServiceSite[];
@@ -471,14 +565,14 @@ const ChecklistPlanDialog: React.FC<{
   onClose: () => void;
   onApply: (items: PlanItemInput[]) => Promise<unknown>;
 }> = ({ sites, devices, plan, year, defaultSite, onClose, onApply }) => {
-  const [siteNumber, setSiteNumber] = React.useState(defaultSite || (sites[0] ? sites[0].number : ''));
+  const [siteNumber, setSiteNumber] = React.useState(defaultSite);
   const [startYear, setStartYear] = React.useState(year);
   const { busy, error, run } = useAsync();
   const site = sites.filter((s) => s.number === siteNumber)[0];
-  const siteDevices = devices.filter((d) => d.siteNumber === siteNumber && d.isActive);
+  const siteDevices = site ? devices.filter((d) => d.siteNumber === siteNumber && d.isActive) : [];
   const checklist = cleanChecklist(CATALOG, (site && site.checklist) || { flags: [], modules: [], disabled: [], enabled: [], periods: {} });
-  const items = evaluateChecklist(CATALOG, checklist, siteDevices.map((d) => d.kind));
-  const all = planFromChecklist(CATALOG, items, siteDevices, { siteNumber, year, startYear });
+  const items = site ? evaluateChecklist(CATALOG, checklist, siteDevices.map((d) => d.kind)) : [];
+  const all = site ? planFromChecklist(CATALOG, items, siteDevices, { siteNumber, year, startYear }) : [];
   const fresh = newPlanItemsOnly(plan, all);
   const monitoring = items.filter((i) => i.active).length - new Set(all.map((a) => a.title)).size;
 
@@ -488,8 +582,12 @@ const ChecklistPlanDialog: React.FC<{
       subText="Z činností checklistu lokality (Servis → Lokality a soubory → Checklist) se do ročního plánu přidají ty, které mají pevnou periodu. Činnosti lokality jdou na lokalitu, činnosti zařízení na soubory jejich typu. Už existující položky plánu se nemění ani nemažou."
       error={error}
       busy={busy}
-      confirm={fresh.length > 0 ? `Přidat ${fresh.length} činností` : 'Není co přidat'}
+      confirm={!site ? 'Vyberte lokalitu' : fresh.length > 0 ? `Přidat ${fresh.length} činností` : 'Není co přidat'}
       onConfirm={() => {
+        if (!site) {
+          run(() => Promise.reject(new Error('Nejdřív vyberte lokalitu, pro kterou se má plán vytvořit.')));
+          return;
+        }
         if (fresh.length === 0) {
           run(() => Promise.reject(new Error('Všechny činnosti z checklistu už v plánu jsou, nebo checklist žádné s pevnou periodou nemá.')));
           return;
@@ -498,16 +596,16 @@ const ChecklistPlanDialog: React.FC<{
       }}
       onClose={onClose}
     >
-      <Dropdown label="Lokalita" selectedKey={siteNumber} options={sites.map((s) => ({ key: s.number, text: `${s.number} ${s.name}` }))} onChange={(_, o) => o && setSiteNumber(String(o.key))} />
+      <Dropdown label="Lokalita" required placeholder="Vyberte lokalitu" selectedKey={siteNumber || null} options={sites.map((s) => ({ key: s.number, text: `${s.number} ${s.name}` }))} onChange={(_, o) => o && setSiteNumber(String(o.key))} />
       <Dropdown label="První rok smlouvy (pro činnosti jednou za více let)" selectedKey={startYear} options={[year - 2, year - 1, year, year + 1].map((y) => ({ key: y, text: String(y) }))} onChange={(_, o) => o && setStartYear(Number(o.key))} styles={{ root: { width: 220 } }} />
       {site && isEmptyChecklist(checklist) && <MessageBar messageBarType={MessageBarType.warning} isMultiline>Lokalita nemá vyplněný checklist (příznaky a moduly), nabídnou se jen činnosti základního servisu. Checklist upravíte v Servis → Lokality a soubory → Checklist.</MessageBar>}
       {site && siteDevices.length === 0 && <MessageBar messageBarType={MessageBarType.info} isMultiline>Lokalita nemá žádný soubor — vzniknou jen činnosti lokality a vyvedení výkonu.</MessageBar>}
-      <div style={{ fontSize: 13, marginTop: 8 }}>
+      {site && <div style={{ fontSize: 13, marginTop: 8 }}>
         V checklistu je <strong>{items.filter((i) => i.active).length}</strong> činností; do plánu na rok {year} se jich podle period vytvoří <strong>{all.length}</strong> položek, z toho <strong>{fresh.length}</strong> nových ({all.length - fresh.length} už v plánu je).
-      </div>
-      <div style={{ fontSize: 12, color: RES.gray, marginTop: 4 }}>
+      </div>}
+      {site && <div style={{ fontSize: 12, color: RES.gray, marginTop: 4 }}>
         Do plánu se nezařazují činnosti bez pevné periody (monitoring 24/7, denní a týdenní kontroly, sezónní a nárazové činnosti){monitoring > 0 ? ` — v tomto checklistu ${monitoring}` : ''}. Měsíce se rozkládají rovnoměrně; po vytvoření je lze v plánu upravit.
-      </div>
+      </div>}
     </DialogShell>
   );
 };

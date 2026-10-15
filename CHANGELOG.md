@@ -5,6 +5,15 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.57.0 — 15. 10. 2026 — Přehlednější Roční plány, hromadné mazání, Kalendář a Přehled požadavků
+
+- **Roční plány zjednodušené**: nahoře jen filtry (rok, lokalita, soubory, zobrazení), jedno tlačítko **Přidat do plánu** (jednu činnost, z checklistu lokality, ze šablony, zkopírovat do jiného roku) a jedno **Další** (smazat zobrazené, uložit jako šablonu). Přehledový řádek „Zobrazeno N činností · v paušálu · mimo paušál · po termínu“, legenda se rozbalí podle potřeby. Funkce zůstaly všechny.
+- **Hromadné mazání plánu**: v zobrazení Seznam se položky zaškrtávají (i všechny najednou), **Smazat vybrané…**; v nabídce Další **Smazat všechny zobrazené položky…** (respektuje filtr roku, lokality a souborů). Před smazáním potvrzení s počtem; v SharePointu jdou položky do koše webu, takže se dají obnovit. Vytvořené požadavky se nemažou.
+- **Plán ze checklistu** už nepředvybírá první lokalitu — lokalitu je nutné vybrat, aby se omylem nenaplnil plán jiné lokality.
+- Nová položka **Servis → Kalendář**: týdenní přehled pro dispečera — plánované servisy s konkrétním datem a otevřené požadavky podle požadovaného termínu; plán jen s měsícem, požadavky po termínu a bez termínu jsou nahoře zvlášť. Všechny lokality, nebo vybrané; 1 až 12 týdnů, posun Dříve / Dnes / Později.
+- Nová položka **Servis → Přehled požadavků**: jen přehled požadavků podle stavu (Otevřené, Zadané, Probíhající, Hotové, Vše) a lokalit; číslo požadavku otevře jeho detail v Servisu.
+- Bez změny schématu (32).
+
 ## 0.56.0 — 15. 10. 2026 — Správa smluv (údaje smluv), plán z checklistu, šablony z katalogu
 
 - V nabídce **Servis** nová položka **Správa smluv** (správce servisu, vedení, administrátor — smlouvy obsahují ceny). Záložky: Smlouvy se zákazníky a s dodavateli (zakládání smluv přijde v další etapě) a **Údaje smluv**: zhotovitel, asset manager, výchozí parametry smlouvy, sazebník, registr autorizací OEM, výchozí kontakty a eskalace. Ukládá administrátor; smlouva si z nich při založení vezme kopii.

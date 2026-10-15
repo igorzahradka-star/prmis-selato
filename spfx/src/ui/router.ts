@@ -24,6 +24,8 @@ export enum RouteName {
   Service = 'servis',
   ServiceMap = 'servis-mapa',
   ServicePlans = 'servis-plany',
+  ServiceCalendar = 'servis-kalendar',
+  ServiceRequests = 'servis-pozadavky',
   ServiceContracts = 'servis-smlouvy',
   Users = 'uzivatele',
   Settings = 'nastaveni',
