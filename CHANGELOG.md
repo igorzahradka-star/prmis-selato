@@ -5,6 +5,11 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.54.3 — 15. 10. 2026 — Zpět na špendlík
+
+- U mapy pro výběr polohy (projekt, lokalita, soubor servisu) nové tlačítko **Zpět na špendlík**: přesune mapu na nastavenou polohu, když se uživatel posouváním ztratí. Totéž udělá **Najít na mapě**, když už poloha je nastavená (poloha zůstane, mapa se na ni vrátí a nalezená místa se nabídnou).
+- Bez změny schématu (31).
+
 ## 0.54.2 — 15. 10. 2026 — Oprava: „Najít na mapě“ přepisovalo uloženou polohu
 
 - Tlačítko **Najít na mapě** (a Enter v poli lokality) při už nastavené poloze špendlík nepřesune zpět do nalezené obce. Stávající poloha zůstane a nalezená místa se nabídnou v seznamu pod mapou (kliknutím se poloha nahradí). Platí pro projekty, lokality i soubory servisu. Dřív po otevření úpravy a stisku Najít na mapě poloha „skočila zpátky“ do středu obce.

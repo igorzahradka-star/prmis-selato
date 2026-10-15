@@ -40,6 +40,8 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({ value, onChange,
   const [searching, setSearching] = React.useState(false);
   const [message, setMessage] = React.useState<{ text: string; type: MessageBarType } | undefined>(undefined);
   const [results, setResults] = React.useState<PlaceResult[]>([]);
+  // Počítadlo „vrať mapu na špendlík“ — mapa se po změně přesune na nastavenou polohu (když se uživatel v mapě ztratí).
+  const [recenterTick, setRecenterTick] = React.useState(0);
 
   const hasPosition = isValidCoordinates(value.latitude, value.longitude);
   const [manual, setManual] = React.useState('');
@@ -49,6 +51,9 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({ value, onChange,
     setSearching(true);
     setMessage(undefined);
     setMapOpen(true);
+    if (hasPosition) {
+      setRecenterTick((n) => n + 1);
+    }
     searchPlaces(value.location)
       .then((found) => {
         setSearching(false);
@@ -101,6 +106,9 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({ value, onChange,
         )}
         {mapOpen && (
           <DefaultButton text="Skrýt mapu" onClick={() => setMapOpen(false)} />
+        )}
+        {mapOpen && hasPosition && (
+          <DefaultButton iconProps={{ iconName: 'Location' }} text="Zpět na špendlík" title="Přesune mapu na nastavenou polohu" onClick={() => setRecenterTick((n) => n + 1)} />
         )}
         <span style={{ fontSize: 12, color: hasPosition ? RES.greenDark : RES.gray }}>
           {hasPosition
@@ -158,6 +166,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({ value, onChange,
           <PickerMap
             latitude={value.latitude}
             longitude={value.longitude}
+            recenterTick={recenterTick}
             onPick={(latitude, longitude) => onChange({ ...value, latitude, longitude })}
           />
           <div style={{ fontSize: 12, color: RES.gray, marginTop: 4 }}>
@@ -183,8 +192,9 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({ value, onChange,
 const PickerMap: React.FC<{
   latitude?: number;
   longitude?: number;
+  recenterTick: number;
   onPick: (latitude: number, longitude: number) => void;
-}> = ({ latitude, longitude, onPick }) => {
+}> = ({ latitude, longitude, recenterTick, onPick }) => {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const mapRef = React.useRef<LeafletTypes.Map | undefined>(undefined);
   const markerRef = React.useRef<LeafletTypes.Marker | undefined>(undefined);
@@ -268,6 +278,16 @@ const PickerMap: React.FC<{
       map.setView(point, Math.max(map.getZoom(), 12));
     }
   }, [ready, latitude, longitude]);
+
+  // Na pokyn („Zpět na špendlík“, Najít na mapě) se mapa vrátí k nastavené poloze.
+  React.useEffect(() => {
+    const map = mapRef.current;
+    if (recenterTick === 0 || !ready || !map || !isValidCoordinates(latitude, longitude)) {
+      return;
+    }
+    map.setView([latitude as number, longitude as number], Math.max(map.getZoom(), 13));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recenterTick]);
 
   if (loadError) {
     return (
