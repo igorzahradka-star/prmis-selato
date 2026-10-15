@@ -31,6 +31,7 @@ import { ListDef } from './schema';
 import { NotificationPrefs } from '../core/notifications';
 import { AbraDoc } from '../core/abraDocs';
 import { ServiceDevice, ServiceSite } from '../core/service';
+import type { SiteChecklist } from '../core/serviceCatalog';
 import { JobAction, JobActionInput, ServiceJob, ServiceRequest } from '../core/serviceJobs';
 
 /** Kdo je přihlášen a co smí. */
@@ -987,6 +988,8 @@ export interface IServiceRepository {
    * Smí jen vedení a administrátor.
    */
   deleteSite(siteNumber: string, actor: CurrentUser): Promise<void>;
+  /** Uloží checklist lokality (příznaky, moduly, ruční úpravy činností katalogu O&M). Smí správce servisu, vedení a administrátor. */
+  saveSiteChecklist(siteNumber: string, checklist: SiteChecklist, actor: CurrentUser): Promise<ServiceSite>;
   listDevices(): Promise<ServiceDevice[]>;
   /**
    * Založí složky lokality (a souboru, je-li zadán) podle struktury Servisu a uloží jejich odkaz. Existující složky se najdou podle čísla a

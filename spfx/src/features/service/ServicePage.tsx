@@ -27,6 +27,7 @@ import { serviceRequestMail } from '../../core/notifications';
 import { JobPanel } from './JobPanel';
 import { ServiceMap } from './ServiceMap';
 import { RequestPanel } from './RequestPanel';
+import { SiteChecklistPanel } from './SiteChecklistPanel';
 import { ContractBadge, JobKindBadge, JobStatusBadge, PriorityBadge, RequestStatusBadge, ScopeFilters, SlaIndicator, TD, TH } from './serviceUi';
 import { isSlaBreached, slaProgress } from '../../core/serviceSla';
 
@@ -61,6 +62,7 @@ export const ServicePage: React.FC<{ param?: string }> = ({ param }) => {
   const [search, setSearch] = React.useState('');
 
   const [siteDlg, setSiteDlg] = React.useState<{ site?: ServiceSite } | undefined>(undefined);
+  const [checklistSite, setChecklistSite] = React.useState<ServiceSite | undefined>(undefined);
   const [deviceDlg, setDeviceDlg] = React.useState<{ site: ServiceSite; device?: ServiceDevice } | undefined>(undefined);
   const [requestDlg, setRequestDlg] = React.useState<{ request?: ServiceRequest; siteNumber?: string } | undefined>(undefined);
   const [jobDlg, setJobDlg] = React.useState<{ request?: ServiceRequest } | undefined>(undefined);
@@ -374,6 +376,7 @@ export const ServicePage: React.FC<{ param?: string }> = ({ param }) => {
                     </Link>
                   )}
                   {mayAdmin && !s.folderUrl && <ActionButton text="Založit složky" iconProps={{ iconName: 'NewFolder' }} title="Založí složku lokality a její podsložky v 02_SERVIS (existující se nepřepisují)" onClick={() => createFolders(s.number)} styles={{ root: { height: 28 } }} />}
+                  <ActionButton text="Checklist" iconProps={{ iconName: 'CheckList' }} title="Příznaky lokality, moduly a činnosti z katalogu O&M (podklad servisní smlouvy)" onClick={() => setChecklistSite(s)} styles={{ root: { height: 28 } }} />
                   {mayAdmin && <ActionButton text="Upravit" onClick={() => setSiteDlg({ site: s })} styles={{ root: { height: 28 } }} />}
                   {mayDelete && siteDeletionProblem(s.number, devices, requests, jobs) === '' && <ActionButton text="Smazat" iconProps={{ iconName: 'Delete' }} title="Smazat prázdnou lokalitu (bez souborů, požadavků a listů)" onClick={() => setDeleteSiteDlg(s)} styles={{ root: { height: 28 } }} />}
                   {mayAdmin && <ActionButton text="Přidat soubor" iconProps={{ iconName: 'Add' }} onClick={() => setDeviceDlg({ site: s })} styles={{ root: { height: 28 } }} />}
@@ -495,6 +498,7 @@ export const ServicePage: React.FC<{ param?: string }> = ({ param }) => {
           onClose={() => setDeleteSiteDlg(undefined)}
         />
       )}
+      {checklistSite && <SiteChecklistPanel site={checklistSite} devices={devices} mayEdit={canManageSites(user.roles)} save={(c) => repos.service.saveSiteChecklist(checklistSite.number, c, user)} onSaved={() => { setChecklistSite(undefined); setNotice('Checklist lokality je uložený.'); reload(); }} onClose={() => setChecklistSite(undefined)} />}
       {siteDlg && <SiteDialog site={siteDlg.site} sites={sites} partners={partners} save={(input) => repos.service.saveSite(input, user)} onSaved={() => { setSiteDlg(undefined); setNotice('Lokalita je uložená.'); reload(); }} onClose={() => setSiteDlg(undefined)} />}
       {deviceDlg && <DeviceDialog site={deviceDlg.site} device={deviceDlg.device} devices={devices} save={(input) => repos.service.saveDevice(input, user)} onSaved={() => { setDeviceDlg(undefined); setNotice('Soubor je uložený.'); reload(); }} onClose={() => setDeviceDlg(undefined)} />}
       {requestDlg && <RequestDialog request={requestDlg.request} defaultSite={requestDlg.siteNumber} sites={sites} devices={devices} save={async (input, files) => {

@@ -5,6 +5,14 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.55.0 — 15. 10. 2026 — Smlouvy, etapa A: katalog činností a checklist lokality
+
+- **Katalog O&M činností** (101 činností, verze 0.1 — návrh k odborné a právní revizi) je součástí aplikace. Výběr činností pro lokalitu je převod funkce `vyber_cinnosti` z referenčního generátoru smluv; testy ho porovnávají s nezávislým zápisem pravidel.
+- U lokality (Servis → Lokality a soubory) nové tlačítko **Checklist**: příznaky lokality (VN připojení, EZS, kapalinové chlazení BESS…), moduly (korektivní údržba, náhradní díly…) a z nich plynoucí seznam činností. Každou činnost jde ručně zapnout či vypnout, u většiny změnit periodu; podrobnosti (předpis, výstup, postup). Ukládá správce servisu, vedení a administrátor, ostatní vidí ke čtení.
+- **Technické údaje** lokality (katastr, LV, parcely, připojení k distribuci, přístup, agregátor, banka) a souboru (parametry, technologie, záruky, výrobce OEM) — podklad pro přílohy smlouvy.
+- **Schéma 32 — po nahrání spustit Instalaci a diagnostiku** (nové sloupce u lokalit a souborů).
+- Další etapy: B — záložka Smlouvy (smlouva k lokalitě, verze, kontroly, údaje objednatele z ARES), C — vykreslení Wordu do složky lokality, D — roční plán z checklistu.
+
 ## 0.54.3 — 15. 10. 2026 — Zpět na špendlík
 
 - U mapy pro výběr polohy (projekt, lokalita, soubor servisu) nové tlačítko **Zpět na špendlík**: přesune mapu na nastavenou polohu, když se uživatel posouváním ztratí. Totéž udělá **Najít na mapě**, když už poloha je nastavená (poloha zůstane, mapa se na ni vrátí a nalezená místa se nabídnou).

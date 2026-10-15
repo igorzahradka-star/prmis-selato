@@ -7,6 +7,7 @@ import { CurrentUser } from '../../core/types';
 import { canDeleteAnyInService, canDeleteInService, canManageSites, canWorkInService, jobDeletionProblem, uniqueAttachmentName, nextSiteNumber, siteDeletionProblem, requestDeletionProblem, validateDeviceNumber, validateSiteNumber, ServiceDevice, ServiceSite } from '../../core/service';
 import { JobAction, JobActionInput, JobStatus, RequestStatus, ServiceFlowError, ServiceJob, ServiceRequest, applyJobAction, requestStatusFrom } from '../../core/serviceJobs';
 import { OrderAttachment, validateAttachment } from '../../core/orders';
+import type { SiteChecklist } from '../../core/serviceCatalog';
 import { PlanItem, planItemProblem, requestKindOf, requiredDateOf } from '../../core/servicePlan';
 import { INumberingRepository, IProjectRepository, IServiceRepository, PlanItemInput, ServiceAttachmentTarget, ServiceDeviceInput, ServiceJobInput, ServiceRequestInput, ServiceSiteInput } from '../repositories';
 
@@ -59,9 +60,22 @@ export class MockServiceRepository implements IServiceRepository {
       return Promise.reject(new Error('Vyplňte název lokality.'));
     }
     const folderUrl = input.folderUrl || (self ? undefined : mockFolderUrl(number, input.name.trim()));
-    const site: ServiceSite = { ...input, folderUrl, id: input.id ?? this.nextId++, number, name: input.name.trim() };
+    const site: ServiceSite = { ...input, folderUrl, checklist: input.checklist ?? (self ? self.checklist : undefined), id: input.id ?? this.nextId++, number, name: input.name.trim() };
     this.sites = self ? this.sites.map((s) => (s.id === site.id ? site : s)) : [...this.sites, site];
     return Promise.resolve({ ...site });
+  }
+
+  public async saveSiteChecklist(siteNumber: string, checklist: SiteChecklist, actor: CurrentUser): Promise<ServiceSite> {
+    if (!canManageSites(actor.roles)) {
+      throw new Error('Checklist lokality smí upravovat jen správce servisu, vedení a administrátor.');
+    }
+    const site = this.sites.filter((s) => s.number === siteNumber)[0];
+    if (!site) {
+      throw new Error(`Lokalita ${siteNumber} neexistuje.`);
+    }
+    const updated: ServiceSite = { ...site, checklist };
+    this.sites = this.sites.map((s) => (s.id === site.id ? updated : s));
+    return { ...updated };
   }
 
   public async ensureFolders(siteNumber: string, deviceNumber: string | undefined, actor: CurrentUser): Promise<string | undefined> {

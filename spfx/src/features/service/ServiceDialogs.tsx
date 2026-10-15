@@ -103,6 +103,13 @@ export const SiteDialog: React.FC<{ site?: ServiceSite; sites: ServiceSite[]; pa
   const [note, setNote] = React.useState(site ? site.note ?? '' : '');
   const [folderUrl, setFolderUrl] = React.useState(site ? site.folderUrl ?? '' : '');
   const [isActive, setActive] = React.useState(site ? site.isActive : true);
+  const [cadastre, setCadastre] = React.useState(site ? site.cadastre ?? '' : '');
+  const [lvNumber, setLvNumber] = React.useState(site ? site.lvNumber ?? '' : '');
+  const [parcels, setParcels] = React.useState(site ? site.parcels ?? '' : '');
+  const [gridConnection, setGridConnection] = React.useState(site ? site.gridConnection ?? '' : '');
+  const [siteAccess, setSiteAccess] = React.useState(site ? site.siteAccess ?? '' : '');
+  const [aggregator, setAggregator] = React.useState(site ? site.aggregator ?? '' : '');
+  const [financingBank, setFinancingBank] = React.useState(site ? site.financingBank ?? '' : '');
   const { busy, error, run } = useSave(onSaved);
   const numberProblem = validateSiteNumber(number, sites.map((s) => s.number), site ? site.number : undefined);
 
@@ -117,7 +124,7 @@ export const SiteDialog: React.FC<{ site?: ServiceSite; sites: ServiceSite[]; pa
       onClose={onClose}
       onConfirm={() => {
         const partner = partners.filter((p) => p.id === customerId)[0];
-        run(() => save({ id: site ? site.id : undefined, number, name, customerId: partner ? partner.id : undefined, customerName: partner ? partner.name : site ? site.customerName : undefined, address: address.trim() || undefined, latitude, longitude, contact: contact.trim() || undefined, note: note.trim() || undefined, folderUrl: folderUrl.trim() || undefined, isActive }));
+        run(() => save({ id: site ? site.id : undefined, number, name, customerId: partner ? partner.id : undefined, customerName: partner ? partner.name : site ? site.customerName : undefined, address: address.trim() || undefined, latitude, longitude, contact: contact.trim() || undefined, note: note.trim() || undefined, folderUrl: folderUrl.trim() || undefined, isActive, cadastre: cadastre.trim() || undefined, lvNumber: lvNumber.trim() || undefined, parcels: parcels.trim() || undefined, gridConnection: gridConnection.trim() || undefined, siteAccess: siteAccess.trim() || undefined, aggregator: aggregator.trim() || undefined, financingBank: financingBank.trim() || undefined }));
       }}
     >
       <div style={ROW}>
@@ -136,6 +143,19 @@ export const SiteDialog: React.FC<{ site?: ServiceSite; sites: ServiceSite[]; pa
       />
       <TextField label="Kontakt na lokalitě" multiline rows={2} value={contact} onChange={(_, v) => setContact(v ?? '')} />
       <TextField label="Poznámka" multiline rows={2} value={note} onChange={(_, v) => setNote(v ?? '')} />
+      <div style={{ fontWeight: 600, margin: '10px 0 2px', color: RES.navy }}>Technické údaje (pro servisní smlouvu)</div>
+      <div style={{ fontSize: 12, color: RES.gray, marginBottom: 4 }}>Nepovinné; převezmou se do přílohy lokality ve smlouvě. Checklist činností (příznaky, moduly) se upravuje tlačítkem Checklist u lokality.</div>
+      <div style={ROW}>
+        <TextField label="Katastrální území" value={cadastre} onChange={(_, v) => setCadastre(v ?? '')} styles={{ root: { flex: '1 1 220px' } }} />
+        <TextField label="List vlastnictví (LV)" value={lvNumber} onChange={(_, v) => setLvNumber(v ?? '')} styles={{ root: { width: 150 } }} />
+      </div>
+      <TextField label="Parcely" multiline rows={2} value={parcels} onChange={(_, v) => setParcels(v ?? '')} />
+      <TextField label="Připojení k distribuční soustavě (hladina, provozovatel, EAN)" multiline rows={2} value={gridConnection} onChange={(_, v) => setGridConnection(v ?? '')} />
+      <TextField label="Přístup na lokalitu (klíče, kódy — jen odkaz na předávací protokol)" multiline rows={2} value={siteAccess} onChange={(_, v) => setSiteAccess(v ?? '')} />
+      <div style={ROW}>
+        <TextField label="Agregátor" value={aggregator} onChange={(_, v) => setAggregator(v ?? '')} styles={{ root: { flex: '1 1 220px' } }} />
+        <TextField label="Financující banka" value={financingBank} onChange={(_, v) => setFinancingBank(v ?? '')} styles={{ root: { flex: '1 1 220px' } }} />
+      </div>
       <Toggle label="Aktivní" inlineLabel checked={isActive} onChange={(_, v) => setActive(!!v)} />
     </Shell>
   );
@@ -157,6 +177,10 @@ export const DeviceDialog: React.FC<{ site: ServiceSite; device?: ServiceDevice;
   const [contractUrl, setContractUrl] = React.useState(device ? device.contractUrl ?? '' : '');
   const [folderUrl, setFolderUrl] = React.useState(device ? device.folderUrl ?? '' : '');
   const [isActive, setActive] = React.useState(device ? device.isActive : true);
+  const [parameters, setParameters] = React.useState(device ? device.parameters ?? '' : '');
+  const [technology, setTechnology] = React.useState(device ? device.technology ?? '' : '');
+  const [warranty, setWarranty] = React.useState(device ? device.warranty ?? '' : '');
+  const [oemVendor, setOemVendor] = React.useState(device ? device.oemVendor ?? '' : '');
   const { busy, error, run } = useSave(onSaved);
   const check = validateDeviceNumber(number, site.number, used, device ? device.number : undefined);
 
@@ -185,7 +209,11 @@ export const DeviceDialog: React.FC<{ site: ServiceSite; device?: ServiceDevice;
             contractNote: contractNote.trim() || undefined,
             contractUrl: contractUrl.trim() || undefined,
             folderUrl: folderUrl.trim() || undefined,
-            isActive
+            isActive,
+            parameters: parameters.trim() || undefined,
+            technology: technology.trim() || undefined,
+            warranty: warranty.trim() || undefined,
+            oemVendor: oemVendor.trim() || undefined
           })
         )
       }
@@ -195,6 +223,13 @@ export const DeviceDialog: React.FC<{ site: ServiceSite; device?: ServiceDevice;
         <TextField label="Název souboru" required value={name} onChange={(_, v) => setName(v ?? '')} styles={{ root: { flex: '1 1 240px' } }} />
         <Dropdown label="Druh" selectedKey={kind} options={DEVICE_KINDS.map((k) => ({ key: k, text: k }))} onChange={(_, o) => o && setKind(String(o.key))} styles={{ root: { width: 150 } }} />
       </div>
+      <div style={{ fontWeight: 600, margin: '10px 0 2px', color: RES.navy }}>Technické údaje (pro přílohu smlouvy)</div>
+      <div style={ROW}>
+        <TextField label="Parametry (např. 4 950 kWp, 25 644 kWh)" value={parameters} onChange={(_, v) => setParameters(v ?? '')} styles={{ root: { flex: '1 1 240px' } }} />
+        <TextField label="Výrobce (OEM) — u BESS se kontroluje autorizace" value={oemVendor} onChange={(_, v) => setOemVendor(v ?? '')} styles={{ root: { flex: '1 1 240px' } }} />
+      </div>
+      <TextField label="Technologie (moduly, střídače, chlazení…)" multiline rows={2} value={technology} onChange={(_, v) => setTechnology(v ?? '')} />
+      <TextField label="Záruky (moduly, střídače, LTSA…)" multiline rows={2} value={warranty} onChange={(_, v) => setWarranty(v ?? '')} />
       <div style={{ fontWeight: 600, margin: '10px 0 2px', color: RES.navy }}>Poloha na mapě (nepovinná)</div>
       <div style={{ fontSize: 12, color: RES.gray, marginBottom: 4 }}>Bez vlastní polohy se soubor ukáže na poloze lokality.</div>
       <LocationPicker

@@ -61,3 +61,11 @@ zapisuje **jen** `WorkReport`, `Hours`, `Material`, `PhotosUrl`, `DoneAt` a `Job
 identita servisáka (e-mail kontaktu partnera) se musí ověřit před zobrazením. Fotky se ukládají do složky zařízení v `02_SERVIS` a do `PhotosUrl` jde odkaz.
 
 **Bezpečnost:** žádné přihlašovací údaje v repozitáři ani v prohlížeči; prostředník dostane k SharePointu jen nejmenší nutná práva (čtení `PRM_ServiceJobs` a zápis vyjmenovaných sloupců); servisák nesmí vidět ceny ani jiné lokality než své listy.
+
+## Smlouvy se zákazníkem (zadání Igor, 15. 10. 2026)
+
+Podklady: složka `General/02_SERVIS/SERVIS - PODKLADY/RES Smlouvy VZORY` (šablony Wordu pro docxtpl, katalog činností `res_om_katalog_v01.json`, referenční generátor `render_smlouvy.py`, ukázkový vstup).
+
+Rozhodnutí: smlouva je vždy k jedné lokalitě (číslo = číslo lokality + pořadí, např. `10500-01`); přílohy jsou samostatné dokumenty (Příloha lokality + Příloha pro každý soubor); dodatek je další dokument ke smlouvě; smlouva má verze (přidání, odebrání, změny; verze = snapshot dat); uloží se do složky lokality; údaje o objednateli se dotáhnou z ARES podle IČO (rejstřík, jednající osoby; bankovní účet ručně); kontroly s závažností „chyba“ blokují generování (P1 ≤ 72 h, doba ≥ 10 let, autorizace OEM pro BESS); náhled v aplikaci převodem Wordu na HTML, rozhodující je Word.
+
+Etapy: **A hotovo (0.55.0.0)** — katalog + checklist lokality + technická pole; **B** — záložka Smlouvy, verze, kontroly, ARES; **C** — vykreslení Wordu (docxtpl syntaxe v prohlížeči: JSZip + vlastní vyhodnocení if/for/filtr `kc`), uložení do složky, porovnání s ukázkou (složka „UKAZKA OM smlouvy“ zatím chybí); **D** — roční plán z checklistu, vazba požadavků na smlouvu. Šablona Přílohy souboru a šablona dodatku se musí doplnit (zatím je jen Příloha lokality a rámcová smlouva). Zhotovitel ve vzoru je „s.r.o.“ — ověřit právní formu RES.

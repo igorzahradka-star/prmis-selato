@@ -12,6 +12,7 @@ import { toDate } from '../../core/format';
 import { canDeleteAnyInService, canDeleteInService, canManageSites, canWorkInService, jobDeletionProblem, uniqueAttachmentName, nextSiteNumber, serviceFolderPlan, siteDeletionProblem, requestDeletionProblem, validateDeviceNumber, validateSiteNumber, ServiceDevice, ServiceSite } from '../../core/service';
 import { JobAction, JobActionInput, JobStatus, RequestStatus, ServiceFlowError, ServiceJob, ServiceRequest, applyJobAction, requestStatusFrom } from '../../core/serviceJobs';
 import { OrderAttachment, validateAttachment } from '../../core/orders';
+import { parseChecklist, serializeChecklist, isEmptyChecklist, SiteChecklist } from '../../core/serviceCatalog';
 import { PlanItem, planItemProblem, requestKindOf, requiredDateOf } from '../../core/servicePlan';
 import { INumberingRepository, IProjectRepository, ISettingsRepository, PlanItemInput, ServiceAttachmentTarget, IServiceRepository, ServiceDeviceInput, ServiceJobInput, ServiceRequestInput, ServiceSiteInput } from '../repositories';
 import { getSp, getSpForSite, describeSpError } from './spContext';
@@ -37,6 +38,14 @@ function missingColumnHint(error: unknown): boolean {
   return /does not exist on type/i.test(error instanceof Error ? error.message : String(error));
 }
 
+/** Technické údaje lokality — do seznamu se zapisují jen když něco obsahují (nebo už obsahovaly), aby uložení fungovalo i před Instalací nového schématu. */
+const SITE_TECH = ['cadastre', 'lvNumber', 'parcels', 'gridConnection', 'siteAccess', 'aggregator', 'financingBank'] as const;
+const DEVICE_TECH = ['parameters', 'technology', 'warranty', 'oemVendor'] as const;
+
+function hasAny<T extends object>(o: T | undefined, keys: readonly (keyof T)[]): boolean {
+  return !!o && keys.some((k) => !!o[k]);
+}
+
 function mapSite(i: Item): ServiceSite {
   return {
     id: i.Id,
@@ -50,7 +59,15 @@ function mapSite(i: Item): ServiceSite {
     contact: str(i.Contact),
     note: str(i.Note),
     folderUrl: str(i.FolderUrl),
-    isActive: i.IsActive !== false
+    isActive: i.IsActive !== false,
+    cadastre: str(i.Cadastre),
+    lvNumber: str(i.LvNumber),
+    parcels: str(i.Parcels),
+    gridConnection: str(i.GridConnection),
+    siteAccess: str(i.SiteAccess),
+    aggregator: str(i.Aggregator),
+    financingBank: str(i.FinancingBank),
+    checklist: parseChecklist(str(i.ChecklistJson))
   };
 }
 
@@ -69,7 +86,11 @@ function mapDevice(i: Item): ServiceDevice {
     contractNote: str(i.ContractNote),
     contractUrl: str(i.ContractUrl),
     folderUrl: str(i.FolderUrl),
-    isActive: i.IsActive !== false
+    isActive: i.IsActive !== false,
+    parameters: str(i.Parameters),
+    technology: str(i.Technology),
+    warranty: str(i.Warranty),
+    oemVendor: str(i.OemVendor)
   };
 }
 
@@ -267,6 +288,7 @@ export class SpServiceRepository implements IServiceRepository {
       throw new Error('Lokality smí spravovat jen správce servisu, vedení a administrátor.');
     }
     const sites = await this.listSites();
+    const existingSite = input.id ? sites.filter((s) => s.id === input.id)[0] : undefined;
     const number = input.number || nextSiteNumber(sites.map((s) => s.number));
     const problem = validateSiteNumber(number, sites.map((s) => s.number), input.id ? sites.filter((s) => s.id === input.id)[0]?.number : undefined);
     if (problem) {
@@ -294,7 +316,10 @@ export class SpServiceRepository implements IServiceRepository {
       Contact: input.contact ?? '',
       Note: input.note ?? '',
       FolderUrl: siteFolderUrl ?? '',
-      IsActive: input.isActive
+      IsActive: input.isActive,
+      ...(hasAny(input, SITE_TECH) || hasAny(existingSite, SITE_TECH)
+        ? { Cadastre: input.cadastre ?? '', LvNumber: input.lvNumber ?? '', Parcels: input.parcels ?? '', GridConnection: input.gridConnection ?? '', SiteAccess: input.siteAccess ?? '', Aggregator: input.aggregator ?? '', FinancingBank: input.financingBank ?? '' }
+        : {})
     };
     let id = input.id;
     if (id) {
@@ -342,6 +367,19 @@ export class SpServiceRepository implements IServiceRepository {
     return (await this.readAll(DEVICES)).map(mapDevice).sort((a, b) => a.number.localeCompare(b.number));
   }
 
+  public async saveSiteChecklist(siteNumber: string, checklist: SiteChecklist, actor: CurrentUser): Promise<ServiceSite> {
+    if (!canManageSites(actor.roles)) {
+      throw new Error('Checklist lokality smí upravovat jen správce servisu, vedení a administrátor.');
+    }
+    const site = (await this.listSites()).filter((s) => s.number === siteNumber)[0];
+    if (!site) {
+      throw new Error(`Lokalita ${siteNumber} neexistuje.`);
+    }
+    await this.update(SITES, site.id, { ChecklistJson: isEmptyChecklist(checklist) ? '' : serializeChecklist(checklist) }, 'Checklist se nepodařilo uložit');
+    await this.audit('Servis – lokalita', siteNumber, actor, 'Upraven checklist lokality');
+    return { ...site, checklist };
+  }
+
   public async saveDevice(input: ServiceDeviceInput, actor: CurrentUser): Promise<ServiceDevice> {
     if (!canManageSites(actor.roles)) {
       throw new Error('Soubory smí spravovat jen správce servisu, vedení a administrátor.');
@@ -380,7 +418,10 @@ export class SpServiceRepository implements IServiceRepository {
       ContractNote: input.contractNote ?? '',
       ContractUrl: input.contractUrl ?? '',
       FolderUrl: deviceFolderUrl ?? '',
-      IsActive: input.isActive
+      IsActive: input.isActive,
+      ...(hasAny(input, DEVICE_TECH) || hasAny(self, DEVICE_TECH)
+        ? { Parameters: input.parameters ?? '', Technology: input.technology ?? '', Warranty: input.warranty ?? '', OemVendor: input.oemVendor ?? '' }
+        : {})
     };
     let id = input.id;
     if (id) {

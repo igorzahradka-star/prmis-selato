@@ -18,7 +18,7 @@
  * Verze schématu. Ukládá se do PRM_Settings pod klíčem `schemaVersion`.
  * Průvodce porovná uloženou verzi s touto a nabídne doplnění rozdílu.
  */
-export const SCHEMA_VERSION = 31;
+export const SCHEMA_VERSION = 32;
 
 /** Typ sloupce v SharePointu. */
 export type FieldType =
@@ -713,7 +713,15 @@ const PRM_SERVICE_SITES: ListDef = {
     { name: 'Contact', title: 'Kontakt na lokalitě', type: 'Note' },
     { name: 'Note', title: 'Poznámka', type: 'Note' },
     { name: 'FolderUrl', title: 'Složka lokality', type: 'Text' },
-    { name: 'IsActive', title: 'Aktivní', type: 'Boolean', defaultValue: '1' }
+    { name: 'IsActive', title: 'Aktivní', type: 'Boolean', defaultValue: '1' },
+    { name: 'Cadastre', title: 'Katastrální území', type: 'Text' },
+    { name: 'LvNumber', title: 'List vlastnictví', type: 'Text' },
+    { name: 'Parcels', title: 'Parcely', type: 'Note' },
+    { name: 'GridConnection', title: 'Připojení k distribuční soustavě', type: 'Note' },
+    { name: 'SiteAccess', title: 'Přístup na lokalitu', type: 'Note' },
+    { name: 'Aggregator', title: 'Agregátor', type: 'Text' },
+    { name: 'FinancingBank', title: 'Financující banka', type: 'Text' },
+    { name: 'ChecklistJson', title: 'Checklist lokality (JSON)', type: 'Note', description: 'Příznaky, moduly a ruční úpravy činností katalogu O&M. Upravuje se v aplikaci (Servis → Lokality → Checklist).' }
   ]
 };
 
@@ -736,7 +744,11 @@ const PRM_SERVICE_DEVICES: ListDef = {
     { name: 'ContractNote', title: 'Poznámka ke smlouvě', type: 'Note' },
     { name: 'ContractUrl', title: 'Odkaz na smlouvu', type: 'Text', description: 'Smlouva (komerční podmínky) je dokument uložený u lokality/zařízení.' },
     { name: 'FolderUrl', title: 'Složka zařízení', type: 'Text' },
-    { name: 'IsActive', title: 'Aktivní', type: 'Boolean', defaultValue: '1' }
+    { name: 'IsActive', title: 'Aktivní', type: 'Boolean', defaultValue: '1' },
+    { name: 'Parameters', title: 'Parametry', type: 'Text' },
+    { name: 'Technology', title: 'Technologie', type: 'Note' },
+    { name: 'Warranty', title: 'Záruky', type: 'Note' },
+    { name: 'OemVendor', title: 'Výrobce (OEM)', type: 'Text' }
   ]
 };
 

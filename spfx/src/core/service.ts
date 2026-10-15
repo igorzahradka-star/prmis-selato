@@ -10,6 +10,7 @@
 import { Role } from './types';
 import { hasAnyRole } from './roles';
 import { sanitizeFolderName } from './numbering';
+import type { SiteChecklist } from './serviceCatalog';
 
 /** Typ projektu, pod kterým je zařízení vedeno; takové projekty se v přehledu projektů neukazují. */
 export const SERVICE_PROJECT_TYPE = 'Servis';
@@ -35,6 +36,16 @@ export interface ServiceSite {
   /** Odkaz na složku lokality v knihovně Dokumenty. */
   folderUrl?: string;
   isActive: boolean;
+  /** Technické údaje lokality pro smlouvu a přílohu lokality (katastr, LV, parcely, připojení k distribuci, přístup, agregátor, banka). */
+  cadastre?: string;
+  lvNumber?: string;
+  parcels?: string;
+  gridConnection?: string;
+  siteAccess?: string;
+  aggregator?: string;
+  financingBank?: string;
+  /** Checklist lokality (příznaky, moduly, ruční úpravy činností katalogu); chybí-li, je prázdný. */
+  checklist?: SiteChecklist;
 }
 
 export interface ServiceDevice {
@@ -55,6 +66,11 @@ export interface ServiceDevice {
   contractUrl?: string;
   folderUrl?: string;
   isActive: boolean;
+  /** Technické údaje souboru pro přílohu smlouvy: parametry (např. „4 950 kWp“), technologie, záruky, výrobce (OEM). */
+  parameters?: string;
+  technology?: string;
+  warranty?: string;
+  oemVendor?: string;
 }
 
 // --- práva -----------------------------------------------------------------------
