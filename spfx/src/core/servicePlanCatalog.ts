@@ -40,7 +40,12 @@ export interface PlanScope {
   year: number;
   /** První rok smlouvy; činnosti s periodou delší než rok se naplánují v prvním roce a pak po jejím uplynutí. Bez něj platí rok plánu jako první. */
   startYear?: number;
+  /** Co z checklistu vzít: `site` = společné činnosti lokality a vyvedení výkonu, jinak číslo souboru. Bez výběru všechno. */
+  only?: string[];
 }
+
+/** Klíč cíle položky plánu (společné činnosti lokality = `site`, jinak číslo souboru). */
+export const planTargetKey = (deviceNumber: string | undefined): string => deviceNumber || 'site';
 
 /**
  * Položky ročního plánu z činností checklistu lokality. Činnosti lokality a vyvedení výkonu se přiřadí lokalitě, činnosti zařízení každému
@@ -65,6 +70,9 @@ export function planFromChecklist(catalog: ServiceCatalog, items: ChecklistItem[
         ? [undefined]
         : devices.filter((d) => d.isActive !== false && siteAssetTypes([d.kind]).indexOf(a.asset) >= 0).map((d) => d.number);
     targets.forEach((deviceNumber) => {
+      if (scope.only && scope.only.indexOf(planTargetKey(deviceNumber)) < 0) {
+        return;
+      }
       months.forEach((month) => {
         out.push({ year: scope.year, siteNumber: scope.siteNumber, deviceNumber, title: a.nazev, description: description(a), month, jobKind: jobKindOf(a.zahrnuti) });
       });

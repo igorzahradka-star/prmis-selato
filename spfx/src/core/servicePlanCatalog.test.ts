@@ -1,6 +1,6 @@
 import { evaluateChecklist, SiteChecklist } from './serviceCatalog';
 import { SERVICE_CATALOG as CAT } from './serviceCatalog.data';
-import { newPlanItemsOnly, occurrenceMonths, planFromChecklist, templatesFromCatalog } from './servicePlanCatalog';
+import { newPlanItemsOnly, occurrenceMonths, planFromChecklist, planTargetKey, templatesFromCatalog } from './servicePlanCatalog';
 import { DEFAULT_PLAN_TEMPLATES, validatePlanTemplates } from './servicePlan';
 
 const CHECKLIST: SiteChecklist = {
@@ -114,5 +114,33 @@ describe('přidání do plánu bez duplicit', () => {
     const existing = [{ id: 1, year: 2026, siteNumber: '10500', deviceNumber: '10501', month: 3, title: ' kontrola ', jobKind: 'Plánovaná' }];
     expect(newPlanItemsOnly(existing, cand)).toEqual([cand[1]]);
     expect(newPlanItemsOnly([], cand)).toHaveLength(2);
+  });
+});
+
+describe('výběr, co z checklistu do plánu nahrát', () => {
+  const items = evaluateChecklist(CAT, CHECKLIST, ['FVE', 'BESS']);
+  const all = planFromChecklist(CAT, items, DEVICES, { siteNumber: '10500', year: 2026 });
+  const count = (key: string): number => all.filter((p) => planTargetKey(p.deviceNumber) === key).length;
+
+  it('klíč cíle: společné činnosti lokality = site, jinak číslo souboru', () => {
+    expect(planTargetKey(undefined)).toBe('site');
+    expect(planTargetKey('10501')).toBe('10501');
+  });
+
+  it('jen společné činnosti, jen jeden soubor, nebo kombinace; součet odpovídá celku', () => {
+    const only = (keys: string[]) => planFromChecklist(CAT, items, DEVICES, { siteNumber: '10500', year: 2026, only: keys });
+    expect(only(['site'])).toHaveLength(count('site'));
+    expect(only(['10501'])).toHaveLength(count('10501'));
+    expect(only(['10502'])).toHaveLength(count('10502'));
+    expect(only(['site', '10501'])).toHaveLength(count('site') + count('10501'));
+    expect(count('site') + count('10501') + count('10502')).toBe(all.length);
+    expect(only([])).toEqual([]);
+  });
+
+  it('činnosti zařízení jdou jen na soubory stejného typu (BESS ne na FVE a naopak)', () => {
+    const fve = new Set(CAT.cinnosti.filter((a) => a.asset === 'FVE').map((a) => a.nazev));
+    const bess = new Set(CAT.cinnosti.filter((a) => a.asset === 'BESS').map((a) => a.nazev));
+    all.filter((p) => p.deviceNumber === '10501').forEach((p) => expect(bess.has(p.title) && !fve.has(p.title)).toBe(false));
+    all.filter((p) => p.deviceNumber === '10502').forEach((p) => expect(fve.has(p.title) && !bess.has(p.title)).toBe(false));
   });
 });

@@ -45,6 +45,7 @@ export const READER_ROUTES: RouteName[] = [
   RouteName.ServicePlans,
   RouteName.ServiceCalendar,
   RouteName.ServiceRequests,
+  RouteName.ServiceSites,
   RouteName.ServiceMap,
   RouteName.Partners,
   RouteName.WaitingForMe,
@@ -100,6 +101,7 @@ export function buildNavigation(flags: NavFlags): NavEntry[] {
           { route: RouteName.Service, label: 'Servis', icon: 'Repair' },
           { route: RouteName.ServiceCalendar, label: 'Kalendář', icon: 'CalendarWeek' },
           { route: RouteName.ServiceRequests, label: 'Přehled požadavků', icon: 'BulletedList' },
+          { route: RouteName.ServiceSites, label: 'Lokality', icon: 'MapPin' },
           { route: RouteName.ServicePlans, label: 'Servisní plány', icon: 'Calendar' },
           ...(flags.contracts ? [{ route: RouteName.ServiceContracts, label: 'Správa smluv', icon: 'PageList' }] : []),
           { route: RouteName.ServiceMap, label: 'Mapa servisu', icon: 'MapPin' }

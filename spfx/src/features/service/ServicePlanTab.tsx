@@ -32,7 +32,7 @@ import {
 } from '../../core/servicePlan';
 import { cleanChecklist, evaluateChecklist, isEmptyChecklist } from '../../core/serviceCatalog';
 import { SERVICE_CATALOG as CATALOG } from '../../core/serviceCatalog.data';
-import { newPlanItemsOnly, planFromChecklist } from '../../core/servicePlanCatalog';
+import { newPlanItemsOnly, planFromChecklist, planTargetKey } from '../../core/servicePlanCatalog';
 import { PlanItemInput } from '../../data/repositories';
 import { DATE_INPUT, TD, TH, dateToInput, inputToDate } from './serviceUi';
 
@@ -567,12 +567,19 @@ const ChecklistPlanDialog: React.FC<{
 }> = ({ sites, devices, plan, year, defaultSite, onClose, onApply }) => {
   const [siteNumber, setSiteNumber] = React.useState(defaultSite);
   const [startYear, setStartYear] = React.useState(year);
+  const [chosen, setChosen] = React.useState<string[] | undefined>(undefined);
   const { busy, error, run } = useAsync();
   const site = sites.filter((s) => s.number === siteNumber)[0];
   const siteDevices = site ? devices.filter((d) => d.siteNumber === siteNumber && d.isActive) : [];
   const checklist = cleanChecklist(CATALOG, (site && site.checklist) || { flags: [], modules: [], disabled: [], enabled: [], periods: {} });
   const items = site ? evaluateChecklist(CATALOG, checklist, siteDevices.map((d) => d.kind)) : [];
-  const all = site ? planFromChecklist(CATALOG, items, siteDevices, { siteNumber, year, startYear }) : [];
+  const full = site ? planFromChecklist(CATALOG, items, siteDevices, { siteNumber, year, startYear }) : [];
+  const targets = [
+    { key: 'site', label: 'Společné činnosti lokality a vyvedení výkonu', count: full.filter((p) => planTargetKey(p.deviceNumber) === 'site').length },
+    ...siteDevices.map((d) => ({ key: d.number, label: `${d.number} ${d.name} (${d.kind})`, count: full.filter((p) => planTargetKey(p.deviceNumber) === d.number).length }))
+  ];
+  const selectedKeys = chosen ?? targets.map((t) => t.key);
+  const all = full.filter((p) => selectedKeys.indexOf(planTargetKey(p.deviceNumber)) >= 0);
   const fresh = newPlanItemsOnly(plan, all);
   const monitoring = items.filter((i) => i.active).length - new Set(all.map((a) => a.title)).size;
 
@@ -596,12 +603,28 @@ const ChecklistPlanDialog: React.FC<{
       }}
       onClose={onClose}
     >
-      <Dropdown label="Lokalita" required placeholder="Vyberte lokalitu" selectedKey={siteNumber || null} options={sites.map((s) => ({ key: s.number, text: `${s.number} ${s.name}` }))} onChange={(_, o) => o && setSiteNumber(String(o.key))} />
+      <Dropdown label="Lokalita" required placeholder="Vyberte lokalitu" selectedKey={siteNumber || null} options={sites.map((s) => ({ key: s.number, text: `${s.number} ${s.name}` }))} onChange={(_, o) => { if (o) { setSiteNumber(String(o.key)); setChosen(undefined); } }} />
+      {site && (
+        <div style={{ margin: '8px 0' }}>
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>Co z checklistu nahrát do plánu</div>
+          {targets.map((t) => (
+            <Checkbox
+              key={t.key}
+              label={`${t.label} — ${t.count} položek`}
+              checked={selectedKeys.indexOf(t.key) >= 0}
+              disabled={t.count === 0}
+              onChange={(_, v) => setChosen(v ? [...selectedKeys, t.key] : selectedKeys.filter((k) => k !== t.key))}
+              styles={{ root: { marginBottom: 4 } }}
+            />
+          ))}
+          <div style={{ fontSize: 12, color: RES.gray }}>Činnosti zařízení se nahrávají jen na soubory stejného druhu (činnosti FVE na FVE, činnosti BESS na BESS). Odškrtněte, co do plánu nechcete.</div>
+        </div>
+      )}
       <Dropdown label="První rok smlouvy (pro činnosti jednou za více let)" selectedKey={startYear} options={[year - 2, year - 1, year, year + 1].map((y) => ({ key: y, text: String(y) }))} onChange={(_, o) => o && setStartYear(Number(o.key))} styles={{ root: { width: 220 } }} />
       {site && isEmptyChecklist(checklist) && <MessageBar messageBarType={MessageBarType.warning} isMultiline>Lokalita nemá vyplněný checklist (příznaky a moduly), nabídnou se jen činnosti základního servisu. Checklist upravíte v Servis → Lokality a soubory → Checklist.</MessageBar>}
       {site && siteDevices.length === 0 && <MessageBar messageBarType={MessageBarType.info} isMultiline>Lokalita nemá žádný soubor — vzniknou jen činnosti lokality a vyvedení výkonu.</MessageBar>}
       {site && <div style={{ fontSize: 13, marginTop: 8 }}>
-        V checklistu je <strong>{items.filter((i) => i.active).length}</strong> činností; do plánu na rok {year} se jich podle period vytvoří <strong>{all.length}</strong> položek, z toho <strong>{fresh.length}</strong> nových ({all.length - fresh.length} už v plánu je).
+        V checklistu je <strong>{items.filter((i) => i.active).length}</strong> činností; z vybraného se do plánu na rok {year} podle period vytvoří <strong>{all.length}</strong> položek, z toho <strong>{fresh.length}</strong> nových ({all.length - fresh.length} už v plánu je).
       </div>}
       {site && <div style={{ fontSize: 12, color: RES.gray, marginTop: 4 }}>
         Do plánu se nezařazují činnosti bez pevné periody (monitoring 24/7, denní a týdenní kontroly, sezónní a nárazové činnosti){monitoring > 0 ? ` — v tomto checklistu ${monitoring}` : ''}. Měsíce se rozkládají rovnoměrně; po vytvoření je lze v plánu upravit.

@@ -5,6 +5,12 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.59.0 — 16. 10. 2026 — Lokality v nabídce Servis, výběr při plánu z checklistu
+
+- **Servis → Lokality**: lokality a soubory (zakládání, úpravy, Checklist, složky, smazání prázdné lokality) mají vlastní položku v nabídce. Stránka **Servis** má už jen záložky **Požadavky** a **Servisní listy**; mapa je v Servis → Mapa servisu. Pořadí nabídky: Servis, Kalendář, Přehled požadavků, Lokality, Servisní plány, Správa smluv, Mapa servisu.
+- **Plán z checklistu s výběrem**: po zvolení lokality dialog ukáže, co z checklistu nahrát — společné činnosti lokality a jednotlivé soubory (s počtem položek u každého) — a nabídne odškrtnout, co do plánu nechcete. Činnosti zařízení se nahrávají jen na soubory stejného druhu (FVE na FVE, BESS na BESS); součet výběru odpovídá nahrávané položce.
+- Bez změny schématu (33).
+
 ## 0.58.1 — 16. 10. 2026 — Přidávání do plánu jen u konkrétní lokality
 
 - V Servisních plánech je **Přidat do plánu** vypnuté, dokud není vybraná konkrétní lokalita (při „Všechny lokality“ je stránka jen přehled). Činnost plánu tak nelze vytvořit bez vazby na lokalitu (a volitelně soubor). Mazání zobrazených položek a přehledy fungují beze změny. Bez změny schématu (33).
