@@ -64,7 +64,7 @@ identita servisáka (e-mail kontaktu partnera) se musí ověřit před zobrazen�
 
 ## Smlouvy se zákazníkem (zadání Igor, 15. 10. 2026)
 
-Podklady: složka `General/02_SERVIS/SERVIS - PODKLADY/RES Smlouvy VZORY` (šablony Wordu pro docxtpl, katalog činností `res_om_katalog_v01.json`, referenční generátor `render_smlouvy.py`, ukázkový vstup).
+Podklady: složka `General/02_SERVIS/00_SERVIS - PODKLADY/RES Smlouvy VZORY` (složka byla přejmenována z „SERVIS - PODKLADY“) (šablony Wordu pro docxtpl, katalog činností `res_om_katalog_v01.json`, referenční generátor `render_smlouvy.py`, ukázkový vstup).
 
 Rozhodnutí: smlouva je vždy k jedné lokalitě (číslo = číslo lokality + pořadí, např. `10500-01`); přílohy jsou samostatné dokumenty (Příloha lokality + Příloha pro každý soubor); dodatek je další dokument ke smlouvě; smlouva má verze (přidání, odebrání, změny; verze = snapshot dat); uloží se do složky lokality; údaje o objednateli se dotáhnou z ARES podle IČO (rejstřík, jednající osoby; bankovní účet ručně); kontroly s závažností „chyba“ blokují generování (P1 ≤ 72 h, doba ≥ 10 let, autorizace OEM pro BESS); náhled v aplikaci převodem Wordu na HTML, rozhodující je Word.
 
