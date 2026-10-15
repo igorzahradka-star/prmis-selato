@@ -5,6 +5,10 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.58.1 — 16. 10. 2026 — Přidávání do plánu jen u konkrétní lokality
+
+- V Servisních plánech je **Přidat do plánu** vypnuté, dokud není vybraná konkrétní lokalita (při „Všechny lokality“ je stránka jen přehled). Činnost plánu tak nelze vytvořit bez vazby na lokalitu (a volitelně soubor). Mazání zobrazených položek a přehledy fungují beze změny. Bez změny schématu (33).
+
 ## 0.58.0 — 16. 10. 2026 — Uzavření požadavku bez servisního listu
 
 - V detailu servisního požadavku nové tlačítko **Uzavřít bez listu**: jednoduché úkony (např. vizuální kontrola), které dispečer vyřídí sám, se uzavřou s **krátkým povinným komentářem** a bez servisního listu. Zapíše se kdo, kdy a co udělal; požadavek přejde do stavu Vyřešeno. Méně kliknutí při odbavení.

@@ -111,10 +111,10 @@ export const ServicePlanTab: React.FC<{
     late: shown.filter((i) => planItemState(i, today) === 'po-terminu').length
   };
   const addMenu: IContextualMenuItem[] = [
-    { key: 'one', text: 'Jednu činnost…', iconProps: { iconName: 'Add' }, disabled: activeSites.length === 0, onClick: () => setEditing({}) },
-    { key: 'checklist', text: 'Z checklistu lokality…', iconProps: { iconName: 'CheckList' }, disabled: activeSites.length === 0, onClick: () => setChecklistDlg(true) },
-    { key: 'template', text: 'Ze šablony…', iconProps: { iconName: 'Library' }, disabled: activeSites.length === 0, onClick: () => setTemplateDlg(true) },
-    { key: 'copy', text: 'Zkopírovat zobrazené do jiného roku…', iconProps: { iconName: 'Copy' }, disabled: shown.length === 0, onClick: () => setCopyDlg(true) }
+    { key: 'one', text: 'Jednu činnost…', iconProps: { iconName: 'Add' }, disabled: activeSites.length === 0 || !site, onClick: () => setEditing({}) },
+    { key: 'checklist', text: 'Z checklistu lokality…', iconProps: { iconName: 'CheckList' }, disabled: activeSites.length === 0 || !site, onClick: () => setChecklistDlg(true) },
+    { key: 'template', text: 'Ze šablony…', iconProps: { iconName: 'Library' }, disabled: activeSites.length === 0 || !site, onClick: () => setTemplateDlg(true) },
+    { key: 'copy', text: 'Zkopírovat zobrazené do jiného roku…', iconProps: { iconName: 'Copy' }, disabled: shown.length === 0 || !site, onClick: () => setCopyDlg(true) }
   ];
   const moreMenu: IContextualMenuItem[] = [
     { key: 'delete', text: 'Smazat všechny zobrazené položky…', iconProps: { iconName: 'Delete' }, disabled: shown.length === 0, onClick: () => setDeleteDlg(shown) },
@@ -202,7 +202,8 @@ export const ServicePlanTab: React.FC<{
           styles={{ flexContainer: { display: 'flex', gap: 12 } }}
         />
         <span style={{ flex: '1 1 auto' }} />
-        {mayManage && <PrimaryButton iconProps={{ iconName: 'Add' }} text="Přidat do plánu" menuProps={{ items: addMenu }} />}
+        {mayManage && !site && <span style={{ fontSize: 12, color: RES.gray, maxWidth: 220 }}>Přidávat do plánu jde jen u konkrétní lokality — nejdřív ji vyberte.</span>}
+        {mayManage && <PrimaryButton iconProps={{ iconName: 'Add' }} text="Přidat do plánu" title={site ? undefined : 'Nejdřív vyberte lokalitu'} disabled={!site} menuProps={{ items: addMenu }} />}
         {mayManage && <DefaultButton text="Další" menuProps={{ items: moreMenu }} />}
       </div>
       <div style={{ fontSize: 13, marginBottom: 6 }}>
@@ -221,7 +222,7 @@ export const ServicePlanTab: React.FC<{
       {!plan && <Spinner size={SpinnerSize.large} label="Načítám plán…" />}
       {plan && shown.length === 0 && (
         <MessageBar messageBarType={MessageBarType.info} isMultiline>
-          Pro tento výběr zatím není v plánu na rok {year} žádná činnost. {mayManage ? 'Použijte Přidat do plánu → Z checklistu lokality, Ze šablony, nebo přidejte jednu činnost.' : ''}
+          Pro tento výběr zatím není v plánu na rok {year} žádná činnost. {mayManage ? (site ? 'Použijte Přidat do plánu → Z checklistu lokality, Ze šablony, nebo přidejte jednu činnost.' : 'Chcete-li plán vytvořit, vyberte nahoře lokalitu.') : ''}
         </MessageBar>
       )}
       {plan && shown.length > 0 && view === 'kalendar' && (
