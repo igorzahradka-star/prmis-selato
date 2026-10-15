@@ -67,6 +67,7 @@ export const ServicePage: React.FC<{ param?: string }> = ({ param }) => {
   const [requestDlg, setRequestDlg] = React.useState<{ request?: ServiceRequest; siteNumber?: string } | undefined>(undefined);
   const [jobDlg, setJobDlg] = React.useState<{ request?: ServiceRequest } | undefined>(undefined);
   const [rejectDlg, setRejectDlg] = React.useState<ServiceRequest | undefined>(undefined);
+  const [resolveDlg, setResolveDlg] = React.useState<ServiceRequest | undefined>(undefined);
   const [deleteSiteDlg, setDeleteSiteDlg] = React.useState<ServiceSite | undefined>(undefined);
   const [deleteRequestDlg, setDeleteRequestDlg] = React.useState<ServiceRequest | undefined>(undefined);
   const [deleteJobDlg, setDeleteJobDlg] = React.useState<ServiceJob | undefined>(undefined);
@@ -544,6 +545,7 @@ export const ServicePage: React.FC<{ param?: string }> = ({ param }) => {
         }
         return created;
       }} onSaved={() => { setJobDlg(undefined); setNotice('Servisní list je založený.'); reload(); }} onClose={() => setJobDlg(undefined)} />}
+      {resolveDlg && <CommentDialog title={`Uzavřít požadavek ${resolveDlg.number} bez servisního listu`} label="Krátký komentář — co jste udělal" required confirm="Uzavřít požadavek" onConfirm={(text) => repos.service.closeRequest(resolveDlg.id, text, user)} onSaved={() => { setResolveDlg(undefined); setNotice('Požadavek je uzavřený.'); reload(); }} onClose={() => setResolveDlg(undefined)} />}
       {rejectDlg && <CommentDialog title={`Zamítnout požadavek ${rejectDlg.number}`} label="Důvod zamítnutí" required confirm="Zamítnout" onConfirm={(text) => repos.service.rejectRequest(rejectDlg.id, text, user)} onSaved={() => { setRejectDlg(undefined); reload(); }} onClose={() => setRejectDlg(undefined)} />}
       {openRequest && (
         <RequestPanel
@@ -558,6 +560,16 @@ export const ServicePage: React.FC<{ param?: string }> = ({ param }) => {
           onClose={() => setOpenRequestId(undefined)}
           onEdit={() => setRequestDlg({ request: openRequest })}
           onReject={() => setRejectDlg(openRequest)}
+          onResolve={() => setResolveDlg(openRequest)}
+          onReopen={() =>
+            repos.service
+              .reopenRequest(openRequest.id, user)
+              .then(() => {
+                setNotice('Požadavek je znovu otevřený.');
+                reload();
+              })
+              .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
+          }
           onNewJob={() => setJobDlg({ request: openRequest })}
           onOpenJob={(id) => setOpenJobId(id)}
           onDelete={() => setDeleteRequestDlg(openRequest)}

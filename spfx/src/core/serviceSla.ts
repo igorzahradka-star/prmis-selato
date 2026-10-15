@@ -143,10 +143,12 @@ export function slaProgress(request: ServiceRequest, jobs: ServiceJob[], rules: 
     return { reaction: { elapsedHours: 0, state: 'none' }, resolve: { elapsedHours: 0, state: 'none' } };
   }
   const rule = matchSlaRule(rules, request);
+  // Požadavek uzavřený přímo dispečerem (bez listu): reakce i vyřešení nastaly okamžikem uzavření.
+  const direct = own.length === 0 && request.status === RequestStatus.Vyreseno ? request.resolvedAt : undefined;
   return {
     rule,
-    reaction: part(rule?.reactionHours, request.receivedAt, requestReactedAt(own), now),
-    resolve: part(rule?.resolveHours, request.receivedAt, requestResolvedAt(own), now)
+    reaction: part(rule?.reactionHours, request.receivedAt, direct ?? requestReactedAt(own), now),
+    resolve: part(rule?.resolveHours, request.receivedAt, direct ?? requestResolvedAt(own), now)
   };
 }
 

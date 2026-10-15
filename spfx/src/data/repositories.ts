@@ -1001,6 +1001,13 @@ export interface IServiceRepository {
   listRequests(): Promise<ServiceRequest[]>;
   /** Zapíše požadavek (nový dostane číslo SPO-RRRR-NNNN, stav Přijato). Smí správce, dispečer, administrátor. */
   saveRequest(input: ServiceRequestInput, actor: CurrentUser): Promise<ServiceRequest>;
+  /**
+   * Uzavře požadavek přímo, bez servisního listu (jednoduché úkony); komentář, co dispečer udělal, je povinný a zapíše se s časem a jménem.
+   * Jen přijatý požadavek bez živého listu (viz `requestCloseProblem`). Smí správce, dispečer a administrátor.
+   */
+  closeRequest(requestId: number, comment: string, actor: CurrentUser): Promise<ServiceRequest>;
+  /** Znovu otevře požadavek uzavřený přímo bez listu (viz `requestReopenProblem`). */
+  reopenRequest(requestId: number, actor: CurrentUser): Promise<ServiceRequest>;
   /** Zamítne požadavek s důvodem. */
   rejectRequest(requestId: number, note: string, actor: CurrentUser): Promise<ServiceRequest>;
   /** Přílohy požadavku nebo servisního listu (fotky, dokumenty, nákresy). */

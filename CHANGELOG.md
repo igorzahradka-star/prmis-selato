@@ -5,6 +5,14 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.58.0 — 16. 10. 2026 — Uzavření požadavku bez servisního listu
+
+- V detailu servisního požadavku nové tlačítko **Uzavřít bez listu**: jednoduché úkony (např. vizuální kontrola), které dispečer vyřídí sám, se uzavřou s **krátkým povinným komentářem** a bez servisního listu. Zapíše se kdo, kdy a co udělal; požadavek přejde do stavu Vyřešeno. Méně kliknutí při odbavení.
+- Smí jen přijatý požadavek bez živého servisního listu; s listem se požadavek dál uzavírá provedením listu. Požadavek uzavřený takto jde **znovu otevřít** (jen dokud k němu nevznikl list); na uzavřený požadavek nelze založit list, dokud se znovu neotevře.
+- SLA: u přímo uzavřeného požadavku nastaly reakce i vyřešení okamžikem uzavření.
+- Do přehledů (Kalendář, Přehled požadavků) se požadavek dostane jako Vyřešený (Hotové).
+- **Schéma 33 — po nahrání spustit Instalaci a diagnostiku** (nové sloupce požadavků: Uzavřeno bez listu, Uzavřel, Komentář k uzavření).
+
 ## 0.57.0 — 15. 10. 2026 — Přehlednější Roční plány, hromadné mazání, Kalendář a Přehled požadavků
 
 - **Roční plány zjednodušené**: nahoře jen filtry (rok, lokalita, soubory, zobrazení), jedno tlačítko **Přidat do plánu** (jednu činnost, z checklistu lokality, ze šablony, zkopírovat do jiného roku) a jedno **Další** (smazat zobrazené, uložit jako šablonu). Přehledový řádek „Zobrazeno N činností · v paušálu · mimo paušál · po termínu“, legenda se rozbalí podle potřeby. Funkce zůstaly všechny.

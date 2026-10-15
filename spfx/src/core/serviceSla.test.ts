@@ -73,3 +73,25 @@ describe('SLA — měření', () => {
     expect(formatHours(72)).toBe('3 d');
   });
 });
+
+describe('SLA — požadavek uzavřený přímo bez servisního listu', () => {
+  const rules: SlaRule[] = [{ priority: 'Vysoká', reactionHours: 4, resolveHours: 8 }];
+
+  it('reakce i vyřešení nastaly okamžikem uzavření', () => {
+    const closed = request({ status: RequestStatus.Vyreseno, resolvedAt: t(1, 10) });
+    const p = slaProgress(closed, [], rules, t(5, 8));
+    expect(p.reaction.state).toBe('met');
+    expect(p.resolve.state).toBe('met');
+    expect(p.resolve.elapsedHours).toBe(2);
+  });
+
+  it('uzavření po lhůtě je splněno pozdě', () => {
+    const late = slaProgress(request({ status: RequestStatus.Vyreseno, resolvedAt: t(1, 20) }), [], rules, t(5, 8));
+    expect(late.reaction.state).toBe('metLate');
+    expect(late.resolve.state).toBe('metLate');
+  });
+
+  it('bez času uzavření (starší data) se chová jako dřív', () => {
+    expect(slaProgress(request({ status: RequestStatus.Vyreseno }), [], rules, t(1, 9)).reaction.state).toBe('running');
+  });
+});

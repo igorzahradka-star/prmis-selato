@@ -10,7 +10,7 @@ import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { CurrentUser } from '../../core/types';
 import { toDate } from '../../core/format';
 import { canDeleteAnyInService, canDeleteInService, canManageSites, canWorkInService, jobDeletionProblem, uniqueAttachmentName, nextSiteNumber, serviceFolderPlan, siteDeletionProblem, requestDeletionProblem, validateDeviceNumber, validateSiteNumber, ServiceDevice, ServiceSite } from '../../core/service';
-import { JobAction, JobActionInput, JobStatus, RequestStatus, ServiceFlowError, ServiceJob, ServiceRequest, applyJobAction, requestStatusFrom } from '../../core/serviceJobs';
+import { JobAction, JobActionInput, JobStatus, RequestStatus, ServiceFlowError, ServiceJob, ServiceRequest, applyJobAction, requestCloseProblem, requestReopenProblem, requestStatusFrom } from '../../core/serviceJobs';
 import { OrderAttachment, validateAttachment } from '../../core/orders';
 import { parseChecklist, serializeChecklist, isEmptyChecklist, SiteChecklist } from '../../core/serviceCatalog';
 import { PlanItem, planItemProblem, requestKindOf, requiredDateOf } from '../../core/servicePlan';
@@ -111,7 +111,10 @@ function mapRequest(i: Item): ServiceRequest {
     receivedByLogin: str(i.ReceivedByLogin),
     requiredDate: toDate(str(i.RequiredDate)),
     status,
-    note: str(i.Note)
+    note: str(i.Note),
+    resolvedAt: toDate(str(i.ResolvedAt)),
+    resolvedByName: str(i.ResolvedByName),
+    resolution: str(i.Resolution)
   };
 }
 
@@ -486,6 +489,46 @@ export class SpServiceRepository implements IServiceRepository {
     return { ...input, id, number, status: RequestStatus.Prijato, receivedAt: now, receivedByName: actor.displayName, receivedByLogin: actor.loginName, title: input.title.trim() };
   }
 
+  public async closeRequest(requestId: number, comment: string, actor: CurrentUser): Promise<ServiceRequest> {
+    if (!canWorkInService(actor.roles)) {
+      throw new Error('Požadavek smí uzavřít jen správce servisu, dispečer a administrátor.');
+    }
+    if (comment.trim() === '') {
+      throw new Error('Napište krátký komentář, co jste udělal.');
+    }
+    const [requests, jobs] = await Promise.all([this.listRequests(), this.listJobs()]);
+    const found = requests.filter((r) => r.id === requestId)[0];
+    if (!found) {
+      throw new Error('Požadavek nebyl nalezen.');
+    }
+    const problem = requestCloseProblem(found, jobs.filter((j) => j.requestId === requestId));
+    if (problem) {
+      throw new Error(problem);
+    }
+    const now = new Date();
+    await this.update(REQUESTS, requestId, { RequestStatus: RequestStatus.Vyreseno, ResolvedAt: now.toISOString(), ResolvedByName: actor.displayName, Resolution: comment.trim() }, 'Požadavek se nepodařilo uzavřít');
+    await this.audit('Servisní požadavek', found.number, actor, `Uzavřen bez servisního listu: ${comment.trim()}`, found.status, RequestStatus.Vyreseno);
+    return { ...found, status: RequestStatus.Vyreseno, resolvedAt: now, resolvedByName: actor.displayName, resolution: comment.trim() };
+  }
+
+  public async reopenRequest(requestId: number, actor: CurrentUser): Promise<ServiceRequest> {
+    if (!canWorkInService(actor.roles)) {
+      throw new Error('Požadavek smí znovu otevřít jen správce servisu, dispečer a administrátor.');
+    }
+    const [requests, jobs] = await Promise.all([this.listRequests(), this.listJobs()]);
+    const found = requests.filter((r) => r.id === requestId)[0];
+    if (!found) {
+      throw new Error('Požadavek nebyl nalezen.');
+    }
+    const problem = requestReopenProblem(found, jobs.filter((j) => j.requestId === requestId));
+    if (problem) {
+      throw new Error(problem);
+    }
+    await this.update(REQUESTS, requestId, { RequestStatus: RequestStatus.Prijato, ResolvedAt: null, ResolvedByName: '', Resolution: '' }, 'Požadavek se nepodařilo znovu otevřít');
+    await this.audit('Servisní požadavek', found.number, actor, 'Znovu otevřen (byl uzavřen bez servisního listu)', found.status, RequestStatus.Prijato);
+    return { ...found, status: RequestStatus.Prijato, resolvedAt: undefined, resolvedByName: undefined, resolution: undefined };
+  }
+
   public async rejectRequest(requestId: number, note: string, actor: CurrentUser): Promise<ServiceRequest> {
     if (!canWorkInService(actor.roles)) {
       throw new Error('Požadavek smí zamítnout jen správce servisu, dispečer a administrátor.');
@@ -798,6 +841,9 @@ export class SpServiceRepository implements IServiceRepository {
       await this.projects.ensureServiceProject({ projectNumber: site.number, title: `${site.number} ${site.name} – společné zásahy`, shortName: 'Společné zásahy', customerName: site.customerName, projectManagerName: actor.displayName, folderUrl: site.folderUrl });
     }
     const request = input.requestId ? (await this.listRequests()).filter((r) => r.id === input.requestId)[0] : undefined;
+    if (request && request.resolvedAt && request.status === RequestStatus.Vyreseno) {
+      throw new Error('Požadavek byl uzavřen bez servisního listu. Nejdřív ho znovu otevřete.');
+    }
     const number = await this.numbering.allocateNumber('SL');
     const now = new Date();
     const id = await this.add(

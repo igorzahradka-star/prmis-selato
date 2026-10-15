@@ -46,6 +46,10 @@ export interface ServiceRequest {
   requiredDate?: Date;
   status: RequestStatus;
   note?: string;
+  /** Požadavek uzavřený přímo dispečerem bez servisního listu: kdy, kdo a krátký komentář, co udělal. */
+  resolvedAt?: Date;
+  resolvedByName?: string;
+  resolution?: string;
 }
 
 export enum JobStatus {
@@ -299,6 +303,37 @@ export function requestStatusFrom(current: RequestStatus, jobs: Pick<ServiceJob,
   }
   const alive = jobs.some((j) => j.status !== JobStatus.Uzavreno && j.status !== JobStatus.Zruseno);
   return alive ? RequestStatus.Zpracovava : jobs.every((j) => j.status === JobStatus.Zruseno) ? RequestStatus.Prijato : RequestStatus.Vyreseno;
+}
+
+/** Má požadavek živý (nezrušený) servisní list? */
+const hasLiveJob = (jobs: Pick<ServiceJob, 'status'>[]): boolean => jobs.some((j) => j.status !== JobStatus.Zruseno);
+
+/**
+ * Smí dispečer požadavek uzavřít přímo, bez servisního listu (jednoduché úkony, např. vizuální kontrola)? Jen přijatý požadavek, který nemá
+ * žádný živý servisní list; s listem se požadavek uzavře provedením listu. Vrací větu pro člověka, nebo prázdný text.
+ */
+export function requestCloseProblem(request: Pick<ServiceRequest, 'status'>, jobs: Pick<ServiceJob, 'status'>[]): string {
+  if (request.status === RequestStatus.Zamitnuto) {
+    return 'Zamítnutý požadavek nejde uzavřít.';
+  }
+  if (request.status === RequestStatus.Vyreseno) {
+    return 'Požadavek už je vyřešený.';
+  }
+  if (hasLiveJob(jobs)) {
+    return 'Požadavek má servisní list — uzavře se provedením listu.';
+  }
+  return '';
+}
+
+/** Smí se požadavek znovu otevřít? Jen ten, který dispečer uzavřel přímo (bez listu) a nemá žádný list. Vrací důvod, nebo prázdný text. */
+export function requestReopenProblem(request: Pick<ServiceRequest, 'status' | 'resolvedAt'>, jobs: Pick<ServiceJob, 'status'>[]): string {
+  if (request.status !== RequestStatus.Vyreseno || !request.resolvedAt) {
+    return 'Znovu jde otevřít jen požadavek, který dispečer uzavřel přímo, bez servisního listu.';
+  }
+  if (jobs.length > 0) {
+    return 'K požadavku už existuje servisní list.';
+  }
+  return '';
 }
 
 /** Je servisní list po termínu (naplánovaný/objednaný a plánované datum už minulo)? */

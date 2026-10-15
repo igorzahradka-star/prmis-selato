@@ -5,7 +5,7 @@
 
 import { CurrentUser } from '../../core/types';
 import { canDeleteAnyInService, canDeleteInService, canManageSites, canWorkInService, jobDeletionProblem, uniqueAttachmentName, nextSiteNumber, siteDeletionProblem, requestDeletionProblem, validateDeviceNumber, validateSiteNumber, ServiceDevice, ServiceSite } from '../../core/service';
-import { JobAction, JobActionInput, JobStatus, RequestStatus, ServiceFlowError, ServiceJob, ServiceRequest, applyJobAction, requestStatusFrom } from '../../core/serviceJobs';
+import { JobAction, JobActionInput, JobStatus, RequestStatus, ServiceFlowError, ServiceJob, ServiceRequest, applyJobAction, requestCloseProblem, requestReopenProblem, requestStatusFrom } from '../../core/serviceJobs';
 import { OrderAttachment, validateAttachment } from '../../core/orders';
 import type { SiteChecklist } from '../../core/serviceCatalog';
 import { PlanItem, planItemProblem, requestKindOf, requiredDateOf } from '../../core/servicePlan';
@@ -165,6 +165,43 @@ export class MockServiceRepository implements IServiceRepository {
     const created: ServiceRequest = { ...input, id: this.nextId++, number, status: RequestStatus.Prijato, receivedAt: new Date(), receivedByName: actor.displayName, receivedByLogin: actor.loginName, title: input.title.trim() };
     this.requests = [...this.requests, created];
     return { ...created };
+  }
+
+  public closeRequest(requestId: number, comment: string, actor: CurrentUser): Promise<ServiceRequest> {
+    if (!canWorkInService(actor.roles)) {
+      return Promise.reject(new Error('Požadavek smí uzavřít jen správce servisu, dispečer a administrátor.'));
+    }
+    if (comment.trim() === '') {
+      return Promise.reject(new Error('Napište krátký komentář, co jste udělal.'));
+    }
+    const found = this.requests.filter((r) => r.id === requestId)[0];
+    if (!found) {
+      return Promise.reject(new Error('Požadavek nebyl nalezen.'));
+    }
+    const problem = requestCloseProblem(found, this.jobs.filter((j) => j.requestId === requestId));
+    if (problem) {
+      return Promise.reject(new Error(problem));
+    }
+    const updated: ServiceRequest = { ...found, status: RequestStatus.Vyreseno, resolvedAt: new Date(), resolvedByName: actor.displayName, resolution: comment.trim() };
+    this.requests = this.requests.map((r) => (r.id === requestId ? updated : r));
+    return Promise.resolve({ ...updated });
+  }
+
+  public reopenRequest(requestId: number, actor: CurrentUser): Promise<ServiceRequest> {
+    if (!canWorkInService(actor.roles)) {
+      return Promise.reject(new Error('Požadavek smí znovu otevřít jen správce servisu, dispečer a administrátor.'));
+    }
+    const found = this.requests.filter((r) => r.id === requestId)[0];
+    if (!found) {
+      return Promise.reject(new Error('Požadavek nebyl nalezen.'));
+    }
+    const problem = requestReopenProblem(found, this.jobs.filter((j) => j.requestId === requestId));
+    if (problem) {
+      return Promise.reject(new Error(problem));
+    }
+    const updated: ServiceRequest = { ...found, status: RequestStatus.Prijato, resolvedAt: undefined, resolvedByName: undefined, resolution: undefined };
+    this.requests = this.requests.map((r) => (r.id === requestId ? updated : r));
+    return Promise.resolve({ ...updated });
   }
 
   public rejectRequest(requestId: number, note: string, actor: CurrentUser): Promise<ServiceRequest> {
@@ -385,6 +422,9 @@ export class MockServiceRepository implements IServiceRepository {
       await this.projects.ensureServiceProject({ projectNumber: site.number, title: `${site.number} ${site.name} – společné zásahy`, shortName: 'Společné zásahy', customerName: site.customerName, projectManagerName: actor.displayName, folderUrl: site.folderUrl });
     }
     const request = input.requestId ? this.requests.filter((r) => r.id === input.requestId)[0] : undefined;
+    if (request && request.resolvedAt && request.status === RequestStatus.Vyreseno) {
+      return Promise.reject(new Error('Požadavek byl uzavřen bez servisního listu. Nejdřív ho znovu otevřete.'));
+    }
     const number = await this.numbering.allocateNumber('SL');
     const job: ServiceJob = { ...input, id: this.nextId++, number, title: input.title.trim(), status: JobStatus.Naplanovano, requestNumber: request ? request.number : undefined, createdByName: actor.displayName, createdByLogin: actor.loginName, createdAt: new Date() };
     this.jobs = [...this.jobs, job];

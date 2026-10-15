@@ -1,5 +1,5 @@
 import { Role } from './types';
-import { JobStatus, RequestStatus, ServiceFlowError, ServiceJob, applyJobAction, availableJobActions, isJobOverdue, requestStatusFrom } from './serviceJobs';
+import { JobStatus, RequestStatus, ServiceFlowError, ServiceJob, applyJobAction, availableJobActions, isJobOverdue, requestCloseProblem, requestReopenProblem, requestStatusFrom } from './serviceJobs';
 
 const dispecer = { displayName: 'David Dispečer', roles: [Role.Dispecer] };
 const spravce = { displayName: 'Sára Správce', roles: [Role.SpravceServisu] };
@@ -140,5 +140,29 @@ describe('fotky z provedení a interní servis', () => {
     expect(applyJobAction(interni, 'report', { workReport: 'Opraveno naším dispečerem' }, dispecer).status).toBe(JobStatus.Provedeno);
     // běžný list z naplánovaného stavu provedení zapsat nejde
     expect(() => applyJobAction(job(), 'report', { workReport: 'x' }, dispecer)).toThrow(/ve stavu „Naplánováno“/);
+  });
+});
+
+describe('uzavření požadavku bez servisního listu', () => {
+  const open = { status: RequestStatus.Prijato } as const;
+
+  it('přijatý požadavek bez listu jde uzavřít', () => {
+    expect(requestCloseProblem(open, [])).toBe('');
+    expect(requestCloseProblem(open, [{ status: JobStatus.Zruseno }])).toBe('');
+  });
+
+  it('požadavek se živým listem, vyřešený nebo zamítnutý ne', () => {
+    expect(requestCloseProblem({ status: RequestStatus.Zpracovava }, [{ status: JobStatus.Naplanovano }])).toMatch(/servisní list/);
+    expect(requestCloseProblem(open, [{ status: JobStatus.Provedeno }])).toMatch(/servisní list/);
+    expect(requestCloseProblem({ status: RequestStatus.Vyreseno }, [])).toMatch(/vyřešený/);
+    expect(requestCloseProblem({ status: RequestStatus.Zamitnuto }, [])).toMatch(/Zamítnutý/);
+  });
+
+  it('znovu otevřít jde jen požadavek uzavřený přímo a bez listu', () => {
+    const closed = { status: RequestStatus.Vyreseno, resolvedAt: new Date() };
+    expect(requestReopenProblem(closed, [])).toBe('');
+    expect(requestReopenProblem(closed, [{ status: JobStatus.Zruseno }])).toMatch(/už existuje/);
+    expect(requestReopenProblem({ status: RequestStatus.Vyreseno }, [])).toMatch(/uzavřel přímo/);
+    expect(requestReopenProblem({ status: RequestStatus.Prijato, resolvedAt: new Date() }, [])).toMatch(/uzavřel přímo/);
   });
 });

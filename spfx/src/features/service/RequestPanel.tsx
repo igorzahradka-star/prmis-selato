@@ -11,7 +11,7 @@ import { Panel, PanelType } from '@fluentui/react/lib/Panel';
 import { RES } from '../../ui/theme';
 import { formatDate, formatDateTime } from '../../core/format';
 import { ServiceDevice, ServiceSite, jobDeletionProblem, requestDeletionProblem } from '../../core/service';
-import { RequestStatus, ServiceJob, ServiceRequest } from '../../core/serviceJobs';
+import { RequestStatus, ServiceJob, ServiceRequest, requestCloseProblem, requestReopenProblem } from '../../core/serviceJobs';
 import { SlaRule, slaProgress } from '../../core/serviceSla';
 import { Fact, JobKindBadge, JobStatusBadge, PriorityBadge, RequestStatusBadge, SlaIndicator, TD, TH } from './serviceUi';
 import { ServiceAttachments } from './ServiceAttachments';
@@ -28,20 +28,26 @@ export const RequestPanel: React.FC<{
   onClose: () => void;
   onEdit: () => void;
   onReject: () => void;
+  onResolve: () => void;
+  onReopen: () => void;
   onNewJob: () => void;
   onOpenJob: (jobId: number) => void;
   onDelete: () => void;
-}> = ({ request, sites, devices, jobs, rules, mayWork, mayDelete, isAdmin, onClose, onEdit, onReject, onNewJob, onOpenJob, onDelete }) => {
+}> = ({ request, sites, devices, jobs, rules, mayWork, mayDelete, isAdmin, onClose, onEdit, onReject, onResolve, onReopen, onNewJob, onOpenJob, onDelete }) => {
   const [pending, setPending] = React.useState<File[]>([]);
   const site = sites.filter((s) => s.number === request.siteNumber)[0];
   const device = request.deviceNumber ? devices.filter((d) => d.number === request.deviceNumber)[0] : undefined;
   const own = jobs.filter((j) => j.requestId === request.id);
   const open = request.status === RequestStatus.Prijato || request.status === RequestStatus.Zpracovava;
   const canDelete = mayDelete && requestDeletionProblem(request.id, jobs, isAdmin) === '';
+  const canResolve = mayWork && requestCloseProblem(request, own) === '';
+  const canReopen = mayWork && requestReopenProblem(request, own) === '';
 
   const footer = (
     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', padding: '8px 0' }}>
       {mayWork && open && <PrimaryButton text="Založit servisní list" iconProps={{ iconName: 'Add' }} onClick={onNewJob} />}
+      {canResolve && <DefaultButton text="Uzavřít bez listu" iconProps={{ iconName: 'Accept' }} title="Jednoduchý úkon, který jste vyřídil sám — uzavře se s komentářem, bez servisního listu" onClick={onResolve} />}
+      {canReopen && <DefaultButton text="Znovu otevřít" iconProps={{ iconName: 'Undo' }} onClick={onReopen} />}
       {mayWork && <DefaultButton text="Upravit" iconProps={{ iconName: 'Edit' }} onClick={onEdit} />}
       {mayWork && request.status === RequestStatus.Prijato && <DefaultButton text="Zamítnout" onClick={onReject} />}
       {canDelete && <DefaultButton text="Smazat" iconProps={{ iconName: 'Delete' }} onClick={onDelete} />}
@@ -66,6 +72,12 @@ export const RequestPanel: React.FC<{
       <Fact label="Požadovaný termín">{request.requiredDate ? formatDate(request.requiredDate) : ''}</Fact>
       <Fact label="Popis">{request.description && <span style={{ whiteSpace: 'pre-wrap' }}>{request.description}</span>}</Fact>
       {request.note && <Fact label={request.status === RequestStatus.Zamitnuto ? 'Důvod zamítnutí' : 'Poznámka'}>{request.note}</Fact>}
+      {request.resolvedAt && (
+        <Fact label="Uzavřeno bez servisního listu">
+          {formatDateTime(request.resolvedAt)}, {request.resolvedByName}
+          {request.resolution && <div style={{ whiteSpace: 'pre-wrap' }}>{request.resolution}</div>}
+        </Fact>
+      )}
       <Fact label="SLA (jen indikace)">
         <SlaIndicator progress={slaProgress(request, jobs, rules)} />
       </Fact>

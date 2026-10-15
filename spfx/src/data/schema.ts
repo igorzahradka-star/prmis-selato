@@ -18,7 +18,7 @@
  * Verze schématu. Ukládá se do PRM_Settings pod klíčem `schemaVersion`.
  * Průvodce porovná uloženou verzi s touto a nabídne doplnění rozdílu.
  */
-export const SCHEMA_VERSION = 32;
+export const SCHEMA_VERSION = 33;
 
 /** Typ sloupce v SharePointu. */
 export type FieldType =
@@ -771,6 +771,9 @@ const PRM_SERVICE_REQUESTS: ListDef = {
     { name: 'RequiredDate', title: 'Požadovaný termín', type: 'DateTime', description: 'Přenáší se do plánovaného termínu servisního listu a do termínu dodání objednávky.' },
     { name: 'ReceivedByName', title: 'Přijal', type: 'Text' },
     { name: 'ReceivedByLogin', title: 'Přijal (login)', type: 'Text' },
+    { name: 'ResolvedAt', title: 'Uzavřeno bez listu', type: 'DateTime', description: 'Kdy dispečer požadavek uzavřel přímo, bez servisního listu.' },
+    { name: 'ResolvedByName', title: 'Uzavřel', type: 'Text' },
+    { name: 'Resolution', title: 'Komentář k uzavření', type: 'Note', description: 'Co dispečer udělal (požadavek uzavřený bez servisního listu).' },
     { name: 'RequestStatus', title: 'Stav', type: 'Choice', choices: ['Přijato', 'Zpracovává se', 'Vyřešeno', 'Zamítnuto'], defaultValue: 'Přijato', indexed: true },
     { name: 'Note', title: 'Poznámka', type: 'Note' }
   ]
