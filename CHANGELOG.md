@@ -5,6 +5,16 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.53.0 — 15. 10. 2026 — Servis: roční plán údržby a kalendář
+
+- Nová záložka **Plán údržby**: roční plán servisu pro **lokalitu i soubor**. Činnost (revize, pravidelná kontrola…) má popis, období (**jen měsíc, nebo konkrétní datum**) a druh (**plánovaná — v paušálu / nahodilá — mimo paušál**).
+- **Kalendář po měsících** (nebo seznam) s filtrem **rok, lokalita, jeden nebo více souborů**; barvy: zelená činnost v paušálu, oranžová nahodilá; proužek vlevo ukazuje stav (po termínu, aktuální, požadavek už vytvořen).
+- **Šablony** pro FVE, BESS a společné činnosti lokality (výchozí návrh) — **Načíst ze šablony** do vybrané lokality nebo souboru a upravit. Šablony se upravují v Nastavení → Servis; z hotového plánu jde **Uložit jako šablonu** (administrátor).
+- **Kopírovat do dalšího roku** — celý výběr se zkopíruje (konkrétní data na stejný den a měsíc), původní plán zůstane.
+- Z činnosti plánu jedním tlačítkem **vznikne servisní požadavek** (preventivní prohlídka, termín = konkrétní datum nebo konec měsíce, v popisu odkaz na plán); činnost si pamatuje číslo požadavku.
+- Práva: plán upravuje správce servisu, vedení a administrátor; dispečer plán vidí a vytváří z něj požadavky.
+- **Schéma 31** (nový seznam PRM_ServicePlan) — po nahrání spustit **Instalaci a diagnostiku**.
+
 ## 0.52.0 — 15. 10. 2026 — Servis: dodavatelé servisu, filtry, mazání administrátorem, mapa
 
 - **Druhy partnera zaškrtávátky:** zákazník, dodavatel a **dodavatel servisu** (lze i všechny tři) — v Partnerech i při rychlém založení partnera. V servisních listech a v objednávkách servisního projektu se **přednostně nabízejí jen dodavatelé servisu**; zaškrtávátko „Zobrazit všechny dodavatele“ ukáže všechny. Sloupec Typ zůstává (kvůli REVCRM), dodavatel servisu je nový příznak (**schéma 30**, přidávací).

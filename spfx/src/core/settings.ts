@@ -10,6 +10,7 @@
 import { CURRENCY_CODES, CurrencyCode } from './currency';
 import { DEFAULT_ROLE_GROUPS, RoleGroupMapping } from './roles';
 import { DEFAULT_SERVICE_SETTINGS, ServiceSettings, serviceSettingsWithDefaults, validateSlaRules } from './serviceSla';
+import { validatePlanTemplates } from './servicePlan';
 import { DEFAULT_WEB_LIST, WebListSettings, validateWebList, webListWithDefaults } from './webProjects';
 
 /** Klíče v seznamu PRM_Settings. Jeden klíč = jedna položka seznamu. */
@@ -349,7 +350,7 @@ export function withDefaults(stored: Partial<AppSettings> | undefined): AppSetti
  * Prázdné pole = nastavení je v pořádku.
  */
 export function validateSettings(settings: AppSettings): string[] {
-  const problems: string[] = [...validateWebList(settings.webList), ...validateSlaRules(settings.service.slaRules)];
+  const problems: string[] = [...validateWebList(settings.webList), ...validateSlaRules(settings.service.slaRules), ...validatePlanTemplates(settings.service.planTemplates)];
   if (!(settings.photos.maxSide >= 600 && settings.photos.maxSide <= 8000)) {
     problems.push('Největší rozměr fotky musí být mezi 600 a 8000 body.');
   }

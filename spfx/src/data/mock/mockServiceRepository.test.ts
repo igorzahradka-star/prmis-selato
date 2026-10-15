@@ -187,3 +187,50 @@ describe('MockServiceRepository — administrátor maže cokoli', () => {
     expect((await r.service.listJobs()).some((x) => x.id === job.id)).toBe(false);
   });
 });
+
+describe('MockServiceRepository — roční plán', () => {
+  const rok = new Date().getFullYear();
+  const input = { year: rok, siteNumber: '10500', deviceNumber: '10501', title: 'Revize', month: 10, jobKind: 'Plánovaná' };
+
+  it('plán spravuje správce, vedení a admin; dispečer ho čte a vytváří z něj požadavky', async () => {
+    const r = createMockRepositories();
+    await expect(r.service.savePlanItem(input, dispecer)).rejects.toThrow(/správce servisu, vedení a administrátor/);
+    const saved = await r.service.savePlanItem(input, spravce);
+    expect((await r.service.listPlan()).some((x) => x.id === saved.id)).toBe(true);
+    const upd = await r.service.savePlanItem({ ...input, id: saved.id, title: 'Revize 2' }, vedeni);
+    expect(upd.title).toBe('Revize 2');
+    await expect(r.service.deletePlanItem(saved.id, dispecer)).rejects.toThrow(/správce servisu, vedení a administrátor/);
+    await r.service.deletePlanItem(saved.id, vedeni);
+    expect((await r.service.listPlan()).some((x) => x.id === saved.id)).toBe(false);
+  });
+
+  it('kontroluje položku: chybí název, neexistující lokalita nebo soubor, datum mimo měsíc', async () => {
+    const r = createMockRepositories();
+    await expect(r.service.savePlanItem({ ...input, title: ' ' }, spravce)).rejects.toThrow(/činnost/);
+    await expect(r.service.savePlanItem({ ...input, siteNumber: '10590', deviceNumber: undefined }, spravce)).rejects.toThrow(/neexistuje/);
+    await expect(r.service.savePlanItem({ ...input, deviceNumber: '10511' }, spravce)).rejects.toThrow(/neexistuje/);
+    await expect(r.service.savePlanItem({ ...input, dueDate: new Date(rok, 0, 5) }, spravce)).rejects.toThrow(/ve vybraném měsíci/);
+  });
+
+  it('z položky plánu vznikne požadavek s termínem a druhem; podruhé už ne', async () => {
+    const r = createMockRepositories();
+    const saved = await r.service.savePlanItem({ ...input, dueDate: new Date(rok, 9, 20) }, spravce);
+    const req = await r.service.createRequestFromPlan(saved.id, dispecer);
+    expect(req.kind).toBe('Preventivní prohlídka');
+    expect(req.requiredDate).toEqual(new Date(rok, 9, 20));
+    expect(req.description).toMatch(/Z ročního plánu/);
+    expect((await r.service.listPlan()).filter((x) => x.id === saved.id)[0].requestNumber).toBe(req.number);
+    await expect(r.service.createRequestFromPlan(saved.id, dispecer)).rejects.toThrow(/už požadavek/);
+    await expect(r.service.createRequestFromPlan(saved.id, pm)).rejects.toThrow(/správce servisu, dispečer/);
+  });
+
+  it('hromadné založení (šablona, kopie) kontroluje všechny položky najednou', async () => {
+    const r = createMockRepositories();
+    const before = (await r.service.listPlan()).length;
+    await expect(r.service.createPlanItems([input, { ...input, title: '' }], spravce)).rejects.toThrow(/činnost/);
+    expect((await r.service.listPlan()).length).toBe(before);
+    const created = await r.service.createPlanItems([input, { ...input, month: 11 }], spravce);
+    expect(created.length).toBe(2);
+    expect((await r.service.listPlan()).length).toBe(before + 2);
+  });
+});

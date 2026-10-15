@@ -20,6 +20,7 @@ import { Person, RoleMembership } from '../core/userAdmin';
 import { AccessGroup, ProjectAccessState } from '../core/projectAccess';
 import { StatusChange } from '../core/projectStatus';
 import { ApprovalLevel, OrderAttachment, OrderLine, PurchaseOrder } from '../core/orders';
+import { PlanItem } from '../core/servicePlan';
 import { Assignee } from '../core/orderWorkflow';
 import { InvoiceBasis, InvoiceKind } from '../core/invoiceBases';
 import { DiaryEntry, EntryInput, EntryListFilter, SiteDiary } from '../core/siteDiary';
@@ -954,6 +955,9 @@ export interface ServiceAttachmentTarget {
   id: number;
 }
 
+/** Položka ročního plánu k uložení (požadavek se k ní připojuje až převodem na požadavek). */
+export type PlanItemInput = Omit<PlanItem, 'id' | 'requestId' | 'requestNumber'> & { id?: number };
+
 export interface ServiceJobInput {
   id?: number;
   requestId?: number;
@@ -997,6 +1001,15 @@ export interface IServiceRepository {
   /** Zamítne požadavek s důvodem. */
   rejectRequest(requestId: number, note: string, actor: CurrentUser): Promise<ServiceRequest>;
   /** Přílohy požadavku nebo servisního listu (fotky, dokumenty, nákresy). */
+  /** Roční plán servisu: všechny položky všech lokalit a souborů (filtruje se v prohlížeči). */
+  listPlan(): Promise<PlanItem[]>;
+  /** Uloží položku plánu. Smí správce servisu, vedení a administrátor. */
+  savePlanItem(input: PlanItemInput, actor: CurrentUser): Promise<PlanItem>;
+  /** Založí víc položek najednou (ze šablony nebo kopií plánu do dalšího roku). Smí správce servisu, vedení a administrátor. */
+  createPlanItems(items: PlanItemInput[], actor: CurrentUser): Promise<PlanItem[]>;
+  deletePlanItem(id: number, actor: CurrentUser): Promise<void>;
+  /** Z položky plánu vytvoří servisní požadavek (termín = konkrétní datum, jinak konec měsíce) a položku k němu připojí. Smí správce, dispečer a administrátor. */
+  createRequestFromPlan(id: number, actor: CurrentUser): Promise<ServiceRequest>;
   listAttachments(target: ServiceAttachmentTarget): Promise<OrderAttachment[]>;
   /** Přidá přílohu (stejná pravidla na název a velikost jako u objednávek); stejný název dostane příponu `_2`. Smí správce, dispečer a administrátor. */
   addAttachment(target: ServiceAttachmentTarget, file: File, actor: CurrentUser): Promise<OrderAttachment>;

@@ -12,7 +12,8 @@ import { toDate } from '../../core/format';
 import { canDeleteAnyInService, canDeleteInService, canManageSites, canWorkInService, jobDeletionProblem, uniqueAttachmentName, nextSiteNumber, serviceFolderPlan, siteDeletionProblem, requestDeletionProblem, validateDeviceNumber, validateSiteNumber, ServiceDevice, ServiceSite } from '../../core/service';
 import { JobAction, JobActionInput, JobStatus, RequestStatus, ServiceFlowError, ServiceJob, ServiceRequest, applyJobAction, requestStatusFrom } from '../../core/serviceJobs';
 import { OrderAttachment, validateAttachment } from '../../core/orders';
-import { INumberingRepository, IProjectRepository, ISettingsRepository, ServiceAttachmentTarget, IServiceRepository, ServiceDeviceInput, ServiceJobInput, ServiceRequestInput, ServiceSiteInput } from '../repositories';
+import { PlanItem, planItemProblem, requestKindOf, requiredDateOf } from '../../core/servicePlan';
+import { INumberingRepository, IProjectRepository, ISettingsRepository, PlanItemInput, ServiceAttachmentTarget, IServiceRepository, ServiceDeviceInput, ServiceJobInput, ServiceRequestInput, ServiceSiteInput } from '../repositories';
 import { getSp, getSpForSite, describeSpError } from './spContext';
 import { resolveFolderPath } from './spFolders';
 import { resolveLibrary } from './spLibrary';
@@ -21,6 +22,7 @@ const SITES = 'PRM_ServiceSites';
 const DEVICES = 'PRM_ServiceDevices';
 const REQUESTS = 'PRM_ServiceRequests';
 const JOBS = 'PRM_ServiceJobs';
+const PLAN = 'PRM_ServicePlan';
 const AUDIT = 'PRM_AuditLog';
 
 type Item = Record<string, unknown> & { Id: number; Title?: string };
@@ -87,6 +89,23 @@ function mapRequest(i: Item): ServiceRequest {
     receivedByLogin: str(i.ReceivedByLogin),
     requiredDate: toDate(str(i.RequiredDate)),
     status,
+    note: str(i.Note)
+  };
+}
+
+function mapPlan(i: Item): PlanItem {
+  return {
+    id: i.Id,
+    year: numOrUndef(i.PlanYear) ?? new Date().getFullYear(),
+    siteNumber: str(i.SiteNumber) || '',
+    deviceNumber: str(i.DeviceNumber),
+    title: i.Title || '',
+    description: str(i.Description),
+    month: numOrUndef(i.PlanMonth) ?? 1,
+    dueDate: toDate(str(i.DueDate)),
+    jobKind: str(i.JobKind) || 'Plánovaná',
+    requestId: numOrUndef(i.RequestId),
+    requestNumber: str(i.RequestNumber),
     note: str(i.Note)
   };
 }
@@ -474,6 +493,120 @@ export class SpServiceRepository implements IServiceRepository {
     }
     await this.audit('Servisní list', job.number, actor, 'Smazán servisní list (do koše webu)', job.status);
     await this.syncRequestStatus(job.requestId, actor);
+  }
+
+  // --- roční plán ---
+
+  public async listPlan(): Promise<PlanItem[]> {
+    return (await this.readAll(PLAN)).map(mapPlan);
+  }
+
+  private planFields(input: PlanItemInput): Record<string, unknown> {
+    return {
+      Title: input.title.trim(),
+      PlanYear: input.year,
+      SiteNumber: input.siteNumber,
+      DeviceNumber: input.deviceNumber ?? '',
+      Description: input.description ?? '',
+      PlanMonth: input.month,
+      DueDate: iso(input.dueDate),
+      JobKind: input.jobKind,
+      Note: input.note ?? ''
+    };
+  }
+
+  private async checkPlanInput(input: PlanItemInput, sites: ServiceSite[], devices: ServiceDevice[]): Promise<void> {
+    const problem = planItemProblem(input);
+    if (problem) {
+      throw new Error(problem);
+    }
+    if (!sites.some((s) => s.number === input.siteNumber)) {
+      throw new Error(`Lokalita ${input.siteNumber} neexistuje.`);
+    }
+    if (input.deviceNumber && !devices.some((d) => d.number === input.deviceNumber && d.siteNumber === input.siteNumber)) {
+      throw new Error(`Soubor ${input.deviceNumber} v lokalitě ${input.siteNumber} neexistuje.`);
+    }
+  }
+
+  public async savePlanItem(input: PlanItemInput, actor: CurrentUser): Promise<PlanItem> {
+    if (!canManageSites(actor.roles)) {
+      throw new Error('Roční plán smí upravovat jen správce servisu, vedení a administrátor.');
+    }
+    const [sites, devices] = await Promise.all([this.listSites(), this.listDevices()]);
+    await this.checkPlanInput(input, sites, devices);
+    if (input.id) {
+      await this.update(PLAN, input.id, this.planFields(input), 'Položku plánu se nepodařilo uložit');
+      const found = (await this.listPlan()).filter((x) => x.id === input.id)[0];
+      if (!found) {
+        throw new Error('Položka plánu nebyla nalezena.');
+      }
+      return found;
+    }
+    const id = await this.add(PLAN, this.planFields(input), 'Položku plánu se nepodařilo založit');
+    await this.audit('Servis – roční plán', `${input.siteNumber}/${input.year}`, actor, `Přidána položka plánu: ${input.title.trim()}`);
+    return { ...input, id } as PlanItem;
+  }
+
+  public async createPlanItems(items: PlanItemInput[], actor: CurrentUser): Promise<PlanItem[]> {
+    if (!canManageSites(actor.roles)) {
+      throw new Error('Roční plán smí upravovat jen správce servisu, vedení a administrátor.');
+    }
+    const [sites, devices] = await Promise.all([this.listSites(), this.listDevices()]);
+    for (const it of items) {
+      await this.checkPlanInput(it, sites, devices);
+    }
+    const out: PlanItem[] = [];
+    for (const it of items) {
+      const id = await this.add(PLAN, this.planFields(it), 'Položku plánu se nepodařilo založit');
+      out.push({ ...it, id } as PlanItem);
+    }
+    if (items.length > 0) {
+      await this.audit('Servis – roční plán', `${items[0].siteNumber}/${items[0].year}`, actor, `Přidáno ${items.length} položek plánu (šablona nebo kopie)`);
+    }
+    return out;
+  }
+
+  public async deletePlanItem(id: number, actor: CurrentUser): Promise<void> {
+    if (!canManageSites(actor.roles)) {
+      throw new Error('Roční plán smí upravovat jen správce servisu, vedení a administrátor.');
+    }
+    const found = (await this.listPlan()).filter((x) => x.id === id)[0];
+    if (!found) {
+      throw new Error('Položka plánu nebyla nalezena.');
+    }
+    try {
+      await getSp(this.context).web.lists.getByTitle(PLAN).items.getById(id).recycle();
+    } catch (error) {
+      throw new Error(describeSpError(error, 'Položku plánu se nepodařilo smazat'));
+    }
+    await this.audit('Servis – roční plán', `${found.siteNumber}/${found.year}`, actor, `Smazána položka plánu: ${found.title} (do koše webu)`);
+  }
+
+  public async createRequestFromPlan(id: number, actor: CurrentUser): Promise<ServiceRequest> {
+    if (!canWorkInService(actor.roles)) {
+      throw new Error('Požadavek smí vytvořit jen správce servisu, dispečer a administrátor.');
+    }
+    const item = (await this.listPlan()).filter((x) => x.id === id)[0];
+    if (!item) {
+      throw new Error('Položka plánu nebyla nalezena.');
+    }
+    if (item.requestId) {
+      throw new Error(`Z této položky už požadavek ${item.requestNumber || item.requestId} vznikl.`);
+    }
+    const request = await this.saveRequest(
+      {
+        siteNumber: item.siteNumber,
+        deviceNumber: item.deviceNumber,
+        title: item.title,
+        description: [item.description, `Z ročního plánu ${item.year}, ${item.jobKind === 'Plánovaná' ? 'v paušálu' : 'mimo paušál'}.`].filter((x) => !!x).join('\n'),
+        priority: 'Běžná',
+        kind: requestKindOf(item),
+        requiredDate: requiredDateOf(item)
+      },
+      actor
+    );
+    await this.update(PLAN, id, { RequestId: request.id, RequestNumber: request.number }, 'Položku plánu se nepodařilo propojit s požadavkem');
+    return request;
   }
 
   // --- přílohy (přílohy položky seznamu) ---

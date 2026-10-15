@@ -18,7 +18,7 @@
  * Verze schématu. Ukládá se do PRM_Settings pod klíčem `schemaVersion`.
  * Průvodce porovná uloženou verzi s touto a nabídne doplnění rozdílu.
  */
-export const SCHEMA_VERSION = 30;
+export const SCHEMA_VERSION = 31;
 
 /** Typ sloupce v SharePointu. */
 export type FieldType =
@@ -805,6 +805,27 @@ const PRM_SERVICE_JOBS: ListDef = {
   ]
 };
 
+const PRM_SERVICE_PLAN: ListDef = {
+  name: 'PRM_ServicePlan',
+  title: 'PRM – Servis: roční plán',
+  description: 'Roční plán servisu: plánované činnosti (revize, pravidelné kontroly) lokality nebo souboru na kalendářní rok. Z položky vzniká servisní požadavek.',
+  kind: 'list',
+  site: 'PRM',
+  versioning: true,
+  fields: [
+    { name: 'PlanYear', title: 'Rok plánu', type: 'Number', decimals: 0, required: true, indexed: true },
+    { name: 'SiteNumber', title: 'Číslo lokality', type: 'Text', required: true, indexed: true },
+    { name: 'DeviceNumber', title: 'Číslo souboru', type: 'Text', indexed: true, description: 'Prázdné = činnost se týká celé lokality.' },
+    { name: 'Description', title: 'Popis', type: 'Note' },
+    { name: 'PlanMonth', title: 'Měsíc', type: 'Number', decimals: 0, required: true },
+    { name: 'DueDate', title: 'Konkrétní termín', type: 'DateTime', description: 'Nepovinné; bez něj stačí měsíc.' },
+    { name: 'JobKind', title: 'Druh', type: 'Choice', choices: ['Plánovaná', 'Nahodilá'], defaultValue: 'Plánovaná', description: 'Plánovaná = v paušálu; Nahodilá = mimo paušál.' },
+    { name: 'RequestId', title: 'ID požadavku', type: 'Number', decimals: 0 },
+    { name: 'RequestNumber', title: 'Číslo požadavku', type: 'Text' },
+    { name: 'Note', title: 'Poznámka', type: 'Note' }
+  ]
+};
+
 export const LISTS: ListDef[] = [
   PRM_SETTINGS,
   PRM_DOCTYPES,
@@ -823,6 +844,7 @@ export const LISTS: ListDef[] = [
   PRM_SERVICE_DEVICES,
   PRM_SERVICE_REQUESTS,
   PRM_SERVICE_JOBS,
+  PRM_SERVICE_PLAN,
   PRM_INCOME_PLAN,
   PRM_PURCHASE_ORDERS,
   PRM_INVOICE_BASES,

@@ -17,6 +17,9 @@ webu / mobilní aplikaci (paralelní session). V PRMIS je evidence, stav, faktur
 - **Fakturace:** zákazníkovi (lokalitě) jednak **pravidelný paušál**, jednak **jednotlivé činnosti** (z servisního listu). Dodavatelé fakturují nám (přijaté faktury přes Abru).
 - **Schvalovací limity Servisu** se upřesní později; zatím platí stejné limity jako u projektů, krok „PM“ schvaluje správce servisu.
 
+## Roční plán (0.53.0.0)
+Plán je na záložce Plán údržby: položky (činnost, měsíc nebo datum, plánovaná/nahodilá) pro lokalitu nebo soubor a rok; šablony FVE/BESS/lokalita v Nastavení → Servis; kopie do dalšího roku; převod na požadavek. Plánovaná činnost = v paušálu (z plánu vzniká požadavek typu Preventivní prohlídka).
+
 ## Odloženo (rozhodnuto 15. 10. 2026)
 - **Příchozí e-maily** (sdílená schránka servis@revoltum.cz → záložka „Příchozí“ → dispečer vytvoří požadavek nebo odmítne): Igor chce, **vrátíme se k tomu později**. Návrh: schránku zakládá administrátor M365, přenos e-mailů do seznamu `PRM_ServiceInbox` zajistí Power Automate (standardní konektory), aplikace jen ukáže frontu a převede e-mail na požadavek.
 - **Schvalovací limity Servisu** (kdo od jaké částky schvaluje; vedoucí servisu schvaluje, dispečer připravuje) — Igor upřesní.

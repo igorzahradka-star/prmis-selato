@@ -7,7 +7,8 @@ import { CurrentUser } from '../../core/types';
 import { canDeleteAnyInService, canDeleteInService, canManageSites, canWorkInService, jobDeletionProblem, uniqueAttachmentName, nextSiteNumber, siteDeletionProblem, requestDeletionProblem, validateDeviceNumber, validateSiteNumber, ServiceDevice, ServiceSite } from '../../core/service';
 import { JobAction, JobActionInput, JobStatus, RequestStatus, ServiceFlowError, ServiceJob, ServiceRequest, applyJobAction, requestStatusFrom } from '../../core/serviceJobs';
 import { OrderAttachment, validateAttachment } from '../../core/orders';
-import { INumberingRepository, IProjectRepository, IServiceRepository, ServiceAttachmentTarget, ServiceDeviceInput, ServiceJobInput, ServiceRequestInput, ServiceSiteInput } from '../repositories';
+import { PlanItem, planItemProblem, requestKindOf, requiredDateOf } from '../../core/servicePlan';
+import { INumberingRepository, IProjectRepository, IServiceRepository, PlanItemInput, ServiceAttachmentTarget, ServiceDeviceInput, ServiceJobInput, ServiceRequestInput, ServiceSiteInput } from '../repositories';
 
 const day = (y: number, m: number, d: number): Date => new Date(y, m - 1, d);
 
@@ -166,6 +167,98 @@ export class MockServiceRepository implements IServiceRepository {
     const updated = { ...found, status: RequestStatus.Zamitnuto, note: note.trim() };
     this.requests = this.requests.map((r) => (r.id === requestId ? updated : r));
     return Promise.resolve({ ...updated });
+  }
+
+  private plan: PlanItem[] = [
+    { id: 1, year: new Date().getFullYear(), siteNumber: '10500', deviceNumber: '10501', title: 'Roční prohlídka a kontrola FVE', month: 4, jobKind: 'Plánovaná' },
+    { id: 2, year: new Date().getFullYear(), siteNumber: '10500', deviceNumber: '10501', title: 'Revize elektrického zařízení', month: 9, dueDate: new Date(new Date().getFullYear(), 8, 15), jobKind: 'Plánovaná' },
+    { id: 3, year: new Date().getFullYear(), siteNumber: '10500', title: 'Údržba zeleně — sečení trávy', month: 8, jobKind: 'Plánovaná' },
+    { id: 4, year: new Date().getFullYear(), siteNumber: '10510', deviceNumber: '10511', title: 'Termovizní kontrola panelů', month: 7, jobKind: 'Nahodilá' }
+  ];
+
+  public listPlan(): Promise<PlanItem[]> {
+    return Promise.resolve(this.plan.map((x) => ({ ...x })));
+  }
+
+  private checkPlan(input: PlanItemInput): string {
+    const problem = planItemProblem(input);
+    if (problem) {
+      return problem;
+    }
+    if (!this.sites.some((s) => s.number === input.siteNumber)) {
+      return `Lokalita ${input.siteNumber} neexistuje.`;
+    }
+    if (input.deviceNumber && !this.devices.some((d) => d.number === input.deviceNumber && d.siteNumber === input.siteNumber)) {
+      return `Soubor ${input.deviceNumber} v lokalitě ${input.siteNumber} neexistuje.`;
+    }
+    return '';
+  }
+
+  public savePlanItem(input: PlanItemInput, actor: CurrentUser): Promise<PlanItem> {
+    if (!canManageSites(actor.roles)) {
+      return Promise.reject(new Error('Roční plán smí upravovat jen správce servisu, vedení a administrátor.'));
+    }
+    const problem = this.checkPlan(input);
+    if (problem) {
+      return Promise.reject(new Error(problem));
+    }
+    const existing = input.id ? this.plan.filter((x) => x.id === input.id)[0] : undefined;
+    const item: PlanItem = { ...input, title: input.title.trim(), id: existing ? existing.id : this.nextId++, requestId: existing ? existing.requestId : undefined, requestNumber: existing ? existing.requestNumber : undefined };
+    this.plan = existing ? this.plan.map((x) => (x.id === item.id ? item : x)) : [...this.plan, item];
+    return Promise.resolve({ ...item });
+  }
+
+  public createPlanItems(items: PlanItemInput[], actor: CurrentUser): Promise<PlanItem[]> {
+    if (!canManageSites(actor.roles)) {
+      return Promise.reject(new Error('Roční plán smí upravovat jen správce servisu, vedení a administrátor.'));
+    }
+    for (const it of items) {
+      const problem = this.checkPlan(it);
+      if (problem) {
+        return Promise.reject(new Error(problem));
+      }
+    }
+    const created = items.map((it): PlanItem => ({ ...it, title: it.title.trim(), id: this.nextId++ }));
+    this.plan = [...this.plan, ...created];
+    return Promise.resolve(created.map((x) => ({ ...x })));
+  }
+
+  public deletePlanItem(id: number, actor: CurrentUser): Promise<void> {
+    if (!canManageSites(actor.roles)) {
+      return Promise.reject(new Error('Roční plán smí upravovat jen správce servisu, vedení a administrátor.'));
+    }
+    if (!this.plan.some((x) => x.id === id)) {
+      return Promise.reject(new Error('Položka plánu nebyla nalezena.'));
+    }
+    this.plan = this.plan.filter((x) => x.id !== id);
+    return Promise.resolve();
+  }
+
+  public async createRequestFromPlan(id: number, actor: CurrentUser): Promise<ServiceRequest> {
+    if (!canWorkInService(actor.roles)) {
+      throw new Error('Požadavek smí vytvořit jen správce servisu, dispečer a administrátor.');
+    }
+    const item = this.plan.filter((x) => x.id === id)[0];
+    if (!item) {
+      throw new Error('Položka plánu nebyla nalezena.');
+    }
+    if (item.requestId) {
+      throw new Error(`Z této položky už požadavek ${item.requestNumber || item.requestId} vznikl.`);
+    }
+    const request = await this.saveRequest(
+      {
+        siteNumber: item.siteNumber,
+        deviceNumber: item.deviceNumber,
+        title: item.title,
+        description: [item.description, `Z ročního plánu ${item.year}, ${item.jobKind === 'Plánovaná' ? 'v paušálu' : 'mimo paušál'}.`].filter((x) => !!x).join('\n'),
+        priority: 'Běžná',
+        kind: requestKindOf(item),
+        requiredDate: requiredDateOf(item)
+      },
+      actor
+    );
+    this.plan = this.plan.map((x) => (x.id === id ? { ...x, requestId: request.id, requestNumber: request.number } : x));
+    return request;
   }
 
   private attachments: Record<string, { name: string; blob: Blob }[]> = {};

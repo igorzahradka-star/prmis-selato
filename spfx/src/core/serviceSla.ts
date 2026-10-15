@@ -8,6 +8,7 @@
  */
 
 import { JobStatus, RequestStatus, ServiceJob, ServiceRequest } from './serviceJobs';
+import { PlanTemplate, planTemplatesWithDefaults } from './servicePlan';
 
 export interface SlaRule {
   /** Druh požadavku (Porucha, Preventivní prohlídka…); prázdné = všechny druhy. */
@@ -24,11 +25,14 @@ export interface ServiceSettings {
   slaRules: SlaRule[];
   /** Kořenová složka Servisu v knihovně dokumentů (např. General/02_SERVIS); pod ní vznikají složky lokalit a souborů. */
   folderRoot: string;
+  /** Šablony ročního plánu servisu (FVE, BESS…) — načítají se do plánu lokality nebo souboru. */
+  planTemplates: PlanTemplate[];
 }
 
 /** Výchozí lhůty — návrh, upřesní zadavatel v Nastavení → Servis. */
 export const DEFAULT_SERVICE_SETTINGS: ServiceSettings = {
   folderRoot: 'General/02_SERVIS',
+  planTemplates: planTemplatesWithDefaults(undefined),
   slaRules: [
     { priority: 'Havárie', reactionHours: 4, resolveHours: 24 },
     { priority: 'Vysoká', reactionHours: 8, resolveHours: 48 },
@@ -42,7 +46,8 @@ export const DEFAULT_SERVICE_SETTINGS: ServiceSettings = {
 export function serviceSettingsWithDefaults(stored: Partial<ServiceSettings> | undefined): ServiceSettings {
   return {
     slaRules: Array.isArray(stored?.slaRules) ? (stored?.slaRules as SlaRule[]) : DEFAULT_SERVICE_SETTINGS.slaRules.map((r) => ({ ...r })),
-    folderRoot: stored?.folderRoot && stored.folderRoot.trim() !== '' ? stored.folderRoot.trim() : DEFAULT_SERVICE_SETTINGS.folderRoot
+    folderRoot: stored?.folderRoot && stored.folderRoot.trim() !== '' ? stored.folderRoot.trim() : DEFAULT_SERVICE_SETTINGS.folderRoot,
+    planTemplates: planTemplatesWithDefaults(stored?.planTemplates)
   };
 }
 
