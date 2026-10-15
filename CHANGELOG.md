@@ -5,6 +5,15 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.52.0 — 15. 10. 2026 — Servis: dodavatelé servisu, filtry, mazání administrátorem, mapa
+
+- **Druhy partnera zaškrtávátky:** zákazník, dodavatel a **dodavatel servisu** (lze i všechny tři) — v Partnerech i při rychlém založení partnera. V servisních listech a v objednávkách servisního projektu se **přednostně nabízejí jen dodavatelé servisu**; zaškrtávátko „Zobrazit všechny dodavatele“ ukáže všechny. Sloupec Typ zůstává (kvůli REVCRM), dodavatel servisu je nový příznak (**schéma 30**, přidávací).
+- **Servisní projekty se nezobrazují** ani ve web partu „Běžící projekty“ (stejně jako Režie) a nemají projektového manažera — v detailu projektu je místo něj „Řízení: servis“; v objednávkách servisu je schvalovatelem „Vedoucí servisu“.
+- **Filtry** v přehledu požadavků i servisních listů: **lokalita, soubor** (nebo celá lokalita) a **priorita** (k tomu stav a hledání).
+- **Mazání:** administrátor smí smazat servisní list i požadavek **v jakémkoli stavu** (i objednaný, k fakturaci, vyfakturovaný; navázaná objednávka a podklad faktury se nemažou, jen se odpojí). Vedení smí mazat jen zrušené a nezpracované listy.
+- **Mapa servisu:** bez rozklikávací karty pod mapou; po najetí na špendlík se ukáže široké čitelné okno — lokalita, její soubory a počet aktivních požadavků.
+- Schéma 30 — po nahrání spustit **Instalaci a diagnostiku**.
+
 ## 0.51.0 — 15. 10. 2026 — Servis: přílohy, detail požadavku, PDF listu, podklady do objednávky
 
 - **Přílohy požadavku a servisního listu:** fotky, dokumenty a **nákresy** (kreslení do prázdna i do fotky jako ve stavebním deníku). Fotky se před uložením zmenší podle Nastavení → Fotky. Přílohy jsou přílohy položky seznamu (SharePoint), ne složky.

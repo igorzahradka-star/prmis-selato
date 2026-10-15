@@ -9,7 +9,7 @@
 import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { CurrentUser } from '../../core/types';
 import { toDate } from '../../core/format';
-import { canDeleteInService, canManageSites, canWorkInService, jobDeletionProblem, uniqueAttachmentName, nextSiteNumber, serviceFolderPlan, siteDeletionProblem, requestDeletionProblem, validateDeviceNumber, validateSiteNumber, ServiceDevice, ServiceSite } from '../../core/service';
+import { canDeleteAnyInService, canDeleteInService, canManageSites, canWorkInService, jobDeletionProblem, uniqueAttachmentName, nextSiteNumber, serviceFolderPlan, siteDeletionProblem, requestDeletionProblem, validateDeviceNumber, validateSiteNumber, ServiceDevice, ServiceSite } from '../../core/service';
 import { JobAction, JobActionInput, JobStatus, RequestStatus, ServiceFlowError, ServiceJob, ServiceRequest, applyJobAction, requestStatusFrom } from '../../core/serviceJobs';
 import { OrderAttachment, validateAttachment } from '../../core/orders';
 import { INumberingRepository, IProjectRepository, ISettingsRepository, ServiceAttachmentTarget, IServiceRepository, ServiceDeviceInput, ServiceJobInput, ServiceRequestInput, ServiceSiteInput } from '../repositories';
@@ -438,7 +438,7 @@ export class SpServiceRepository implements IServiceRepository {
     if (!found) {
       throw new Error('Požadavek nebyl nalezen.');
     }
-    const problem = requestDeletionProblem(requestId, jobs);
+    const problem = requestDeletionProblem(requestId, jobs, canDeleteAnyInService(actor.roles));
     if (problem) {
       throw new Error(problem);
     }
@@ -463,7 +463,7 @@ export class SpServiceRepository implements IServiceRepository {
     if (!job) {
       throw new Error('Servisní list nebyl nalezen.');
     }
-    const problem = jobDeletionProblem(job);
+    const problem = jobDeletionProblem(job, canDeleteAnyInService(actor.roles));
     if (problem) {
       throw new Error(problem);
     }

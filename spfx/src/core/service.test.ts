@@ -15,6 +15,11 @@ import {
   serviceFolderPlan,
   isSiteWideJob,
   siteDeletionProblem,
+  jobDeletionProblem,
+  canDeleteAnyInService,
+  EMPTY_SCOPE,
+  matchesScope,
+  SITE_WIDE_FILTER,
   uniqueAttachmentName,
   requestDeletionProblem,
   siteNumberOfDevice,
@@ -167,5 +172,41 @@ describe('přílohy servisu', () => {
     expect(uniqueAttachmentName('foto.jpg', ['foto.jpg'])).toBe('foto_2.jpg');
     expect(uniqueAttachmentName('foto.jpg', ['FOTO.JPG', 'foto_2.jpg'])).toBe('foto_3.jpg');
     expect(uniqueAttachmentName('bez-pripony', ['bez-pripony'])).toBe('bez-pripony_2');
+  });
+});
+
+describe('mazání: administrátor smí vždy, vedení jen zrušené a nezpracované', () => {
+  it('list: vedení zrušený a naplánovaný bez objednávky, administrátor i objednaný a k fakturaci', () => {
+    expect(jobDeletionProblem({ status: 'Zrušeno' })).toBe('');
+    expect(jobDeletionProblem({ status: 'Naplánováno' })).toBe('');
+    expect(jobDeletionProblem({ status: 'Naplánováno', orderId: 5 })).toMatch(/jen administrátor/);
+    expect(jobDeletionProblem({ status: 'K fakturaci' })).toMatch(/jen administrátor/);
+    expect(jobDeletionProblem({ status: 'K fakturaci', invoiceId: 3 }, true)).toBe('');
+  });
+
+  it('požadavek: s listy v pokročilém stavu ho smaže jen administrátor', () => {
+    const jobs = [{ requestId: 1, status: 'K fakturaci' }, { requestId: 1, status: 'Zrušeno' }];
+    expect(requestDeletionProblem(1, jobs)).toMatch(/jen administrátor/);
+    expect(requestDeletionProblem(1, jobs, true)).toBe('');
+    expect(canDeleteAnyInService([Role.Administrator])).toBe(true);
+    expect(canDeleteAnyInService([Role.Vedeni])).toBe(false);
+  });
+});
+
+describe('filtr lokalita / soubor / priorita', () => {
+  const item = { siteNumber: '10500', deviceNumber: '10501', priority: 'Vysoká' };
+  it('prázdný filtr propustí vše; lokalita, soubor a priorita omezují', () => {
+    expect(matchesScope(EMPTY_SCOPE, item)).toBe(true);
+    expect(matchesScope({ ...EMPTY_SCOPE, site: '10500' }, item)).toBe(true);
+    expect(matchesScope({ ...EMPTY_SCOPE, site: '10510' }, item)).toBe(false);
+    expect(matchesScope({ ...EMPTY_SCOPE, device: '10501' }, item)).toBe(true);
+    expect(matchesScope({ ...EMPTY_SCOPE, device: '10502' }, item)).toBe(false);
+    expect(matchesScope({ ...EMPTY_SCOPE, priority: 'Havárie' }, item)).toBe(false);
+  });
+  it('„celá lokalita“ vybere položky bez souboru nebo se souborem rovným číslu lokality', () => {
+    const wide = { ...EMPTY_SCOPE, device: SITE_WIDE_FILTER };
+    expect(matchesScope(wide, { siteNumber: '10500', deviceNumber: '10500' })).toBe(true);
+    expect(matchesScope(wide, { siteNumber: '10500' })).toBe(true);
+    expect(matchesScope(wide, item)).toBe(false);
   });
 });

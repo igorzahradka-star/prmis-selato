@@ -7,13 +7,12 @@
 
 import * as React from 'react';
 import type * as LeafletTypes from 'leaflet';
-import { ActionButton } from '@fluentui/react/lib/Button';
 import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
 
 import { RES } from '../../ui/theme';
 import { clusterPoints, escapeHtml, sameLocation } from '../../core/geo';
-import { ServiceDevice, ServiceSite, contractState } from '../../core/service';
-import { JobStatus, RequestStatus, ServiceJob, ServiceRequest } from '../../core/serviceJobs';
+import { ServiceDevice, ServiceSite } from '../../core/service';
+import { RequestStatus, ServiceJob, ServiceRequest } from '../../core/serviceJobs';
 import {
   SERVICE_DEVICE_ZOOM,
   SERVICE_SIGNAL_LABELS,
@@ -37,20 +36,9 @@ export interface ServiceMapProps {
   devices: ServiceDevice[];
   requests: ServiceRequest[];
   jobs: ServiceJob[];
-  /** Smí uživatel upravovat lokality a soubory? */
-  mayAdmin: boolean;
-  mayWork: boolean;
-  onNewRequest: (siteNumber: string) => void;
-  onEditSite: (site: ServiceSite) => void;
-  onEditDevice: (site: ServiceSite, device: ServiceDevice) => void;
 }
 
-interface Selection {
-  siteNumber: string;
-  deviceNumber?: string;
-}
-
-export const ServiceMap: React.FC<ServiceMapProps> = ({ sites, devices, requests, jobs, mayAdmin, mayWork, onNewRequest, onEditSite, onEditDevice }) => {
+export const ServiceMap: React.FC<ServiceMapProps> = ({ sites, devices, requests, jobs }) => {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const mapRef = React.useRef<LeafletTypes.Map | undefined>(undefined);
   const layerRef = React.useRef<LeafletTypes.LayerGroup | undefined>(undefined);
@@ -58,7 +46,6 @@ export const ServiceMap: React.FC<ServiceMapProps> = ({ sites, devices, requests
   const fittedRef = React.useRef(false);
   const [mapReady, setMapReady] = React.useState(false);
   const [mapError, setMapError] = React.useState<string | undefined>(undefined);
-  const [selected, setSelected] = React.useState<Selection | undefined>(undefined);
 
   const activeSites = React.useMemo(() => sites.filter((s) => s.isActive), [sites]);
   const missing = React.useMemo(() => missingLocations(sites, devices), [sites, devices]);
@@ -111,22 +98,22 @@ export const ServiceMap: React.FC<ServiceMapProps> = ({ sites, devices, requests
       return undefined;
     }
     const today = new Date();
+    void today;
     const siteByNumber: Record<string, ServiceSite> = {};
     activeSites.forEach((s) => {
       siteByNumber[s.number] = s;
     });
 
+    const openRequests = (s: ServiceSite, deviceNumber?: string): number =>
+      requests.filter((r) => r.siteNumber === s.number && (!deviceNumber || r.deviceNumber === deviceNumber) && (r.status === RequestStatus.Prijato || r.status === RequestStatus.Zpracovava)).length;
+    const box = (inner: string): string => `<div style="width:320px;font-size:13px;line-height:1.45;color:#1B1F2A">${inner}</div>`;
     const siteTooltip = (s: ServiceSite): string => {
-      const openReq = requests.filter((r) => r.siteNumber === s.number && (r.status === RequestStatus.Prijato || r.status === RequestStatus.Zpracovava)).length;
-      const openJobs = jobs.filter((j) => j.siteNumber === s.number && j.status !== JobStatus.Uzavreno && j.status !== JobStatus.Zruseno).length;
-      const count = devices.filter((d) => d.siteNumber === s.number && d.isActive).length;
-      return `<div style="font-size:13px"><strong>${escapeHtml(`${s.number} ${s.name}`)}</strong><br/>${escapeHtml(s.customerName || '')}<br/>Soubory: ${count} · otevřené požadavky: ${openReq} · otevřené listy: ${openJobs}</div>`;
+      const own = devices.filter((d) => d.siteNumber === s.number && d.isActive);
+      const list = own.length === 0 ? '<div style="color:#5A6472">žádné soubory</div>' : `<ul style="margin:2px 0 0;padding-left:18px">${own.map((d) => `<li>${escapeHtml(`${d.number} ${d.name}`)}</li>`).join('')}</ul>`;
+      return box(`<div style="font-weight:600;font-size:14px">${escapeHtml(`${s.number} ${s.name}`)}</div><div style="color:#5A6472;margin-top:6px">Soubory:</div>${list}<div style="margin-top:6px">Aktivní požadavky: <strong>${openRequests(s)}</strong></div>`);
     };
-    const deviceTooltip = (d: ServiceDevice, s: ServiceSite): string => {
-      const cs = contractState(d, today);
-      const contract = cs === 'platna' ? 'smlouva platí' : cs === 'konci' ? 'smlouva brzy končí' : cs === 'vyprsela' ? 'smlouva vypršela' : 'bez smlouvy';
-      return `<div style="font-size:13px"><strong>${escapeHtml(`${d.number} ${d.name}`)}</strong><br/>${escapeHtml(`${d.kind} · ${s.number} ${s.name}`)}<br/>${escapeHtml(contract)}</div>`;
-    };
+    const deviceTooltip = (d: ServiceDevice, s: ServiceSite): string =>
+      box(`<div style="font-weight:600;font-size:14px">${escapeHtml(`${d.number} ${d.name}`)}</div><div style="color:#5A6472;margin-top:2px">${escapeHtml(`${d.kind} · lokalita ${s.number} ${s.name}`)}</div><div style="margin-top:6px">Aktivní požadavky: <strong>${openRequests(s, d.number)}</strong></div>`);
 
     const render = (): void => {
       layer.clearLayers();
@@ -144,7 +131,6 @@ export const ServiceMap: React.FC<ServiceMapProps> = ({ sites, devices, requests
               const st = SIGNAL_STYLE[serviceSignal(s.number, devices, requests, jobs, undefined, today)];
               const m = L.marker([c.latitude, c.longitude], { icon: pinIcon(L, st.fill, st.stroke, '#fff'), title: s.number, keyboard: true });
               m.bindTooltip(siteTooltip(s), { className: 'prm-tooltip', direction: 'top', opacity: 1 });
-              m.on('click', () => setSelected({ siteNumber: s.number }));
               m.addTo(layer);
             }
             return;
@@ -159,7 +145,6 @@ export const ServiceMap: React.FC<ServiceMapProps> = ({ sites, devices, requests
             const st = SIGNAL_STYLE[serviceSignal(s.number, devices, requests, jobs, d.number, today)];
             const m = L.marker([c.latitude, c.longitude], { icon: pinIcon(L, st.fill, st.stroke, '#fff', ownPosition ? 0 : offsets[idx]), title: d.number, keyboard: true });
             m.bindTooltip(deviceTooltip(d, s), { className: 'prm-tooltip', direction: 'top', opacity: 1 });
-            m.on('click', () => setSelected({ siteNumber: s.number, deviceNumber: d.number }));
             m.addTo(layer);
           });
         });
@@ -189,7 +174,6 @@ export const ServiceMap: React.FC<ServiceMapProps> = ({ sites, devices, requests
           const st = SIGNAL_STYLE[serviceSignal(s.number, devices, requests, jobs, undefined, today)];
           const m = L.marker([c.latitude, c.longitude], { icon: pinIcon(L, st.fill, st.stroke, '#fff'), riseOnHover: true, title: s.number, keyboard: true });
           m.bindTooltip(siteTooltip(s), { className: 'prm-tooltip', direction: 'top', opacity: 1 });
-          m.on('click', () => setSelected({ siteNumber: s.number }));
           m.addTo(layer);
           return;
         }
@@ -230,8 +214,6 @@ export const ServiceMap: React.FC<ServiceMapProps> = ({ sites, devices, requests
     };
   }, [mapReady, activeSites, devices, requests, jobs]);
 
-  const selSite = selected ? sites.filter((s) => s.number === selected.siteNumber)[0] : undefined;
-  const selDevice = selected && selected.deviceNumber ? devices.filter((d) => d.number === selected.deviceNumber)[0] : undefined;
   const hasAnyLocation = activeSites.some((s) => !!siteCoordinates(s));
 
   return (
@@ -269,19 +251,6 @@ export const ServiceMap: React.FC<ServiceMapProps> = ({ sites, devices, requests
         </MessageBar>
       )}
 
-      {selSite && (
-        <div style={{ marginTop: 10, background: RES.white, border: `1px solid ${RES.grayBlue}`, borderLeft: `4px solid ${RES.blue}`, borderRadius: 4, padding: '8px 12px' }}>
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-            <strong>{selDevice ? `${selDevice.number} ${selDevice.name} (${selDevice.kind})` : `${selSite.number} ${selSite.name}`}</strong>
-            <span style={{ color: RES.gray, fontSize: 13 }}>{selDevice ? `lokalita ${selSite.number} ${selSite.name}` : [selSite.customerName, selSite.address].filter((x) => !!x).join(' · ')}</span>
-            <span style={{ flex: '1 1 auto' }} />
-            {mayWork && <ActionButton iconProps={{ iconName: 'Add' }} text="Nový požadavek" onClick={() => onNewRequest(selSite.number)} />}
-            {mayAdmin && <ActionButton iconProps={{ iconName: 'Edit' }} text={selDevice ? 'Upravit soubor' : 'Upravit lokalitu'} onClick={() => (selDevice ? onEditDevice(selSite, selDevice) : onEditSite(selSite))} />}
-            <ActionButton iconProps={{ iconName: 'Cancel' }} text="Zavřít" onClick={() => setSelected(undefined)} />
-          </div>
-          {selSite.contact && !selDevice && <div style={{ fontSize: 13, marginTop: 4 }}>Kontakt: {selSite.contact}</div>}
-        </div>
-      )}
     </div>
   );
 };

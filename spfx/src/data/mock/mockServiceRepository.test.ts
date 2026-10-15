@@ -169,3 +169,21 @@ describe('MockServiceRepository — přílohy', () => {
     expect(await r.service.listAttachments({ kind: 'job', id: 1 })).toEqual([]);
   });
 });
+
+describe('MockServiceRepository — administrátor maže cokoli', () => {
+  const admin = uzivatel('admin', 'Adam Admin', [Role.Administrator]);
+
+  it('list k fakturaci a požadavek s ním smaže jen administrátor, vedení ne', async () => {
+    const r = createMockRepositories();
+    const req = await r.service.saveRequest({ siteNumber: '10500', deviceNumber: '10501', title: 'Test', priority: 'Běžná', kind: 'Porucha' }, dispecer);
+    const job = await r.service.createJob({ requestId: req.id, siteNumber: '10500', deviceNumber: '10501', title: 'Oprava', supplierId: 7, supplierName: 'Servis' }, dispecer);
+    await r.service.actOnJob(job.id, 'order', { orderId: 5, orderNumber: 'OBJ-1' }, dispecer);
+    await r.service.actOnJob(job.id, 'report', { workReport: 'hotovo' }, dispecer);
+    await r.service.actOnJob(job.id, 'check', {}, spravce);
+    await expect(r.service.deleteJob(job.id, vedeni)).rejects.toThrow(/jen administrátor/);
+    await expect(r.service.deleteRequest(req.id, vedeni)).rejects.toThrow(/jen administrátor/);
+    await r.service.deleteRequest(req.id, admin);
+    expect((await r.service.listRequests()).some((x) => x.id === req.id)).toBe(false);
+    expect((await r.service.listJobs()).some((x) => x.id === job.id)).toBe(false);
+  });
+});

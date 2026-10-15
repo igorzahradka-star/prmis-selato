@@ -4,7 +4,7 @@
  */
 
 import { CurrentUser } from '../../core/types';
-import { canDeleteInService, canManageSites, canWorkInService, jobDeletionProblem, uniqueAttachmentName, nextSiteNumber, siteDeletionProblem, requestDeletionProblem, validateDeviceNumber, validateSiteNumber, ServiceDevice, ServiceSite } from '../../core/service';
+import { canDeleteAnyInService, canDeleteInService, canManageSites, canWorkInService, jobDeletionProblem, uniqueAttachmentName, nextSiteNumber, siteDeletionProblem, requestDeletionProblem, validateDeviceNumber, validateSiteNumber, ServiceDevice, ServiceSite } from '../../core/service';
 import { JobAction, JobActionInput, JobStatus, RequestStatus, ServiceFlowError, ServiceJob, ServiceRequest, applyJobAction, requestStatusFrom } from '../../core/serviceJobs';
 import { OrderAttachment, validateAttachment } from '../../core/orders';
 import { INumberingRepository, IProjectRepository, IServiceRepository, ServiceAttachmentTarget, ServiceDeviceInput, ServiceJobInput, ServiceRequestInput, ServiceSiteInput } from '../repositories';
@@ -210,7 +210,7 @@ export class MockServiceRepository implements IServiceRepository {
     if (!this.requests.some((r) => r.id === requestId)) {
       return Promise.reject(new Error('Požadavek nebyl nalezen.'));
     }
-    const problem = requestDeletionProblem(requestId, this.jobs);
+    const problem = requestDeletionProblem(requestId, this.jobs, canDeleteAnyInService(actor.roles));
     if (problem) {
       return Promise.reject(new Error(problem));
     }
@@ -227,7 +227,7 @@ export class MockServiceRepository implements IServiceRepository {
     if (!job) {
       return Promise.reject(new Error('Servisní list nebyl nalezen.'));
     }
-    const problem = jobDeletionProblem(job);
+    const problem = jobDeletionProblem(job, canDeleteAnyInService(actor.roles));
     if (problem) {
       return Promise.reject(new Error(problem));
     }

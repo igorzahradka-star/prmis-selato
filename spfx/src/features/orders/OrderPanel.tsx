@@ -34,7 +34,9 @@ import { RES } from '../../ui/theme';
 import { CS_CALENDAR_STRINGS } from '../../ui/csCalendarStrings';
 import { buildHash, RouteName } from '../../ui/router';
 import { applyNotificationPrefs, mutedText } from '../notify/notificationPrefs';
-import { Currency, Partner, PartnerType, Project } from '../../core/types';
+import { Currency, Partner, Project } from '../../core/types';
+import { isSupplier, suppliersToPick } from '../../core/partnerKinds';
+import { Checkbox } from '@fluentui/react/lib/Checkbox';
 import { formatDate, formatDateTime, formatMoney, parseAmount, parseCzechDate } from '../../core/format';
 import {
   APPROVAL_LEVEL_LABELS,
@@ -160,6 +162,7 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
   const [roleMembers, setRoleMembers] = React.useState<RoleMembership[]>([]);
   const [attachments, setAttachments] = React.useState<OrderAttachment[]>([]);
   const [pendingFiles, setPendingFiles] = React.useState<File[]>([]);
+  const [showAllSuppliers, setShowAllSuppliers] = React.useState(false);
   const [approverDialog, setApproverDialog] = React.useState<
     { key: number; mode: 'submit' | 'reassign'; orderId: number; rows: ApproverRow[] } | undefined
   >(undefined);
@@ -310,11 +313,16 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
     .sort((a, b) => a.projectNumber.localeCompare(b.projectNumber, 'cs-CZ', { numeric: true }))
     .map((p) => ({ key: p.projectNumber, text: `${p.projectNumber} · ${p.shortName || p.title}` }));
 
-  const suppliers = partners.filter((p) => p.partnerType !== PartnerType.Zakaznik);
+  const suppliers = partners.filter((p) => isSupplier(p));
+  // U servisních projektů se nabízejí přednostně dodavatelé servisu (přehlednost); „všichni dodavatelé“ se zapíná zaškrtávátkem.
+  const serviceProject = !!(workflowProject && workflowProject.isService);
+  const pickable = serviceProject ? suppliersToPick(partners, showAllSuppliers) : suppliers;
+  const selectedSupplier = fSupplierId !== undefined ? suppliers.filter((s) => s.id === fSupplierId)[0] : undefined;
+  const pickableWithSelected = selectedSupplier && !pickable.some((s) => s.id === selectedSupplier.id) ? [selectedSupplier, ...pickable] : pickable;
   const NEW_SUPPLIER_KEY = -1;
   // Na konci seznamu je volba založit nového partnera (bez opuštění objednávky).
   const supplierOptions: IComboBoxOption[] = [
-    ...suppliers.map((p) => ({ key: p.id, text: p.name })),
+    ...pickableWithSelected.map((p) => ({ key: p.id, text: p.name })),
     { key: 'sep', text: '-', itemType: SelectableOptionMenuItemType.Divider },
     { key: NEW_SUPPLIER_KEY, text: '+ Založit nového partnera…', styles: { optionText: { color: RES.blue, fontWeight: 600 } } }
   ];
@@ -1122,6 +1130,7 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
                 styles={{ root: { flex: '1 1 280px' } }}
               />
             </div>
+            {serviceProject && <Checkbox label="Zobrazit všechny dodavatele (ne jen dodavatele servisu)" checked={showAllSuppliers} onChange={(_, c) => setShowAllSuppliers(!!c)} styles={{ root: { marginTop: 4 } }} />}
             {suppliers.length === 0 && (
               <div style={{ fontSize: 12, color: RES.gray }}>
                 V Partnerech zatím není žádný dodavatel. Založte ho v části Partneři (typ Dodavatel) a vraťte se.
@@ -1240,7 +1249,7 @@ export const OrderPanel: React.FC<OrderPanelProps> = ({ isOpen, orderId, project
 
             {route && (
               <MessageBar messageBarType={MessageBarType.info} isMultiline>
-                <strong>Schvaluje:</strong> {describeApprovalRoute(route.steps)}.
+                <strong>Schvaluje:</strong> {describeApprovalRoute(route.steps, serviceProject)}.
               </MessageBar>
             )}
           </div>

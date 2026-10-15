@@ -201,6 +201,8 @@ export interface Partner {
   /** Název — uložený ve sloupci Title. */
   name: string;
   partnerType: PartnerType;
+  /** Dodavatel servisu — nabízí se přednostně v servisních listech a v objednávkách servisu (viz `core/partnerKinds`). */
+  isServiceSupplier?: boolean;
   /** Dvoupísmenný kód země (ISO). Prázdný = Česko — tak vznikli partneři před zavedením sloupce. */
   country?: string;
   ico?: string;

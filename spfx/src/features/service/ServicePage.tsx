@@ -19,7 +19,7 @@ import { EXTERNAL_LINK_PROPS } from '../../ui/components/ExternalLink';
 import { PageHeading } from '../../ui/components/PageHeading';
 import { Partner } from '../../core/types';
 import { formatDate } from '../../core/format';
-import { canDeleteInService, canManageSites, canViewService, canWorkInService, contractState, jobDeletionProblem, requestDeletionProblem, siteDeletionProblem, ServiceDevice, ServiceSite } from '../../core/service';
+import { canDeleteAnyInService, canDeleteInService, canManageSites, EMPTY_SCOPE, matchesScope, ServiceScope, canViewService, canWorkInService, contractState, jobDeletionProblem, requestDeletionProblem, siteDeletionProblem, ServiceDevice, ServiceSite } from '../../core/service';
 import { JobStatus, RequestStatus, ServiceJob, ServiceRequest, isJobOverdue } from '../../core/serviceJobs';
 import { CommentDialog, DeviceDialog, JobDialog, RequestDialog, SiteDialog } from './ServiceDialogs';
 import { notifyServiceManagers, serviceLink } from './serviceNotify';
@@ -27,7 +27,7 @@ import { serviceRequestMail } from '../../core/notifications';
 import { JobPanel } from './JobPanel';
 import { ServiceMap } from './ServiceMap';
 import { RequestPanel } from './RequestPanel';
-import { ContractBadge, JobKindBadge, JobStatusBadge, PriorityBadge, RequestStatusBadge, SlaIndicator, TD, TH } from './serviceUi';
+import { ContractBadge, JobKindBadge, JobStatusBadge, PriorityBadge, RequestStatusBadge, ScopeFilters, SlaIndicator, TD, TH } from './serviceUi';
 import { isSlaBreached, slaProgress } from '../../core/serviceSla';
 
 type JobFilter = 'open' | 'all' | JobStatus;
@@ -75,6 +75,9 @@ export const ServicePage: React.FC<{ param?: string }> = ({ param }) => {
   const mayWork = canWorkInService(user.roles);
   const mayAdmin = canManageSites(user.roles);
   const mayDelete = canDeleteInService(user.roles);
+  const isAdminUser = canDeleteAnyInService(user.roles);
+  const [reqScope, setReqScope] = React.useState<ServiceScope>(EMPTY_SCOPE);
+  const [jobScope, setJobScope] = React.useState<ServiceScope>(EMPTY_SCOPE);
 
   React.useEffect(() => {
     if (!mayView) {
@@ -164,10 +167,12 @@ export const ServicePage: React.FC<{ param?: string }> = ({ param }) => {
     return <Spinner size={SpinnerSize.large} label="Načítám Servis…" />;
   }
 
-  const shownRequests = requests.filter((r) => (requestFilter === 'all' ? true : requestFilter === 'open' ? r.status === RequestStatus.Prijato || r.status === RequestStatus.Zpracovava : r.status === requestFilter)).filter((r) => matches(r.number, r.title, r.description, siteName(r.siteNumber), deviceName(r.deviceNumber), r.reportedBy));
+  const shownRequests = requests.filter((r) => (requestFilter === 'all' ? true : requestFilter === 'open' ? r.status === RequestStatus.Prijato || r.status === RequestStatus.Zpracovava : r.status === requestFilter)).filter((r) => matches(r.number, r.title, r.description, siteName(r.siteNumber), deviceName(r.deviceNumber), r.reportedBy))
+    .filter((r) => matchesScope(reqScope, r));
   const shownJobs = jobs
     .filter((j) => (jobFilter === 'all' ? true : jobFilter === 'open' ? j.status !== JobStatus.Uzavreno && j.status !== JobStatus.Zruseno : j.status === jobFilter))
-    .filter((j) => matches(j.number, j.title, j.supplierName, siteName(j.siteNumber), deviceName(j.deviceNumber), j.orderNumber, j.invoiceNumber));
+    .filter((j) => matches(j.number, j.title, j.supplierName, siteName(j.siteNumber), deviceName(j.deviceNumber), j.orderNumber, j.invoiceNumber))
+    .filter((j) => matchesScope(jobScope, { siteNumber: j.siteNumber, deviceNumber: j.deviceNumber, priority: (requests.filter((q) => q.id === j.requestId)[0] || { priority: undefined }).priority }));
   const openRequest = openRequestId ? requests.filter((x) => x.id === openRequestId)[0] : undefined;
   const openJob = openJobId ? jobs.filter((j) => j.id === openJobId)[0] : undefined;
   const jobsOfRequest = (id: number): ServiceJob[] => jobs.filter((j) => j.requestId === id);
@@ -210,6 +215,7 @@ export const ServicePage: React.FC<{ param?: string }> = ({ param }) => {
         <PivotItem headerText={`Požadavky (${requests.filter((r) => r.status === RequestStatus.Prijato || r.status === RequestStatus.Zpracovava).length})`} itemIcon="Inbox">
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', margin: '12px 0 8px' }}>
             <Dropdown label="Stav" selectedKey={requestFilter} options={[{ key: 'open', text: 'Otevřené' }, { key: 'all', text: 'Všechny' }, ...[RequestStatus.Prijato, RequestStatus.Zpracovava, RequestStatus.Vyreseno, RequestStatus.Zamitnuto].map((s) => ({ key: s, text: s }))]} onChange={(_, o) => o && setRequestFilter(o.key as RequestFilter)} styles={{ root: { width: 170 } }} />
+            <ScopeFilters sites={sites} devices={devices} value={reqScope} onChange={setReqScope} />
             <SearchBox placeholder="Hledat číslo, popis, lokalitu…" value={search} onChange={(_, v) => setSearch(v ?? '')} onClear={() => setSearch('')} styles={{ root: { width: 280 } }} />
             <span style={{ flex: '1 1 auto' }} />
             {mayWork && <PrimaryButton iconProps={{ iconName: 'Add' }} text="Nový požadavek" disabled={sites.length === 0} onClick={() => setRequestDlg({})} title={sites.length === 0 ? 'Nejdřív založte lokalitu' : undefined} />}
@@ -265,7 +271,7 @@ export const ServicePage: React.FC<{ param?: string }> = ({ param }) => {
                   </td>
                   <td style={{ ...TD, whiteSpace: 'nowrap' }} onClick={(e) => e.stopPropagation()}>
                     {mayWork && (r.status === RequestStatus.Prijato || r.status === RequestStatus.Zpracovava) && <ActionButton text="Založit servisní list" iconProps={{ iconName: 'Add' }} onClick={() => setJobDlg({ request: r })} styles={{ root: { height: 28 } }} />}
-                    {mayDelete && requestDeletionProblem(r.id, jobs) === '' && <ActionButton text="Smazat" iconProps={{ iconName: 'Delete' }} title="Smazat požadavek (i s jeho zrušenými a nezpracovanými listy)" onClick={() => setDeleteRequestDlg(r)} styles={{ root: { height: 28 } }} />}
+                    {mayDelete && requestDeletionProblem(r.id, jobs, isAdminUser) === '' && <ActionButton text="Smazat" iconProps={{ iconName: 'Delete' }} title="Smazat požadavek (i s jeho zrušenými a nezpracovanými listy)" onClick={() => setDeleteRequestDlg(r)} styles={{ root: { height: 28 } }} />}
                     {mayWork && r.status === RequestStatus.Prijato && <ActionButton text="Zamítnout" onClick={() => setRejectDlg(r)} styles={{ root: { height: 28 } }} />}
                     {mayWork && <ActionButton text="Upravit" onClick={() => setRequestDlg({ request: r })} styles={{ root: { height: 28 } }} />}
                   </td>
@@ -286,6 +292,7 @@ export const ServicePage: React.FC<{ param?: string }> = ({ param }) => {
         <PivotItem headerText={`Servisní listy (${jobs.filter((j) => j.status !== JobStatus.Uzavreno && j.status !== JobStatus.Zruseno).length})`} itemIcon="TaskList">
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', margin: '12px 0 8px' }}>
             <Dropdown label="Stav" selectedKey={jobFilter} options={[{ key: 'open', text: 'Otevřené' }, { key: 'all', text: 'Všechny' }, ...Object.keys(JobStatus).map((k) => ({ key: JobStatus[k as keyof typeof JobStatus], text: JobStatus[k as keyof typeof JobStatus] }))]} onChange={(_, o) => o && setJobFilter(o.key as JobFilter)} styles={{ root: { width: 190 } }} />
+            <ScopeFilters sites={sites} devices={devices} value={jobScope} onChange={setJobScope} />
             <SearchBox placeholder="Hledat číslo, dodavatele, soubor…" value={search} onChange={(_, v) => setSearch(v ?? '')} onClear={() => setSearch('')} styles={{ root: { width: 280 } }} />
             <span style={{ flex: '1 1 auto' }} />
             {mayWork && <PrimaryButton iconProps={{ iconName: 'Add' }} text="Nový servisní list" disabled={devices.length === 0} onClick={() => setJobDlg({})} title={devices.length === 0 ? 'Nejdřív založte soubor' : undefined} />}
@@ -328,7 +335,7 @@ export const ServicePage: React.FC<{ param?: string }> = ({ param }) => {
                   <td style={TD}>{j.orderNumber || '—'}</td>
                   <td style={TD}>{j.invoiceNumber || '—'}</td>
                   <td style={TD} onClick={(e) => e.stopPropagation()}>
-                    {mayDelete && jobDeletionProblem(j) === '' && <ActionButton text="Smazat" iconProps={{ iconName: 'Delete' }} title="Smazat zrušený nebo nezpracovaný servisní list" onClick={() => setDeleteJobDlg(j)} styles={{ root: { height: 28 } }} />}
+                    {mayDelete && jobDeletionProblem(j, isAdminUser) === '' && <ActionButton text="Smazat" iconProps={{ iconName: 'Delete' }} title={isAdminUser ? 'Smazat servisní list (administrátor smí v jakémkoli stavu)' : 'Smazat zrušený nebo nezpracovaný servisní list'} onClick={() => setDeleteJobDlg(j)} styles={{ root: { height: 28 } }} />}
                   </td>
                 </tr>
               ))}
@@ -436,24 +443,14 @@ export const ServicePage: React.FC<{ param?: string }> = ({ param }) => {
         </PivotItem>
 
         <PivotItem headerText="Mapa" itemIcon="Globe">
-          <ServiceMap
-            sites={sites}
-            devices={devices}
-            requests={requests}
-            jobs={jobs}
-            mayAdmin={mayAdmin}
-            mayWork={mayWork}
-            onNewRequest={(siteNumber) => setRequestDlg({ siteNumber })}
-            onEditSite={(site) => setSiteDlg({ site })}
-            onEditDevice={(site, device) => setDeviceDlg({ site, device })}
-          />
+          <ServiceMap sites={sites} devices={devices} requests={requests} jobs={jobs} />
         </PivotItem>
       </Pivot>
 
       {deleteJobDlg && (
         <CommentDialog
           title={`Smazat servisní list ${deleteJobDlg.number}?`}
-          subText="Smazat jde jen zrušený nebo ještě nezpracovaný list (bez objednávky). Smaže se do koše webu."
+          subText={isAdminUser && jobDeletionProblem(deleteJobDlg) !== '' ? `Pozor: list je ve stavu „${deleteJobDlg.status}“. Smaže se jen záznam servisního listu (do koše webu); navázaná objednávka ${deleteJobDlg.orderNumber || ''} a podklad faktury ${deleteJobDlg.invoiceNumber || ''} se nemažou, jen se odpojí od listu.` : 'Smazat jde zrušený nebo ještě nezpracovaný list (bez objednávky). Smaže se do koše webu.'}
           label="Poznámka (nepovinná)"
           required={false}
           confirm="Smazat servisní list"
@@ -469,7 +466,7 @@ export const ServicePage: React.FC<{ param?: string }> = ({ param }) => {
       {deleteRequestDlg && (
         <CommentDialog
           title={`Smazat požadavek ${deleteRequestDlg.number}?`}
-          subText={`„${deleteRequestDlg.title}“ — smaže se do koše webu i se svými zrušenými nebo nezpracovanými servisními listy. Pokud je jen nepotřebný, můžete ho místo toho zamítnout.`}
+          subText={`„${deleteRequestDlg.title}“ — smaže se do koše webu i se všemi svými servisními listy${isAdminUser && jobsOfRequest(deleteRequestDlg.id).some((j) => jobDeletionProblem(j) !== '') ? ' (včetně objednaných, provedených nebo vyfakturovaných — navázané objednávky a podklady faktur se nemažou, jen se odpojí)' : ' (zrušených nebo nezpracovaných)'}. Pokud je jen nepotřebný, můžete ho místo toho zamítnout.`}
           label="Poznámka (nepovinná)"
           required={false}
           confirm="Smazat požadavek"
@@ -548,6 +545,7 @@ export const ServicePage: React.FC<{ param?: string }> = ({ param }) => {
           rules={settings.service.slaRules}
           mayWork={mayWork}
           mayDelete={mayDelete}
+          isAdmin={isAdminUser}
           onClose={() => setOpenRequestId(undefined)}
           onEdit={() => setRequestDlg({ request: openRequest })}
           onReject={() => setRejectDlg(openRequest)}

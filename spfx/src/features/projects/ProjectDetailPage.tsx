@@ -339,7 +339,8 @@ const Overview: React.FC<{ project: Project }> = ({ project }) => {
       <Row label="Typ" value={project.projectType || '—'} />
       <Row label="Zákazník" value={project.customerName || '—'} />
       <Row label="Lokalita" value={project.location || '—'} />
-      <Row label="Projektový manažer" value={project.projectManagerName || '—'} />
+      {project.projectType !== 'Servis' && <Row label="Projektový manažer" value={project.projectManagerName || '—'} />}
+      {project.projectType === 'Servis' && <Row label="Řízení" value="Servis: požadavky zadává dispečer, schvaluje vedoucí servisu" />}
     </Card>
 
     <Card title="Finance">

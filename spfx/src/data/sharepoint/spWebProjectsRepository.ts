@@ -10,7 +10,7 @@ import { describeSpError, extractStatus, getSp, getSpForSite } from './spContext
 import { escapeODataString } from './spSettingsRepository';
 import { mapProject } from './spProjectRepository';
 
-const BASE_FIELDS = ['Id', 'Title', 'ProjectNumber', 'ProjectManager/Title', 'ProjectManager/Name', 'ProjectStatus', 'Location', 'ContractPriceNet', 'Currency', 'IsOverhead'];
+const BASE_FIELDS = ['Id', 'Title', 'ProjectNumber', 'ProjectManager/Title', 'ProjectManager/Name', 'ProjectStatus', 'Location', 'ContractPriceNet', 'Currency', 'IsOverhead', 'ProjectType'];
 /** Součty rozpočtu přibyly ve schématu 17 — dokud je web nezná, načte se seznam bez nich (cena = smluvní cena). */
 const BUDGET_FIELDS = ['BudgetSaleTotal', 'BudgetApproved'];
 
@@ -28,7 +28,7 @@ export class SpWebProjectsRepository implements IWebProjectsRepository {
     if (settings.statuses.length === 0) {
       return { settings, projects: [] };
     }
-    const filter = `IsOverhead eq 0 and (${settings.statuses.map((s) => `ProjectStatus eq '${escapeODataString(s)}'`).join(' or ')})`;
+    const filter = `IsOverhead eq 0 and ProjectType ne 'Servis' and (${settings.statuses.map((s) => `ProjectStatus eq '${escapeODataString(s)}'`).join(' or ')})`;
     const run = (fields: string[]): Promise<Item[]> =>
       this.sp.web.lists
         .getByTitle('PRM_Projects')

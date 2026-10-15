@@ -227,16 +227,50 @@ export function siteDeletionProblem(
   return parts.length === 0 ? '' : `Lokalitu nejde smazat, má ${parts.join(', ')}. Označte ji raději jako neaktivní (Upravit → Aktivní).`;
 }
 
-/** Servisní list jde smazat jen zrušený nebo ještě nezpracovaný (naplánovaný bez objednávky); jinak by se ztratila návaznost objednávek a fakturace. */
-export function jobDeletionProblem(job: { status?: string; orderId?: number; invoiceId?: number }): string {
-  const ok = job.status === 'Zrušeno' || (job.status === 'Naplánováno' && !job.orderId && !job.invoiceId);
-  return ok ? '' : 'Servisní list nejde smazat — je objednaný, provedený nebo vyfakturovaný. Smazat jde jen zrušený nebo ještě nezpracovaný list.';
+/** Smí uživatel smazat servisní list nebo požadavek v **jakémkoli** stavu (i objednaný, provedený, k fakturaci)? Jen administrátor. */
+export function canDeleteAnyInService(roles: Role[]): boolean {
+  return hasAnyRole(roles, Role.Administrator);
+}
+
+/**
+ * Servisní list jde smazat, když je zrušený nebo ještě nezpracovaný (naplánovaný bez objednávky) — to smí vedení i administrátor.
+ * Ostatní (objednaný, provedený, k fakturaci, vyfakturovaný) smí smazat **jen administrátor** (`isAdmin`); navázaná objednávka a podklad
+ * faktury se tím nemažou, jen se odpojí.
+ */
+export function jobDeletionProblem(job: { status?: string; orderId?: number; invoiceId?: number }, isAdmin: boolean = false): string {
+  const ok = isAdmin || job.status === 'Zrušeno' || (job.status === 'Naplánováno' && !job.orderId && !job.invoiceId);
+  return ok ? '' : 'Servisní list už smí smazat jen administrátor — je objednaný, provedený nebo vyfakturovaný. Vedení smí smazat jen zrušený nebo ještě nezpracovaný list.';
 }
 
 /** Požadavek jde smazat, když všechny jeho servisní listy jdou smazat (smažou se spolu s ním); vrací důvod, proč ne, nebo prázdný text. */
-export function requestDeletionProblem(requestId: number, jobs: { requestId?: number; status?: string; orderId?: number; invoiceId?: number }[]): string {
-  const blocked = jobs.filter((j) => j.requestId === requestId && jobDeletionProblem(j) !== '');
-  return blocked.length === 0 ? '' : `Požadavek nejde smazat, má ${blocked.length} servisních listů, které už nejde smazat (objednané, provedené nebo vyfakturované).`;
+export function requestDeletionProblem(requestId: number, jobs: { requestId?: number; status?: string; orderId?: number; invoiceId?: number }[], isAdmin: boolean = false): string {
+  const blocked = jobs.filter((j) => j.requestId === requestId && jobDeletionProblem(j, isAdmin) !== '');
+  return blocked.length === 0 ? '' : `Požadavek nejde smazat, má ${blocked.length} servisních listů, které už smí smazat jen administrátor (objednané, provedené nebo vyfakturované).`;
+}
+
+/** Filtr přehledů Servisu: lokalita, soubor (nebo celá lokalita) a priorita; prázdná hodnota = bez omezení. */
+export interface ServiceScope {
+  site: string;
+  device: string;
+  priority: string;
+}
+
+export const EMPTY_SCOPE: ServiceScope = { site: '', device: '', priority: '' };
+
+/** Hodnota filtru souboru pro „celá lokalita“ (bez konkrétního souboru). */
+export const SITE_WIDE_FILTER = '__site__';
+
+export function matchesScope(scope: ServiceScope, item: { siteNumber: string; deviceNumber?: string; priority?: string }): boolean {
+  if (scope.site && item.siteNumber !== scope.site) {
+    return false;
+  }
+  if (scope.device) {
+    const siteWide = !item.deviceNumber || item.deviceNumber === item.siteNumber;
+    if (scope.device === SITE_WIDE_FILTER ? !siteWide : item.deviceNumber !== scope.device) {
+      return false;
+    }
+  }
+  return !scope.priority || item.priority === scope.priority;
 }
 
 /** Název přílohy, který ještě mezi `existing` není: `foto.jpg` → `foto_2.jpg` → `foto_3.jpg` (velikost písmen nerozhoduje). */

@@ -5,7 +5,9 @@
 import * as React from 'react';
 import { RES } from '../../ui/theme';
 import { JobStatus, RequestStatus } from '../../core/serviceJobs';
-import { CONTRACT_STATE_LABELS, ContractState } from '../../core/service';
+import { CONTRACT_STATE_LABELS, ContractState, ServiceDevice, ServiceScope, ServiceSite, SITE_WIDE_FILTER } from '../../core/service';
+import { REQUEST_PRIORITIES } from '../../core/serviceJobs';
+import { Dropdown } from '@fluentui/react/lib/Dropdown';
 import { SlaPart, SlaProgress, formatHours } from '../../core/serviceSla';
 
 export const TH: React.CSSProperties = { textAlign: 'left', fontWeight: 600, fontSize: 12, color: RES.gray, padding: '6px 8px', whiteSpace: 'nowrap', position: 'sticky', top: 0, background: RES.white, zIndex: 1, boxShadow: `0 1px 0 ${RES.grayBlue}` };
@@ -85,6 +87,36 @@ export const SlaIndicator: React.FC<{ progress: SlaProgress }> = ({ progress }) 
         </div>
       ))}
     </div>
+  );
+};
+
+/** Filtry přehledů Servisu: lokalita, soubor (nebo celá lokalita) a priorita. */
+export const ScopeFilters: React.FC<{ sites: ServiceSite[]; devices: ServiceDevice[]; value: ServiceScope; onChange: (v: ServiceScope) => void }> = ({ sites, devices, value, onChange }) => {
+  const devicesOfSite = devices.filter((d) => d.isActive && (!value.site || d.siteNumber === value.site));
+  return (
+    <>
+      <Dropdown
+        label="Lokalita"
+        selectedKey={value.site}
+        options={[{ key: '', text: 'Všechny lokality' }, ...sites.filter((s) => s.isActive).map((s) => ({ key: s.number, text: `${s.number} ${s.name}` }))]}
+        onChange={(_, o) => o && onChange({ ...value, site: String(o.key), device: '' })}
+        styles={{ root: { width: 220 } }}
+      />
+      <Dropdown
+        label="Soubor"
+        selectedKey={value.device}
+        options={[{ key: '', text: 'Všechny soubory' }, { key: SITE_WIDE_FILTER, text: 'Celá lokalita (bez souboru)' }, ...devicesOfSite.map((d) => ({ key: d.number, text: `${d.number} ${d.name}` }))]}
+        onChange={(_, o) => o && onChange({ ...value, device: String(o.key) })}
+        styles={{ root: { width: 220 } }}
+      />
+      <Dropdown
+        label="Priorita"
+        selectedKey={value.priority}
+        options={[{ key: '', text: 'Všechny priority' }, ...REQUEST_PRIORITIES.map((k) => ({ key: k, text: k }))]}
+        onChange={(_, o) => o && onChange({ ...value, priority: String(o.key) })}
+        styles={{ root: { width: 150 } }}
+      />
+    </>
   );
 };
 

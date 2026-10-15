@@ -13,6 +13,8 @@ import { Toggle } from '@fluentui/react/lib/Toggle';
 
 import { RES } from '../../ui/theme';
 import { Partner, PartnerType } from '../../core/types';
+import { suppliersToPick } from '../../core/partnerKinds';
+import { Checkbox } from '@fluentui/react/lib/Checkbox';
 import { DEVICE_KINDS, ServiceDevice, ServiceSite, nextDeviceNumber, nextSiteNumber, validateDeviceNumber, validateSiteNumber } from '../../core/service';
 import { DEFAULT_JOB_KIND, JOB_KINDS, REQUEST_KINDS, REQUEST_PRIORITIES, ServiceJob, ServiceRequest } from '../../core/serviceJobs';
 import { ServiceDeviceInput, ServiceJobInput, ServiceRequestInput, ServiceSiteInput } from '../../data/repositories';
@@ -308,11 +310,14 @@ export const JobDialog: React.FC<{
   const [supplierId, setSupplierId] = React.useState<number>(job && job.supplierId ? job.supplierId : 0);
   const [planned, setPlanned] = React.useState(dateToInput(job ? job.plannedDate : request ? request.requiredDate : undefined));
   const [isInternal, setIsInternal] = React.useState(!!(job && job.isInternal));
+  const [allSuppliers, setAllSuppliers] = React.useState(false);
   const [files, setFiles] = React.useState<File[]>([]);
   const [jobKind, setJobKind] = React.useState(job && job.jobKind ? job.jobKind : request && request.kind === 'Preventivní prohlídka' ? 'Plánovaná' : DEFAULT_JOB_KIND);
   const { busy, error, run } = useSave(onSaved);
   const siteDevices = devices.filter((d) => d.siteNumber === siteNumber && d.isActive);
-  const suppliers = partners.filter((p) => p.isActive && (p.partnerType === PartnerType.Dodavatel || p.partnerType === PartnerType.Oboji));
+  const pickedSupplier = supplierId ? partners.filter((p) => p.id === supplierId)[0] : undefined;
+  const basicSuppliers = suppliersToPick(partners, allSuppliers);
+  const suppliers = pickedSupplier && !basicSuppliers.some((p) => p.id === pickedSupplier.id) ? [pickedSupplier, ...basicSuppliers] : basicSuppliers;
 
   return (
     <Shell
@@ -354,6 +359,11 @@ export const JobDialog: React.FC<{
       <TextField label="Zadání práce pro dodavatele" multiline rows={4} value={description} onChange={(_, v) => setDescription(v ?? '')} />
       <Toggle label="Interní servis (práci provede dispečer nebo interní zdroj — bez dodavatele a objednávky)" checked={isInternal} onChange={(_, v) => setIsInternal(!!v)} disabled={!!job && job.status !== 'Naplánováno'} />
       <div style={ROW}>
+        {!isInternal && (
+          <div style={{ flex: '1 1 300px' }}>
+            <Checkbox label="Zobrazit všechny dodavatele (ne jen dodavatele servisu)" checked={allSuppliers} onChange={(_, c) => setAllSuppliers(!!c)} styles={{ root: { marginBottom: 4 } }} />
+          </div>
+        )}
         {!isInternal && <Dropdown label="Dodavatel" selectedKey={supplierId} options={[{ key: 0, text: '— zatím nevybrán —' }, ...suppliers.map((p) => ({ key: p.id, text: p.name }))]} onChange={(_, o) => o && setSupplierId(Number(o.key))} styles={{ root: { flex: '1 1 300px' } }} />}
         <label style={{ fontSize: 14 }}>
           <div>Plánovaný termín</div>

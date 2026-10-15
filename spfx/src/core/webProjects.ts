@@ -61,10 +61,10 @@ export function validateWebList(s: WebListSettings): string[] {
   return problems;
 }
 
-/** Vybere projekty pro web podle stavu (bez Režie), řazené podle čísla projektu vzestupně (stav na pořadí nemá vliv). */
+/** Vybere projekty pro web podle stavu (bez Režie a bez servisních projektů), řazené podle čísla projektu vzestupně (stav na pořadí nemá vliv). */
 export function selectWebProjects(projects: Project[], settings: WebListSettings): Project[] {
   return projects
-    .filter((p) => !p.isOverhead && settings.statuses.indexOf(String(p.status)) !== -1)
+    .filter((p) => !p.isOverhead && p.projectType !== 'Servis' && settings.statuses.indexOf(String(p.status)) !== -1)
     .sort((a, b) => a.projectNumber.localeCompare(b.projectNumber, 'cs-CZ', { numeric: true }));
 }
 

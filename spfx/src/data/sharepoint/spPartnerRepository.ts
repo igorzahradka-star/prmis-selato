@@ -32,7 +32,7 @@ const SELECT_FIELDS = [
  * na webu ještě není a dotaz na něj by shodil celý seznam partnerů, proto se čte zvlášť
  * a když ho web nezná, načte se seznam bez něj.
  */
-const OPTIONAL_FIELDS = ['Country'];
+const OPTIONAL_FIELDS = ['Country', 'IsServiceSupplier'];
 
 async function withOptionalFields<T>(run: (fields: string[]) => Promise<T>): Promise<T> {
   try {
@@ -49,6 +49,7 @@ interface PartnerItem {
   Id: number;
   Title: string;
   PartnerType?: string;
+  IsServiceSupplier?: boolean;
   Country?: string;
   ICO?: string;
   DIC?: string;
@@ -206,9 +207,16 @@ async function writeWithCountryFallback<T>(
           'Otevřete Instalace a diagnostika a doplňte chybějící části (přidá jen sloupce, nic nesmaže).'
       );
     }
-    const withoutCountry = { ...payload };
-    delete withoutCountry.Country;
-    return run(withoutCountry);
+    if (partner.isServiceSupplier === true) {
+      throw new Error(
+        'Dodavatele servisu zatím nejde uložit: seznam partnerů na webu nemá sloupec Dodavatel servisu. ' +
+          'Otevřete Instalace a diagnostika a doplňte chybějící části (přidá jen sloupce, nic nesmaže).'
+      );
+    }
+    const withoutNew = { ...payload };
+    delete withoutNew.Country;
+    delete withoutNew.IsServiceSupplier;
+    return run(withoutNew);
   }
 }
 
@@ -216,6 +224,7 @@ function toPayload(partner: Omit<Partner, 'id'>): Record<string, unknown> {
   return {
     Title: partner.name,
     PartnerType: partner.partnerType,
+    IsServiceSupplier: partner.isServiceSupplier === true,
     Country: partner.country ?? '',
     ICO: partner.ico ?? '',
     DIC: partner.dic ?? '',
@@ -234,6 +243,7 @@ function mapPartner(item: PartnerItem): Partner {
     id: item.Id,
     name: item.Title,
     partnerType: (item.PartnerType as PartnerType) ?? PartnerType.Zakaznik,
+    isServiceSupplier: item.IsServiceSupplier === true,
     country: item.Country || undefined,
     ico: item.ICO || undefined,
     dic: item.DIC || undefined,

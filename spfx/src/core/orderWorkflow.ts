@@ -641,12 +641,12 @@ export function applyOrderChange(order: PurchaseOrder, change: OrderChange, now:
 }
 
 /** Kdo objednávku schvaluje, jako věta: „Projektový manažer → Vedení". Automaticky vyřízený krok se označí. */
-export function describeApprovalRoute(steps: ApprovalStep[]): string {
+export function describeApprovalRoute(steps: ApprovalStep[], isService?: boolean): string {
   if (steps.length === 0) {
     return 'bez schvalování';
   }
   return steps
-    .map((s) => APPROVAL_LEVEL_LABELS[s.level] + (s.auto ? ' (automaticky)' : ''))
+    .map((s) => (isService && s.level === 'pm' ? 'Vedoucí servisu' : APPROVAL_LEVEL_LABELS[s.level]) + (s.auto ? ' (automaticky)' : ''))
     .join(' → ');
 }
 

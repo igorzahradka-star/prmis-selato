@@ -67,3 +67,15 @@ describe('seznam projektů na webu', () => {
     expect(validateWebList({ ...DEFAULT_WEB_LIST, maxRows: 500 })).toHaveLength(1);
   });
 });
+
+describe('web: servisní projekty se neukazují', () => {
+  it('selectWebProjects vynechá Režii i servisní projekty', () => {
+    const base = { status: 'Realizace' } as unknown as Parameters<typeof selectWebProjects>[0][number];
+    const list = [
+      { ...base, projectNumber: '26001', title: 'A' },
+      { ...base, projectNumber: '10501', title: 'S', projectType: 'Servis' },
+      { ...base, projectNumber: '99900', title: 'R', isOverhead: true }
+    ] as unknown as Parameters<typeof selectWebProjects>[0];
+    expect(selectWebProjects(list, { ...DEFAULT_WEB_LIST, statuses: ['Realizace'] }).map((p) => p.projectNumber)).toEqual(['26001']);
+  });
+});

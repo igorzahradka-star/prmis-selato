@@ -9,8 +9,7 @@ import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 
 import { useApp } from '../../ui/AppContext';
 import { PageHeading } from '../../ui/components/PageHeading';
-import { navigate, RouteName } from '../../ui/router';
-import { canManageSites, canViewService, canWorkInService, ServiceDevice, ServiceSite } from '../../core/service';
+import { canViewService, ServiceDevice, ServiceSite } from '../../core/service';
 import { ServiceJob, ServiceRequest } from '../../core/serviceJobs';
 import { ServiceMap } from './ServiceMap';
 
@@ -72,17 +71,7 @@ export const ServiceMapPage: React.FC = () => {
       )}
       {!loaded && <Spinner size={SpinnerSize.large} label="Načítám mapu servisu…" />}
       {loaded && (
-        <ServiceMap
-          sites={sites}
-          devices={devices}
-          requests={requests}
-          jobs={jobs}
-          mayAdmin={canManageSites(user.roles)}
-          mayWork={canWorkInService(user.roles)}
-          onNewRequest={(siteNumber) => navigate(RouteName.Service, `pozadavek-${siteNumber}`)}
-          onEditSite={(site) => navigate(RouteName.Service, `lokalita-${site.number}`)}
-          onEditDevice={(_site, device) => navigate(RouteName.Service, `soubor-${device.number}`)}
-        />
+        <ServiceMap sites={sites} devices={devices} requests={requests} jobs={jobs} />
       )}
     </>
   );

@@ -24,6 +24,8 @@ import { useApp } from '../../ui/AppContext';
 import { RES } from '../../ui/theme';
 import { PageHeading } from '../../ui/components/PageHeading';
 import { Partner, PartnerType } from '../../core/types';
+import { kindsOf, partnerKindLabel, partnerTypeFrom, withKinds } from '../../core/partnerKinds';
+import { PartnerKindPicker } from './PartnerKindPicker';
 import { canManagePartners } from '../../core/roles';
 import { checkPartner, similarWarning } from '../../core/partnerDuplicates';
 import { PartnerUsage, canDeletePartner, describeUsage, usageTotal } from '../../core/partnerDelete';
@@ -40,12 +42,6 @@ import {
   normalizeVatId,
   vatIdWarning
 } from '../../core/countries';
-
-const PARTNER_TYPE_OPTIONS: IDropdownOption[] = [
-  { key: PartnerType.Zakaznik, text: PartnerType.Zakaznik },
-  { key: PartnerType.Dodavatel, text: PartnerType.Dodavatel },
-  { key: PartnerType.Oboji, text: PartnerType.Oboji }
-];
 
 const COUNTRY_OPTIONS: IDropdownOption[] = [
   { key: 'hdr-eu', text: 'Evropská unie', itemType: DropdownMenuItemType.Header },
@@ -455,12 +451,7 @@ export const PartnersPage: React.FC = () => {
               value={editing.name}
               onChange={(_, v) => setEditing({ ...editing, name: v ?? '' })}
             />
-            <Dropdown
-              label="Typ"
-              options={PARTNER_TYPE_OPTIONS}
-              selectedKey={editing.partnerType}
-              onChange={(_, o) => o && setEditing({ ...editing, partnerType: o.key as PartnerType })}
-            />
+            <PartnerKindPicker value={kindsOf(editing)} error={partnerTypeFrom(kindsOf(editing)) === undefined} onChange={(k) => setEditing(withKinds(editing, k))} />
             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
               <TextField
                 label={isDomestic(editing.country) ? 'DIČ' : 'DIČ / VAT ID'}
@@ -549,7 +540,7 @@ function buildColumns(canManage: boolean, onEdit: (p: Partner) => void, onDelete
           <span style={{ fontWeight: 600 }}>{p.name}</span>
         )
     },
-    { key: 'type', name: 'Typ', fieldName: 'partnerType', minWidth: 90, maxWidth: 100, isResizable: true },
+    { key: 'type', name: 'Druh', minWidth: 120, maxWidth: 220, isResizable: true, onRender: (p: Partner) => partnerKindLabel(p) },
     {
       key: 'country',
       name: 'Země',

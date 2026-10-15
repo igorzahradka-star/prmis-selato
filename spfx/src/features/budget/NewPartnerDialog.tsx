@@ -15,6 +15,8 @@ import { useApp } from '../../ui/AppContext';
 import { isValidIco, normalizeIco } from '../../core/ico';
 import { checkPartner, similarWarning } from '../../core/partnerDuplicates';
 import { Partner, PartnerType } from '../../core/types';
+import { PartnerKinds, partnerTypeFrom } from '../../core/partnerKinds';
+import { PartnerKindPicker } from '../partners/PartnerKindPicker';
 import { lookupCompanyByIco } from '../../data/ares';
 
 export const NewPartnerDialog: React.FC<{
@@ -24,7 +26,7 @@ export const NewPartnerDialog: React.FC<{
 }> = ({ suggestedName, onCreated, onClose }) => {
   const { repos } = useApp();
   const [name, setName] = React.useState(suggestedName);
-  const [type, setType] = React.useState<PartnerType>(PartnerType.Dodavatel);
+  const [kinds, setKinds] = React.useState<PartnerKinds>({ customer: false, supplier: true, serviceSupplier: false });
   const [ico, setIco] = React.useState('');
   const [dic, setDic] = React.useState('');
   const [address, setAddress] = React.useState('');
@@ -65,7 +67,12 @@ export const NewPartnerDialog: React.FC<{
     setBusy(true);
     setError(undefined);
     setSimilarWarn(undefined);
-    const input = { name: name.trim(), partnerType: type, country: 'CZ', ico: normalized || undefined, dic: dic.trim() || undefined, isVatPayer: vat, address: address.trim() || undefined, isActive: true };
+    const type = partnerTypeFrom(kinds);
+    if (!type) {
+      setMissing(true);
+      return;
+    }
+    const input = { name: name.trim(), partnerType: type, isServiceSupplier: kinds.serviceSupplier, country: 'CZ', ico: normalized || undefined, dic: dic.trim() || undefined, isVatPayer: vat, address: address.trim() || undefined, isActive: true };
     // Stejné IČO se neuloží; stejné nebo podobné jméno jen upozorní a založení potvrdí uživatel.
     repos.partners
       .list({ includeInactive: true })
@@ -123,12 +130,7 @@ export const NewPartnerDialog: React.FC<{
         {busy ? <Spinner size={SpinnerSize.medium} styles={{ root: { width: 40, height: 32 } }} /> : <IconButton iconProps={{ iconName: 'Search' }} ariaLabel="Načíst z ARES" disabled={normalized.length !== 8} onClick={lookup} styles={{ root: { width: 40, height: 32 } }} />}
       </div>
       <TextField label="Název" required value={name} errorMessage={missing && name.trim() === '' ? 'Vyplňte název partnera.' : undefined} onChange={(_, v) => setName(v ?? '')} />
-      <Dropdown
-        label="Typ"
-        selectedKey={type}
-        options={[PartnerType.Dodavatel, PartnerType.Zakaznik, PartnerType.Oboji].map((t) => ({ key: t, text: t }))}
-        onChange={(_, o) => o && setType(o.key as PartnerType)}
-      />
+      <PartnerKindPicker value={kinds} error={missing && !partnerTypeFrom(kinds)} onChange={setKinds} />
       <TextField label="DIČ" value={dic} onChange={(_, v) => setDic(v ?? '')} />
       <TextField label="Adresa" multiline rows={2} value={address} onChange={(_, v) => setAddress(v ?? '')} />
       <DialogFooter>

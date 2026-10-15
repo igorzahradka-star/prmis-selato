@@ -17,6 +17,10 @@ webu / mobilní aplikaci (paralelní session). V PRMIS je evidence, stav, faktur
 - **Fakturace:** zákazníkovi (lokalitě) jednak **pravidelný paušál**, jednak **jednotlivé činnosti** (z servisního listu). Dodavatelé fakturují nám (přijaté faktury přes Abru).
 - **Schvalovací limity Servisu** se upřesní později; zatím platí stejné limity jako u projektů, krok „PM“ schvaluje správce servisu.
 
+## Odloženo (rozhodnuto 15. 10. 2026)
+- **Příchozí e-maily** (sdílená schránka servis@revoltum.cz → záložka „Příchozí“ → dispečer vytvoří požadavek nebo odmítne): Igor chce, **vrátíme se k tomu později**. Návrh: schránku zakládá administrátor M365, přenos e-mailů do seznamu `PRM_ServiceInbox` zajistí Power Automate (standardní konektory), aplikace jen ukáže frontu a převede e-mail na požadavek.
+- **Schvalovací limity Servisu** (kdo od jaké částky schvaluje; vedoucí servisu schvaluje, dispečer připravuje) — Igor upřesní.
+
 ## Aktuální stav
 Návrh dalšího vývoje je v `docs/SERVIS_NAVRH.md` (schválen 15. 10. 2026). **Etapa 1 hotová (0.47.0.0):** pojem „soubor“, GPS poloha a záložka Mapa (schéma 26). **Hotovo navíc (0.49.0.0):** Mapa servisu v nabídce, složky lokalit a souborů, servisní list na celou lokalitu, velikost fotek v Nastavení. **Etapa 3 hotová (0.48.0.0):** druh listu (plánovaná/nahodilá), doklad o provedení (popis / fotky / ověření na dálku), SLA indikace s lhůtami v Nastavení → Servis (schéma 27). Dále: etapa 2 checklist a smlouva se sazbami (čeká na první návrh smlouvy od Igora), etapa 4 portál dodavatele (před ní rozhodnout o hostingu).
 

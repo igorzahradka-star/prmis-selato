@@ -24,19 +24,20 @@ export const RequestPanel: React.FC<{
   rules: SlaRule[];
   mayWork: boolean;
   mayDelete: boolean;
+  isAdmin: boolean;
   onClose: () => void;
   onEdit: () => void;
   onReject: () => void;
   onNewJob: () => void;
   onOpenJob: (jobId: number) => void;
   onDelete: () => void;
-}> = ({ request, sites, devices, jobs, rules, mayWork, mayDelete, onClose, onEdit, onReject, onNewJob, onOpenJob, onDelete }) => {
+}> = ({ request, sites, devices, jobs, rules, mayWork, mayDelete, isAdmin, onClose, onEdit, onReject, onNewJob, onOpenJob, onDelete }) => {
   const [pending, setPending] = React.useState<File[]>([]);
   const site = sites.filter((s) => s.number === request.siteNumber)[0];
   const device = request.deviceNumber ? devices.filter((d) => d.number === request.deviceNumber)[0] : undefined;
   const own = jobs.filter((j) => j.requestId === request.id);
   const open = request.status === RequestStatus.Prijato || request.status === RequestStatus.Zpracovava;
-  const canDelete = mayDelete && requestDeletionProblem(request.id, jobs) === '';
+  const canDelete = mayDelete && requestDeletionProblem(request.id, jobs, isAdmin) === '';
 
   const footer = (
     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', padding: '8px 0' }}>
@@ -111,7 +112,7 @@ export const RequestPanel: React.FC<{
             </tbody>
           </table>
         )}
-        {own.some((j) => jobDeletionProblem(j) !== '') && mayDelete && <div style={{ color: RES.gray, fontSize: 12, marginTop: 6 }}>Požadavek jde smazat, jen když jsou všechny jeho listy zrušené nebo nezpracované.</div>}
+        {own.some((j) => jobDeletionProblem(j, isAdmin) !== '') && mayDelete && <div style={{ color: RES.gray, fontSize: 12, marginTop: 6 }}>Požadavek jde smazat, jen když jsou všechny jeho listy zrušené nebo nezpracované (objednané, provedené a vyfakturované smí smazat jen administrátor).</div>}
       </div>
     </Panel>
   );
