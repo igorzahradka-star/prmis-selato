@@ -69,3 +69,9 @@ Podklady: složka `General/02_SERVIS/SERVIS - PODKLADY/RES Smlouvy VZORY` (šabl
 Rozhodnutí: smlouva je vždy k jedné lokalitě (číslo = číslo lokality + pořadí, např. `10500-01`); přílohy jsou samostatné dokumenty (Příloha lokality + Příloha pro každý soubor); dodatek je další dokument ke smlouvě; smlouva má verze (přidání, odebrání, změny; verze = snapshot dat); uloží se do složky lokality; údaje o objednateli se dotáhnou z ARES podle IČO (rejstřík, jednající osoby; bankovní účet ručně); kontroly s závažností „chyba“ blokují generování (P1 ≤ 72 h, doba ≥ 10 let, autorizace OEM pro BESS); náhled v aplikaci převodem Wordu na HTML, rozhodující je Word.
 
 Etapy: **B2 hotovo (0.56.0.0: nabídka Správa smluv, Údaje smluv, ARES rejstřík, plán z checklistu)**; **A hotovo (0.55.0.0)** — katalog + checklist lokality + technická pole; **B1 hotovo (logika `core/serviceContract.ts`: číslování, verze a stavy, SLA, sekce checklistu, kontroly `validateContract`, popis změn; bez UI)**; **B** — záložka Smlouvy, verze, kontroly, ARES; **C** — vykreslení Wordu (docxtpl syntaxe v prohlížeči: JSZip + vlastní vyhodnocení if/for/filtr `kc`), uložení do složky, porovnání s ukázkou (složka „UKAZKA OM smlouvy“ zatím chybí); **D** — roční plán z checklistu, vazba požadavků na smlouvu. Šablona Přílohy souboru a šablona dodatku se musí doplnit (zatím je jen Příloha lokality a rámcová smlouva). Zhotovitel ve vzoru je „s.r.o.“ — ověřit právní formu RES.
+
+## Zadáno, zatím nezpracováno (Igor, 15. 10. 2026 — čeká na další poznámky, pak zpracovat společně)
+
+Dvě nové položky v nabídce Servis:
+1. **Kalendář** — pro dispečera po týdnech: rozpisy plánovaných servisů (z ročního plánu) na nejbližší i vzdálenější týdny + přijaté servisní požadavky. Za všechny lokality, nebo jen za vybrané.
+2. **Seznam požadavků** — jen přehled; stavy otevřené, zadané, probíhající, hotové; filtr podle lokality.
