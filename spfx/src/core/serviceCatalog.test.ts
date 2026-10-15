@@ -161,3 +161,14 @@ describe('uložení checklistu', () => {
     expect(c.slaProfile).toBeUndefined();
   });
 });
+
+describe('shoda s ukázkou smlouvy RES-OM-2026-001', () => {
+  /** Činnosti lokality 10500 z checklist_10500.json, který vygeneroval referenční generátor (složka UKAZKA OM smlouvy). */
+  const UKAZKA_IDS: string[] = ["LOK-001","LOK-002","LOK-003","LOK-004","LOK-005","LOK-006","LOK-007","LOK-008","LOK-009","LOK-010","LOK-011","LOK-012","LOK-013","MON-001","MON-002","MON-003","MON-004","MON-005","MON-006","IT-001","IT-002","IT-003","IT-004","IT-005","BOP-001","BOP-002","BOP-003","BOP-004","BOP-005","BOP-006","BOP-007","BOP-009","BOP-010","BOP-011","BOP-013","BOP-015","FVE-001","FVE-002","FVE-005","FVE-006","FVE-008","FVE-011","FVE-013","BESS-001","BESS-002","BESS-003","BESS-004","BESS-005","BESS-006","BESS-007","BESS-008","BESS-009","BESS-010","BESS-011","BESS-012","BESS-014","BESS-015","BESS-016","BESS-017","BESS-018","BESS-019","BESS-020","BESS-021","BESS-022","BESS-023","BESS-024","BEZ-001","BEZ-002","BEZ-003","BEZ-004","BEZ-006","ARE-001","ARE-002"];
+
+  it('Mastířovice (FVE + BESS) mají stejných 73 činností jako referenční generátor', () => {
+    const ids = activeItems(CAT, MASTIROVICE, ['FVE', 'BESS']).map((i) => i.activity.id);
+    expect(ids).toHaveLength(73);
+    expect(ids.slice().sort()).toEqual(UKAZKA_IDS.slice().sort());
+  });
+});
