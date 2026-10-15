@@ -5,6 +5,11 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.54.1 — 15. 10. 2026 — Kontrola zápisu polohy po uložení
+
+- Po uložení polohy (projekt, lokalita, soubor servisu) se položka přečte zpět ze SharePointu a porovná. Pokud se poloha nezapsala, uložení skončí hláškou „Poloha se do SharePointu nezapsala správně: odesláno …, v seznamu … je …“ místo tichého úspěchu. Slouží k dohledání příčiny, proč se poloha po uložení vracela zpět.
+- Bez změny schématu (31).
+
 ## 0.54.0 — 15. 10. 2026 — Servisní plány v nabídce, úprava šablon, oprava posouvání mapy
 
 - V nabídce **Servis** nová položka **Servisní plány** — samostatná obrazovka se záložkami **Roční plány** (kalendář, dříve záložka Plán údržby na stránce Servis) a **Šablony**. Další záložky doplníme podle zadání.

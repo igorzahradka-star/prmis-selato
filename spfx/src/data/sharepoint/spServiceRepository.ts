@@ -15,6 +15,7 @@ import { OrderAttachment, validateAttachment } from '../../core/orders';
 import { PlanItem, planItemProblem, requestKindOf, requiredDateOf } from '../../core/servicePlan';
 import { INumberingRepository, IProjectRepository, ISettingsRepository, PlanItemInput, ServiceAttachmentTarget, IServiceRepository, ServiceDeviceInput, ServiceJobInput, ServiceRequestInput, ServiceSiteInput } from '../repositories';
 import { getSp, getSpForSite, describeSpError } from './spContext';
+import { geoMismatch } from './spGeoCheck';
 import { resolveFolderPath } from './spFolders';
 import { resolveLibrary } from './spLibrary';
 
@@ -299,9 +300,17 @@ export class SpServiceRepository implements IServiceRepository {
     if (id) {
       await this.update(SITES, id, fields, 'Lokalitu se nepodařilo uložit');
       await this.audit('Servis – lokalita', number, actor, 'Upravena lokalita');
+      const geoProblem = await geoMismatch(getSp(this.context), SITES, id, input.latitude, input.longitude);
+      if (geoProblem) {
+        throw new Error(geoProblem);
+      }
     } else {
       id = await this.add(SITES, fields, 'Lokalitu se nepodařilo založit');
       await this.audit('Servis – lokalita', number, actor, 'Založena lokalita');
+      const geoProblemNew = await geoMismatch(getSp(this.context), SITES, id, input.latitude, input.longitude);
+      if (geoProblemNew) {
+        throw new Error(geoProblemNew);
+      }
     }
     return { ...input, folderUrl: siteFolderUrl, id: id as number, number, name: input.name.trim() };
   }
@@ -376,6 +385,10 @@ export class SpServiceRepository implements IServiceRepository {
     let id = input.id;
     if (id) {
       await this.update(DEVICES, id, fields, 'Soubor se nepodařilo uložit');
+      const geoProblem = await geoMismatch(getSp(this.context), DEVICES, id, input.latitude, input.longitude);
+      if (geoProblem) {
+        throw new Error(geoProblem);
+      }
       await this.audit('Servis – soubor', input.number, actor, 'Upraven soubor');
     } else {
       // Zařízení je servisní zakázka: skrytý projekt typu Servis s omezeným přístupem.

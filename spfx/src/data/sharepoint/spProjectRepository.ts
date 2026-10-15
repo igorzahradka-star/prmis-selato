@@ -47,6 +47,7 @@ import {
 import { getSp, getSpForSite, describeSpError, extractStatus } from './spContext';
 import { resolveLibrary } from './spLibrary';
 import { ensureFolder, resolveFolderPath } from './spFolders';
+import { geoMismatch } from './spGeoCheck';
 import { roleDefinitionId } from './spPermissions';
 import { buildFolderUrl, repairFolderUrl, serverRelativePath } from './documentQuery';
 import { escapeODataString } from './spSettingsRepository';
@@ -360,6 +361,10 @@ export class SpProjectRepository implements IProjectRepository {
       throw new Error(describeSpError(error, `Nepodařilo se uložit změny projektu ${projectNumber}`));
     }
 
+    const geoProblem = await geoMismatch(sp, PROJECTS_LIST, existing.id, input.latitude, input.longitude);
+    if (geoProblem) {
+      throw new Error(geoProblem);
+    }
     return (await this.getByNumber(projectNumber)) ?? existing;
   }
 
