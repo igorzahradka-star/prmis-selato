@@ -104,7 +104,6 @@ export const ServicePlanTab: React.FC<{
   const shownIds = shown.map((i) => i.id).join(',');
   React.useEffect(() => {
     setSelected((cur) => cur.filter((id) => shown.some((i) => i.id === id)));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shownIds]);
   const stats = {
     pausal: shown.filter((i) => i.jobKind === 'Plánovaná').length,
