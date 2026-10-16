@@ -1053,7 +1053,7 @@ export interface IServiceRepository {
    */
   changeContractStatus(contractNumber: string, versionNo: number, status: string, signedUrl: string | undefined, actor: CurrentUser): Promise<ServiceContractVersion[]>;
   /** Načte šablony smlouvy (rámcová smlouva a příloha lokality) ze složky určené v Údajích smluv. */
-  loadContractTemplates(): Promise<{ framework: Uint8Array; annex: Uint8Array }>;
+  loadContractTemplates(): Promise<{ framework: Uint8Array; annex: Uint8Array; assetAnnex?: Uint8Array }>;
   /**
    * Uloží vygenerované dokumenty verze do složky lokality (01-Smlouva a podmínky); stejný název dostane příponu `_2` — nic se nepřepisuje.
    * Odkazy se zapíšou k verzi. Smí správce servisu, vedení a administrátor.

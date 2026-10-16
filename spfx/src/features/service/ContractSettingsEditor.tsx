@@ -201,6 +201,7 @@ export const ContractSettingsEditor: React.FC<{ value: ContractSettings; onChang
           <TextField label="Složka se šablonami (od kořene knihovny)" disabled={disabled} value={value.templateFolder} onChange={(_, v) => patch({ templateFolder: v ?? '' })} />
           <TextField label="Soubor šablony rámcové smlouvy" disabled={disabled} value={value.frameworkTemplate} onChange={(_, v) => patch({ frameworkTemplate: v ?? '' })} />
           <TextField label="Soubor šablony přílohy lokality" disabled={disabled} value={value.annexTemplate} onChange={(_, v) => patch({ annexTemplate: v ?? '' })} />
+          <TextField label="Soubor šablony přílohy souboru" disabled={disabled} value={value.assetAnnexTemplate} onChange={(_, v) => patch({ assetAnnexTemplate: v ?? '' })} />
         </div>
       </div>
 

@@ -69,3 +69,40 @@ describe('vykreslení šablon smlouvy — shoda s ukázkou z referenčního gene
     expect(got.length).toBe(want.length);
   });
 });
+
+describe('příloha souboru', () => {
+  const input = exampleInput();
+  const rc = buildRenderContext(CAT, input);
+
+  it('pro každý soubor lokality vznikne příloha s jeho údaji a činnostmi jen jeho typu', async () => {
+    expect(rc.assetAnnexes.map((a) => a.asset.kod)).toEqual(['10501', '10502']);
+    const bess = rc.assetAnnexes[1];
+    const text = (await docxPlainText(await renderDocxTemplate(read('RES_OM_Priloha_souboru_SABLONA_v01.docx'), bess.context))).join('\n');
+    expect(text).toContain('PŘÍLOHA SOUBORU č. 1/2');
+    expect(text).toContain('10502 – Mastířovice II. (BESS)');
+    expect(text).toContain('25 644 kWh');
+    expect(text).toContain('Bateriové úložiště energie');
+    expect(text).toContain('Příloha 2, čl. 2.2');
+    expect(text).toContain('RES-OM-2026-001');
+    // činnosti BESS ano, činnosti FVE ne
+    const bessIds = CAT.cinnosti.filter((a) => a.asset === 'BESS').map((a) => a.id);
+    const fveIds = CAT.cinnosti.filter((a) => a.asset === 'FVE').map((a) => a.id);
+    expect(bessIds.filter((id) => text.indexOf(id) >= 0).length).toBeGreaterThan(10);
+    expect(fveIds.filter((id) => text.indexOf(id) >= 0)).toEqual([]);
+    expect(text).not.toContain('Zvláštní ujednání');
+    expect(text).not.toMatch(/\{\{|\{%/);
+  });
+
+  it('náhradní díly se zobrazí jen u souboru, ke kterému patří, a bez nich se oddíl vynechá', async () => {
+    const tpl = read('RES_OM_Priloha_souboru_SABLONA_v01.docx');
+    const withNd = JSON.parse(JSON.stringify(input)) as ContractInput;
+    withNd.lokality[0].nd = [{ polozka: 'Řídicí deska BMS', asset: '10502', mnozstvi: '1', umisteni: 'sklad RES' }];
+    const rcNd = buildRenderContext(CAT, withNd);
+    const bess = (await docxPlainText(await renderDocxTemplate(tpl, rcNd.assetAnnexes[1].context))).join('\n');
+    const fve = (await docxPlainText(await renderDocxTemplate(tpl, rcNd.assetAnnexes[0].context))).join('\n');
+    expect(bess).toContain('Strategické náhradní díly souboru');
+    expect(bess).toContain('Řídicí deska BMS');
+    expect(fve).not.toContain('Strategické náhradní díly souboru');
+    expect(fve).not.toContain('Řídicí deska BMS');
+  });
+});

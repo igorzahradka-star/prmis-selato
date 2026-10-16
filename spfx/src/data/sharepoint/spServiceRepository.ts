@@ -959,7 +959,7 @@ export class SpServiceRepository implements IServiceRepository {
     return this.versionsOf(contractNumber);
   }
 
-  public async loadContractTemplates(): Promise<{ framework: Uint8Array; annex: Uint8Array }> {
+  public async loadContractTemplates(): Promise<{ framework: Uint8Array; annex: Uint8Array; assetAnnex?: Uint8Array }> {
     const settings = await this.settings.get();
     const c = settings.service.contract;
     const folders = settings.folders;
@@ -979,7 +979,16 @@ export class SpServiceRepository implements IServiceRepository {
         throw new Error(describeSpError(error, `Šablonu „${name}“ ve složce ${c.templateFolder} se nepodařilo načíst`));
       }
     };
-    return { framework: await read(c.frameworkTemplate), annex: await read(c.annexTemplate) };
+    const framework = await read(c.frameworkTemplate);
+    const annex = await read(c.annexTemplate);
+    // Šablona přílohy souboru je volitelná: chybí-li, příloha souboru se prostě nevygeneruje.
+    let assetAnnex: Uint8Array | undefined;
+    try {
+      assetAnnex = new Uint8Array(await sp.web.getFileByServerRelativePath(`${folder}/${c.assetAnnexTemplate}`).getBuffer());
+    } catch {
+      assetAnnex = undefined;
+    }
+    return { framework, annex, assetAnnex };
   }
 
   public async saveContractDocuments(contractNumber: string, versionNo: number, files: { name: string; bytes: Uint8Array }[], actor: CurrentUser): Promise<ContractDocument[]> {

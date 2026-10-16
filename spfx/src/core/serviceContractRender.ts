@@ -5,7 +5,7 @@
  */
 
 import { ChecklistItem, ServiceCatalog } from './serviceCatalog';
-import { ContractInput, ContractSite, checklistSections, slaTable } from './serviceContract';
+import { ContractAsset, ContractInput, ContractSite, checklistSections, slaTable } from './serviceContract';
 
 /** Částka jako „952 842 Kč“ (filtr `kc` šablon); prázdná hodnota je pomlčka. */
 export function formatKc(v: unknown): string {
@@ -41,6 +41,8 @@ export interface RenderContext {
   common: Record<string, unknown>;
   /** Kontext každé přílohy lokality (společný + `lokalita`). */
   annexes: { site: ContractSite; context: Record<string, unknown> }[];
+  /** Kontext přílohy každého souboru (společný + `lokalita` + `soubor`). */
+  assetAnnexes: { site: ContractSite; asset: ContractAsset; context: Record<string, unknown> }[];
 }
 
 /** Kontext pro šablony: společné údaje, lokality s checklistem, SLA, moduly a assety. */
@@ -87,7 +89,25 @@ export function buildRenderContext(catalog: ServiceCatalog, input: ContractInput
     dostupnost_monitoringu: catalog.dostupnost.monitoring_dostupnost.toFixed(1),
     katalog_verze: catalog.meta.verze
   };
-  return { common, annexes: lokality.map((l, i) => ({ site: input.lokality[i], context: { ...common, lokalita: l } })) };
+  const assetAnnexes: RenderContext['assetAnnexes'] = [];
+  lokality.forEach((l, i) => {
+    const site = input.lokality[i];
+    const items = snapshotItems(catalog, site);
+    l.assety.forEach((a, k) => {
+      const own = items.filter((it) => it.activity.asset === a.typ);
+      const used = Array.from(new Set(own.reduce<string[]>((acc, it) => acc.concat(it.activity.kvalifikace), []))).sort();
+      const soubor = {
+        ...a,
+        poradi: k + 1,
+        typ_nazev: catalog.typy_assetu[a.typ] || a.typ,
+        checklist: checklistSections(catalog, own, [site.assety[k]]),
+        kvalifikace_legenda: used.map((q) => `${q} = ${catalog.kvalifikace[q]}`).join('; '),
+        nd: site.nd.filter((n) => n.asset === a.kod)
+      };
+      assetAnnexes.push({ site, asset: site.assety[k], context: { ...common, lokalita: l, soubor } });
+    });
+  });
+  return { common, annexes: lokality.map((l, i) => ({ site: input.lokality[i], context: { ...common, lokalita: l } })), assetAnnexes };
 }
 
 /** Strojově čitelný checklist lokality (pro CMMS / mobilní checklist technika): činnosti katalogu s platnou periodou. */

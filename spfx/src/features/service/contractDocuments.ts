@@ -18,8 +18,8 @@ export interface GeneratedFile {
 
 const safe = (s: string): string => s.replace(/[^\w.-]+/g, '-');
 
-/** Vykreslí všechny dokumenty verze smlouvy: rámcovou smlouvu, přílohu každé lokality a checklist lokality (JSON). */
-export async function generateContractFiles(version: ServiceContractVersion, templates: { framework: Uint8Array; annex: Uint8Array }): Promise<GeneratedFile[]> {
+/** Vykreslí všechny dokumenty verze smlouvy: rámcovou smlouvu, přílohu každé lokality, přílohu každého souboru (je-li šablona) a checklist lokality (JSON). */
+export async function generateContractFiles(version: ServiceContractVersion, templates: { framework: Uint8Array; annex: Uint8Array; assetAnnex?: Uint8Array }): Promise<GeneratedFile[]> {
   const rc = buildRenderContext(SERVICE_CATALOG, version.snapshot);
   const cislo = safe(version.snapshot.smlouva.cislo || version.contractNumber);
   const suffix = `v${version.versionNo}`;
@@ -28,6 +28,11 @@ export async function generateContractFiles(version: ServiceContractVersion, tem
   for (const a of rc.annexes) {
     files.push({ name: `Priloha_lokality_${safe(a.site.priloha_cislo)}_${safe(a.site.kod)}_${cislo}_${suffix}.docx`, bytes: await renderDocxTemplate(templates.annex, a.context), kind: 'docx', title: `Příloha lokality ${a.site.kod} ${a.site.nazev}` });
     files.push({ name: `checklist_${safe(a.site.kod)}_${cislo}_${suffix}.json`, bytes: new TextEncoder().encode(JSON.stringify(checklistExport(SERVICE_CATALOG, version.snapshot, a.site), null, 2)), kind: 'json', title: `Checklist lokality ${a.site.kod}` });
+  }
+  if (templates.assetAnnex) {
+    for (const a of rc.assetAnnexes) {
+      files.push({ name: `Priloha_souboru_${safe(a.site.priloha_cislo)}_${safe(a.asset.kod)}_${cislo}_${suffix}.docx`, bytes: await renderDocxTemplate(templates.assetAnnex, a.context), kind: 'docx', title: `Příloha souboru ${a.asset.kod} ${a.asset.nazev}` });
+    }
   }
   return files;
 }

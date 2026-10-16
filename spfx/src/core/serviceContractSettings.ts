@@ -21,6 +21,8 @@ export interface ContractSettings {
   /** Soubor šablony rámcové smlouvy a šablony přílohy lokality (docxtpl) ve složce šablon. */
   frameworkTemplate: string;
   annexTemplate: string;
+  /** Šablona přílohy souboru (volitelná; chybí-li ve složce, příloha souboru se negeneruje). */
+  assetAnnexTemplate: string;
   parametry: ContractParameters;
   sazebnik: ContractRate[];
   autorizaceOem: ContractOemAuthorization[];
@@ -57,6 +59,7 @@ export const DEFAULT_CONTRACT_SETTINGS: ContractSettings = {
   templateFolder: 'General/02_SERVIS/00_SERVIS - PODKLADY/RES Smlouvy VZORY',
   frameworkTemplate: 'RES_OM_Ramcova_smlouva_SABLONA_v01.docx',
   annexTemplate: 'RES_OM_Priloha_lokality_SABLONA_v01.docx',
+  assetAnnexTemplate: 'RES_OM_Priloha_souboru_SABLONA_v01.docx',
   parametry: DEFAULT_CONTRACT_PARAMETERS,
   sazebnik: [],
   autorizaceOem: [],
@@ -83,6 +86,7 @@ export function contractSettingsWithDefaults(stored: Partial<ContractSettings> |
     templateFolder: stored.templateFolder && stored.templateFolder.trim() !== '' ? stored.templateFolder.trim() : d.templateFolder,
     frameworkTemplate: stored.frameworkTemplate && stored.frameworkTemplate.trim() !== '' ? stored.frameworkTemplate.trim() : d.frameworkTemplate,
     annexTemplate: stored.annexTemplate && stored.annexTemplate.trim() !== '' ? stored.annexTemplate.trim() : d.annexTemplate,
+    assetAnnexTemplate: stored.assetAnnexTemplate && stored.assetAnnexTemplate.trim() !== '' ? stored.assetAnnexTemplate.trim() : d.assetAnnexTemplate,
     parametry: { ...d.parametry, ...(stored.parametry || {}) },
     sazebnik: Array.isArray(stored.sazebnik) ? stored.sazebnik : d.sazebnik,
     autorizaceOem: Array.isArray(stored.autorizaceOem) ? stored.autorizaceOem : d.autorizaceOem,

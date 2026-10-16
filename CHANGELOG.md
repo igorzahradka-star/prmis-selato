@@ -5,6 +5,14 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.64.0 — 16. 10. 2026 — Smlouvy: šablona Přílohy souboru
+
+- Nová šablona **RES_OM_Priloha_souboru_SABLONA_v01.docx** (ve složce se šablonami, vzniká ze šablony Přílohy lokality, stejný vzhled): identifikace souboru, plán údržby jen pro druh souboru (činnosti FVE jen u FVE, BESS jen u BESS…), SLA, garantovaná dostupnost, odkaz na cenu v Příloze lokality, strategické náhradní díly souboru (oddíl se vynechá, nejsou-li) a podpisy.
+- **Vygenerovat Word** nyní vytvoří i **Přílohu souboru pro každý soubor** v příloze smlouvy (např. Priloha_souboru_1_10502_10500-01_v1.docx); náhled je ukáže také. Chybí-li šablona ve složce, příloha souboru se prostě nevygeneruje.
+- Údaje smluv → Šablony Wordu: nové pole Soubor šablony přílohy souboru.
+- Skript pro opětovné sestavení šablony po změně Přílohy lokality: tools/build_priloha_souboru.js.
+- Bez změny schématu (35).
+
 ## 0.63.2 — 16. 10. 2026 — Smlouva: úprava zhotovitele přímo ve smlouvě
 
 - V editoru smlouvy je záložka **Strany smlouvy** (dříve Objednatel) s oddílem **Zhotovitel**: údaje zkopírované z Údajů smluv (včetně dispečinku 24/7) lze změnit přímo v konkrétní smlouvě, bez zakládání nové. Změna v Údajích smluv se promítne jen do nově zakládaných smluv.

@@ -3,7 +3,7 @@
   "solution": {
     "name": "PRM Revoltum",
     "id": "5af5efa5-3d7c-447d-b4e7-571588e46cb1",
-    "version": "0.63.2.0",
+    "version": "0.64.0.0",
     "iconPath": "assets/prm-ikona-96.png",
     "includeClientSideAssets": true,
     "webApiPermissionRequests": [

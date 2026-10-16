@@ -481,7 +481,7 @@ export class MockServiceRepository implements IServiceRepository {
     return this.listContractVersions().then((all) => all.filter((x) => x.contractNumber === contractNumber));
   }
 
-  public async loadContractTemplates(): Promise<{ framework: Uint8Array; annex: Uint8Array }> {
+  public async loadContractTemplates(): Promise<{ framework: Uint8Array; annex: Uint8Array; assetAnnex?: Uint8Array }> {
     // Ukázkový režim (náhled): šablony se berou z balíčku náhledu; v ostrém provozu ze složky v SharePointu.
     const get = async (name: string): Promise<Uint8Array> => {
       const r = await fetch(`./templates/${name}`);
@@ -490,7 +490,7 @@ export class MockServiceRepository implements IServiceRepository {
       }
       return new Uint8Array(await r.arrayBuffer());
     };
-    return { framework: await get('RES_OM_Ramcova_smlouva_SABLONA_v01.docx'), annex: await get('RES_OM_Priloha_lokality_SABLONA_v01.docx') };
+    return { framework: await get('RES_OM_Ramcova_smlouva_SABLONA_v01.docx'), annex: await get('RES_OM_Priloha_lokality_SABLONA_v01.docx'), assetAnnex: await get('RES_OM_Priloha_souboru_SABLONA_v01.docx').catch(() => undefined) };
   }
 
   public saveContractDocuments(contractNumber: string, versionNo: number, files: { name: string; bytes: Uint8Array }[], actor: CurrentUser): Promise<ContractDocument[]> {
