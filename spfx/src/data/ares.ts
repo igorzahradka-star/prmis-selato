@@ -187,3 +187,30 @@ export async function lookupRegisterByIco(ico: string): Promise<AresRegister> {
   }
   return mapAresRegister((await response.json()) as AresVrResponse);
 }
+
+/** Strana smlouvy, kterou lze doplnit z rejstříku. */
+export interface RegisterParty {
+  rejstrik?: string;
+  zastoupen?: string;
+  podpis_jmeno?: string;
+  podpis_funkce?: string;
+}
+
+/**
+ * Doplní stranu smlouvy z obchodního rejstříku: spisovou značku vždy (když chybí) a osobu oprávněnou jednat jen tehdy, když je v rejstříku
+ * **jediná** fyzická osoba — při více jednatelích se podepisující vybírá ručně, aby aplikace nepodsunula špatnou osobu. Existující údaje nepřepisuje.
+ */
+export function applyRegister<T extends RegisterParty>(party: T, register: AresRegister): T {
+  const people = register.representatives.filter((p) => !p.isLegalEntity);
+  const out = { ...party };
+  if (!out.rejstrik && register.registration) {
+    out.rejstrik = register.registration;
+  }
+  if (people.length === 1 && !out.zastoupen && !out.podpis_jmeno) {
+    const role = people[0].role.toLocaleLowerCase('cs-CZ');
+    out.zastoupen = `${people[0].name}, ${role}`;
+    out.podpis_jmeno = people[0].name;
+    out.podpis_funkce = role;
+  }
+  return out;
+}

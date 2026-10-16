@@ -32,6 +32,7 @@ import {
   ServiceContract,
   ServiceContractVersion
 } from '../../core/serviceContract';
+import { applyRegister, lookupRegisterByIco } from '../../data/ares';
 import { ContractEditor } from './ContractEditor';
 import { ContractPreviewPanel } from './ContractPreviewPanel';
 import { generateContractFiles } from './contractDocuments';
@@ -113,12 +114,22 @@ export const ContractsTab: React.FC = () => {
     const partner = partners.filter((p) => p.id === site.customerId || (!site.customerId && p.name === site.customerName))[0];
     const number = nextContractNumber(site.number, contracts.map((c) => c.number));
     const input = buildContractInput({ catalog: CATALOG, contractNumber: number, site, devices, partner, settings: settings.service.contract });
-    return repos.service.createContract(site.number, input, user).then((v) => {
-      setNewDlg(false);
-      setNotice(`Smlouva ${number} je založená jako návrh. Doplňte údaje a cenu.`);
-      reload();
-      setEditing(v);
-    });
+    // Údaje objednatele z obchodního rejstříku (spisová značka, jediný jednatel); nepodaří-li se, doplní se v editoru tlačítkem Načíst z ARES.
+    const ico = input.objednatel.ico.trim();
+    const withRegister: Promise<{ filled: boolean }> = /^\d{8}$/.test(ico)
+      ? lookupRegisterByIco(ico).then((reg) => {
+          input.objednatel = applyRegister(input.objednatel, reg);
+          return { filled: !!reg.registration || reg.representatives.length > 0 };
+        }, () => ({ filled: false }))
+      : Promise.resolve({ filled: false });
+    return withRegister.then((r) =>
+      repos.service.createContract(site.number, input, user).then((v) => {
+        setNewDlg(false);
+        setNotice(`Smlouva ${number} je založená jako návrh${r.filled ? ' (údaje objednatele doplněné z ARES)' : ''}. Doplňte chybějící údaje a cenu.`);
+        reload();
+        setEditing(v);
+      })
+    );
   };
 
   const changeStatus = (v: ServiceContractVersion, status: string, signedUrl?: string): Promise<unknown> =>

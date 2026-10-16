@@ -5,6 +5,11 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.63.1 — 16. 10. 2026 — Nová smlouva: objednatel z ARES
+
+- Při založení smlouvy se údaje objednatele rovnou doplní z obchodního rejstříku podle IČO partnera: spisová značka a — je-li v rejstříku jediná fyzická osoba oprávněná jednat — také zastoupení a podepisující. Při více jednatelích se podepisující vybere ručně v editoru (Načíst z ARES). Už vyplněné údaje se nepřepisují. Nepodaří-li se spojení s ARES, smlouva se založí a údaje se doplní v editoru.
+- Bez změny schématu (35).
+
 ## 0.63.0 — 16. 10. 2026 — Smlouvy: vazba na provoz (etapa D)
 
 - **Pokrytí smlouvou** u servisních požadavků: v přehledu požadavků (pod lokalitou a souborem) a v detailu požadavku je vidět **„✓ Smlouva 10500-01“**, nebo upozornění **„⚠ Bez platné smlouvy“**, „Soubor není v příloze smlouvy …“, „Smlouva … už vypršela“. Platná smlouva = nejnovější podepsaná verze, účinná a neuplynulá (účinnost od + doba smlouvy); požadavek na soubor vyžaduje, aby byl soubor v příloze; činnost na celé lokalitě pokrývá platná smlouva lokality. Jen indikace, nic neblokuje.

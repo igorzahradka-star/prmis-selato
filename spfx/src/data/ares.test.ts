@@ -1,4 +1,4 @@
-import { capitalizeName, mapAresRegister, mapAresResponse } from './ares';
+import { applyRegister, capitalizeName, mapAresRegister, mapAresResponse } from './ares';
 
 describe('mapAresResponse', () => {
   it('namapuje název, adresu, DIČ a plátce DPH ze skutečné odpovědi ARES', () => {
@@ -75,5 +75,23 @@ describe('mapAresRegister', () => {
   it('velká písmena ve jménech se převedou, spojovník zůstane', () => {
     expect(capitalizeName('JAN-KAREL')).toBe('Jan-Karel');
     expect(capitalizeName('NOVÁKOVÁ')).toBe('Nováková');
+  });
+});
+
+describe('applyRegister', () => {
+  const one = { registration: 'C 1 vedená u Městského soudu v Praze', representatives: [{ name: 'Ing. Jan Novák', role: 'Jednatel', isLegalEntity: false }] };
+
+  it('doplní spisovou značku a jediného jednatele', () => {
+    expect(applyRegister({}, one)).toEqual({ rejstrik: 'C 1 vedená u Městského soudu v Praze', zastoupen: 'Ing. Jan Novák, jednatel', podpis_jmeno: 'Ing. Jan Novák', podpis_funkce: 'jednatel' });
+  });
+
+  it('při více jednatelích doplní jen spisovou značku; právnická osoba se nebere', () => {
+    const two = { registration: 'B 2', representatives: [{ name: 'A', role: 'Jednatel', isLegalEntity: false }, { name: 'B', role: 'Jednatel', isLegalEntity: false }] };
+    expect(applyRegister({}, two)).toEqual({ rejstrik: 'B 2' });
+    expect(applyRegister({}, { representatives: [{ name: 'Holding a.s.', role: 'Jediný člen', isLegalEntity: true }] })).toEqual({});
+  });
+
+  it('nepřepisuje už vyplněné údaje', () => {
+    expect(applyRegister({ rejstrik: 'můj', zastoupen: 'někdo' }, one)).toEqual({ rejstrik: 'můj', zastoupen: 'někdo' });
   });
 });
