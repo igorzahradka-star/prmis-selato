@@ -34,6 +34,13 @@ jediná paměť projektu.** Na začátku každé relace:
 3. Stav fází je v kapitole 9, otevřené otázky v `docs/ROZHODNUTI.md`.
 4. Node.js 22 musí být v PATH (`node --version` → `v22.x`). Pokud není, viz kap. 3.
 
+## 1b. Paralelní práce dvou relací (PRMIS a Servis)
+
+PRMIS a Servis se mohou vyvíjet současně ve dvou relacích Claude Code. Každá relace má **vlastní pracovní složku a větev** (git worktree),
+verzi balíčku a záznam změn ve vydání zapisuje jen hlavní složka. Pravidla, vlastnictví souborů, sdílená místa a postup vydání jsou v
+[`docs/PRACOVNI_POSTUP.md`](docs/PRACOVNI_POSTUP.md) — **před prací v relaci s worktree je přečti**. Stav Servisu a jeho rozhraní k PRMIS
+popisuje [`docs/SERVIS_PREDANI.md`](docs/SERVIS_PREDANI.md).
+
 ## 2. Pravidla spolupráce (závazná)
 
 1. **Komunikuj česky**, srozumitelně, bez žargonu. Technické kroky (instalace,
