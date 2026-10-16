@@ -24,6 +24,8 @@ import {
   contractStatusChange,
   contractSummary,
   describeChanges,
+  hasBlockingError,
+  validateContract,
   latestVersion,
   newVersionProblem,
   nextContractNumber,
@@ -31,6 +33,8 @@ import {
   ServiceContractVersion
 } from '../../core/serviceContract';
 import { ContractEditor } from './ContractEditor';
+import { ContractPreviewPanel } from './ContractPreviewPanel';
+import { generateContractFiles } from './contractDocuments';
 import { CommentDialog } from './ServiceDialogs';
 import { TD, TH } from './serviceUi';
 
@@ -66,6 +70,8 @@ export const ContractsTab: React.FC = () => {
   const [signDlg, setSignDlg] = React.useState<ServiceContractVersion | undefined>(undefined);
   const [versionDlg, setVersionDlg] = React.useState<string | undefined>(undefined);
   const [deleteDlg, setDeleteDlg] = React.useState<ServiceContractVersion | undefined>(undefined);
+  const [preview, setPreview] = React.useState<ServiceContractVersion | undefined>(undefined);
+  const [generating, setGenerating] = React.useState<number | undefined>(undefined);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -120,6 +126,21 @@ export const ContractsTab: React.FC = () => {
       setNotice(`Verze ${v.versionNo} smlouvy ${v.contractNumber}: ${status.toLocaleLowerCase('cs-CZ')}.`);
       reload();
     });
+
+  const generate = (v: ServiceContractVersion): void => {
+    setGenerating(v.id);
+    setError(undefined);
+    repos.service
+      .loadContractTemplates()
+      .then((t) => generateContractFiles(v, t))
+      .then((files) => repos.service.saveContractDocuments(v.contractNumber, v.versionNo, files.map((f) => ({ name: f.name, bytes: f.bytes })), user))
+      .then((docs) => {
+        setNotice(`Vygenerováno ${docs.length} dokumentů verze ${v.versionNo} a uloženo do složky lokality (01-Smlouva a podmínky).`);
+        reload();
+      })
+      .catch(fail)
+      .then(() => setGenerating(undefined), () => setGenerating(undefined));
+  };
 
   if (!loaded) {
     return <Spinner size={SpinnerSize.large} label="Načítám smlouvy…" />;
@@ -248,6 +269,8 @@ export const ContractsTab: React.FC = () => {
                       </td>
                       <td style={{ ...TD, textAlign: 'right' }}>
                         <ActionButton text={v.status === 'Návrh' && mayManage ? 'Upravit' : 'Otevřít'} onClick={() => setEditing(v)} styles={{ root: { height: 28 } }} />
+                        <ActionButton text="Náhled" iconProps={{ iconName: 'View' }} onClick={() => setPreview(v)} styles={{ root: { height: 28 } }} />
+                        {mayManage && <ActionButton text={generating === v.id ? 'Generuji…' : 'Vygenerovat Word'} iconProps={{ iconName: 'WordDocument' }} disabled={generating !== undefined || hasBlockingError(validateContract(CATALOG, v.snapshot))} title={hasBlockingError(validateContract(CATALOG, v.snapshot)) ? 'Smlouva má chybu (požadavky banky) — nejdřív ji opravte, viz Kontrola' : 'Vykreslí šablony a uloží Word do složky lokality'} onClick={() => generate(v)} styles={{ root: { height: 28 } }} />}
                         {mayManage && v.status === 'Návrh' && <ActionButton text="K podpisu" title={toSign || 'Předat k podpisu'} disabled={toSign !== ''} onClick={() => changeStatus(v, 'K podpisu').catch(fail)} styles={{ root: { height: 28 } }} />}
                         {mayManage && v.status === 'K podpisu' && <ActionButton text="Vrátit do návrhu" onClick={() => changeStatus(v, 'Návrh').catch(fail)} styles={{ root: { height: 28 } }} />}
                         {mayManage && v.status === 'K podpisu' && <ActionButton text="Podepsáno…" onClick={() => setSignDlg(v)} styles={{ root: { height: 28 } }} />}
@@ -255,6 +278,22 @@ export const ContractsTab: React.FC = () => {
                         {mayDelete && v.status === 'Návrh' && <ActionButton text="Smazat" iconProps={{ iconName: 'Delete' }} onClick={() => setDeleteDlg(v)} styles={{ root: { height: 28 } }} />}
                       </td>
                     </tr>
+                    {v.documents && v.documents.length > 0 && (
+                      <tr>
+                        <td colSpan={6} style={{ ...TD, fontSize: 12, paddingTop: 0 }}>
+                          <strong>Dokumenty:</strong>{' '}
+                          {v.documents.map((d, k) => (
+                            <span key={d.url + k}>
+                              {k > 0 ? ' · ' : ''}
+                              <Link href={d.url} target="_blank" rel="noopener noreferrer">
+                                {d.name}
+                              </Link>
+                              {d.createdAt ? ` (${formatDate(d.createdAt)})` : ''}
+                            </span>
+                          ))}
+                        </td>
+                      </tr>
+                    )}
                     {prev && compare === v.versionNo && (
                       <tr>
                         <td colSpan={6} style={{ ...TD, background: RES.background, fontSize: 12 }}>
@@ -289,6 +328,7 @@ export const ContractsTab: React.FC = () => {
         />
       )}
 
+      {preview && <ContractPreviewPanel version={preview} onClose={() => setPreview(undefined)} />}
       {signDlg && (
         <CommentDialog
           title={`Zaznamenat podpis — smlouva ${signDlg.contractNumber}, verze ${signDlg.versionNo}`}

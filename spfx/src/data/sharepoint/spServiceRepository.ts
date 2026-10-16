@@ -9,12 +9,12 @@
 import { WebPartContext } from '@microsoft/sp-webpart-base';
 import { CurrentUser } from '../../core/types';
 import { toDate } from '../../core/format';
-import { canDeleteAnyInService, canDeleteInService, canManageSites, canWorkInService, jobDeletionProblem, uniqueAttachmentName, nextSiteNumber, serviceFolderPlan, siteDeletionProblem, requestDeletionProblem, validateDeviceNumber, validateSiteNumber, ServiceDevice, ServiceSite } from '../../core/service';
+import { SERVICE_SITE_SUBFOLDERS, canDeleteAnyInService, canDeleteInService, canManageSites, canWorkInService, jobDeletionProblem, uniqueAttachmentName, nextSiteNumber, serviceFolderPlan, siteDeletionProblem, requestDeletionProblem, validateDeviceNumber, validateSiteNumber, ServiceDevice, ServiceSite } from '../../core/service';
 import { JobAction, JobActionInput, JobStatus, RequestStatus, ServiceFlowError, ServiceJob, ServiceRequest, applyJobAction, requestCloseProblem, requestReopenProblem, requestStatusFrom } from '../../core/serviceJobs';
 import { OrderAttachment, validateAttachment } from '../../core/orders';
 import { parseChecklist, serializeChecklist, isEmptyChecklist, SiteChecklist } from '../../core/serviceCatalog';
 import { SERVICE_CATALOG } from '../../core/serviceCatalog.data';
-import { ContractInput, ServiceContract, ServiceContractVersion, contractStatusChange, newVersionProblem, nextVersionNo, nextVersionSnapshot } from '../../core/serviceContract';
+import { ContractDocument, ContractInput, ServiceContract, ServiceContractVersion, contractStatusChange, newVersionProblem, nextVersionNo, nextVersionSnapshot } from '../../core/serviceContract';
 import { PlanItem, planItemProblem, requestKindOf, requiredDateOf } from '../../core/servicePlan';
 import { INumberingRepository, IProjectRepository, ISettingsRepository, PlanItemInput, ServiceAttachmentTarget, IServiceRepository, ServiceDeviceInput, ServiceJobInput, ServiceRequestInput, ServiceSiteInput } from '../repositories';
 import { getSp, getSpForSite, describeSpError } from './spContext';
@@ -155,8 +155,22 @@ function mapContractVersion(i: Item): ServiceContractVersion | undefined {
     createdAt: toDate(str(i.Created)),
     signedAt: toDate(str(i.SignedAt)),
     signedByName: str(i.SignedByName),
-    signedUrl: str(i.SignedUrl)
+    signedUrl: str(i.SignedUrl),
+    documents: parseDocuments(str(i.DocumentsJson))
   };
+}
+
+/** Vygenerované dokumenty verze (JSON v seznamu); nečitelný zápis dá prázdný seznam. */
+function parseDocuments(json: string | undefined): ContractDocument[] {
+  if (!json) {
+    return [];
+  }
+  try {
+    const raw = JSON.parse(json) as { name?: string; url?: string; createdAt?: string }[];
+    return raw.filter((d) => !!d.name && !!d.url).map((d) => ({ name: d.name as string, url: d.url as string, createdAt: toDate(d.createdAt) }));
+  } catch {
+    return [];
+  }
 }
 
 function mapPlan(i: Item): PlanItem {
@@ -931,6 +945,74 @@ export class SpServiceRepository implements IServiceRepository {
     }
     await this.audit('Servis – smlouva', contractNumber, actor, `Verze ${versionNo}: stav ${status}`);
     return this.versionsOf(contractNumber);
+  }
+
+  public async loadContractTemplates(): Promise<{ framework: Uint8Array; annex: Uint8Array }> {
+    const settings = await this.settings.get();
+    const c = settings.service.contract;
+    const folders = settings.folders;
+    if (!folders.libraryTitle.trim()) {
+      throw new Error('Nejdřív vyplňte knihovnu pro složky v Nastavení → Složky projektů.');
+    }
+    const sp = folders.siteUrl ? getSpForSite(this.context, folders.siteUrl) : getSp(this.context);
+    const libraryRoot = (await resolveLibrary(sp, folders.libraryTitle)).serverRelativeUrl;
+    const folder = await resolveFolderPath(sp, libraryRoot, c.templateFolder.split('/'), false);
+    if (!folder) {
+      throw new Error(`Složka se šablonami smluv nebyla nalezena: ${c.templateFolder}. Cestu zkontrolujte v Servis → Správa smluv → Údaje smluv.`);
+    }
+    const read = async (name: string): Promise<Uint8Array> => {
+      try {
+        return new Uint8Array(await sp.web.getFileByServerRelativePath(`${folder}/${name}`).getBuffer());
+      } catch (error) {
+        throw new Error(describeSpError(error, `Šablonu „${name}“ ve složce ${c.templateFolder} se nepodařilo načíst`));
+      }
+    };
+    return { framework: await read(c.frameworkTemplate), annex: await read(c.annexTemplate) };
+  }
+
+  public async saveContractDocuments(contractNumber: string, versionNo: number, files: { name: string; bytes: Uint8Array }[], actor: CurrentUser): Promise<ContractDocument[]> {
+    if (!canManageSites(actor.roles)) {
+      throw new Error('Dokumenty smlouvy smí ukládat jen správce servisu, vedení a administrátor.');
+    }
+    const [contracts, versions, sites, settings] = await Promise.all([this.listContracts(), this.versionsOf(contractNumber), this.listSites(), this.settings.get()]);
+    const contract = contracts.filter((c) => c.number === contractNumber)[0];
+    const version = versions.filter((v) => v.versionNo === versionNo)[0];
+    const site = contract ? sites.filter((s) => s.number === contract.siteNumber)[0] : undefined;
+    if (!contract || !version || !site) {
+      throw new Error('Smlouva, verze nebo lokalita nebyla nalezena.');
+    }
+    const folders = settings.folders;
+    if (!folders.libraryTitle.trim()) {
+      throw new Error('Nejdřív vyplňte knihovnu pro složky v Nastavení → Složky projektů.');
+    }
+    const sp = folders.siteUrl ? getSpForSite(this.context, folders.siteUrl) : getSp(this.context);
+    const origin = new URL(folders.siteUrl || this.context.pageContext.web.absoluteUrl).origin;
+    const created: ContractDocument[] = [];
+    try {
+      const libraryRoot = (await resolveLibrary(sp, folders.libraryTitle)).serverRelativeUrl;
+      const plan = serviceFolderPlan(settings.service.folderRoot, site);
+      const rootPath = (await resolveFolderPath(sp, libraryRoot, plan.rootSegments, true)) as string;
+      const sitePath = (await resolveFolderPath(sp, rootPath, [plan.siteFolder], true)) as string;
+      const target = (await resolveFolderPath(sp, sitePath, [SERVICE_SITE_SUBFOLDERS[0]], true)) as string;
+      const existing: { Name: string }[] = await sp.web.getFolderByServerRelativePath(target).files.select('Name')();
+      const names = existing.map((f) => f.Name);
+      for (const f of files) {
+        const name = uniqueAttachmentName(f.name, names);
+        names.push(name);
+        const buffer = f.bytes.buffer.slice(f.bytes.byteOffset, f.bytes.byteOffset + f.bytes.byteLength) as ArrayBuffer;
+        await sp.web.getFolderByServerRelativePath(target).files.addUsingPath(name, buffer, { Overwrite: false });
+        created.push({ name, url: `${origin}${target}/${encodeURIComponent(name)}`, createdAt: new Date() });
+      }
+    } catch (error) {
+      if (created.length > 0) {
+        await this.update(CONTRACT_VERSIONS, version.id, { DocumentsJson: JSON.stringify([...(version.documents || []), ...created].map((d) => ({ name: d.name, url: d.url, createdAt: d.createdAt ? d.createdAt.toISOString() : undefined }))) }, 'Odkazy na dokumenty se nepodařilo uložit');
+      }
+      throw new Error(describeSpError(error, 'Dokumenty smlouvy se nepodařilo uložit do složky lokality'));
+    }
+    const all = [...(version.documents || []), ...created];
+    await this.update(CONTRACT_VERSIONS, version.id, { DocumentsJson: JSON.stringify(all.map((d) => ({ name: d.name, url: d.url, createdAt: d.createdAt ? d.createdAt.toISOString() : undefined }))) }, 'Odkazy na dokumenty se nepodařilo uložit');
+    await this.audit('Servis – smlouva', contractNumber, actor, `Vygenerováno ${created.length} dokumentů verze ${versionNo}`);
+    return created;
   }
 
   public async deleteContractVersion(contractNumber: string, versionNo: number, actor: CurrentUser): Promise<void> {

@@ -16,6 +16,11 @@ export interface ContractSettings {
   zhotovitel: ContractParty;
   assetManager: AssetManagerInfo;
   mistoPodpisu: string;
+  /** Složka se šablonami Wordu v knihovně dokumentů (od kořene knihovny, např. General/02_SERVIS/00_SERVIS - PODKLADY/RES Smlouvy VZORY). */
+  templateFolder: string;
+  /** Soubor šablony rámcové smlouvy a šablony přílohy lokality (docxtpl) ve složce šablon. */
+  frameworkTemplate: string;
+  annexTemplate: string;
   parametry: ContractParameters;
   sazebnik: ContractRate[];
   autorizaceOem: ContractOemAuthorization[];
@@ -49,6 +54,9 @@ export const DEFAULT_CONTRACT_SETTINGS: ContractSettings = {
   zhotovitel: { nazev: 'Revoltum Engineering & Services s.r.o.', sidlo: 'Havířská 1021, 58001 Havlíčkův Brod', ico: '29713536' },
   assetManager: { nazev: 'Revoltum a.s.', ico: '', sidlo: '' },
   mistoPodpisu: 'Havlíčkově Brodě',
+  templateFolder: 'General/02_SERVIS/00_SERVIS - PODKLADY/RES Smlouvy VZORY',
+  frameworkTemplate: 'RES_OM_Ramcova_smlouva_SABLONA_v01.docx',
+  annexTemplate: 'RES_OM_Priloha_lokality_SABLONA_v01.docx',
   parametry: DEFAULT_CONTRACT_PARAMETERS,
   sazebnik: [],
   autorizaceOem: [],
@@ -72,6 +80,9 @@ export function contractSettingsWithDefaults(stored: Partial<ContractSettings> |
     zhotovitel: { ...d.zhotovitel, ...(stored.zhotovitel || {}) },
     assetManager: { ...d.assetManager, ...(stored.assetManager || {}) },
     mistoPodpisu: typeof stored.mistoPodpisu === 'string' ? stored.mistoPodpisu : d.mistoPodpisu,
+    templateFolder: stored.templateFolder && stored.templateFolder.trim() !== '' ? stored.templateFolder.trim() : d.templateFolder,
+    frameworkTemplate: stored.frameworkTemplate && stored.frameworkTemplate.trim() !== '' ? stored.frameworkTemplate.trim() : d.frameworkTemplate,
+    annexTemplate: stored.annexTemplate && stored.annexTemplate.trim() !== '' ? stored.annexTemplate.trim() : d.annexTemplate,
     parametry: { ...d.parametry, ...(stored.parametry || {}) },
     sazebnik: Array.isArray(stored.sazebnik) ? stored.sazebnik : d.sazebnik,
     autorizaceOem: Array.isArray(stored.autorizaceOem) ? stored.autorizaceOem : d.autorizaceOem,

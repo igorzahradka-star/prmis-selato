@@ -9,7 +9,7 @@ import { JobAction, JobActionInput, JobStatus, RequestStatus, ServiceFlowError, 
 import { OrderAttachment, validateAttachment } from '../../core/orders';
 import type { SiteChecklist } from '../../core/serviceCatalog';
 import { SERVICE_CATALOG } from '../../core/serviceCatalog.data';
-import { ContractInput, ServiceContract, ServiceContractVersion, contractStatusChange, newVersionProblem, nextVersionNo, nextVersionSnapshot } from '../../core/serviceContract';
+import { ContractDocument, ContractInput, ServiceContract, ServiceContractVersion, contractStatusChange, newVersionProblem, nextVersionNo, nextVersionSnapshot } from '../../core/serviceContract';
 import { PlanItem, planItemProblem, requestKindOf, requiredDateOf } from '../../core/servicePlan';
 import { INumberingRepository, IProjectRepository, IServiceRepository, PlanItemInput, ServiceAttachmentTarget, ServiceDeviceInput, ServiceJobInput, ServiceRequestInput, ServiceSiteInput } from '../repositories';
 
@@ -473,6 +473,36 @@ export class MockServiceRepository implements IServiceRepository {
       return { ...x, status: change.updates[x.versionNo], ...(signing ? { signedAt: now, signedByName: actor.displayName, signedUrl } : {}) };
     });
     return this.listContractVersions().then((all) => all.filter((x) => x.contractNumber === contractNumber));
+  }
+
+  public async loadContractTemplates(): Promise<{ framework: Uint8Array; annex: Uint8Array }> {
+    // Ukázkový režim (náhled): šablony se berou z balíčku náhledu; v ostrém provozu ze složky v SharePointu.
+    const get = async (name: string): Promise<Uint8Array> => {
+      const r = await fetch(`./templates/${name}`);
+      if (!r.ok) {
+        throw new Error('V ukázkovém režimu nejsou k dispozici šablony smluv (jen v ostrém provozu ze SharePointu).');
+      }
+      return new Uint8Array(await r.arrayBuffer());
+    };
+    return { framework: await get('RES_OM_Ramcova_smlouva_SABLONA_v01.docx'), annex: await get('RES_OM_Priloha_lokality_SABLONA_v01.docx') };
+  }
+
+  public saveContractDocuments(contractNumber: string, versionNo: number, files: { name: string; bytes: Uint8Array }[], actor: CurrentUser): Promise<ContractDocument[]> {
+    if (!canManageSites(actor.roles)) {
+      return Promise.reject(new Error('Dokumenty smlouvy smí ukládat jen správce servisu, vedení a administrátor.'));
+    }
+    const v = this.contractVersions.filter((x) => x.contractNumber === contractNumber && x.versionNo === versionNo)[0];
+    if (!v) {
+      return Promise.reject(new Error('Verze smlouvy nebyla nalezena.'));
+    }
+    const names = (v.documents || []).map((d) => d.name);
+    const created: ContractDocument[] = files.map((f) => {
+      const name = uniqueAttachmentName(f.name, names);
+      names.push(name);
+      return { name, url: URL.createObjectURL(new Blob([f.bytes as BlobPart])), createdAt: new Date() };
+    });
+    this.contractVersions = this.contractVersions.map((x) => (x.id === v.id ? { ...x, documents: [...(x.documents || []), ...created] } : x));
+    return Promise.resolve(created);
   }
 
   public deleteContractVersion(contractNumber: string, versionNo: number, actor: CurrentUser): Promise<void> {

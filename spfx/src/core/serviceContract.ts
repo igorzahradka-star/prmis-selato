@@ -537,6 +537,13 @@ export interface ServiceContract {
 }
 
 /** Verze smlouvy: původní smlouva, nebo dodatek; nese snapshot dat. */
+/** Vygenerovaný dokument verze smlouvy (Word, checklist) uložený ve složce lokality. */
+export interface ContractDocument {
+  name: string;
+  url: string;
+  createdAt?: Date;
+}
+
 export interface ServiceContractVersion {
   id: number;
   contractNumber: string;
@@ -552,8 +559,10 @@ export interface ServiceContractVersion {
   createdAt?: Date;
   signedAt?: Date;
   signedByName?: string;
-  /** Odkaz na sken podepsané verze (později i na vygenerovaný Word). */
+  /** Odkaz na sken podepsané verze. */
   signedUrl?: string;
+  /** Vygenerované dokumenty této verze (od nejstarších). */
+  documents?: ContractDocument[];
 }
 
 /** Nejnovější verze smlouvy (nejvyšší číslo). */

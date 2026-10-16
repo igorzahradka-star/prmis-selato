@@ -18,7 +18,7 @@
  * Verze schématu. Ukládá se do PRM_Settings pod klíčem `schemaVersion`.
  * Průvodce porovná uloženou verzi s touto a nabídne doplnění rozdílu.
  */
-export const SCHEMA_VERSION = 34;
+export const SCHEMA_VERSION = 35;
 
 /** Typ sloupce v SharePointu. */
 export type FieldType =
@@ -875,7 +875,8 @@ const PRM_SERVICE_CONTRACT_VERSIONS: ListDef = {
     { name: 'CreatedByName', title: 'Založil', type: 'Text' },
     { name: 'SignedAt', title: 'Podepsáno', type: 'DateTime' },
     { name: 'SignedByName', title: 'Podpis zaznamenal', type: 'Text' },
-    { name: 'SignedUrl', title: 'Odkaz na podepsanou verzi', type: 'Text' }
+    { name: 'SignedUrl', title: 'Odkaz na podepsanou verzi', type: 'Text' },
+    { name: 'DocumentsJson', title: 'Vygenerované dokumenty (JSON)', type: 'Note', description: 'Seznam vygenerovaných Wordů verze smlouvy (název, odkaz, kdy); zapisuje aplikace.' }
   ]
 };
 

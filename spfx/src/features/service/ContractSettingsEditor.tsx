@@ -195,6 +195,16 @@ export const ContractSettingsEditor: React.FC<{ value: ContractSettings; onChang
       </div>
 
       <div style={boxStyle}>
+        <div style={boxTitle}>Šablony Wordu</div>
+        <div style={{ fontSize: 12, color: RES.gray, marginBottom: 4 }}>Šablony rámcové smlouvy a přílohy lokality (docxtpl) se čtou ze složky v knihovně dokumentů; výsledek se ukládá do složky lokality (01-Smlouva a podmínky). Šablonu lze kdykoli nahradit novou verzí souboru.</div>
+        <div style={gridStyle}>
+          <TextField label="Složka se šablonami (od kořene knihovny)" disabled={disabled} value={value.templateFolder} onChange={(_, v) => patch({ templateFolder: v ?? '' })} />
+          <TextField label="Soubor šablony rámcové smlouvy" disabled={disabled} value={value.frameworkTemplate} onChange={(_, v) => patch({ frameworkTemplate: v ?? '' })} />
+          <TextField label="Soubor šablony přílohy lokality" disabled={disabled} value={value.annexTemplate} onChange={(_, v) => patch({ annexTemplate: v ?? '' })} />
+        </div>
+      </div>
+
+      <div style={boxStyle}>
         <div style={boxTitle}>Výchozí parametry smlouvy</div>
         <div style={{ fontSize: 12, color: RES.gray, marginBottom: 4 }}>Převezmou se do nové smlouvy a půjdou tam upravit. Hodnoty jsou návrh podle ukázkové smlouvy.</div>
         <div style={gridStyle}>

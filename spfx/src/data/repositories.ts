@@ -32,7 +32,7 @@ import { NotificationPrefs } from '../core/notifications';
 import { AbraDoc } from '../core/abraDocs';
 import { ServiceDevice, ServiceSite } from '../core/service';
 import type { SiteChecklist } from '../core/serviceCatalog';
-import type { ContractInput, ServiceContract, ServiceContractVersion } from '../core/serviceContract';
+import type { ContractDocument, ContractInput, ServiceContract, ServiceContractVersion } from '../core/serviceContract';
 import { JobAction, JobActionInput, ServiceJob, ServiceRequest } from '../core/serviceJobs';
 
 /** Kdo je přihlášen a co smí. */
@@ -1052,6 +1052,13 @@ export interface IServiceRepository {
    * nahradí dříve podepsané verze. Vrací všechny verze smlouvy.
    */
   changeContractStatus(contractNumber: string, versionNo: number, status: string, signedUrl: string | undefined, actor: CurrentUser): Promise<ServiceContractVersion[]>;
+  /** Načte šablony smlouvy (rámcová smlouva a příloha lokality) ze složky určené v Údajích smluv. */
+  loadContractTemplates(): Promise<{ framework: Uint8Array; annex: Uint8Array }>;
+  /**
+   * Uloží vygenerované dokumenty verze do složky lokality (01-Smlouva a podmínky); stejný název dostane příponu `_2` — nic se nepřepisuje.
+   * Odkazy se zapíšou k verzi. Smí správce servisu, vedení a administrátor.
+   */
+  saveContractDocuments(contractNumber: string, versionNo: number, files: { name: string; bytes: Uint8Array }[], actor: CurrentUser): Promise<ContractDocument[]>;
   /** Smaže rozpracovanou verzi (Návrh); je-li jediná, smaže i smlouvu. Smí vedení a administrátor. */
   deleteContractVersion(contractNumber: string, versionNo: number, actor: CurrentUser): Promise<void>;
   listJobs(): Promise<ServiceJob[]>;

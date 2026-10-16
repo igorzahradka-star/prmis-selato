@@ -1,0 +1,102 @@
+{
+  "_poznamka": "UKÁZKOVÝ VSTUP – údaje v [hranatých závorkách] doplnit; ceny jsou ilustrativní a nejsou nabídkou.",
+  "smlouva": {"cislo": "RES-OM-2026-001", "misto_podpisu": "Havlíčkově Brodě", "datum_podpisu": "[DATUM]"},
+  "objednatel": {
+    "nazev": "[NÁZEV SPV – vlastník lokality Mastířovice]", "sidlo": "[SÍDLO SPV]", "ico": "[IČO]", "dic": "[DIČ]",
+    "rejstrik": "[spisová značka, krajský soud]", "zastoupen": "[jméno, funkce]", "bankovni_spojeni": "[číslo účtu]",
+    "podpis_jmeno": "[jméno]", "podpis_funkce": "[jednatel]"
+  },
+  "zhotovitel": {
+    "nazev": "Revoltum Engineering & Services, s.r.o.", "sidlo": "Havlířská 1021, 568 01 Havlíčkův Brod",
+    "ico": "29713536", "dic": "[DIČ RES]", "rejstrik": "[spisová značka RES]", "zastoupen": "[jméno, jednatel]",
+    "bankovni_spojeni": "[číslo účtu RES]", "dispecink_tel": "[+420 … dispečink 24/7]", "dispecink_email": "[servis@…]",
+    "podpis_jmeno": "[jméno]", "podpis_funkce": "[jednatel]"
+  },
+  "asset_manager": {"nazev": "Revoltum a.s.", "ico": "[IČO Revoltum a.s.]", "sidlo": "[sídlo Revoltum a.s.]"},
+  "banka": {"nazev": "[NÁZEV BANKY]", "ico": "[IČO BANKY]"},
+  "volby": {"skupina_revoltum": true, "penale": false, "bankovni_ujednani": true},
+  "parametry": {
+    "doba_let": 10, "prodlouzeni_let": 1, "vypovedni_lhuta_mesicu": 6,
+    "fakturace": "čtvrtletně zpětně", "splatnost_dni": 30,
+    "indexace_den": "1. lednu", "indexace_prvni": "1. 1. 2028",
+    "limit_odpovednosti_pct": 100, "pojisteni_mil_kc": 10, "zaruka_prace_mesicu": 24,
+    "limit_bez_schvaleni_kc": 50000, "servisni_zpravy_dni": 10, "predani_mesicu": 3,
+    "planovana_udrzba_h_rok": 48,
+    "penale_dostupnost_pct": 2, "penale_p1_kc_hod": 2000, "penale_cap_pct": 20
+  },
+  "sazebnik": [
+    {"polozka": "Servisní technik (osoba poučená)", "jednotka": "hod", "cena": 850, "poznamka": "pracovní dny 7–17 h"},
+    {"polozka": "Elektrotechnik § 6 / vedoucí elektrotechnik § 7", "jednotka": "hod", "cena": 1100, "poznamka": ""},
+    {"polozka": "Revizní technik E1B / E2B", "jednotka": "hod", "cena": 1300, "poznamka": ""},
+    {"polozka": "Technik autorizovaný OEM (BESS, PCS)", "jednotka": "hod", "cena": 1800, "poznamka": ""},
+    {"polozka": "Příplatek mimo pracovní dobu", "jednotka": "%", "cena": 50, "poznamka": "z hodinové sazby"},
+    {"polozka": "Příplatek So, Ne, svátek", "jednotka": "%", "cena": 100, "poznamka": "z hodinové sazby"},
+    {"polozka": "Výjezd (paušál)", "jednotka": "výjezd", "cena": 1500, "poznamka": "nad rámec Paušálu"},
+    {"polozka": "Doprava", "jednotka": "km", "cena": 15, "poznamka": ""},
+    {"polozka": "Termovize FV pole dronem", "jednotka": "MWp", "cena": 4500, "poznamka": "vč. zprávy IEC TS 62446-3"},
+    {"polozka": "Mytí FV modulů", "jednotka": "kWp", "cena": 12, "poznamka": "demi voda"},
+    {"polozka": "Materiál a díly mimo Paušál", "jednotka": "%", "cena": 10, "poznamka": "přirážka k nákupní ceně"}
+  ],
+  "autorizace_oem": [
+    {"vyrobce": "[VÝROBCE BESS]", "rozsah": "Servis, uvedení do provozu a údržba BESS vč. BMS a chlazení", "doklad": "[č. autorizační smlouvy / certifikátu]", "platnost_do": "[datum]"}
+  ],
+  "servisni_partneri": [
+    {"nazev": "[revizní technik]", "ico": "[IČO]", "cinnosti": "Revize VN/NN, FVE, BESS", "opravneni": "E1B, E2B (TIČR)"},
+    {"nazev": "[bezpečnostní firma]", "ico": "[IČO]", "cinnosti": "EZS, CCTV, výjezd na poplach", "opravneni": "koncese, certifikace výrobce"},
+    {"nazev": "[servis HVAC / F-plyny]", "ico": "[IČO]", "cinnosti": "Chlazení BESS", "opravneni": "certifikát F-plyny"}
+  ],
+  "kontakty": [
+    {"strana": "Zhotovitel", "role": "Dispečink 24/7", "jmeno": "—", "telefon": "[tel]", "email": "[email]"},
+    {"strana": "Zhotovitel", "role": "Vedoucí servisu", "jmeno": "[jméno]", "telefon": "[tel]", "email": "[email]"},
+    {"strana": "Objednatel", "role": "Asset manager", "jmeno": "[jméno]", "telefon": "[tel]", "email": "[email]"}
+  ],
+  "eskalace": [
+    {"uroven": "1", "spoustec": "Překročení Doby příjezdu P1/P2", "res": "Vedoucí servisu", "objednatel": "Technický kontakt"},
+    {"uroven": "2", "spoustec": "Překročení Doby odstranění P1 nebo opakovaná porucha", "res": "Technický ředitel", "objednatel": "Asset manager"},
+    {"uroven": "3", "spoustec": "Ohrožení garantované dostupnosti / spor", "res": "Jednatel RES", "objednatel": "Statutární orgán"}
+  ],
+  "lokality": [
+    {
+      "kod": "10500", "nazev": "Mastířovice – Hošťka", "priloha_cislo": "1", "verze": "1.0",
+      "datum_zahajeni": "[DATUM ZAHÁJENÍ]", "datum_podpisu": "[DATUM]",
+      "adresa": "obec Vrbice, okres Litoměřice", "katastr": "k. ú. Mastířovice", "lv": "445",
+      "parcely": "[dle LV – doplnit, viz SoD z roku 2009]", "gps": "[GPS]",
+      "pripojeni": "[VN 22 kV, PDS ČEZ Distribuce, EAN …]", "pristup": "[klíče / kódy – předávací protokol]",
+      "agregator": "[NÁZEV AGREGÁTORA]", "banka": "[NÁZEV BANKY]",
+      "priznaky": ["vn_pripojeni", "trafo_olejove", "rizeni_pds", "ups", "oploceni", "ezs", "cctv", "hasici_pristroje", "osvetleni",
+                   "travni_porost", "meteostanice", "bankovni_financovani", "fve_pozemni", "stridace_stringove",
+                   "bess_kapalinove_chlazeni", "bess_hasici_system", "bess_detekce_plynu", "bess_agregator", "f_plyny"],
+      "moduly": ["KOREKTIVA", "ND", "TECHMGMT", "AREAL", "BEZPECNOST", "IT_OT"],
+      "cinnosti_vypnute": [], "cinnosti_zapnute": [], "perioda_override": {},
+      "sla_profil": "STANDARD", "sla_override": {},
+      "assety": [
+        {"kod": "10501", "typ": "FVE", "nazev": "Mastířovice I.", "parametry": "4 950 kWp", "technologie": "17 602 ks FV modulů, 444 ks stringových střídačů [výrobce]",
+         "zaruky": "[záruky modulů / střídačů]", "vyrobce_oem": "[výrobce střídačů]"},
+        {"kod": "10502", "typ": "BESS", "nazev": "Mastířovice II.", "parametry": "25 644 kWh / [kW]", "technologie": "[VÝROBCE BESS], kapalinové chlazení, [PCS]",
+         "zaruky": "[záruka / LTSA – do]", "vyrobce_oem": "[VÝROBCE BESS]"}
+      ],
+      "cena": {
+        "radky": [
+          {"polozka": "Základní servis + moduly – FVE 10501", "zaklad": "4 950 kWp", "jednotkova": "75 Kč/kWp", "rocne": 371250},
+          {"polozka": "Základní servis + moduly – BESS 10502", "zaklad": "25 644 kWh", "jednotkova": "18 Kč/kWh", "rocne": 461592},
+          {"polozka": "Technický management a monitoring lokality", "zaklad": "lokalita", "jednotkova": "paušál", "rocne": 120000}
+        ],
+        "celkem": 952842, "korektiva_hodin": 80, "nd_limit": 100000,
+        "poznamka": "ILUSTRATIVNÍ CENY – slouží jen k ověření šablony, nejsou nabídkou."
+      },
+      "nd": [
+        {"polozka": "Bateriový modul [typ]", "asset": "10502", "mnozstvi": "[ks]", "umisteni": "sklad lokality / OEM do 48 h"},
+        {"polozka": "Řídicí deska BMS / BCU", "asset": "10502", "mnozstvi": "1", "umisteni": "sklad RES"},
+        {"polozka": "Čerpadlo chladicího okruhu", "asset": "10502", "mnozstvi": "1", "umisteni": "sklad RES"},
+        {"polozka": "Stringový střídač [typ]", "asset": "10501", "mnozstvi": "2", "umisteni": "sklad lokality"},
+        {"polozka": "Pojistky VN, svodiče přepětí DC/AC", "asset": "lokalita", "mnozstvi": "sada", "umisteni": "sklad lokality"}
+      ],
+      "kontakty": [
+        {"role": "Technik lokality RES", "jmeno": "[jméno]", "telefon": "[tel]", "email": "[email]"},
+        {"role": "Dispečink PDS", "jmeno": "—", "telefon": "[tel]", "email": ""},
+        {"role": "Agregátor – dispečink", "jmeno": "—", "telefon": "[tel]", "email": "[email]"}
+      ],
+      "zvlastni_ujednani": []
+    }
+  ]
+}

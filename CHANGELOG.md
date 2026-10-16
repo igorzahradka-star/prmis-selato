@@ -5,6 +5,15 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.62.0 — 16. 10. 2026 — Smlouvy: vygenerování Wordu a náhled (etapa C)
+
+- V detailu smlouvy (Servis → Správa smluv) u každé verze nové tlačítko **Vygenerovat Word**: šablony RES (rámcová smlouva a Příloha lokality, docxtpl) se vykreslí daty verze a uloží do složky lokality **01-Smlouva a podmínky** spolu se strojově čitelným checklistem lokality (JSON). Název dokumentu nese číslo smlouvy a verzi; stejný název dostane příponu `_2` — nic se nepřepisuje. Odkazy na dokumenty jsou u verze (Dokumenty:).
+- **Chyby kontroly blokují vygenerování** (P1 ≤ 72 h, doba ≥ 10 let, autorizace OEM u BESS); chybějící údaje a varování ne (návrh jde vygenerovat s mezerami k doplnění ve Wordu).
+- Tlačítko **Náhled**: smlouva a příloha jako text s tabulkami přímo v aplikaci (věrný obsah, ne vzhled — písma, záhlaví a grafy má až Word).
+- Vykreslování šablon běží v prohlížeči (JSZip + Nunjucks, Jinja-kompatibilní) a šablony RES se používají **beze změny**. Text vykreslené smlouvy a přílohy je ověřený proti ukázce z referenčního generátoru (složka UKAZKA OM smlouvy) — test v `docxTemplate.test.ts`.
+- **Údaje smluv**: nová sekce Šablony Wordu — složka se šablonami (výchozí General/02_SERVIS/00_SERVIS - PODKLADY/RES Smlouvy VZORY) a názvy souborů obou šablon; šablonu lze nahradit novou verzí souboru bez nové verze aplikace.
+- **Schéma 35 — po nahrání spustit Instalaci a diagnostiku** (sloupec Vygenerované dokumenty u verzí smluv).
+
 ## 0.61.0 — 16. 10. 2026 — Smlouvy se zákazníky: seznam, editor, verze, kontroly (etapa B3)
 
 - **Servis → Správa smluv → Smlouvy se zákazníky**: seznam smluv (číslo, lokalita, objednatel, verze, stav, platí od, počet souborů a činností, výsledek kontroly). **Nová smlouva** vybere lokalitu a založí návrh (číslo lokality + pořadí, např. 10500-01) předvyplněný z partnera (objednatel), Údajů smluv a checklistu lokality včetně souborů a činností.
