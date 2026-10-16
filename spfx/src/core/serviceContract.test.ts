@@ -7,6 +7,8 @@ import {
   checklistSections,
   contractStatusChange,
   contractSummary,
+  deviceKindOfAsset,
+  recomputeSiteActivities,
   ContractInput,
   latestVersion,
   nextVersionSnapshot,
@@ -317,5 +319,20 @@ describe('změna stavu verze smlouvy', () => {
     expect(contractStatusChange(CAT, [ver(1, 'Podepsaná')], 1, 'Návrh').problem).toMatch(/nejde přejít/);
     expect(contractStatusChange(CAT, [], 3, 'K podpisu').problem).toMatch(/nebyla nalezena/);
     expect(contractStatusChange(CAT, [ver(1, 'K podpisu')], 1, 'Návrh').updates).toEqual({ 1: 'Návrh' });
+  });
+});
+
+describe('přepočet činností přílohy', () => {
+  it('odebrání souboru BESS odebere jeho činnosti, přidání je vrátí', () => {
+    const l = example().lokality[0];
+    const bezBess = recomputeSiteActivities(CAT, { ...l, assety: l.assety.filter((a) => a.typ !== 'BESS') });
+    const full = recomputeSiteActivities(CAT, l);
+    expect(full.cinnosti).toHaveLength(73);
+    expect((bezBess.cinnosti || []).length).toBeLessThan(73);
+    const bessIds = new Set(CAT.cinnosti.filter((a) => a.asset === 'BESS').map((a) => a.id));
+    expect((bezBess.cinnosti || []).some((c) => bessIds.has(c.id))).toBe(false);
+    expect((full.cinnosti || []).some((c) => bessIds.has(c.id))).toBe(true);
+    expect(deviceKindOfAsset('ENC')).toBe('Kogenerace');
+    expect(deviceKindOfAsset('FVE')).toBe('FVE');
   });
 });

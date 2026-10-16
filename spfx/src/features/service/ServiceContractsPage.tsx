@@ -1,7 +1,7 @@
 /**
- * Správa smluv (Servis → Správa smluv) — záložky: Smlouvy se zákazníky, Smlouvy s dodavateli a Údaje smluv (nastavení, ze kterého si smlouva
- * bere zhotovitele, parametry, sazebník, autorizace OEM, kontakty). Seznam smluv a jejich verze přibudou v další etapě; smlouva patří vždy
- * jedné lokalitě (číslo např. 10500-01). Obsahuje ceny, proto ji vidí jen správce servisu, vedení a administrátor.
+ * Správa smluv (Servis → Správa smluv) — záložky: Smlouvy se zákazníky (seznam, verze, editor, kontroly), Smlouvy s dodavateli (připravujeme) a Údaje
+ * smluv (nastavení, ze kterého si smlouva bere zhotovitele, parametry, sazebník, autorizace OEM, kontakty). Smlouva patří vždy jedné lokalitě
+ * (číslo např. 10500-01). Obsahuje ceny, proto ji vidí jen správce servisu, vedení a administrátor.
  */
 
 import * as React from 'react';
@@ -15,6 +15,7 @@ import { PageHeading } from '../../ui/components/PageHeading';
 import { canDeleteAnyInService, canManageSites } from '../../core/service';
 import { ContractSettings, validateContractSettings } from '../../core/serviceContractSettings';
 import { ContractSettingsEditor } from './ContractSettingsEditor';
+import { ContractsTab } from './ContractsTab';
 
 const ContractSettingsPanel: React.FC = () => {
   const { repos, user, settings, reloadSettings } = useApp();
@@ -99,10 +100,7 @@ export const ServiceContractsPage: React.FC = () => {
       <PageHeading title="Správa smluv" subtitle="Servisní smlouvy se zákazníky a s dodavateli. Smlouva patří jedné lokalitě (např. 10500-01), má přílohy a verze." />
       <Pivot aria-label="Správa smluv">
         <PivotItem headerText="Smlouvy se zákazníky" itemIcon="ContactCard">
-          <MessageBar messageBarType={MessageBarType.info} isMultiline styles={{ root: { marginTop: 10 } }}>
-            Zakládání smluv, jejich verze a kontroly přibudou v další etapě. Připravené jsou katalog činností a checklist lokality (Servis → Lokality a soubory → Checklist) a v záložce
-            <strong> Údaje smluv </strong>nastavení, ze kterého si smlouva bude brát zhotovitele, parametry, sazebník a autorizace OEM.
-          </MessageBar>
+          <ContractsTab />
         </PivotItem>
         <PivotItem headerText="Smlouvy s dodavateli" itemIcon="Handshake">
           <MessageBar messageBarType={MessageBarType.info} isMultiline styles={{ root: { marginTop: 10 } }}>

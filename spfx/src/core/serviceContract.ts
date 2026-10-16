@@ -688,3 +688,18 @@ export function contractStatusChange(catalog: ServiceCatalog, versions: ServiceC
   }
   return { problem: '', updates: { [versionNo]: to } };
 }
+
+/** Druh souboru v aplikaci podle typu v katalogu (pro vyhodnocení checklistu u příloh ve smlouvě). */
+export function deviceKindOfAsset(typ: string): string {
+  return typ === 'ENC' ? 'Kogenerace' : typ;
+}
+
+/**
+ * Přepočítá činnosti přílohy lokality podle jejích příznaků, modulů a ručních úprav a podle souborů v příloze (po přidání nebo odebrání souboru).
+ * Příznaky, moduly a úpravy zůstávají; mění se jen seznam činností.
+ */
+export function recomputeSiteActivities(catalog: ServiceCatalog, site: ContractSite): ContractSite {
+  const checklist = cleanChecklist(catalog, { flags: site.priznaky, modules: site.moduly, disabled: site.cinnosti_vypnute, enabled: site.cinnosti_zapnute, periods: site.perioda_override, slaProfile: site.sla_profil });
+  const items = evaluateChecklist(catalog, checklist, site.assety.map((a) => deviceKindOfAsset(a.typ)));
+  return { ...site, cinnosti: snapshotActivities(items) };
+}

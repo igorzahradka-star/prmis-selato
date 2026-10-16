@@ -5,6 +5,14 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.61.0 — 16. 10. 2026 — Smlouvy se zákazníky: seznam, editor, verze, kontroly (etapa B3)
+
+- **Servis → Správa smluv → Smlouvy se zákazníky**: seznam smluv (číslo, lokalita, objednatel, verze, stav, platí od, počet souborů a činností, výsledek kontroly). **Nová smlouva** vybere lokalitu a založí návrh (číslo lokality + pořadí, např. 10500-01) předvyplněný z partnera (objednatel), Údajů smluv a checklistu lokality včetně souborů a činností.
+- **Editor smlouvy** (boční panel): Objednatel (s načtením z ARES — rejstřík a jednatelé, asset manager, banka, volby), Podmínky (účinnost, parametry, SLA profil), Soubory a cena (soubory v příloze, činnosti z checklistu s tlačítkem Obnovit, cena po řádcích, náhradní díly), Sazebník a kontakty a **Kontrola** s průběžným výpisem: chyby (P1 ≤ 72 h, doba ≥ 10 let, autorizace OEM u BESS) blokují předání k podpisu, chybějící údaje a varování jen upozorňují.
+- **Verze a dodatky**: stavy Návrh → K podpisu → Podepsaná → Nahrazená; podepsaná verze se nemění, změna = nová verze (dodatek) jako kopie poslední podepsané; porovnání verzí (co přibylo a ubylo), záznam podpisu s odkazem na sken, smazání návrhu (vedení a administrátor; do koše webu).
+- Word, uložení do složky lokality a náhled přijdou v další etapě.
+- **Schéma 34 — po nahrání spustit Instalaci a diagnostiku** (nové seznamy PRM_ServiceContracts a PRM_ServiceContractVersions).
+
 ## 0.60.0 — 16. 10. 2026 — Kalendář: měsíc a rok, přehled požadavků úspornější
 
 - **Servisní kalendář** má pohledy **Týden**, **Měsíc** a **Rok**. Měsíc je mřížka po týdnech (v dni max. 3 položky + „+ N dalších“), rok je 12 malých kalendářů, kde je každý den obarvený: zeleně plánovaný servis v paušálu, oranžově nahodilý, modře požadavek s termínem, půl na půl při obojím. Po najetí myší na den se ukáže, co v něj připadá; kliknutím na měsíc v ročním pohledu se otevře měsíc. Dříve / Dnes / Později posouvá o týdny, měsíc nebo rok podle pohledu.
