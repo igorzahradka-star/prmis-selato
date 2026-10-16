@@ -7,8 +7,9 @@
  * kontroly (převod `validuj` z referenčního generátoru `render_smlouvy.py`) a popis změn mezi verzemi.
  */
 
-import { ServiceDevice } from './service';
-import { catalogAssetType, ChecklistItem, ServiceCatalog, SlaTimes } from './serviceCatalog';
+import { ServiceDevice, ServiceSite } from './service';
+import { catalogAssetType, ChecklistItem, cleanChecklist, evaluateChecklist, ServiceCatalog, SlaTimes } from './serviceCatalog';
+import type { ContractSettings } from './serviceContractSettings';
 
 // --- tvar dat smlouvy ---------------------------------------------------------------------------------------------
 
@@ -519,4 +520,171 @@ export function describeChanges(prev: ContractInput, next: ContractInput, catalo
     out.push(`Změněn objednatel: ${prev.objednatel.nazev} → ${next.objednatel.nazev}.`);
   }
   return out;
+}
+
+// --- uložené smlouvy a jejich verze --------------------------------------------------------------------------------
+
+/** Smlouva: patří vždy jedné lokalitě; její obsah je ve verzích. */
+export interface ServiceContract {
+  id: number;
+  /** Číslo smlouvy: číslo lokality a pořadí (10500-01). */
+  number: string;
+  siteNumber: string;
+  customerId?: number;
+  customerName?: string;
+  createdByName?: string;
+  createdAt?: Date;
+}
+
+/** Verze smlouvy: původní smlouva, nebo dodatek; nese snapshot dat. */
+export interface ServiceContractVersion {
+  id: number;
+  contractNumber: string;
+  versionNo: number;
+  kind: string;
+  status: string;
+  /** Od kdy verze platí (datum účinnosti). */
+  effectiveFrom?: Date;
+  /** U dodatku popis změn oproti předchozí verzi. */
+  changeNote?: string;
+  snapshot: ContractInput;
+  createdByName?: string;
+  createdAt?: Date;
+  signedAt?: Date;
+  signedByName?: string;
+  /** Odkaz na sken podepsané verze (později i na vygenerovaný Word). */
+  signedUrl?: string;
+}
+
+/** Nejnovější verze smlouvy (nejvyšší číslo). */
+export function latestVersion(versions: ServiceContractVersion[], contractNumber: string): ServiceContractVersion | undefined {
+  return versions.filter((v) => v.contractNumber === contractNumber).sort((a, b) => b.versionNo - a.versionNo)[0];
+}
+
+/** Platná verze: nejnovější podepsaná. */
+export function activeVersion(versions: ServiceContractVersion[], contractNumber: string): ServiceContractVersion | undefined {
+  return versions.filter((v) => v.contractNumber === contractNumber && v.status === 'Podepsaná').sort((a, b) => b.versionNo - a.versionNo)[0];
+}
+
+export interface BuildContractParams {
+  catalog: ServiceCatalog;
+  contractNumber: string;
+  site: ServiceSite;
+  /** Soubory lokality (neaktivní se vynechají). */
+  devices: ServiceDevice[];
+  /** Zákazník lokality (partner): objednatel smlouvy. */
+  partner?: { name: string; ico?: string; dic?: string; address?: string };
+  settings: ContractSettings;
+}
+
+const gpsText = (site: ServiceSite): string | undefined => (site.latitude !== undefined && site.longitude !== undefined ? `${site.latitude.toFixed(6)}, ${site.longitude.toFixed(6)}` : undefined);
+
+/**
+ * Výchozí obsah nové smlouvy pro lokalitu: objednatel z partnera, zhotovitel, asset manager, parametry, sazebník, autorizace, kontakty a eskalace
+ * z nastavení (kopie), příloha lokality z lokality, jejích souborů a checklistu (příznaky, moduly, činnosti, periody). Cena a náhradní díly
+ * zůstávají prázdné k doplnění.
+ */
+export function buildContractInput(p: BuildContractParams): ContractInput {
+  const settings = JSON.parse(JSON.stringify(p.settings)) as ContractSettings;
+  const checklist = cleanChecklist(p.catalog, p.site.checklist ?? { flags: [], modules: [], disabled: [], enabled: [], periods: {} });
+  const siteDevices = p.devices.filter((d) => d.siteNumber === p.site.number && d.isActive);
+  const items = evaluateChecklist(p.catalog, checklist, siteDevices.map((d) => d.kind));
+  const bank = checklist.flags.indexOf('bankovni_financovani') >= 0;
+  return {
+    smlouva: { cislo: p.contractNumber, misto_podpisu: settings.mistoPodpisu },
+    objednatel: {
+      nazev: p.partner ? p.partner.name : p.site.customerName || '',
+      sidlo: p.partner && p.partner.address ? p.partner.address : '',
+      ico: p.partner && p.partner.ico ? p.partner.ico : '',
+      dic: p.partner ? p.partner.dic : undefined
+    },
+    zhotovitel: settings.zhotovitel,
+    asset_manager: settings.assetManager.nazev ? settings.assetManager : null,
+    banka: p.site.financingBank ? { nazev: p.site.financingBank, ico: '' } : null,
+    volby: { skupina_revoltum: false, penale: false, bankovni_ujednani: bank },
+    parametry: settings.parametry,
+    sazebnik: settings.sazebnik,
+    autorizace_oem: settings.autorizaceOem,
+    servisni_partneri: [],
+    kontakty: settings.kontakty,
+    eskalace: settings.eskalace,
+    lokality: [
+      {
+        kod: p.site.number,
+        nazev: p.site.name,
+        priloha_cislo: '1',
+        verze: versionLabel(1),
+        adresa: p.site.address,
+        katastr: p.site.cadastre,
+        lv: p.site.lvNumber,
+        parcely: p.site.parcels,
+        gps: gpsText(p.site),
+        pripojeni: p.site.gridConnection,
+        pristup: p.site.siteAccess,
+        agregator: p.site.aggregator,
+        banka: p.site.financingBank,
+        priznaky: checklist.flags,
+        moduly: checklist.modules,
+        cinnosti_vypnute: checklist.disabled,
+        cinnosti_zapnute: checklist.enabled,
+        perioda_override: checklist.periods,
+        sla_profil: checklist.slaProfile,
+        assety: assetsFromDevices(siteDevices),
+        cinnosti: snapshotActivities(items),
+        cena: { radky: [], celkem: 0 },
+        nd: [],
+        kontakty: [],
+        zvlastni_ujednani: []
+      }
+    ]
+  };
+}
+
+/** Nová verze (dodatek) vychází z kopie dat předchozí verze; příloha lokality dostane nové číslo verze. */
+export function nextVersionSnapshot(previous: ContractInput, versionNo: number): ContractInput {
+  const copy = JSON.parse(JSON.stringify(previous)) as ContractInput;
+  copy.lokality.forEach((l) => {
+    l.verze = versionLabel(versionNo);
+  });
+  return copy;
+}
+
+/** Souhrn smlouvy pro seznam: počet souborů, činností a kontrol podle závažnosti. */
+export function contractSummary(catalog: ServiceCatalog, input: ContractInput): { assets: number; activities: number; errors: number; missing: number; warnings: number } {
+  const issues = validateContract(catalog, input);
+  return {
+    assets: input.lokality.reduce((n, l) => n + l.assety.length, 0),
+    activities: input.lokality.reduce((n, l) => n + (l.cinnosti ? l.cinnosti.length : 0), 0),
+    errors: issues.filter((i) => i.severity === 'chyba').length,
+    missing: issues.filter((i) => i.severity === 'doplnit').length,
+    warnings: issues.filter((i) => i.severity === 'varování').length
+  };
+}
+
+/**
+ * Změna stavu verze smlouvy: důvod, proč nejde (prázdný text = jde), a nové stavy dotčených verzí (podepsání nahradí dříve podepsané).
+ * Do stavu „K podpisu“ jde jen smlouva bez chyb a chybějících údajů (viz `statusChangeProblem`).
+ */
+export function contractStatusChange(catalog: ServiceCatalog, versions: ServiceContractVersion[], versionNo: number, to: string): { problem: string; updates: Record<number, string> } {
+  const version = versions.filter((v) => v.versionNo === versionNo)[0];
+  if (!version) {
+    return { problem: 'Verze smlouvy nebyla nalezena.', updates: {} };
+  }
+  const problem = statusChangeProblem(version.status, to, to === 'K podpisu' ? validateContract(catalog, version.snapshot) : []);
+  if (problem) {
+    return { problem, updates: {} };
+  }
+  if (to === 'Podepsaná') {
+    const after = statusesAfterSigning(versions, versionNo);
+    const updates: Record<number, string> = {};
+    Object.keys(after).forEach((k) => {
+      const no = Number(k);
+      const current = versions.filter((v) => v.versionNo === no)[0].status;
+      if (after[no] !== current) {
+        updates[no] = after[no];
+      }
+    });
+    return { problem: '', updates };
+  }
+  return { problem: '', updates: { [versionNo]: to } };
 }

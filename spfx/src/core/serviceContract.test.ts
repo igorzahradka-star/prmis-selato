@@ -1,9 +1,16 @@
 import { SERVICE_CATALOG as CAT } from './serviceCatalog.data';
 import { evaluateChecklist, SiteChecklist } from './serviceCatalog';
 import {
+  activeVersion,
   assetsFromDevices,
+  buildContractInput,
   checklistSections,
+  contractStatusChange,
+  contractSummary,
   ContractInput,
+  latestVersion,
+  nextVersionSnapshot,
+  ServiceContractVersion,
   describeChanges,
   hasBlockingError,
   isPlaceholder,
@@ -19,7 +26,8 @@ import {
   validateContract,
   versionLabel
 } from './serviceContract';
-import { ServiceDevice } from './service';
+import { ServiceDevice, ServiceSite } from './service';
+import { contractSettingsWithDefaults } from './serviceContractSettings';
 
 const CHECKLIST: SiteChecklist = {
   flags: ['vn_pripojeni', 'trafo_olejove', 'rizeni_pds', 'ups', 'oploceni', 'ezs', 'cctv', 'hasici_pristroje', 'osvetleni', 'travni_porost', 'meteostanice', 'bankovni_financovani', 'fve_pozemni', 'stridace_stringove', 'bess_kapalinove_chlazeni', 'bess_hasici_system', 'bess_detekce_plynu', 'bess_agregator', 'f_plyny'],
@@ -218,5 +226,96 @@ describe('změny mezi verzemi', () => {
     expect(text).toContain('Změněna volba penale: ne → ano');
     expect(text).toContain('Změněn sazebník');
     expect(text).toContain('Změněn objednatel');
+  });
+});
+
+describe('nová smlouva z lokality', () => {
+  const site = {
+    id: 1, number: '10500', name: 'Mastířovice', customerName: 'Sunset Terrace s.r.o.', address: 'Vrbice', latitude: 50.4929273467662, longitude: 14.311543787718, isActive: true,
+    cadastre: 'Mastířovice', lvNumber: '445', financingBank: 'Banka', checklist: CHECKLIST
+  } as ServiceSite;
+  const devices: ServiceDevice[] = [
+    { id: 1, number: '10501', siteNumber: '10500', name: 'Mastířovice I.', kind: 'FVE', isActive: true, parameters: '4 950 kWp' },
+    { id: 2, number: '10502', siteNumber: '10500', name: 'Mastířovice II.', kind: 'BESS', isActive: true, oemVendor: 'ABC Energy' },
+    { id: 3, number: '10509', siteNumber: '10500', name: 'Vyřazený', kind: 'FVE', isActive: false },
+    { id: 4, number: '10511', siteNumber: '10510', name: 'Jiná lokalita', kind: 'FVE', isActive: true }
+  ];
+  const settings = contractSettingsWithDefaults(undefined);
+  const build = (): ContractInput =>
+    buildContractInput({ catalog: CAT, contractNumber: '10500-01', site, devices, partner: { name: 'Sunset Terrace s.r.o.', ico: '12345678', dic: 'CZ12345678', address: 'Praha 1' }, settings });
+
+  it('objednatel z partnera, zhotovitel a parametry ze nastavení, příloha z lokality', () => {
+    const c = build();
+    expect(c.smlouva.cislo).toBe('10500-01');
+    expect(c.objednatel).toMatchObject({ nazev: 'Sunset Terrace s.r.o.', ico: '12345678', sidlo: 'Praha 1', dic: 'CZ12345678' });
+    expect(c.zhotovitel.ico).toBe('29713536');
+    expect(c.asset_manager).toMatchObject({ nazev: 'Revoltum a.s.' });
+    expect(c.parametry.doba_let).toBe(10);
+    const l = c.lokality[0];
+    expect(l).toMatchObject({ kod: '10500', nazev: 'Mastířovice', katastr: 'Mastířovice', lv: '445', gps: '50.492927, 14.311544', verze: '1.0' });
+    expect(l.assety.map((a) => a.kod)).toEqual(['10501', '10502']);
+    expect(l.cinnosti).toHaveLength(73);
+  });
+
+  it('bankovní financování z checklistu zapne bankovní ujednání; kopie nastavení je nezávislá', () => {
+    const c = build();
+    expect(c.volby).toEqual({ skupina_revoltum: false, penale: false, bankovni_ujednani: true });
+    c.parametry.doba_let = 1;
+    c.eskalace[0].res = 'jiné';
+    expect(settings.parametry.doba_let).toBe(10);
+    expect(settings.eskalace[0].res).toBe('Vedoucí servisu');
+  });
+
+  it('nová smlouva má cenu k doplnění; chybí-li zákazník, vezme se jméno z lokality', () => {
+    const c = build();
+    expect(validateContract(CAT, c).map((i) => i.code)).toContain('CENA_CHYBI');
+    const bez = buildContractInput({ catalog: CAT, contractNumber: '10500-02', site, devices, settings });
+    expect(bez.objednatel.nazev).toBe('Sunset Terrace s.r.o.');
+    expect(bez.objednatel.ico).toBe('');
+  });
+
+  it('dodatek je kopie s novým číslem verze přílohy', () => {
+    const a = build();
+    const b = nextVersionSnapshot(a, 2);
+    expect(b.lokality[0].verze).toBe('2.0');
+    expect(a.lokality[0].verze).toBe('1.0');
+    expect(describeChanges(a, b, CAT)).toEqual([]);
+  });
+
+  it('souhrn smlouvy a výběr verzí', () => {
+    const s = contractSummary(CAT, build());
+    expect(s).toMatchObject({ assets: 2, activities: 73, errors: 1 });
+    const versions = [
+      { contractNumber: '10500-01', versionNo: 1, status: 'Nahrazená' },
+      { contractNumber: '10500-01', versionNo: 2, status: 'Podepsaná' },
+      { contractNumber: '10500-01', versionNo: 3, status: 'Návrh' },
+      { contractNumber: '10510-01', versionNo: 1, status: 'Podepsaná' }
+    ] as ServiceContractVersion[];
+    expect(latestVersion(versions, '10500-01')?.versionNo).toBe(3);
+    expect(activeVersion(versions, '10500-01')?.versionNo).toBe(2);
+    expect(activeVersion(versions, '10520-01')).toBeUndefined();
+  });
+});
+
+describe('změna stavu verze smlouvy', () => {
+  const ver = (versionNo: number, status: string, snapshot: ContractInput = example()): ServiceContractVersion => ({ id: versionNo, contractNumber: '10500-01', versionNo, kind: versionNo === 1 ? 'Smlouva' : 'Dodatek', status, snapshot });
+
+  it('správná smlouva jde k podpisu, smlouva s chybou ne', () => {
+    expect(contractStatusChange(CAT, [ver(1, 'Návrh')], 1, 'K podpisu')).toEqual({ problem: '', updates: { 1: 'K podpisu' } });
+    const bad = clone(example());
+    bad.parametry.doba_let = 5;
+    expect(contractStatusChange(CAT, [ver(1, 'Návrh', bad)], 1, 'K podpisu').problem).toMatch(/nevyřešených/);
+  });
+
+  it('podpis nové verze nahradí dříve podepsanou', () => {
+    const r = contractStatusChange(CAT, [ver(1, 'Podepsaná'), ver(2, 'K podpisu')], 2, 'Podepsaná');
+    expect(r).toEqual({ problem: '', updates: { 1: 'Nahrazená', 2: 'Podepsaná' } });
+  });
+
+  it('nepovolený přechod a neexistující verze', () => {
+    expect(contractStatusChange(CAT, [ver(1, 'Návrh')], 1, 'Podepsaná').problem).toMatch(/nejde přejít/);
+    expect(contractStatusChange(CAT, [ver(1, 'Podepsaná')], 1, 'Návrh').problem).toMatch(/nejde přejít/);
+    expect(contractStatusChange(CAT, [], 3, 'K podpisu').problem).toMatch(/nebyla nalezena/);
+    expect(contractStatusChange(CAT, [ver(1, 'K podpisu')], 1, 'Návrh').updates).toEqual({ 1: 'Návrh' });
   });
 });

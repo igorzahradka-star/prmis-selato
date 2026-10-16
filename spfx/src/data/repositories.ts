@@ -32,6 +32,7 @@ import { NotificationPrefs } from '../core/notifications';
 import { AbraDoc } from '../core/abraDocs';
 import { ServiceDevice, ServiceSite } from '../core/service';
 import type { SiteChecklist } from '../core/serviceCatalog';
+import type { ContractInput, ServiceContract, ServiceContractVersion } from '../core/serviceContract';
 import { JobAction, JobActionInput, ServiceJob, ServiceRequest } from '../core/serviceJobs';
 
 /** Kdo je přihlášen a co smí. */
@@ -1034,6 +1035,25 @@ export interface IServiceRepository {
   deleteRequest(requestId: number, actor: CurrentUser): Promise<void>;
   /** Smaže zrušený nebo nezpracovaný servisní list (viz `jobDeletionProblem`); do koše webu. Smí jen vedení a administrátor. */
   deleteJob(jobId: number, actor: CurrentUser): Promise<void>;
+  /** Servisní smlouvy se zákazníky (obsah je ve verzích). */
+  listContracts(): Promise<ServiceContract[]>;
+  listContractVersions(): Promise<ServiceContractVersion[]>;
+  /**
+   * Založí smlouvu k lokalitě a její první verzi (Návrh) z hotového obsahu; číslo (10500-01) je v `input.smlouva.cislo` a musí být volné.
+   * Smí správce servisu, vedení a administrátor.
+   */
+  createContract(siteNumber: string, input: ContractInput, actor: CurrentUser): Promise<ServiceContractVersion>;
+  /** Uloží obsah rozpracované verze (jen ve stavu Návrh). */
+  saveContractVersion(contractNumber: string, versionNo: number, snapshot: ContractInput, meta: { effectiveFrom?: Date; changeNote?: string }, actor: CurrentUser): Promise<ServiceContractVersion>;
+  /** Založí novou verzi (dodatek) jako kopii poslední podepsané verze ve stavu Návrh (viz `newVersionProblem`). */
+  createContractVersion(contractNumber: string, changeNote: string, actor: CurrentUser): Promise<ServiceContractVersion>;
+  /**
+   * Změní stav verze (Návrh → K podpisu → Podepsaná; K podpisu → Návrh). K podpisu jen bez chyb a chybějících údajů; podepsání
+   * nahradí dříve podepsané verze. Vrací všechny verze smlouvy.
+   */
+  changeContractStatus(contractNumber: string, versionNo: number, status: string, signedUrl: string | undefined, actor: CurrentUser): Promise<ServiceContractVersion[]>;
+  /** Smaže rozpracovanou verzi (Návrh); je-li jediná, smaže i smlouvu. Smí vedení a administrátor. */
+  deleteContractVersion(contractNumber: string, versionNo: number, actor: CurrentUser): Promise<void>;
   listJobs(): Promise<ServiceJob[]>;
   /** Založí servisní list (číslo SL-RRRR-NNNN) a požadavek přepne na Zpracovává se. */
   createJob(input: ServiceJobInput, actor: CurrentUser): Promise<ServiceJob>;

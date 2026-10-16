@@ -13,6 +13,8 @@ import { canDeleteAnyInService, canDeleteInService, canManageSites, canWorkInSer
 import { JobAction, JobActionInput, JobStatus, RequestStatus, ServiceFlowError, ServiceJob, ServiceRequest, applyJobAction, requestCloseProblem, requestReopenProblem, requestStatusFrom } from '../../core/serviceJobs';
 import { OrderAttachment, validateAttachment } from '../../core/orders';
 import { parseChecklist, serializeChecklist, isEmptyChecklist, SiteChecklist } from '../../core/serviceCatalog';
+import { SERVICE_CATALOG } from '../../core/serviceCatalog.data';
+import { ContractInput, ServiceContract, ServiceContractVersion, contractStatusChange, newVersionProblem, nextVersionNo, nextVersionSnapshot } from '../../core/serviceContract';
 import { PlanItem, planItemProblem, requestKindOf, requiredDateOf } from '../../core/servicePlan';
 import { INumberingRepository, IProjectRepository, ISettingsRepository, PlanItemInput, ServiceAttachmentTarget, IServiceRepository, ServiceDeviceInput, ServiceJobInput, ServiceRequestInput, ServiceSiteInput } from '../repositories';
 import { getSp, getSpForSite, describeSpError } from './spContext';
@@ -25,6 +27,8 @@ const DEVICES = 'PRM_ServiceDevices';
 const REQUESTS = 'PRM_ServiceRequests';
 const JOBS = 'PRM_ServiceJobs';
 const PLAN = 'PRM_ServicePlan';
+const CONTRACTS = 'PRM_ServiceContracts';
+const CONTRACT_VERSIONS = 'PRM_ServiceContractVersions';
 const AUDIT = 'PRM_AuditLog';
 
 type Item = Record<string, unknown> & { Id: number; Title?: string };
@@ -115,6 +119,43 @@ function mapRequest(i: Item): ServiceRequest {
     resolvedAt: toDate(str(i.ResolvedAt)),
     resolvedByName: str(i.ResolvedByName),
     resolution: str(i.Resolution)
+  };
+}
+
+function mapContract(i: Item): ServiceContract {
+  return {
+    id: i.Id,
+    number: str(i.ContractNumber) || '',
+    siteNumber: str(i.SiteNumber) || '',
+    customerId: numOrUndef(i.CustomerId),
+    customerName: str(i.CustomerName),
+    createdByName: str(i.CreatedByName),
+    createdAt: toDate(str(i.Created))
+  };
+}
+
+/** Verze smlouvy; řádek s nečitelným JSON se vynechá (vrací undefined), aby jedna poškozená verze nezastavila celý přehled. */
+function mapContractVersion(i: Item): ServiceContractVersion | undefined {
+  let snapshot: ContractInput;
+  try {
+    snapshot = JSON.parse(str(i.SnapshotJson) || '') as ContractInput;
+  } catch {
+    return undefined;
+  }
+  return {
+    id: i.Id,
+    contractNumber: str(i.ContractNumber) || '',
+    versionNo: numOrUndef(i.VersionNo) ?? 1,
+    kind: str(i.VersionKind) || 'Smlouva',
+    status: str(i.VersionStatus) || 'Návrh',
+    effectiveFrom: toDate(str(i.EffectiveFrom)),
+    changeNote: str(i.ChangeNote),
+    snapshot,
+    createdByName: str(i.CreatedByName),
+    createdAt: toDate(str(i.Created)),
+    signedAt: toDate(str(i.SignedAt)),
+    signedByName: str(i.SignedByName),
+    signedUrl: str(i.SignedUrl)
   };
 }
 
@@ -784,6 +825,139 @@ export class SpServiceRepository implements IServiceRepository {
   }
 
   // --- servisní listy ---
+
+  public async listContracts(): Promise<ServiceContract[]> {
+    return (await this.readAll(CONTRACTS)).map(mapContract).sort((a, b) => a.number.localeCompare(b.number));
+  }
+
+  public async listContractVersions(): Promise<ServiceContractVersion[]> {
+    return (await this.readAll(CONTRACT_VERSIONS)).map(mapContractVersion).filter((v): v is ServiceContractVersion => !!v).sort((a, b) => a.contractNumber.localeCompare(b.contractNumber) || a.versionNo - b.versionNo);
+  }
+
+  private versionFields(v: { contractNumber: string; versionNo: number; kind: string; status: string; snapshot: ContractInput; effectiveFrom?: Date; changeNote?: string }): Record<string, unknown> {
+    return {
+      Title: `${v.contractNumber} v${v.versionNo}`,
+      ContractNumber: v.contractNumber,
+      VersionNo: v.versionNo,
+      VersionKind: v.kind,
+      VersionStatus: v.status,
+      EffectiveFrom: iso(v.effectiveFrom),
+      ChangeNote: v.changeNote ?? '',
+      SnapshotJson: JSON.stringify(v.snapshot)
+    };
+  }
+
+  public async createContract(siteNumber: string, input: ContractInput, actor: CurrentUser): Promise<ServiceContractVersion> {
+    if (!canManageSites(actor.roles)) {
+      throw new Error('Smlouvy smí zakládat jen správce servisu, vedení a administrátor.');
+    }
+    const [sites, contracts] = await Promise.all([this.listSites(), this.listContracts()]);
+    const site = sites.filter((s) => s.number === siteNumber)[0];
+    if (!site) {
+      throw new Error(`Lokalita ${siteNumber} neexistuje.`);
+    }
+    const number = input.smlouva.cislo;
+    if (number.indexOf(`${siteNumber}-`) !== 0) {
+      throw new Error(`Číslo smlouvy musí začínat číslem lokality (${siteNumber}-01).`);
+    }
+    if (contracts.some((c) => c.number === number)) {
+      throw new Error(`Smlouva ${number} už existuje.`);
+    }
+    await this.add(CONTRACTS, { Title: `${number} ${site.name}`, ContractNumber: number, SiteNumber: siteNumber, CustomerId: site.customerId ?? null, CustomerName: site.customerName ?? '', CreatedByName: actor.displayName }, 'Smlouvu se nepodařilo založit');
+    const fields = this.versionFields({ contractNumber: number, versionNo: 1, kind: 'Smlouva', status: 'Návrh', snapshot: input });
+    const id = await this.add(CONTRACT_VERSIONS, { ...fields, CreatedByName: actor.displayName }, 'Smlouvu se nepodařilo uložit');
+    await this.audit('Servis – smlouva', number, actor, 'Založena smlouva (návrh, verze 1)');
+    return { id, contractNumber: number, versionNo: 1, kind: 'Smlouva', status: 'Návrh', snapshot: input, createdByName: actor.displayName, createdAt: new Date() };
+  }
+
+  private async versionsOf(contractNumber: string): Promise<ServiceContractVersion[]> {
+    return (await this.listContractVersions()).filter((v) => v.contractNumber === contractNumber);
+  }
+
+  public async saveContractVersion(contractNumber: string, versionNo: number, snapshot: ContractInput, meta: { effectiveFrom?: Date; changeNote?: string }, actor: CurrentUser): Promise<ServiceContractVersion> {
+    if (!canManageSites(actor.roles)) {
+      throw new Error('Smlouvy smí upravovat jen správce servisu, vedení a administrátor.');
+    }
+    const version = (await this.versionsOf(contractNumber)).filter((v) => v.versionNo === versionNo)[0];
+    if (!version) {
+      throw new Error('Verze smlouvy nebyla nalezena.');
+    }
+    if (version.status !== 'Návrh') {
+      throw new Error('Upravit jde jen návrh. Podepsanou verzi změníte novou verzí (dodatkem).');
+    }
+    await this.update(CONTRACT_VERSIONS, version.id, { SnapshotJson: JSON.stringify(snapshot), EffectiveFrom: iso(meta.effectiveFrom), ChangeNote: meta.changeNote ?? '' }, 'Smlouvu se nepodařilo uložit');
+    await this.audit('Servis – smlouva', contractNumber, actor, `Upravena verze ${versionNo}`);
+    return { ...version, snapshot, effectiveFrom: meta.effectiveFrom, changeNote: meta.changeNote };
+  }
+
+  public async createContractVersion(contractNumber: string, changeNote: string, actor: CurrentUser): Promise<ServiceContractVersion> {
+    if (!canManageSites(actor.roles)) {
+      throw new Error('Smlouvy smí upravovat jen správce servisu, vedení a administrátor.');
+    }
+    const versions = await this.versionsOf(contractNumber);
+    const problem = newVersionProblem(versions);
+    if (problem) {
+      throw new Error(problem);
+    }
+    const base = versions.filter((v) => v.status === 'Podepsaná').sort((a, b) => b.versionNo - a.versionNo)[0];
+    const versionNo = nextVersionNo(versions);
+    const snapshot = nextVersionSnapshot(base.snapshot, versionNo);
+    const fields = this.versionFields({ contractNumber, versionNo, kind: 'Dodatek', status: 'Návrh', snapshot, changeNote });
+    const id = await this.add(CONTRACT_VERSIONS, { ...fields, CreatedByName: actor.displayName }, 'Novou verzi se nepodařilo založit');
+    await this.audit('Servis – smlouva', contractNumber, actor, `Založena verze ${versionNo} (dodatek)`);
+    return { id, contractNumber, versionNo, kind: 'Dodatek', status: 'Návrh', changeNote, snapshot, createdByName: actor.displayName, createdAt: new Date() };
+  }
+
+  public async changeContractStatus(contractNumber: string, versionNo: number, status: string, signedUrl: string | undefined, actor: CurrentUser): Promise<ServiceContractVersion[]> {
+    if (!canManageSites(actor.roles)) {
+      throw new Error('Stav smlouvy smí měnit jen správce servisu, vedení a administrátor.');
+    }
+    const versions = await this.versionsOf(contractNumber);
+    const change = contractStatusChange(SERVICE_CATALOG, versions, versionNo, status);
+    if (change.problem) {
+      throw new Error(change.problem);
+    }
+    const now = new Date();
+    for (const k of Object.keys(change.updates)) {
+      const no = Number(k);
+      const v = versions.filter((x) => x.versionNo === no)[0];
+      const fields: Record<string, unknown> = { VersionStatus: change.updates[no] };
+      if (no === versionNo && status === 'Podepsaná') {
+        fields.SignedAt = now.toISOString();
+        fields.SignedByName = actor.displayName;
+        fields.SignedUrl = signedUrl ?? '';
+      }
+      await this.update(CONTRACT_VERSIONS, v.id, fields, 'Stav smlouvy se nepodařilo změnit');
+    }
+    await this.audit('Servis – smlouva', contractNumber, actor, `Verze ${versionNo}: stav ${status}`);
+    return this.versionsOf(contractNumber);
+  }
+
+  public async deleteContractVersion(contractNumber: string, versionNo: number, actor: CurrentUser): Promise<void> {
+    if (!canDeleteInService(actor.roles)) {
+      throw new Error('Rozpracovanou verzi smlouvy smí smazat jen vedení a administrátor.');
+    }
+    const versions = await this.versionsOf(contractNumber);
+    const version = versions.filter((v) => v.versionNo === versionNo)[0];
+    if (!version) {
+      throw new Error('Verze smlouvy nebyla nalezena.');
+    }
+    if (version.status !== 'Návrh') {
+      throw new Error('Smazat jde jen návrh. Verzi k podpisu nejdřív vraťte do návrhu; podepsané verze se nemažou.');
+    }
+    try {
+      await getSp(this.context).web.lists.getByTitle(CONTRACT_VERSIONS).items.getById(version.id).recycle();
+      if (versions.length === 1) {
+        const contract = (await this.listContracts()).filter((c) => c.number === contractNumber)[0];
+        if (contract) {
+          await getSp(this.context).web.lists.getByTitle(CONTRACTS).items.getById(contract.id).recycle();
+        }
+      }
+    } catch (error) {
+      throw new Error(describeSpError(error, 'Verzi smlouvy se nepodařilo smazat'));
+    }
+    await this.audit('Servis – smlouva', contractNumber, actor, `Smazán návrh verze ${versionNo} (do koše webu)`);
+  }
 
   public async listJobs(): Promise<ServiceJob[]> {
     return (await this.readAll(JOBS)).map(mapJob).sort((a, b) => b.number.localeCompare(a.number));

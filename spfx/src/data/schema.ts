@@ -18,7 +18,7 @@
  * Verze schématu. Ukládá se do PRM_Settings pod klíčem `schemaVersion`.
  * Průvodce porovná uloženou verzi s touto a nabídne doplnění rozdílu.
  */
-export const SCHEMA_VERSION = 33;
+export const SCHEMA_VERSION = 34;
 
 /** Typ sloupce v SharePointu. */
 export type FieldType =
@@ -841,6 +841,44 @@ const PRM_SERVICE_PLAN: ListDef = {
   ]
 };
 
+const PRM_SERVICE_CONTRACTS: ListDef = {
+  name: 'PRM_ServiceContracts',
+  title: 'PRM – Servis: smlouvy',
+  description: 'Servisní smlouvy se zákazníky: jedna smlouva patří jedné lokalitě (číslo 10500-01). Obsah je ve verzích (PRM_ServiceContractVersions).',
+  kind: 'list',
+  site: 'PRM',
+  versioning: true,
+  fields: [
+    { name: 'ContractNumber', title: 'Číslo smlouvy', type: 'Text', required: true, indexed: true },
+    { name: 'SiteNumber', title: 'Číslo lokality', type: 'Text', required: true, indexed: true },
+    { name: 'CustomerId', title: 'Zákazník (ID partnera)', type: 'Number', decimals: 0 },
+    { name: 'CustomerName', title: 'Zákazník', type: 'Text' },
+    { name: 'CreatedByName', title: 'Založil', type: 'Text' }
+  ]
+};
+
+const PRM_SERVICE_CONTRACT_VERSIONS: ListDef = {
+  name: 'PRM_ServiceContractVersions',
+  title: 'PRM – Servis: verze smluv',
+  description: 'Verze servisních smluv (smlouva, dodatky). Každá verze nese snapshot všech dat smlouvy; podepsaná verze se nemění.',
+  kind: 'list',
+  site: 'PRM',
+  versioning: true,
+  fields: [
+    { name: 'ContractNumber', title: 'Číslo smlouvy', type: 'Text', required: true, indexed: true },
+    { name: 'VersionNo', title: 'Číslo verze', type: 'Number', decimals: 0, required: true },
+    { name: 'VersionKind', title: 'Druh', type: 'Choice', choices: ['Smlouva', 'Dodatek'], defaultValue: 'Smlouva' },
+    { name: 'VersionStatus', title: 'Stav', type: 'Choice', choices: ['Návrh', 'K podpisu', 'Podepsaná', 'Nahrazená'], defaultValue: 'Návrh', indexed: true },
+    { name: 'EffectiveFrom', title: 'Účinnost od', type: 'DateTime' },
+    { name: 'ChangeNote', title: 'Popis změn', type: 'Note' },
+    { name: 'SnapshotJson', title: 'Data smlouvy (JSON)', type: 'Note', description: 'Snapshot všech údajů verze smlouvy; upravuje se v aplikaci (Servis → Správa smluv).' },
+    { name: 'CreatedByName', title: 'Založil', type: 'Text' },
+    { name: 'SignedAt', title: 'Podepsáno', type: 'DateTime' },
+    { name: 'SignedByName', title: 'Podpis zaznamenal', type: 'Text' },
+    { name: 'SignedUrl', title: 'Odkaz na podepsanou verzi', type: 'Text' }
+  ]
+};
+
 export const LISTS: ListDef[] = [
   PRM_SETTINGS,
   PRM_DOCTYPES,
@@ -860,6 +898,8 @@ export const LISTS: ListDef[] = [
   PRM_SERVICE_REQUESTS,
   PRM_SERVICE_JOBS,
   PRM_SERVICE_PLAN,
+  PRM_SERVICE_CONTRACTS,
+  PRM_SERVICE_CONTRACT_VERSIONS,
   PRM_INCOME_PLAN,
   PRM_PURCHASE_ORDERS,
   PRM_INVOICE_BASES,
