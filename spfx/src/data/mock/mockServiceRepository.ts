@@ -9,7 +9,7 @@ import { JobAction, JobActionInput, JobStatus, RequestStatus, ServiceFlowError, 
 import { OrderAttachment, validateAttachment } from '../../core/orders';
 import type { SiteChecklist } from '../../core/serviceCatalog';
 import { SERVICE_CATALOG } from '../../core/serviceCatalog.data';
-import { ContractDocument, ContractInput, ServiceContract, ServiceContractVersion, contractStatusChange, newVersionProblem, nextVersionNo, nextVersionSnapshot } from '../../core/serviceContract';
+import { ContractDocument, ContractInput, ServiceContract, ServiceContractVersion, contractStatusChange, deviceContractUpdates, newVersionProblem, nextVersionNo, nextVersionSnapshot } from '../../core/serviceContract';
 import { PlanItem, planItemProblem, requestKindOf, requiredDateOf } from '../../core/servicePlan';
 import { INumberingRepository, IProjectRepository, IServiceRepository, PlanItemInput, ServiceAttachmentTarget, ServiceDeviceInput, ServiceJobInput, ServiceRequestInput, ServiceSiteInput } from '../repositories';
 
@@ -472,6 +472,12 @@ export class MockServiceRepository implements IServiceRepository {
       const signing = x.versionNo === versionNo && status === 'Podepsaná';
       return { ...x, status: change.updates[x.versionNo], ...(signing ? { signedAt: now, signedByName: actor.displayName, signedUrl } : {}) };
     });
+    if (status === 'Podepsaná') {
+      const signed = this.contractVersions.filter((x) => x.contractNumber === contractNumber && x.versionNo === versionNo)[0];
+      deviceContractUpdates(signed, now).forEach((u) => {
+        this.devices = this.devices.map((d) => (d.number === u.deviceNumber ? { ...d, contractFrom: u.contractFrom, contractTo: u.contractTo, contractNote: d.contractNote && !/^Smlouva \d/.test(d.contractNote) ? `${u.contractNote} · ${d.contractNote}` : u.contractNote, contractUrl: signedUrl || d.contractUrl } : d));
+      });
+    }
     return this.listContractVersions().then((all) => all.filter((x) => x.contractNumber === contractNumber));
   }
 

@@ -33,6 +33,8 @@ import {
 import { cleanChecklist, evaluateChecklist, isEmptyChecklist } from '../../core/serviceCatalog';
 import { SERVICE_CATALOG as CATALOG } from '../../core/serviceCatalog.data';
 import { newPlanItemsOnly, planFromChecklist, planTargetKey } from '../../core/servicePlanCatalog';
+import { ServiceContract, ServiceContractVersion, activeVersion, deviceKindOfAsset } from '../../core/serviceContract';
+import { snapshotItems } from '../../core/serviceContractRender';
 import { PlanItemInput } from '../../data/repositories';
 import { DATE_INPUT, TD, TH, dateToInput, inputToDate } from './serviceUi';
 
@@ -51,6 +53,8 @@ export const ServicePlanTab: React.FC<{
   const { repos, user, settings, reloadSettings } = useApp();
   const thisYear = new Date().getFullYear();
   const [plan, setPlan] = React.useState<PlanItem[] | undefined>(undefined);
+  const [contracts, setContracts] = React.useState<ServiceContract[]>([]);
+  const [contractVersions, setContractVersions] = React.useState<ServiceContractVersion[]>([]);
   const [error, setError] = React.useState<string | undefined>(undefined);
   const [notice, setNotice] = React.useState<string | undefined>(undefined);
   const [year, setYear] = React.useState(thisYear);
@@ -69,11 +73,12 @@ export const ServicePlanTab: React.FC<{
 
   React.useEffect(() => {
     let cancelled = false;
-    repos.service
-      .listPlan()
-      .then((l) => {
+    Promise.all([repos.service.listPlan(), repos.service.listContracts().catch((): ServiceContract[] => []), repos.service.listContractVersions().catch((): ServiceContractVersion[] => [])])
+      .then(([l, c, v]) => {
         if (!cancelled) {
           setPlan(l);
+          setContracts(c);
+          setContractVersions(v);
         }
       })
       .catch((e: unknown) => {
@@ -320,6 +325,8 @@ export const ServicePlanTab: React.FC<{
           sites={activeSites}
           devices={devices}
           plan={plan || []}
+          contracts={contracts}
+          contractVersions={contractVersions}
           year={year}
           defaultSite={site}
           onClose={() => setChecklistDlg(false)}
@@ -560,23 +567,35 @@ const ChecklistPlanDialog: React.FC<{
   sites: ServiceSite[];
   devices: ServiceDevice[];
   plan: PlanItem[];
+  contracts: ServiceContract[];
+  contractVersions: ServiceContractVersion[];
   year: number;
   defaultSite: string;
   onClose: () => void;
   onApply: (items: PlanItemInput[]) => Promise<unknown>;
-}> = ({ sites, devices, plan, year, defaultSite, onClose, onApply }) => {
+}> = ({ sites, devices, plan, contracts, contractVersions, year, defaultSite, onClose, onApply }) => {
   const [siteNumber, setSiteNumber] = React.useState(defaultSite);
   const [startYear, setStartYear] = React.useState(year);
   const [chosen, setChosen] = React.useState<string[] | undefined>(undefined);
+  const [source, setSource] = React.useState<'checklist' | 'smlouva'>('checklist');
   const { busy, error, run } = useAsync();
   const site = sites.filter((s) => s.number === siteNumber)[0];
+  // Platná (podepsaná) smlouva lokality: plán může vycházet z její přílohy (snapshot), ne z živého checklistu.
+  const signed = contracts
+    .filter((c) => c.siteNumber === siteNumber)
+    .map((c) => activeVersion(contractVersions, c.number))
+    .filter((v): v is ServiceContractVersion => !!v)[0];
+  const fromContract = source === 'smlouva' && !!signed;
+  const contractSite = signed ? signed.snapshot.lokality[0] : undefined;
   const siteDevices = site ? devices.filter((d) => d.siteNumber === siteNumber && d.isActive) : [];
   const checklist = cleanChecklist(CATALOG, (site && site.checklist) || { flags: [], modules: [], disabled: [], enabled: [], periods: {} });
-  const items = site ? evaluateChecklist(CATALOG, checklist, siteDevices.map((d) => d.kind)) : [];
-  const full = site ? planFromChecklist(CATALOG, items, siteDevices, { siteNumber, year, startYear }) : [];
+  const planDevices = fromContract && contractSite ? contractSite.assety.map((a) => ({ number: a.kod, name: a.nazev, kind: deviceKindOfAsset(a.typ) })) : siteDevices.map((d) => ({ number: d.number, name: d.name, kind: d.kind }));
+  const items = !site ? [] : fromContract && contractSite ? snapshotItems(CATALOG, contractSite) : evaluateChecklist(CATALOG, checklist, siteDevices.map((d) => d.kind));
+  const firstYear = fromContract && signed && signed.effectiveFrom ? signed.effectiveFrom.getFullYear() : startYear;
+  const full = site ? planFromChecklist(CATALOG, items, planDevices, { siteNumber, year, startYear: firstYear }) : [];
   const targets = [
     { key: 'site', label: 'Společné činnosti lokality a vyvedení výkonu', count: full.filter((p) => planTargetKey(p.deviceNumber) === 'site').length },
-    ...siteDevices.map((d) => ({ key: d.number, label: `${d.number} ${d.name} (${d.kind})`, count: full.filter((p) => planTargetKey(p.deviceNumber) === d.number).length }))
+    ...planDevices.map((d) => ({ key: d.number, label: `${d.number} ${d.name} (${d.kind})`, count: full.filter((p) => planTargetKey(p.deviceNumber) === d.number).length }))
   ];
   const selectedKeys = chosen ?? targets.map((t) => t.key);
   const all = full.filter((p) => selectedKeys.indexOf(planTargetKey(p.deviceNumber)) >= 0);
@@ -605,8 +624,25 @@ const ChecklistPlanDialog: React.FC<{
     >
       <Dropdown label="Lokalita" required placeholder="Vyberte lokalitu" selectedKey={siteNumber || null} options={sites.map((s) => ({ key: s.number, text: `${s.number} ${s.name}` }))} onChange={(_, o) => { if (o) { setSiteNumber(String(o.key)); setChosen(undefined); } }} />
       {site && (
+        <ChoiceGroup
+          label="Zdroj činností"
+          selectedKey={fromContract ? 'smlouva' : 'checklist'}
+          options={[
+            { key: 'checklist', text: 'Aktuální checklist lokality' },
+            { key: 'smlouva', text: signed ? `Platná smlouva ${signed.contractNumber}, verze ${signed.versionNo} (podle její přílohy)` : 'Platná smlouva (lokalita nemá podepsanou smlouvu)', disabled: !signed }
+          ]}
+          onChange={(_, o) => {
+            if (o) {
+              setSource(o.key as 'checklist' | 'smlouva');
+              setChosen(undefined);
+            }
+          }}
+          styles={{ root: { marginTop: 8 } }}
+        />
+      )}
+      {site && (
         <div style={{ margin: '8px 0' }}>
-          <div style={{ fontWeight: 600, marginBottom: 4 }}>Co z checklistu nahrát do plánu</div>
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>Co z {fromContract ? 'přílohy smlouvy' : 'checklistu'} nahrát do plánu</div>
           {targets.map((t) => (
             <Checkbox
               key={t.key}

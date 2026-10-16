@@ -13,7 +13,8 @@ import { formatDate, formatDateTime } from '../../core/format';
 import { ServiceDevice, ServiceSite, jobDeletionProblem, requestDeletionProblem } from '../../core/service';
 import { RequestStatus, ServiceJob, ServiceRequest, requestCloseProblem, requestReopenProblem } from '../../core/serviceJobs';
 import { SlaRule, slaProgress } from '../../core/serviceSla';
-import { Fact, JobKindBadge, JobStatusBadge, PriorityBadge, RequestStatusBadge, SlaIndicator, TD, TH } from './serviceUi';
+import type { ContractCoverage } from '../../core/serviceContract';
+import { CoverageLabel, Fact, JobKindBadge, JobStatusBadge, PriorityBadge, RequestStatusBadge, SlaIndicator, TD, TH } from './serviceUi';
 import { ServiceAttachments } from './ServiceAttachments';
 
 export const RequestPanel: React.FC<{
@@ -22,6 +23,7 @@ export const RequestPanel: React.FC<{
   devices: ServiceDevice[];
   jobs: ServiceJob[];
   rules: SlaRule[];
+  coverage: ContractCoverage;
   mayWork: boolean;
   mayDelete: boolean;
   isAdmin: boolean;
@@ -33,7 +35,7 @@ export const RequestPanel: React.FC<{
   onNewJob: () => void;
   onOpenJob: (jobId: number) => void;
   onDelete: () => void;
-}> = ({ request, sites, devices, jobs, rules, mayWork, mayDelete, isAdmin, onClose, onEdit, onReject, onResolve, onReopen, onNewJob, onOpenJob, onDelete }) => {
+}> = ({ request, sites, devices, jobs, rules, coverage, mayWork, mayDelete, isAdmin, onClose, onEdit, onReject, onResolve, onReopen, onNewJob, onOpenJob, onDelete }) => {
   const [pending, setPending] = React.useState<File[]>([]);
   const site = sites.filter((s) => s.number === request.siteNumber)[0];
   const device = request.deviceNumber ? devices.filter((d) => d.number === request.deviceNumber)[0] : undefined;
@@ -64,6 +66,9 @@ export const RequestPanel: React.FC<{
       </div>
       <Fact label="Lokalita / soubor">
         {site ? `${site.number} ${site.name}` : request.siteNumber} · {device ? `${device.number} ${device.name}` : 'celá lokalita'}
+      </Fact>
+      <Fact label="Smlouva">
+        <CoverageLabel coverage={coverage} />
       </Fact>
       <Fact label="Přijato">
         {formatDateTime(request.receivedAt)}, {request.receivedByName}

@@ -6,7 +6,10 @@ import {
   buildContractInput,
   checklistSections,
   contractStatusChange,
+  contractCoverage,
   contractSummary,
+  contractValidUntil,
+  deviceContractUpdates,
   deviceKindOfAsset,
   recomputeSiteActivities,
   ContractInput,
@@ -334,5 +337,47 @@ describe('přepočet činností přílohy', () => {
     expect((full.cinnosti || []).some((c) => bessIds.has(c.id))).toBe(true);
     expect(deviceKindOfAsset('ENC')).toBe('Kogenerace');
     expect(deviceKindOfAsset('FVE')).toBe('FVE');
+  });
+});
+
+describe('pokrytí servisu smlouvou a platnost u souborů', () => {
+  const contract = { id: 1, number: '10500-01', siteNumber: '10500' };
+  const ver = (over: Partial<ServiceContractVersion> = {}): ServiceContractVersion => ({ id: 1, contractNumber: '10500-01', versionNo: 1, kind: 'Smlouva', status: 'Podepsaná', effectiveFrom: new Date(2026, 0, 1), snapshot: example(), ...over });
+  const today = new Date(2026, 9, 16);
+
+  it('délka platnosti: účinnost + doba v letech, poslední den', () => {
+    expect(contractValidUntil(ver())?.toDateString()).toBe(new Date(2035, 11, 31).toDateString());
+    expect(contractValidUntil(ver({ effectiveFrom: undefined }))).toBeUndefined();
+  });
+
+  it('platná smlouva pokrývá lokalitu i soubory v příloze, ne cizí soubor', () => {
+    expect(contractCoverage('10500', '10501', [contract], [ver()], today)).toMatchObject({ state: 'platna', contractNumber: '10500-01' });
+    expect(contractCoverage('10500', undefined, [contract], [ver()], today).state).toBe('platna');
+    expect(contractCoverage('10500', '10500', [contract], [ver()], today).state).toBe('platna');
+    expect(contractCoverage('10500', '10509', [contract], [ver()], today)).toMatchObject({ state: 'mimo-prilohu', contractNumber: '10500-01' });
+  });
+
+  it('bez podepsané verze, před účinností, po uplynutí i u jiné lokality', () => {
+    expect(contractCoverage('10500', '10501', [contract], [ver({ status: 'Návrh' })], today).state).toBe('bez-smlouvy');
+    expect(contractCoverage('10500', '10501', [contract], [ver({ effectiveFrom: new Date(2027, 0, 1) })], today).state).toBe('bez-smlouvy');
+    expect(contractCoverage('10500', '10501', [contract], [ver({ effectiveFrom: new Date(2010, 0, 1) })], today).state).toBe('vyprsela');
+    expect(contractCoverage('10510', '10511', [contract], [ver()], today).state).toBe('bez-smlouvy');
+  });
+
+  it('nejnovější podepsaná verze rozhoduje (dodatek přidal soubor)', () => {
+    const v2 = example();
+    v2.lokality[0].assety.push({ kod: '10503', typ: 'FVE', nazev: 'Nový' });
+    const versions = [ver({ status: 'Nahrazená' }), ver({ versionNo: 2, kind: 'Dodatek', snapshot: v2 })];
+    expect(contractCoverage('10500', '10503', [contract], versions, today).state).toBe('platna');
+  });
+
+  it('podpis nastaví soubory platnost od účinnosti na dobu smlouvy', () => {
+    const u = deviceContractUpdates(ver({ contractNumber: '10500-01', versionNo: 2 }), new Date(2026, 5, 1));
+    expect(u.map((x) => x.deviceNumber)).toEqual(['10501', '10502']);
+    expect(u[0].contractFrom.getFullYear()).toBe(2026);
+    expect(u[0].contractTo?.getFullYear()).toBe(2035);
+    expect(u[0].contractNote).toBe('Smlouva 10500-01, verze 2');
+    const bezDatumu = deviceContractUpdates(ver({ effectiveFrom: undefined }), new Date(2026, 5, 15));
+    expect(bezDatumu[0].contractFrom.getDate()).toBe(15);
   });
 });

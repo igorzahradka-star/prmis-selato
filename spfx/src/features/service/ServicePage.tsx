@@ -25,8 +25,9 @@ import { notifyServiceManagers, serviceLink } from './serviceNotify';
 import { serviceRequestMail } from '../../core/notifications';
 import { JobPanel } from './JobPanel';
 import { RequestPanel } from './RequestPanel';
-import { Clamp, RequestTip, JobKindBadge, JobStatusBadge, PriorityBadge, RequestStatusBadge, ScopeFilters, SlaIndicator, TD, TH } from './serviceUi';
+import { Clamp, CoverageLabel, RequestTip, JobKindBadge, JobStatusBadge, PriorityBadge, RequestStatusBadge, ScopeFilters, SlaIndicator, TD, TH } from './serviceUi';
 import { isSlaBreached, slaProgress } from '../../core/serviceSla';
+import { ContractCoverage, ServiceContract, ServiceContractVersion, contractCoverage } from '../../core/serviceContract';
 
 type JobFilter = 'open' | 'all' | JobStatus;
 type RequestFilter = 'open' | 'all' | RequestStatus;
@@ -53,6 +54,8 @@ export const ServicePage: React.FC<{ param?: string }> = ({ param }) => {
   const [requests, setRequests] = React.useState<ServiceRequest[]>([]);
   const [jobs, setJobs] = React.useState<ServiceJob[]>([]);
   const [partners, setPartners] = React.useState<Partner[]>([]);
+  const [contracts, setContracts] = React.useState<ServiceContract[]>([]);
+  const [contractVersions, setContractVersions] = React.useState<ServiceContractVersion[]>([]);
   const [reloadKey, setReloadKey] = React.useState(0);
   const [requestFilter, setRequestFilter] = React.useState<RequestFilter>('open');
   const [jobFilter, setJobFilter] = React.useState<JobFilter>('open');
@@ -80,14 +83,16 @@ export const ServicePage: React.FC<{ param?: string }> = ({ param }) => {
       return undefined;
     }
     let cancelled = false;
-    Promise.all([repos.service.listSites(), repos.service.listDevices(), repos.service.listRequests(), repos.service.listJobs(), repos.partners.list({}).catch((): Partner[] => [])])
-      .then(([s, d, r, j, p]) => {
+    Promise.all([repos.service.listSites(), repos.service.listDevices(), repos.service.listRequests(), repos.service.listJobs(), repos.partners.list({}).catch((): Partner[] => []), repos.service.listContracts().catch((): ServiceContract[] => []), repos.service.listContractVersions().catch((): ServiceContractVersion[] => [])])
+      .then(([s, d, r, j, p, c, cv]) => {
         if (!cancelled) {
           setSites(s);
           setDevices(d);
           setRequests(r);
           setJobs(j);
           setPartners(p);
+          setContracts(c);
+          setContractVersions(cv);
           setLoaded(true);
         }
       })
@@ -120,6 +125,7 @@ export const ServicePage: React.FC<{ param?: string }> = ({ param }) => {
     }
     window.location.hash = buildHash(RouteName.Service);
   }, [loaded, param]);
+  const coverageOf = (siteNumber: string, deviceNumber?: string): ContractCoverage => contractCoverage(siteNumber, deviceNumber, contracts, contractVersions);
   const siteName = (n: string): string => {
     const s = sites.filter((x) => x.number === n)[0];
     return s ? `${s.number} ${s.name}` : n;
@@ -227,6 +233,7 @@ export const ServicePage: React.FC<{ param?: string }> = ({ param }) => {
                     <Clamp width={170} style={{ color: RES.gray, fontSize: 12 }}>
                       {deviceName(r.deviceNumber)}
                     </Clamp>
+                    <CoverageLabel coverage={coverageOf(r.siteNumber, r.deviceNumber)} />
                   </td>
                   <td style={TD}>
                     <Clamp width={340} tip={<RequestTip request={r} place={`${siteName(r.siteNumber)} · ${deviceName(r.deviceNumber)}`} />}>
@@ -423,6 +430,7 @@ export const ServicePage: React.FC<{ param?: string }> = ({ param }) => {
           devices={devices}
           jobs={jobs}
           rules={settings.service.slaRules}
+          coverage={coverageOf(openRequest.siteNumber, openRequest.deviceNumber)}
           mayWork={mayWork}
           mayDelete={mayDelete}
           isAdmin={isAdminUser}

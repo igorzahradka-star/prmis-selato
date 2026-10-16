@@ -712,3 +712,74 @@ export function recomputeSiteActivities(catalog: ServiceCatalog, site: ContractS
   const items = evaluateChecklist(catalog, checklist, site.assety.map((a) => deviceKindOfAsset(a.typ)));
   return { ...site, cinnosti: snapshotActivities(items) };
 }
+
+// --- vazba smlouvy na provoz: pokrytí požadavků, platnost u souborů --------------------------------------------------
+
+export type CoverageState = 'platna' | 'mimo-prilohu' | 'vyprsela' | 'bez-smlouvy';
+
+export interface ContractCoverage {
+  state: CoverageState;
+  contractNumber?: string;
+  /** Věta pro člověka („Smlouva 10500-01“, „Soubor není v příloze smlouvy 10500-01“…). */
+  text: string;
+}
+
+/** Konec platnosti verze: účinnost od + doba smlouvy v letech (poslední den). Bez data účinnosti `undefined`. */
+export function contractValidUntil(version: Pick<ServiceContractVersion, 'effectiveFrom' | 'snapshot'>): Date | undefined {
+  const from = version.effectiveFrom;
+  const years = version.snapshot.parametry.doba_let;
+  if (!from || !isFinite(years) || years <= 0) {
+    return undefined;
+  }
+  return new Date(from.getFullYear() + Math.floor(years), from.getMonth() + Math.round((years % 1) * 12), from.getDate() - 1);
+}
+
+/**
+ * Pokrytí servisu smlouvou: platná smlouva lokality (nejnovější podepsaná verze, účinná a neuplynulá) a je-li požadavek na souboru, musí být
+ * soubor v příloze. Činnost na celé lokalitě (bez souboru) pokrývá platná smlouva lokality.
+ */
+export function contractCoverage(siteNumber: string, deviceNumber: string | undefined, contracts: ServiceContract[], versions: ServiceContractVersion[], today: Date = new Date()): ContractCoverage {
+  const own = contracts.filter((c) => c.siteNumber === siteNumber);
+  const day = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+  let expired: ServiceContract | undefined;
+  let outside: ServiceContract | undefined;
+  for (const c of own) {
+    const v = activeVersion(versions, c.number);
+    if (!v || (v.effectiveFrom && v.effectiveFrom.getTime() > day)) {
+      continue;
+    }
+    const until = contractValidUntil(v);
+    if (until && until.getTime() < day) {
+      expired = c;
+      continue;
+    }
+    const wholeSite = !deviceNumber || deviceNumber === siteNumber;
+    if (wholeSite || v.snapshot.lokality.some((l) => l.assety.some((a) => a.kod === deviceNumber))) {
+      return { state: 'platna', contractNumber: c.number, text: `Smlouva ${c.number}` };
+    }
+    outside = c;
+  }
+  if (outside) {
+    return { state: 'mimo-prilohu', contractNumber: outside.number, text: `Soubor není v příloze smlouvy ${outside.number}` };
+  }
+  if (expired) {
+    return { state: 'vyprsela', contractNumber: expired.number, text: `Smlouva ${expired.number} už vypršela` };
+  }
+  return { state: 'bez-smlouvy', text: 'Bez platné smlouvy' };
+}
+
+export interface DeviceContractUpdate {
+  deviceNumber: string;
+  contractFrom: Date;
+  contractTo?: Date;
+  contractNote: string;
+}
+
+/** Při podpisu verze: platnost smlouvy u souborů v příloze (od účinnosti na dobu smlouvy) a poznámka s číslem smlouvy a verze. */
+export function deviceContractUpdates(version: Pick<ServiceContractVersion, 'contractNumber' | 'versionNo' | 'effectiveFrom' | 'snapshot'>, signedAt: Date): DeviceContractUpdate[] {
+  const from = version.effectiveFrom ?? new Date(signedAt.getFullYear(), signedAt.getMonth(), signedAt.getDate());
+  const until = contractValidUntil({ effectiveFrom: from, snapshot: version.snapshot });
+  const out: DeviceContractUpdate[] = [];
+  version.snapshot.lokality.forEach((l) => l.assety.forEach((a) => out.push({ deviceNumber: a.kod, contractFrom: from, contractTo: until, contractNote: `Smlouva ${version.contractNumber}, verze ${version.versionNo}` })));
+  return out;
+}

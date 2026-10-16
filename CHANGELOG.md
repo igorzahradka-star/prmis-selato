@@ -5,6 +5,13 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.63.0 — 16. 10. 2026 — Smlouvy: vazba na provoz (etapa D)
+
+- **Pokrytí smlouvou** u servisních požadavků: v přehledu požadavků (pod lokalitou a souborem) a v detailu požadavku je vidět **„✓ Smlouva 10500-01“**, nebo upozornění **„⚠ Bez platné smlouvy“**, „Soubor není v příloze smlouvy …“, „Smlouva … už vypršela“. Platná smlouva = nejnovější podepsaná verze, účinná a neuplynulá (účinnost od + doba smlouvy); požadavek na soubor vyžaduje, aby byl soubor v příloze; činnost na celé lokalitě pokrývá platná smlouva lokality. Jen indikace, nic neblokuje.
+- **Podpis verze nastaví soubory**: po zaznamenání podpisu se u souborů v příloze zapíše platnost smlouvy (od účinnosti na dobu smlouvy), číslo smlouvy a verze v poznámce a odkaz na sken; z toho se počítají „Smlouvy končí / vypršely“ v Servisu. Vlastní poznámka u souboru zůstane (smlouva se připíše před ni).
+- **Plán ze smlouvy**: dialog Plán ze checklistu má volbu **Zdroj činností** — aktuální checklist lokality, nebo **platná smlouva** (činnosti, periody a soubory podle přílohy podepsané verze; první rok smlouvy podle účinnosti). Plán tak odpovídá tomu, co je podepsáno, i když se checklist lokality mezitím změnil.
+- Bez změny schématu (35).
+
 ## 0.62.0 — 16. 10. 2026 — Smlouvy: vygenerování Wordu a náhled (etapa C)
 
 - V detailu smlouvy (Servis → Správa smluv) u každé verze nové tlačítko **Vygenerovat Word**: šablony RES (rámcová smlouva a Příloha lokality, docxtpl) se vykreslí daty verze a uloží do složky lokality **01-Smlouva a podmínky** spolu se strojově čitelným checklistem lokality (JSON). Název dokumentu nese číslo smlouvy a verzi; stejný název dostane příponu `_2` — nic se nepřepisuje. Odkazy na dokumenty jsou u verze (Dokumenty:).

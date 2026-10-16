@@ -10,6 +10,7 @@ import { REQUEST_PRIORITIES } from '../../core/serviceJobs';
 import { Dropdown } from '@fluentui/react/lib/Dropdown';
 import { TooltipHost } from '@fluentui/react/lib/Tooltip';
 import { SlaPart, SlaProgress, formatHours } from '../../core/serviceSla';
+import type { ContractCoverage } from '../../core/serviceContract';
 
 export const TH: React.CSSProperties = { textAlign: 'left', fontWeight: 600, fontSize: 12, color: RES.gray, padding: '6px 8px', whiteSpace: 'nowrap', position: 'sticky', top: 0, background: RES.white, zIndex: 1, boxShadow: `0 1px 0 ${RES.grayBlue}` };
 export const TD: React.CSSProperties = { padding: '6px 8px', fontSize: 13, verticalAlign: 'top' };
@@ -149,6 +150,14 @@ export const Fact: React.FC<{ label: string; children: React.ReactNode }> = ({ l
     <div style={{ fontSize: 12, color: RES.gray }}>{label}</div>
     <div style={{ fontSize: 14 }}>{children || '—'}</div>
   </div>
+);
+
+/** Pokrytí servisu smlouvou: platná smlouva zeleně, jinak upozornění (bez smlouvy, soubor mimo přílohu, smlouva vypršela). */
+export const CoverageLabel: React.FC<{ coverage: ContractCoverage }> = ({ coverage }) => (
+  <span style={{ color: coverage.state === 'platna' ? '#1D7A4B' : '#8A4B12', fontSize: 12, whiteSpace: 'nowrap' }}>
+    {coverage.state === 'platna' ? '✓ ' : '⚠ '}
+    {coverage.text}
+  </span>
 );
 
 /** Jednořádkový text oříznutý na danou šířku (…); celý text se ukáže v bublině po najetí myší. */

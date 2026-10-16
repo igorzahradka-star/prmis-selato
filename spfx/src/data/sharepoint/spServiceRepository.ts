@@ -14,7 +14,7 @@ import { JobAction, JobActionInput, JobStatus, RequestStatus, ServiceFlowError, 
 import { OrderAttachment, validateAttachment } from '../../core/orders';
 import { parseChecklist, serializeChecklist, isEmptyChecklist, SiteChecklist } from '../../core/serviceCatalog';
 import { SERVICE_CATALOG } from '../../core/serviceCatalog.data';
-import { ContractDocument, ContractInput, ServiceContract, ServiceContractVersion, contractStatusChange, newVersionProblem, nextVersionNo, nextVersionSnapshot } from '../../core/serviceContract';
+import { ContractDocument, ContractInput, ServiceContract, ServiceContractVersion, contractStatusChange, deviceContractUpdates, newVersionProblem, nextVersionNo, nextVersionSnapshot } from '../../core/serviceContract';
 import { PlanItem, planItemProblem, requestKindOf, requiredDateOf } from '../../core/servicePlan';
 import { INumberingRepository, IProjectRepository, ISettingsRepository, PlanItemInput, ServiceAttachmentTarget, IServiceRepository, ServiceDeviceInput, ServiceJobInput, ServiceRequestInput, ServiceSiteInput } from '../repositories';
 import { getSp, getSpForSite, describeSpError } from './spContext';
@@ -942,6 +942,18 @@ export class SpServiceRepository implements IServiceRepository {
         fields.SignedUrl = signedUrl ?? '';
       }
       await this.update(CONTRACT_VERSIONS, v.id, fields, 'Stav smlouvy se nepodařilo změnit');
+    }
+    if (status === 'Podepsaná') {
+      // Platnost smlouvy u souborů v příloze (od účinnosti na dobu smlouvy) — z ní se počítá „Smlouvy končí / vypršely“.
+      const signed = versions.filter((x) => x.versionNo === versionNo)[0];
+      const devices = await this.listDevices();
+      for (const u of deviceContractUpdates(signed, now)) {
+        const d = devices.filter((x) => x.number === u.deviceNumber)[0];
+        if (d) {
+          const note = d.contractNote && !/^Smlouva \d/.test(d.contractNote) ? `${u.contractNote} · ${d.contractNote}` : u.contractNote;
+          await this.update(DEVICES, d.id, { ContractFrom: iso(u.contractFrom), ContractTo: iso(u.contractTo), ContractNote: note, ContractUrl: signedUrl || d.contractUrl || '' }, 'Platnost smlouvy u souboru se nepodařilo zapsat');
+        }
+      }
     }
     await this.audit('Servis – smlouva', contractNumber, actor, `Verze ${versionNo}: stav ${status}`);
     return this.versionsOf(contractNumber);
