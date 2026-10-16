@@ -155,11 +155,15 @@ export const ContractEditor: React.FC<{
         </MessageBar>
       )}
       <Pivot aria-label="Části smlouvy" selectedKey={tab} onLinkClick={(i) => i && i.props.itemKey && setTab(i.props.itemKey)}>
-        <PivotItem itemKey="objednatel" headerText="Objednatel">
+        <PivotItem itemKey="objednatel" headerText="Strany smlouvy">
           <div style={{ marginTop: 10 }}>
             <div style={boxStyle}>
               <div style={boxTitle}>Objednatel (zákazník lokality)</div>
               <PartyEditor value={draft.objednatel} onChange={(objednatel) => patch({ objednatel })} disabled={dis} />
+            </div>
+            <div style={boxStyle}>
+              <div style={boxTitle}>Zhotovitel (Revoltum Engineering & Services)</div>
+              <PartyEditor value={draft.zhotovitel} onChange={(zhotovitel) => patch({ zhotovitel })} disabled={dis} withDispatch hint="Údaje zhotovitele se do smlouvy zkopírovaly z Údajů smluv; tady je lze pro tuto smlouvu změnit (v Údajích smluv se změní jen pro nově zakládané smlouvy)." />
             </div>
             <div style={boxStyle}>
               <div style={boxTitle}>Asset manager, banka a podpis</div>

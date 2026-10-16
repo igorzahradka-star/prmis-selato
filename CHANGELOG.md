@@ -5,6 +5,10 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.63.2 — 16. 10. 2026 — Smlouva: úprava zhotovitele přímo ve smlouvě
+
+- V editoru smlouvy je záložka **Strany smlouvy** (dříve Objednatel) s oddílem **Zhotovitel**: údaje zkopírované z Údajů smluv (včetně dispečinku 24/7) lze změnit přímo v konkrétní smlouvě, bez zakládání nové. Změna v Údajích smluv se promítne jen do nově zakládaných smluv.
+
 ## 0.63.1 — 16. 10. 2026 — Nová smlouva: objednatel z ARES
 
 - Při založení smlouvy se údaje objednatele rovnou doplní z obchodního rejstříku podle IČO partnera: spisová značka a — je-li v rejstříku jediná fyzická osoba oprávněná jednat — také zastoupení a podepisující. Při více jednatelích se podepisující vybere ručně v editoru (Načíst z ARES). Už vyplněné údaje se nepřepisují. Nepodaří-li se spojení s ARES, smlouva se založí a údaje se doplní v editoru.
