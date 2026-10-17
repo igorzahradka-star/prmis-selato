@@ -7,6 +7,7 @@ import { ServicePage } from '../../../features/service/ServicePage';
 import { ServiceMapPage } from '../../../features/service/ServiceMapPage';
 import { ServicePlansPage } from '../../../features/service/ServicePlansPage';
 import { ServiceContractsPage } from '../../../features/service/ServiceContractsPage';
+import { AccountingChecksPage } from '../../../features/accounting/AccountingChecksPage';
 import { ServiceCalendarPage } from '../../../features/service/ServiceCalendarPage';
 import { ServiceRequestsPage } from '../../../features/service/ServiceRequestsPage';
 import { ServiceSitesPage } from '../../../features/service/ServiceSitesPage';
@@ -194,6 +195,8 @@ function renderRoute(route: Route): React.ReactNode {
       return <ServicePlansPage />;
     case RouteName.ServiceContracts:
       return <ServiceContractsPage />;
+    case RouteName.AccountingChecks:
+      return <AccountingChecksPage />;
     case RouteName.ServiceCalendar:
       return <ServiceCalendarPage />;
     case RouteName.ServiceRequests:

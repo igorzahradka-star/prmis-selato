@@ -6,7 +6,9 @@
  */
 
 import * as React from 'react';
-import { ActionButton, DefaultButton } from '@fluentui/react/lib/Button';
+import { ActionButton, DefaultButton, PrimaryButton } from '@fluentui/react/lib/Button';
+import { Dialog, DialogFooter, DialogType } from '@fluentui/react/lib/Dialog';
+import { TextField } from '@fluentui/react/lib/TextField';
 import { ChoiceGroup } from '@fluentui/react/lib/ChoiceGroup';
 import { Dropdown } from '@fluentui/react/lib/Dropdown';
 import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
@@ -14,6 +16,7 @@ import { SearchBox } from '@fluentui/react/lib/SearchBox';
 import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 
 import { useApp } from '../../ui/AppContext';
+import { buildHash, RouteName } from '../../ui/router';
 import { RES } from '../../ui/theme';
 import { CurrencySwitch } from '../../ui/components/CurrencySwitch';
 import { useReportCurrency } from '../../ui/useReportCurrency';
@@ -24,6 +27,7 @@ import { CurrencyCode } from '../../core/currency';
 import { BudgetDoc, BudgetRecord, budgetTotals, canEditBudget, validateBudget } from '../../core/budget';
 import { ensureRevenues } from '../../core/budgetMargin';
 import { ABRA_DOC_LABELS, AbraDoc, DocAssignState, abraRowMatches, advanceSummary, allocatedOfDoc, assignStateOf, isAdvance, isApproximate, orphanAllocations, setDocTarget, targetKindOf, unallocatedTotals } from '../../core/abraDocs';
+import { AbraCorrection, autoResolvable, correctionMail, correctionNoteProblem, openCorrectionsByDoc, summarizeCorrections } from '../../core/abraCorrections';
 import { AbraSyncStatus } from '../../data/repositories';
 import { useAutosave, whenFlushed } from '../budget/useAutosave';
 import { refreshBudgetCache } from '../budget/budgetCache';
@@ -41,7 +45,7 @@ const ROW_STYLE: Record<DocAssignState, { background: string; border: string }> 
   advance: { background: RES.background, border: RES.grayBlue }
 };
 
-type ShowFilter = 'all' | 'open' | 'done';
+type ShowFilter = 'all' | 'open' | 'done' | 'fix';
 type KindFilter = 'all' | 'prijata' | 'vydana' | 'zaloha';
 
 export const AccountingDataTab: React.FC<{ project: Project }> = ({ project }) => {
@@ -68,6 +72,9 @@ export const AccountingDataTab: React.FC<{ project: Project }> = ({ project }) =
   const [kind, setKind] = React.useState<KindFilter>('all');
   const [search, setSearch] = React.useState('');
   const [splitRow, setSplitRow] = React.useState<AbraDoc | undefined>(undefined);
+  const [corrections, setCorrections] = React.useState<AbraCorrection[]>([]);
+  const [markRow, setMarkRow] = React.useState<AbraDoc | undefined>(undefined);
+  const [sendOpen, setSendOpen] = React.useState(false);
 
   const editable = canEditBudget(wf, actor);
   const dirty = !!doc && JSON.stringify(doc) !== saved;
@@ -82,6 +89,10 @@ export const AccountingDataTab: React.FC<{ project: Project }> = ({ project }) =
       .syncStatus()
       .then(setStatus)
       .catch(() => setStatus(undefined));
+    repos.abraCorrections
+      .list(project.projectNumber)
+      .then(setCorrections)
+      .catch(() => setCorrections([]));
   }, [repos, project.projectNumber]);
 
   const reload = React.useCallback(async (): Promise<void> => {
@@ -150,6 +161,24 @@ export const AccountingDataTab: React.FC<{ project: Project }> = ({ project }) =
     onError: (m) => setAutoError(m)
   });
 
+  // Opravy, jejichž řádek už v účetnictví projektu není (účtárna ho opravila), se uzavřou samy.
+  React.useEffect(() => {
+    if (!editable) {
+      return;
+    }
+    const gone = autoResolvable(corrections, rows);
+    if (gone.length === 0) {
+      return;
+    }
+    repos.abraCorrections
+      .resolve(gone.map((c) => c.id), 'Řádek už v účetnictví projektu není — opraveno v Abře.', user)
+      .then(() => {
+        setNotice(`Opraveno v účetnictví: ${gone.length === 1 ? 'oprava' : gone.length + ' oprav'} se uzavřelo (${gone.map((c) => c.docNumber).join(', ')}).`);
+        return repos.abraCorrections.list(project.projectNumber).then(setCorrections);
+      })
+      .catch(() => undefined);
+  }, [corrections, rows, editable]);
+
   const requestSync = (): void => {
     setBusy(true);
     setError(undefined);
@@ -167,13 +196,18 @@ export const AccountingDataTab: React.FC<{ project: Project }> = ({ project }) =
   };
 
   const allocations = doc ? doc.allocations : undefined;
+  const openFix = React.useMemo(() => openCorrectionsByDoc(corrections), [corrections]);
+  const fixSummary = summarizeCorrections(corrections);
 
   const filtered = React.useMemo(
     () =>
       rows
         .filter((r) => {
           const state = assignStateOf(r, allocations);
-          if (show === 'open' && state !== 'none' && state !== 'partial') {
+          if (show === 'fix') {
+            return openFix.has(r.abraId);
+          }
+          if (show === 'open' && (openFix.has(r.abraId) || (state !== 'none' && state !== 'partial'))) {
             return false;
           }
           if (show === 'done' && state !== 'full') {
@@ -191,7 +225,7 @@ export const AccountingDataTab: React.FC<{ project: Project }> = ({ project }) =
           return abraRowMatches(r, search);
         })
         .sort((a, b) => (b.issueDate ? b.issueDate.getTime() : 0) - (a.issueDate ? a.issueDate.getTime() : 0)),
-    [rows, allocations, show, kind, search]
+    [rows, allocations, show, kind, search, openFix]
   );
 
   if (!loaded && !error) {
@@ -213,11 +247,52 @@ export const AccountingDataTab: React.FC<{ project: Project }> = ({ project }) =
   }
 
   const assignable = editable && !busy;
-  const open = unallocatedTotals(rows, allocations, report.currency, report.rates);
+  const open = unallocatedTotals(rows.filter((r) => !openFix.has(r.abraId)), allocations, report.currency, report.rates);
   const adv = advanceSummary(rows, report.currency, report.rates);
   const orphans = orphanAllocations(rows, allocations);
   const booked = rows.filter((r) => !isAdvance(r));
   const doneCount = booked.filter((r) => assignStateOf(r, allocations) === 'full').length;
+
+  const refreshCorrections = (): Promise<void> => repos.abraCorrections.list(project.projectNumber).then(setCorrections);
+
+  const markFix = (row: AbraDoc, note: string): Promise<void> =>
+    repos.abraCorrections.mark({ projectNumber: project.projectNumber, doc: row, note }, user).then(() => {
+      // Řádek s opravou se odpojí od rozpočtu (nezapočítává se); po vyřešení se přiřazuje znovu.
+      if (doc && (allocations || []).some((a) => a.docId === row.abraId)) {
+        const rest = (allocations || []).filter((a) => a.docId !== row.abraId);
+        setDoc({ ...doc, allocations: rest.length > 0 ? rest : undefined });
+      }
+      setMarkRow(undefined);
+      setNotice(`Řádek ${row.number} je označený jako OPRAVA a nezapočítává se. Odešlete ho účtárně tlačítkem Odeslat účtárně.`);
+      return refreshCorrections();
+    });
+
+  const cancelFix = (c: AbraCorrection): void => {
+    setError(undefined);
+    repos.abraCorrections
+      .cancel(c.id, user)
+      .then(refreshCorrections)
+      .then(() => setNotice(`Označení opravy u dokladu ${c.docNumber} je zrušené; řádek můžete znovu přiřadit.`))
+      .catch((e: unknown) => setError(why(e)));
+  };
+
+  const toSendList = corrections.filter((c) => c.status === 'Označeno');
+  const send = (): Promise<void> => {
+    const to = settings.company.accountingEmail.trim();
+    if (to === '') {
+      return Promise.reject(new Error('V Nastavení doplňte e-mail účtárny (Nastavení → Údaje firmy → E-mail účtárny).'));
+    }
+    const base = (typeof window !== 'undefined' ? window.location.href : '').split('#')[0];
+    const mail = correctionMail({ projectNumber: project.projectNumber, projectTitle: project.title, requesterName: user.displayName, corrections: toSendList, link: `${base}${buildHash(RouteName.ProjectDetail, project.projectNumber)}` });
+    return repos.mail
+      .send({ to: [to], cc: user.email ? [user.email] : undefined, subject: mail.subject, bodyText: mail.bodyText, attachments: [] })
+      .then(() => repos.abraCorrections.markSent(toSendList.map((c) => c.id), user))
+      .then(refreshCorrections)
+      .then(() => {
+        setSendOpen(false);
+        setNotice(`Žádost o opravu (${toSendList.length}) je odeslaná účtárně (${to}); kopie přišla Vám.`);
+      });
+  };
 
   const change = (row: AbraDoc, targetId: string): void => {
     const k = targetKindOf(row);
@@ -249,6 +324,7 @@ export const AccountingDataTab: React.FC<{ project: Project }> = ({ project }) =
           {autoError ? `Automatické uložení čeká: ${autoError}` : dirty ? 'Změny se uloží samy za několik sekund.' : autosave.savedAt ? `Uloženo v ${autosave.savedAt.getHours()}:${String(autosave.savedAt.getMinutes()).padStart(2, '0')}.` : ''}
         </span>
         <CurrencySwitch />
+        {editable && <PrimaryButton text={`Odeslat účtárně (${toSendList.length})`} iconProps={{ iconName: 'Mail' }} disabled={toSendList.length === 0 || busy} title="Odešle účtárně jedním e-mailem všechny řádky označené jako OPRAVA" onClick={() => setSendOpen(true)} />}
         <DefaultButton text={busy || (status && status.pendingSince) ? 'Čeká na stažení…' : 'Aktualizovat z Abry'} iconProps={{ iconName: 'Sync' }} disabled={busy || !!(status && (status.pendingSince || !status.configured))} onClick={requestSync} />
       </div>
       {status && status.lastOk === false && status.lastMessage && (
@@ -276,6 +352,8 @@ export const AccountingDataTab: React.FC<{ project: Project }> = ({ project }) =
         <Tile label="Nepřiřazeno – nákup" value={formatMoney(open.cost, report.currency)} hint="přijaté faktury (a jejich části), které ještě nejsou přiřazené k položce" warn={Math.abs(open.cost) > 0.5} />
         <Tile label="Nepřiřazeno – výnosy" value={formatMoney(open.revenue, report.currency)} hint="vydané faktury (a jejich části), které ještě nejsou přiřazené k výnosu" warn={Math.abs(open.revenue) > 0.5} />
         <Tile label="Přiřazeno řádků" value={`${doneCount} z ${booked.length}`} hint="řádky přiřazené celé" />
+        <Tile label="Oprava — k odeslání účtárně" value={String(fixSummary.toSend)} hint="řádky označené jako OPRAVA, které ještě nebyly odeslány účtárně" warn={fixSummary.toSend > 0} />
+        <Tile label="Oprava — čeká na účtárnu" value={fixSummary.waiting > 0 ? `${fixSummary.waiting}${fixSummary.oldestWaitingDays !== undefined ? ` (nejdéle ${fixSummary.oldestWaitingDays} d)` : ''}` : '0'} hint="odesláno účtárně, čeká na opravu v Abře; po opravě řádek při dalším stažení zmizí a oprava se uzavře" warn={fixSummary.waiting > 0} />
         <Tile label="Zálohy přijaté / vydané" value={`${formatMoney(adv.received, report.currency)} / ${formatMoney(adv.issued, report.currency)}`} hint="jen přehled, do Nakoupeno ani Vyfakturováno se nezapočítávají" />
       </div>
 
@@ -286,10 +364,11 @@ export const AccountingDataTab: React.FC<{ project: Project }> = ({ project }) =
           options={[
             { key: 'all', text: 'Vše' },
             { key: 'open', text: 'Jen nepřiřazené' },
-            { key: 'done', text: 'Jen přiřazené' }
+            { key: 'done', text: 'Jen přiřazené' },
+            { key: 'fix', text: 'K opravě' }
           ]}
           onChange={(_, o) => o && setShow(o.key as ShowFilter)}
-          styles={{ flexContainer: { display: 'flex', gap: 14 }, root: { minWidth: 330 } }}
+          styles={{ flexContainer: { display: 'flex', gap: 14 }, root: { minWidth: 430 } }}
         />
         <Dropdown
           label="Druh"
@@ -331,8 +410,9 @@ export const AccountingDataTab: React.FC<{ project: Project }> = ({ project }) =
               const own = (allocations || []).filter((a) => a.docId === row.abraId);
               const single = own.length === 1 ? own[0] : undefined;
               const left = Math.round((row.amountNet - allocatedOfDoc(allocations, row.abraId)) * 100) / 100;
+              const fix = openFix.get(row.abraId);
               return (
-                <tr key={row.abraId} style={{ background: style.background, borderTop: `1px solid ${RES.background}`, borderLeft: `4px solid ${style.border}` }}>
+                <tr key={row.abraId} style={{ background: fix ? '#FDE4CF' : style.background, borderTop: `1px solid ${RES.background}`, borderLeft: `4px solid ${fix ? '#D9822B' : style.border}` }}>
                   <td style={{ ...TD, whiteSpace: 'nowrap' }}>{row.issueDate ? formatDate(row.issueDate) : '—'}</td>
                   <td style={TD}>
                     <strong>{row.number}</strong>
@@ -347,7 +427,13 @@ export const AccountingDataTab: React.FC<{ project: Project }> = ({ project }) =
                     {row.currency !== 'CZK' && row.amountNetCzk !== undefined && <div style={{ color: RES.gray, fontSize: 12, fontWeight: 400 }} title="Částka v Kč, jak ji zaúčtovala Abra (kurz dne zaúčtování)">účetně {formatMoney(row.amountNetCzk, 'CZK')}</div>}
                   </td>
                   <td style={{ ...TD, minWidth: 300 }}>
-                    {state === 'advance' ? (
+                    {fix ? (
+                      <div>
+                        <strong style={{ color: '#8A4B12' }}>OPRAVA — {fix.status === 'Odesláno' ? `odesláno účtárně ${fix.sentAt ? formatDate(fix.sentAt) : ''}` : 'čeká na odeslání účtárně'}</strong>
+                        <div style={{ fontSize: 12, color: RES.text, whiteSpace: 'pre-wrap' }}>{fix.note}</div>
+                        <div style={{ fontSize: 12, color: RES.gray }}>Řádek se nezapočítává; označil {fix.markedByName}{fix.markedAt ? `, ${formatDate(fix.markedAt)}` : ''}.</div>
+                      </div>
+                    ) : state === 'advance' ? (
                       <span style={{ color: RES.gray }}>Záloha — jen přehled, nepřiřazuje se</span>
                     ) : own.length > 1 ? (
                       <div>
@@ -371,7 +457,11 @@ export const AccountingDataTab: React.FC<{ project: Project }> = ({ project }) =
                     )}
                     {state === 'partial' && <div style={{ fontSize: 12, color: RES.amber }}>Přiřazena jen část — zbývá {formatMoney(left, row.currency)}</div>}
                   </td>
-                  <td style={{ ...TD, whiteSpace: 'nowrap' }}>{assignable && state !== 'advance' && <ActionButton text="Rozdělit…" title="Rozdělit částku mezi víc položek" onClick={() => setSplitRow(row)} styles={{ root: { height: 28 } }} />}</td>
+                  <td style={{ ...TD, whiteSpace: 'nowrap' }}>
+                    {assignable && state !== 'advance' && !fix && <ActionButton text="Rozdělit…" title="Rozdělit částku mezi víc položek" onClick={() => setSplitRow(row)} styles={{ root: { height: 28 } }} />}
+                    {assignable && state !== 'advance' && !fix && <ActionButton text="Oprava…" iconProps={{ iconName: 'Edit' }} title="Řádek nepatří do projektu — označit jako OPRAVU a odeslat účtárně" onClick={() => setMarkRow(row)} styles={{ root: { height: 28 } }} />}
+                    {assignable && fix && <ActionButton text="Zrušit označení" title="Omyl — řádek se vrátí mezi nepřiřazené" onClick={() => cancelFix(fix)} styles={{ root: { height: 28 } }} />}
+                  </td>
                 </tr>
               );
             })}
@@ -388,6 +478,8 @@ export const AccountingDataTab: React.FC<{ project: Project }> = ({ project }) =
       <div style={{ fontSize: 12, color: RES.gray, marginTop: 6 }}>
         Součet přiřazených řádků je u položky rozpočtu <strong>Nakoupeno</strong> (u výnosu <strong>Vyfakturováno</strong>). Přiřazení můžete kdykoli změnit nebo zrušit.
       </div>
+      {markRow && <MarkFixDialog row={markRow} onMark={(note) => markFix(markRow, note)} onClose={() => setMarkRow(undefined)} />}
+      {sendOpen && <SendFixDialog corrections={toSendList} to={settings.company.accountingEmail.trim()} onSend={send} onClose={() => setSendOpen(false)} />}
       {splitRow && <SplitDocDialog row={splitRow} doc={doc} onSave={(d) => { setDoc(d); setSplitRow(undefined); }} onClose={() => setSplitRow(undefined)} />}
     </div>
   );
@@ -413,6 +505,10 @@ const Tile: React.FC<{ label: string; value: string; hint?: string; warn?: boole
 
 const Legend: React.FC = () => (
   <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 12, color: RES.gray, marginBottom: 6 }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+      <span style={{ width: 14, height: 14, background: '#FDE4CF', border: `1px solid ${RES.grayBlue}`, borderLeft: '4px solid #D9822B', display: 'inline-block' }} />
+      OPRAVA (nezapočítává se)
+    </span>
     {(
       [
         ['full', 'přiřazeno'],
@@ -428,3 +524,81 @@ const Legend: React.FC = () => (
     ))}
   </div>
 );
+
+/** Dialog „Označit jako opravu“: popis, co je špatně a kam řádek patří. */
+const MarkFixDialog: React.FC<{ row: AbraDoc; onMark: (note: string) => Promise<void>; onClose: () => void }> = ({ row, onMark, onClose }) => {
+  const [note, setNote] = React.useState('');
+  const [busy, setBusy] = React.useState(false);
+  const [error, setError] = React.useState<string | undefined>(undefined);
+  return (
+    <Dialog hidden={false} onDismiss={busy ? undefined : onClose} dialogContentProps={{ type: DialogType.normal, title: `Označit jako OPRAVU — ${row.number}`, subText: 'Řádek nepatří do tohoto projektu (nebo je špatně zaúčtovaný). Po označení se přestane započítávat; odešlete ho účtárně tlačítkem Odeslat účtárně.' }} modalProps={{ isBlocking: true }} minWidth={560}>
+      <div style={{ fontSize: 13, marginBottom: 8 }}>
+        <strong>{row.partnerName || '—'}</strong> · {row.description || '—'} · {formatMoney(row.amountNet, row.currency)}
+      </div>
+      {error && (
+        <MessageBar messageBarType={MessageBarType.error} isMultiline>
+          {error}
+        </MessageBar>
+      )}
+      <TextField label="Popis opravy (co je špatně, kam doklad patří)" required multiline rows={4} value={note} onChange={(_, v) => setNote(v ?? '')} />
+      <DialogFooter>
+        <PrimaryButton
+          text={busy ? 'Ukládám…' : 'Označit jako opravu'}
+          disabled={busy}
+          onClick={() => {
+            const problem = correctionNoteProblem(note);
+            if (problem) {
+              setError(problem);
+              return;
+            }
+            setBusy(true);
+            setError(undefined);
+            onMark(note).catch((e: unknown) => {
+              setBusy(false);
+              setError(e instanceof Error ? e.message : String(e));
+            });
+          }}
+        />
+        <DefaultButton text="Zrušit" disabled={busy} onClick={onClose} />
+      </DialogFooter>
+    </Dialog>
+  );
+};
+
+/** Potvrzení odeslání oprav účtárně: seznam řádků a adresa. */
+const SendFixDialog: React.FC<{ corrections: AbraCorrection[]; to: string; onSend: () => Promise<void>; onClose: () => void }> = ({ corrections, to, onSend, onClose }) => {
+  const [busy, setBusy] = React.useState(false);
+  const [error, setError] = React.useState<string | undefined>(undefined);
+  return (
+    <Dialog hidden={false} onDismiss={busy ? undefined : onClose} dialogContentProps={{ type: DialogType.normal, title: `Odeslat účtárně (${corrections.length})`, subText: to ? `Jedním e-mailem odejde na ${to} (kopie Vám) žádost o opravu těchto řádků:` : 'V Nastavení není vyplněný e-mail účtárny — doplňte ho, jinak nejde odeslat.' }} modalProps={{ isBlocking: true }} minWidth={560}>
+      {error && (
+        <MessageBar messageBarType={MessageBarType.error} isMultiline>
+          {error}
+        </MessageBar>
+      )}
+      <div style={{ fontSize: 13 }}>
+        {corrections.map((c) => (
+          <div key={c.id} style={{ marginBottom: 6 }}>
+            <strong>{c.docNumber}</strong> — {c.line.partnerName || '—'}, {formatMoney(c.line.amountNet, c.line.currency)}
+            <div style={{ color: RES.gray, whiteSpace: 'pre-wrap' }}>{c.note}</div>
+          </div>
+        ))}
+      </div>
+      <DialogFooter>
+        <PrimaryButton
+          text={busy ? 'Odesílám…' : 'Odeslat účtárně'}
+          disabled={busy || !to}
+          onClick={() => {
+            setBusy(true);
+            setError(undefined);
+            onSend().catch((e: unknown) => {
+              setBusy(false);
+              setError(e instanceof Error ? e.message : String(e));
+            });
+          }}
+        />
+        <DefaultButton text="Zrušit" disabled={busy} onClick={onClose} />
+      </DialogFooter>
+    </Dialog>
+  );
+};

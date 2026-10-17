@@ -25,6 +25,7 @@ describe('buildNavigation', () => {
         RouteName.Map,
         RouteName.Orders,
         RouteName.Invoicing,
+        RouteName.AccountingChecks,
         RouteName.Catalog
       ]);
       // Deník a fotky se otevírají z detailu projektu, ne z nabídky.

@@ -209,3 +209,8 @@ Kód: `src/sharepoint.js` (Graph klient: přihlášení klíčem aplikace, čten
 - Pojistky: zapisuje jen do `PRM_AbraDocs` a `PRM_AbraSync`; nemaže; při chybě Abry se nic neoznačí jako „zmizelé“; prázdná pole (`DueDate`, `AmountNetCzk`) se při vytvoření vynechávají (sloupec `AmountNetCzk` existuje až od schématu 24 — po Instalaci v aplikaci).
 - Pole `SyncedAt` („Staženo“) se aktualizuje jen u řádků, které se změnily; čas posledního běhu je v `PRM_AbraSync`.
 - Testy (51) běží na falešném Abře a Graphu; ostrý zápis se zkouší až s klíčem na počítači Igora.
+
+
+## Opravy řádků a kontroly (0.65.0.0)
+
+PM označí řádek, který nepatří do projektu, jako **OPRAVU** (popis, kam patří); řádek se odpojí od rozpočtu, nezapočítává se a po tlačítku **Odeslat účtárně** odejde žádost e-mailem (adresa v Nastavení → Údaje firmy). Po opravě v Abře řádek při dalším stažení z projektu zmizí (nebo ho prostředník označí „zmizel z Abry“) a oprava se uzavře sama. Opravy jsou v seznamu `PRM_AbraCorrections` (projekt, klíč řádku `AbraId`, popis, stav Označeno / Odesláno / Vyřešeno / Zrušeno, kopie řádku v JSON, kdo a kdy). Přehled napříč projekty: Projekty → Kontroly projektů. **Pro prostředníka:** `AbraId` řádku musí zůstat stálý; řádek, který z projektu zmizel (jiná zakázka), prostředník neodstraňuje z `PRM_AbraDocs` hned, ale aktualizuje `ProjectNumber` nebo označí popisem „zmizel z Abry“ (aplikace obojí pozná).

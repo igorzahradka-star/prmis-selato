@@ -5,6 +5,14 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.65.0 — 17. 10. 2026 — OPRAVA řádků z účetnictví a Kontroly projektů
+
+- V záložce **Data z účetnictví** u každého řádku nové tlačítko **Oprava…**: řádek, který nepatří do projektu, se označí jako **OPRAVA** s textovým popisem (co je špatně, kam patří). Řádek se **odpojí od rozpočtu a nezapočítává se**, dokud není vyřešen. Označení jde zrušit (omyl).
+- Tlačítko **Odeslat účtárně (N)**: jedním e-mailem odejde na **e-mail účtárny** (Nastavení → Údaje firmy) žádost o změnu všech označených řádků projektu (doklad, partner, popis, účet, částka, popis opravy), kopie přijde žadateli. Řádky přejdou do stavu „odesláno účtárně“.
+- **Po opravě v Abře** řádek při dalším stažení z projektu zmizí a oprava se v aplikaci **uzavře sama**. Nová dlaždice a filtr **K opravě**; řádky s opravou se nepočítají jako nepřiřazené.
+- Nová položka v nabídce **Projekty → Kontroly projektů** (záložka Účetnictví): u každého projektu počet nepřiřazených řádků z Abry, opravy k odeslání a opravy čekající na účtárnu (s nejdelší dobou čekání), souhrn nahoře a seznam všech oprav napříč projekty; filtr „Jen s problémem“, „Jen moje projekty“, hledání. Další kontroly přibudou jako další záložky.
+- **Schéma 36 — po nahrání spustit Instalaci a diagnostiku** (nový seznam PRM_AbraCorrections). Sama data z Abry pořád čekají na prostředníka (API); funkce se zatím zkouší na ukázkových datech.
+
 ## 0.64.0 — 16. 10. 2026 — Smlouvy: šablona Přílohy souboru
 
 - Nová šablona **RES_OM_Priloha_souboru_SABLONA_v01.docx** (ve složce se šablonami, vzniká ze šablony Přílohy lokality, stejný vzhled): identifikace souboru, plán údržby jen pro druh souboru (činnosti FVE jen u FVE, BESS jen u BESS…), SLA, garantovaná dostupnost, odkaz na cenu v Příloze lokality, strategické náhradní díly souboru (oddíl se vynechá, nejsou-li) a podpisy.
