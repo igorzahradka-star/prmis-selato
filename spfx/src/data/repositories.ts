@@ -30,6 +30,7 @@ import { StoredRate, StoredRates } from '../core/currency';
 import { ListDef } from './schema';
 import { NotificationPrefs } from '../core/notifications';
 import { AbraDoc } from '../core/abraDocs';
+import { AbraCorrection } from '../core/abraCorrections';
 import { ServiceDevice, ServiceSite } from '../core/service';
 import type { SiteChecklist } from '../core/serviceCatalog';
 import type { ContractDocument, ContractInput, ServiceContract, ServiceContractVersion } from '../core/serviceContract';
@@ -942,9 +943,30 @@ export interface AbraSyncStatus {
 export interface IAbraDocRepository {
   /** Doklady projektu (podle čísla projektu = zakázky v Abře). */
   list(projectNumber: string): Promise<AbraDoc[]>;
+  /** Doklady všech projektů (pro přehled kontrol účetnictví napříč projekty). */
+  listAll(): Promise<AbraDoc[]>;
   syncStatus(): Promise<AbraSyncStatus>;
   /** Zapíše žádost „Aktualizovat z Abry“; čeká-li už jedna, nic nepřidá. */
   requestSync(actor: CurrentUser): Promise<void>;
+}
+
+/**
+ * Opravy řádků z účetnictví: PM označí řádek jako OPRAVU s popisem, odešle ho účtárně a po opravě v Abře se oprava uzavře.
+ * Seznam PRM_AbraCorrections; čtení nikdy nesmí shodit záložku (před Instalací je prázdný).
+ */
+export interface IAbraCorrectionRepository {
+  /** Všechny opravy projektu (i uzavřené a zrušené — historie). */
+  list(projectNumber: string): Promise<AbraCorrection[]>;
+  /** Otevřené opravy (označeno, odesláno) napříč projekty. */
+  listOpen(): Promise<AbraCorrection[]>;
+  /** Označí řádek jako OPRAVU s popisem (u řádku může být otevřená jen jedna oprava). */
+  mark(input: { projectNumber: string; doc: AbraDoc; note: string }, actor: CurrentUser): Promise<AbraCorrection>;
+  /** Zruší otevřenou opravu (omyl). */
+  cancel(id: number, actor: CurrentUser): Promise<void>;
+  /** Zapíše odeslání účtárně (stav Odesláno, kdy a kdo). */
+  markSent(ids: number[], actor: CurrentUser): Promise<void>;
+  /** Uzavře opravy jako vyřešené (po opravě v Abře — ručně, nebo automaticky při dalším stažení). */
+  resolve(ids: number[], note: string, actor: CurrentUser): Promise<void>;
 }
 
 /** Vstupy modulu Servis (bez ID = nový záznam). */
@@ -1085,6 +1107,7 @@ export interface RepositorySet {
   profiles: IProfileRepository;
   budgets: IBudgetRepository;
   abraDocs: IAbraDocRepository;
+  abraCorrections: IAbraCorrectionRepository;
   service: IServiceRepository;
   catalog: ICatalogRepository;
   mail: IMailRepository;

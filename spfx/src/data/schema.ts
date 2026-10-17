@@ -18,7 +18,7 @@
  * Verze schématu. Ukládá se do PRM_Settings pod klíčem `schemaVersion`.
  * Průvodce porovná uloženou verzi s touto a nabídne doplnění rozdílu.
  */
-export const SCHEMA_VERSION = 35;
+export const SCHEMA_VERSION = 36;
 
 /** Typ sloupce v SharePointu. */
 export type FieldType =
@@ -679,6 +679,29 @@ const PRM_ABRA_DOCS: ListDef = {
   ]
 };
 
+const PRM_ABRA_CORRECTIONS: ListDef = {
+  name: 'PRM_AbraCorrections',
+  title: 'PRM – Opravy řádků z účetnictví',
+  description: 'Řádky z Abry, které projektový manažer označil jako OPRAVU (nepatří do projektu) s popisem; po odeslání účtárně čekají na opravu v účetnictví. Zapisuje aplikace.',
+  kind: 'list',
+  site: 'PRM',
+  versioning: true,
+  fields: [
+    { name: 'ProjectNumber', title: 'Projekt', type: 'Text', required: true, indexed: true },
+    { name: 'AbraId', title: 'ID řádku v Abře', type: 'Text', required: true, indexed: true },
+    { name: 'DocNumber', title: 'Doklad', type: 'Text' },
+    { name: 'CorrectionNote', title: 'Popis opravy', type: 'Note', required: true },
+    { name: 'CorrectionStatus', title: 'Stav', type: 'Choice', choices: ['Označeno', 'Odesláno', 'Vyřešeno', 'Zrušeno'], defaultValue: 'Označeno', indexed: true },
+    { name: 'LineJson', title: 'Řádek v době označení (JSON)', type: 'Note', description: 'Kopie řádku (partner, popis, účet, částka) pro e-mail účtárně a historii.' },
+    { name: 'MarkedByName', title: 'Označil', type: 'Text' },
+    { name: 'MarkedByLogin', title: 'Označil (login)', type: 'Text' },
+    { name: 'SentAt', title: 'Odesláno účtárně', type: 'DateTime' },
+    { name: 'SentByName', title: 'Odeslal', type: 'Text' },
+    { name: 'ResolvedAt', title: 'Uzavřeno', type: 'DateTime' },
+    { name: 'ResolveNote', title: 'Poznámka k uzavření', type: 'Note' }
+  ]
+};
+
 const PRM_ABRA_SYNC: ListDef = {
   name: 'PRM_AbraSync',
   title: 'PRM – Stahování z Abry',
@@ -894,6 +917,7 @@ export const LISTS: ListDef[] = [
   PRM_BUDGET_VERSIONS,
   PRM_ABRA_DOCS,
   PRM_ABRA_SYNC,
+  PRM_ABRA_CORRECTIONS,
   PRM_SERVICE_SITES,
   PRM_SERVICE_DEVICES,
   PRM_SERVICE_REQUESTS,

@@ -16,6 +16,7 @@ import { MockCatalogRepository } from './mockCatalogRepository';
 import { MockBudgetRepository } from './mockBudgetRepository';
 import { MockProfileRepository } from './mockProfileRepository';
 import { MockAbraDocRepository } from './mockAbraDocRepository';
+import { MockAbraCorrectionRepository } from './mockAbraCorrectionRepository';
 import { MockServiceRepository } from './mockServiceRepository';
 import type { FolderMap } from '../../core/projectFolders';
 import { BudgetStatus, CurrentUser, Partner, Project, ProjectStatus, ProjectTask, ACTIVE_PROJECT_STATUSES } from '../../core/types';
@@ -1147,7 +1148,8 @@ export function createMockRepositories(): RepositorySet {
     rates,
     profiles,
     budgets: new MockBudgetRepository(projects),
-    abraDocs: new MockAbraDocRepository(),
+    abraDocs: new MockAbraDocRepository(() => projects.list().then((l) => l.map((p) => p.projectNumber))),
+    abraCorrections: new MockAbraCorrectionRepository(),
     service: serviceRepo,
     catalog: new MockCatalogRepository(),
     mail: new MockMailRepository(),

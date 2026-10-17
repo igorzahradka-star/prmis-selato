@@ -79,6 +79,19 @@ export class SpAbraDocRepository implements IAbraDocRepository {
     }
   }
 
+  public async listAll(): Promise<AbraDoc[]> {
+    try {
+      const sp = getSp(this.context);
+      const items: DocItem[] = await sp.web.lists
+        .getByTitle(DOCS_LIST)
+        .items.select(...FIELDS)
+        .top(5000)();
+      return items.map(toDoc).filter((d): d is AbraDoc => !!d);
+    } catch {
+      return [];
+    }
+  }
+
   public async syncStatus(): Promise<AbraSyncStatus> {
     try {
       const sp = getSp(this.context);

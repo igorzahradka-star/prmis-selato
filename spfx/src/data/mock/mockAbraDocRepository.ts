@@ -25,11 +25,18 @@ function sampleDocs(projectNumber: string): AbraDoc[] {
 }
 
 export class MockAbraDocRepository implements IAbraDocRepository {
+  public constructor(private readonly projectNumbers: () => Promise<string[]> = () => Promise.resolve([])) {}
+
   private pendingSince: Date | undefined;
   private lastSyncAt: Date | undefined = new Date(Date.now() - 6 * 3600 * 1000);
 
   public list(projectNumber: string): Promise<AbraDoc[]> {
     return Promise.resolve(sampleDocs(projectNumber));
+  }
+
+  public async listAll(): Promise<AbraDoc[]> {
+    const numbers = await this.projectNumbers();
+    return numbers.reduce<AbraDoc[]>((all, n) => all.concat(sampleDocs(n)), []);
   }
 
   public syncStatus(): Promise<AbraSyncStatus> {
