@@ -214,3 +214,8 @@ Kód: `src/sharepoint.js` (Graph klient: přihlášení klíčem aplikace, čten
 ## Opravy řádků a kontroly (0.65.0.0)
 
 PM označí řádek, který nepatří do projektu, jako **OPRAVU** (popis, kam patří); řádek se odpojí od rozpočtu, nezapočítává se a po tlačítku **Odeslat účtárně** odejde žádost e-mailem (adresa v Nastavení → Údaje firmy). Po opravě v Abře řádek při dalším stažení z projektu zmizí (nebo ho prostředník označí „zmizel z Abry“) a oprava se uzavře sama. Opravy jsou v seznamu `PRM_AbraCorrections` (projekt, klíč řádku `AbraId`, popis, stav Označeno / Odesláno / Vyřešeno / Zrušeno, kopie řádku v JSON, kdo a kdy). Přehled napříč projekty: Projekty → Kontroly projektů. **Pro prostředníka:** `AbraId` řádku musí zůstat stálý; řádek, který z projektu zmizel (jiná zakázka), prostředník neodstraňuje z `PRM_AbraDocs` hned, ale aktualizuje `ProjectNumber` nebo označí popisem „zmizel z Abry“ (aplikace obojí pozná).
+
+
+## Ruční import z XML (0.66.0.0)
+
+Do příchodu API prostředníka lze deník nahrát ručně: Projekty → Kontroly projektů → **Import z Abry (XML)** (administrátor, vedení, jednatel, finance). Export: Flexi → Účetní deník → export do XML (všechny zápisy). Aplikace použije **stejné mapování a stejné klíče `AbraId`** jako prostředník (`ucetni-denik:<id>`, u zápisu s více příspěvky `#1`, `#2`), takže ruční import a pozdější stahování po API se nepřebíjejí, jen aktualizují stejné řádky. Import nikdy nemaže; do PRM_AbraSync zapíše záznam `Stav` („Ruční import XML …“). **Při změně mapování ho udržujte shodný v `journalMapping.js` i `abraJournalImport.ts`.** Prostředník při pozdějším běhu může řádky, které z XML už nejsou, označit „zmizel z Abry“ — to dělá jen on, import ne.

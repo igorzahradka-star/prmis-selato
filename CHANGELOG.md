@@ -5,6 +5,14 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.66.0 — 17. 10. 2026 — Import účetního deníku z XML
+
+- Nová záložka **Projekty → Kontroly projektů → Import z Abry (XML)** (administrátor, vedení, jednatel, finance): nahrajete ruční XML export evidence **Účetní deník** (všechny projekty), aplikace ukáže **náhled** (nové / změněné / beze změny řádky, součty nákladů a výnosů po zakázkách, přeskočené zápisy, přesunuté řádky) a teprve po potvrzení zapíše do seznamu dokladů z Abry.
+- **Nic nemaže.** Řádek se podle stálého klíče (`AbraId`) při shodě aktualizuje, nový se přidá, co v souboru chybí, zůstane. Novější export tedy starší nezničí, opakovaný import téhož souboru nic nezmění a pozdější denní stahování prostředníka naváže na stejné řádky (stejné klíče i mapování).
+- Řádek, který se v účetnictví **přesunul do jiného projektu**, se v novém exportu přepíše na nový projekt; **přiřazení k položce rozpočtu v původním projektu zůstane** jako „osiřelé“ a počítá se dál, dokud ho PM neodebere. Nově se osiřelá přiřazení ukazují v **Kontrolách projektů** (dlaždice a sloupec) a upozornění je i na záložce Data z účetnictví.
+- Do deníku se přenáší jen to, co se přenáší i při stahování přes API: náklady účtů 501, 512, 518 (jako přijaté) a výnosy účtů 60… (jako vydané), zakázka musí být ve tvaru čísla projektu (5 číslic). Součty ověřeny na exportu z 13. 10. 2026 proti reportu Účetní analýza zakázky.
+- Beze změny schématu (stačí nahrát balíček). Uživatel, který import spouští, musí mít **právo zápisu** do seznamu PRM – Doklady z Abry (jinak aplikace ohlásí chybu oprávnění).
+
 ## 0.65.0 — 17. 10. 2026 — OPRAVA řádků z účetnictví a Kontroly projektů
 
 - V záložce **Data z účetnictví** u každého řádku nové tlačítko **Oprava…**: řádek, který nepatří do projektu, se označí jako **OPRAVA** s textovým popisem (co je špatně, kam patří). Řádek se **odpojí od rozpočtu a nezapočítává se**, dokud není vyřešen. Označení jde zrušit (omyl).

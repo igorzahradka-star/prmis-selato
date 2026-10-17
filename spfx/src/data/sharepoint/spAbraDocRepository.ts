@@ -11,6 +11,7 @@ import { CurrentUser } from '../../core/types';
 import { toDate } from '../../core/format';
 import { asCurrencyCode } from '../../core/currency';
 import { AbraDoc, AbraDocType } from '../../core/abraDocs';
+import { JournalRow } from '../../core/abraJournalImport';
 import { AbraSyncStatus, IAbraDocRepository } from '../repositories';
 import { getSp, describeSpError } from './spContext';
 
@@ -90,6 +91,72 @@ export class SpAbraDocRepository implements IAbraDocRepository {
     } catch {
       return [];
     }
+  }
+
+  public async importRows(rows: JournalRow[], actor: CurrentUser): Promise<{ added: number; updated: number }> {
+    const sp = getSp(this.context);
+    const list = sp.web.lists.getByTitle(DOCS_LIST);
+    let ids: Record<string, number>;
+    try {
+      const existing: { Id: number; AbraId?: string }[] = await list.items.select('Id', 'AbraId').top(5000)();
+      ids = {};
+      existing.forEach((e) => {
+        if (e.AbraId) {
+          ids[e.AbraId] = e.Id;
+        }
+      });
+    } catch (error) {
+      throw new Error(describeSpError(error, 'Seznam dokladů z Abry se nepodařilo přečíst (spustil administrátor Instalaci a diagnostiku?)'));
+    }
+    const now = new Date().toISOString();
+    const fields = (r: JournalRow): Record<string, unknown> => ({
+      Title: r.number,
+      AbraId: r.abraId,
+      DocType: r.type,
+      ProjectNumber: r.projectNumber,
+      Partner: r.partnerName || '',
+      Description: r.description || '',
+      IssueDate: r.issueIso || null,
+      DueDate: r.dueIso || null,
+      Currency: r.currency,
+      AmountNet: r.amountNet,
+      AmountNetCzk: r.amountNetCzk === undefined ? null : r.amountNetCzk,
+      Accounts: (r.accounts || []).join(' '),
+      SyncedAt: now
+    });
+    let added = 0;
+    let updated = 0;
+    try {
+      for (let i = 0; i < rows.length; i += 5) {
+        await Promise.all(
+          rows.slice(i, i + 5).map(async (r) => {
+            const id = ids[r.abraId];
+            if (id !== undefined) {
+              await list.items.getById(id).update(fields(r));
+              updated += 1;
+            } else {
+              await list.items.add(fields(r));
+              added += 1;
+            }
+          })
+        );
+      }
+    } catch (error) {
+      throw new Error(describeSpError(error, `Import se přerušil po ${added} přidaných a ${updated} změněných řádcích (opakovaný import je bezpečný)`));
+    }
+    try {
+      await sp.web.lists.getByTitle(SYNC_LIST).items.add({
+        Title: `Ruční import XML ${actor.displayName}`,
+        Kind: 'Stav',
+        Status: 'Hotovo',
+        RequestedByName: actor.displayName,
+        FinishedAt: now,
+        Message: `Ruční import účetního deníku z XML (${actor.displayName}): přidáno ${added}, změněno ${updated}.`
+      });
+    } catch {
+      // Záznam o importu je jen pomůcka; řádky už jsou zapsané.
+    }
+    return { added, updated };
   }
 
   public async syncStatus(): Promise<AbraSyncStatus> {

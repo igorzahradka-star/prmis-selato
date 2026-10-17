@@ -140,6 +140,11 @@ export function canManagePartners(userRoles: Role[]): boolean {
 }
 
 /** Smí uživatel vidět stránku Nastavení a Instalaci? */
+/** Import účetního deníku z XML: administrátor, vedení, jednatel a finance. */
+export function canImportAccounting(userRoles: Role[]): boolean {
+  return hasAnyRole(userRoles, Role.Administrator, Role.Vedeni, Role.Jednatel, Role.Finance);
+}
+
 export function canOpenAdmin(userRoles: Role[]): boolean {
   return hasAnyRole(userRoles, Role.Administrator);
 }

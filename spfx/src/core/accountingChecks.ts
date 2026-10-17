@@ -3,7 +3,7 @@
  * na odeslání účtárně a kolik jich visí na účtárně. Podklad pro obrazovku Kontroly projektů.
  */
 
-import { AbraDoc, unallocatedDocs } from './abraDocs';
+import { AbraDoc, orphanAllocations, unallocatedDocs } from './abraDocs';
 import { AbraCorrection, isOpenCorrection, summarizeCorrections } from './abraCorrections';
 import { DocAllocation } from './budget';
 
@@ -19,6 +19,8 @@ export interface ProjectCheck extends CheckedProject {
   lines: number;
   /** Řádky, kterým zbývá něco přiřadit k rozpočtu (bez záloh a bez řádků s otevřenou opravou). */
   unassigned: number;
+  /** Přiřazení v rozpočtu k řádkům, které už v projektu nejsou (přesunuté jinam nebo smazané v Abře). */
+  orphans: number;
   /** Opravy označené, ale neodeslané účtárně. */
   fixToSend: number;
   /** Opravy odeslané účtárně, čekají na opravu v Abře. */
@@ -38,7 +40,8 @@ export function projectChecks(projects: CheckedProject[], docs: AbraDoc[], alloc
   projects.forEach((p) => {
     const own = docs.filter((d) => d.projectNumber === p.projectNumber);
     const fixes = corrections.filter((c) => c.projectNumber === p.projectNumber && isOpenCorrection(c));
-    if (own.length === 0 && fixes.length === 0) {
+    const orphans = orphanAllocations(own, allocations[p.projectNumber]).length;
+    if (own.length === 0 && fixes.length === 0 && orphans === 0) {
       return;
     }
     const flagged = new Set(fixes.map((c) => c.abraId));
@@ -51,10 +54,11 @@ export function projectChecks(projects: CheckedProject[], docs: AbraDoc[], alloc
       ...p,
       lines: own.filter((d) => d.type === 'prijata' || d.type === 'vydana').length,
       unassigned,
+      orphans,
       fixToSend: sum.toSend,
       fixWaiting: sum.waiting,
       oldestWaitingDays: sum.oldestWaitingDays,
-      hasProblem: unassigned > 0 || sum.toSend > 0 || sum.waiting > 0
+      hasProblem: unassigned > 0 || orphans > 0 || sum.toSend > 0 || sum.waiting > 0
     });
   });
   return out.sort((a, b) => (b.oldestWaitingDays ?? -1) - (a.oldestWaitingDays ?? -1) || b.fixToSend - a.fixToSend || b.unassigned - a.unassigned || a.projectNumber.localeCompare(b.projectNumber));
@@ -63,6 +67,7 @@ export function projectChecks(projects: CheckedProject[], docs: AbraDoc[], alloc
 export interface ChecksTotals {
   projects: number;
   unassigned: number;
+  orphans: number;
   fixToSend: number;
   fixWaiting: number;
   oldestWaitingDays?: number;
@@ -73,6 +78,7 @@ export function checksTotals(checks: ProjectCheck[]): ChecksTotals {
   return {
     projects: checks.filter((c) => c.hasProblem).length,
     unassigned: checks.reduce((s, c) => s + c.unassigned, 0),
+    orphans: checks.reduce((s, c) => s + c.orphans, 0),
     fixToSend: checks.reduce((s, c) => s + c.fixToSend, 0),
     fixWaiting: checks.reduce((s, c) => s + c.fixWaiting, 0),
     oldestWaitingDays: days.length > 0 ? Math.max(...days) : undefined

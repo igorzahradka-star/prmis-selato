@@ -36,7 +36,16 @@ describe('kontroly účetnictví napříč projekty', () => {
     const corrections = [fix(2, 'D', '26002', 'Odesláno', new Date(2026, 9, 7))];
     const c = projectChecks(projects, docs, allocations, corrections, today);
     expect(c[0].projectNumber).toBe('26002');
-    expect(checksTotals(c)).toEqual({ projects: 2, unassigned: 2, fixToSend: 0, fixWaiting: 1, oldestWaitingDays: 10 });
+    expect(checksTotals(c)).toEqual({ projects: 2, unassigned: 2, orphans: 0, fixToSend: 0, fixWaiting: 1, oldestWaitingDays: 10 });
+  });
+
+  it('přiřazení k řádku, který z projektu zmizel (přesun jinam), je osiřelé a je problém', () => {
+    const moved = { '26001': [{ docId: 'A', kind: 'item' as const, targetId: 'i1', amount: 1000, currency: 'CZK' as const }, { docId: 'GONE', kind: 'item' as const, targetId: 'i1', amount: 500, currency: 'CZK' as const }] };
+    const c = projectChecks([projects[0]], [doc('A', '26001')], moved, [], today);
+    expect(c[0]).toMatchObject({ unassigned: 0, orphans: 1, hasProblem: true });
+    // projekt, který o všechny řádky přišel, ale má přiřazení, se nevynechá
+    const empty = projectChecks([projects[0]], [], moved, [], today);
+    expect(empty[0]).toMatchObject({ lines: 0, orphans: 2 });
   });
 
   it('projekt úplně přiřazený a bez oprav není problém', () => {

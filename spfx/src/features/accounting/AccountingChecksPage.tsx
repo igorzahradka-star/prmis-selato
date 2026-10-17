@@ -21,6 +21,8 @@ import { AbraDoc } from '../../core/abraDocs';
 import { AbraCorrection } from '../../core/abraCorrections';
 import { checksTotals, projectChecks, ProjectCheck } from '../../core/accountingChecks';
 import { DocAllocation } from '../../core/budget';
+import { canImportAccounting } from '../../core/roles';
+import { JournalImportPanel } from './JournalImportPanel';
 
 const TH: React.CSSProperties = { textAlign: 'left', fontWeight: 600, fontSize: 12, color: RES.gray, padding: '6px 8px', whiteSpace: 'nowrap', borderBottom: `1px solid ${RES.grayBlue}` };
 const TD: React.CSSProperties = { padding: '6px 8px', fontSize: 13, verticalAlign: 'top' };
@@ -44,6 +46,7 @@ export const AccountingChecksPage: React.FC = () => {
   const [onlyProblems, setOnlyProblems] = React.useState(true);
   const [onlyMine, setOnlyMine] = React.useState(false);
   const [search, setSearch] = React.useState('');
+  const [reloadKey, setReloadKey] = React.useState(0);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -81,7 +84,7 @@ export const AccountingChecksPage: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [repos]);
+  }, [repos, reloadKey]);
 
   const mine = (c: { projectManagerLogin?: string }): boolean => !!c.projectManagerLogin && c.projectManagerLogin.toLowerCase() === user.loginName.toLowerCase();
   const shown = checks.filter((c) => (!onlyProblems || c.hasProblem) && (!onlyMine || mine(c)) && (search.trim() === '' || norm(`${c.projectNumber} ${c.title} ${c.projectManagerName || ''}`).indexOf(norm(search.trim())) >= 0));
@@ -107,6 +110,7 @@ export const AccountingChecksPage: React.FC = () => {
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', margin: '10px 0' }}>
               <Tile label="Projekty k řešení" value={String(totals.projects)} hint="projekty, které mají nepřiřazené řádky nebo otevřené opravy" warn={totals.projects > 0} />
               <Tile label="Nepřiřazené řádky" value={String(totals.unassigned)} hint="řádky z Abry (bez záloh), které ještě nejsou přiřazené k položce rozpočtu" warn={totals.unassigned > 0} />
+              <Tile label="Osiřelá přiřazení" value={String(totals.orphans)} hint="přiřazení v rozpočtu k řádkům, které už v projektu nejsou (v účetnictví přesunuté jinam nebo smazané) — počítají se dál, dokud je PM neodebere" warn={totals.orphans > 0} />
               <Tile label="Opravy k odeslání účtárně" value={String(totals.fixToSend)} hint="řádky označené jako OPRAVA, které ještě nebyly odeslány účtárně" warn={totals.fixToSend > 0} />
               <Tile label="Čeká na účtárnu" value={totals.fixWaiting > 0 ? `${totals.fixWaiting}${totals.oldestWaitingDays !== undefined ? ` (nejdéle ${totals.oldestWaitingDays} d)` : ''}` : '0'} hint="odesláno účtárně, čeká na opravu v Abře" warn={totals.fixWaiting > 0} />
             </div>
@@ -129,6 +133,7 @@ export const AccountingChecksPage: React.FC = () => {
                       <th style={TH}>Projektový manažer</th>
                       <th style={{ ...TH, textAlign: 'right' }}>Řádků z Abry</th>
                       <th style={{ ...TH, textAlign: 'right' }}>Nepřiřazeno</th>
+                      <th style={{ ...TH, textAlign: 'right' }} title="přiřazení k řádkům, které už v projektu nejsou">Osiřelá přiřazení</th>
                       <th style={{ ...TH, textAlign: 'right' }}>Opravy k odeslání</th>
                       <th style={{ ...TH, textAlign: 'right' }}>Čeká na účtárnu</th>
                     </tr>
@@ -142,6 +147,7 @@ export const AccountingChecksPage: React.FC = () => {
                         <td style={TD}>{c.projectManagerName || '—'}</td>
                         <td style={{ ...TD, textAlign: 'right' }}>{c.lines}</td>
                         <td style={{ ...TD, textAlign: 'right', fontWeight: c.unassigned > 0 ? 600 : 400, color: c.unassigned > 0 ? RES.amber : RES.text }}>{c.unassigned}</td>
+                        <td style={{ ...TD, textAlign: 'right', fontWeight: c.orphans > 0 ? 600 : 400, color: c.orphans > 0 ? RES.amber : RES.text }}>{c.orphans}</td>
                         <td style={{ ...TD, textAlign: 'right', fontWeight: c.fixToSend > 0 ? 600 : 400, color: c.fixToSend > 0 ? RES.amber : RES.text }}>{c.fixToSend}</td>
                         <td style={{ ...TD, textAlign: 'right', fontWeight: c.fixWaiting > 0 ? 600 : 400, color: c.fixWaiting > 0 ? RES.amber : RES.text }}>
                           {c.fixWaiting}
@@ -198,6 +204,11 @@ export const AccountingChecksPage: React.FC = () => {
               </div>
             )}
           </PivotItem>
+          {canImportAccounting(user.roles) && (
+            <PivotItem headerText="Import z Abry (XML)" itemIcon="OpenFile">
+              <JournalImportPanel onImported={() => setReloadKey((k) => k + 1)} />
+            </PivotItem>
+          )}
         </Pivot>
       )}
     </>

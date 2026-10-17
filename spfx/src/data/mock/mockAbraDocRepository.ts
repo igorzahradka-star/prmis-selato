@@ -5,6 +5,7 @@
 
 import { CurrentUser } from '../../core/types';
 import { AbraDoc } from '../../core/abraDocs';
+import { JournalRow } from '../../core/abraJournalImport';
 import { AbraSyncStatus, IAbraDocRepository } from '../repositories';
 
 const day = (y: number, m: number, d: number): Date => new Date(y, m - 1, d);
@@ -27,16 +28,33 @@ function sampleDocs(projectNumber: string): AbraDoc[] {
 export class MockAbraDocRepository implements IAbraDocRepository {
   public constructor(private readonly projectNumbers: () => Promise<string[]> = () => Promise.resolve([])) {}
 
+  private imported: AbraDoc[] = [];
   private pendingSince: Date | undefined;
   private lastSyncAt: Date | undefined = new Date(Date.now() - 6 * 3600 * 1000);
 
   public list(projectNumber: string): Promise<AbraDoc[]> {
-    return Promise.resolve(sampleDocs(projectNumber));
+    return Promise.resolve(sampleDocs(projectNumber).concat(this.imported.filter((d) => d.projectNumber === projectNumber)));
   }
 
   public async listAll(): Promise<AbraDoc[]> {
     const numbers = await this.projectNumbers();
-    return numbers.reduce<AbraDoc[]>((all, n) => all.concat(sampleDocs(n)), []);
+    return numbers.reduce<AbraDoc[]>((all, n) => all.concat(sampleDocs(n)), []).concat(this.imported);
+  }
+
+  public importRows(rows: JournalRow[], _actor: CurrentUser): Promise<{ added: number; updated: number }> {
+    const byId = new Map(this.imported.map((d) => [d.abraId, d]));
+    let added = 0;
+    let updated = 0;
+    rows.forEach((r) => {
+      if (byId.has(r.abraId)) {
+        updated += 1;
+      } else {
+        added += 1;
+      }
+      byId.set(r.abraId, { ...r, id: 0, syncedAt: new Date() });
+    });
+    this.imported = Array.from(byId.values());
+    return Promise.resolve({ added, updated });
   }
 
   public syncStatus(): Promise<AbraSyncStatus> {

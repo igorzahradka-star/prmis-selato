@@ -30,6 +30,7 @@ import { StoredRate, StoredRates } from '../core/currency';
 import { ListDef } from './schema';
 import { NotificationPrefs } from '../core/notifications';
 import { AbraDoc } from '../core/abraDocs';
+import { JournalRow } from '../core/abraJournalImport';
 import { AbraCorrection } from '../core/abraCorrections';
 import { ServiceDevice, ServiceSite } from '../core/service';
 import type { SiteChecklist } from '../core/serviceCatalog';
@@ -948,6 +949,11 @@ export interface IAbraDocRepository {
   syncStatus(): Promise<AbraSyncStatus>;
   /** Zapíše žádost „Aktualizovat z Abry“; čeká-li už jedna, nic nepřidá. */
   requestSync(actor: CurrentUser): Promise<void>;
+  /**
+   * Ruční import řádků z XML účetního deníku: řádek se stejným `AbraId` se aktualizuje, nový se přidá, nic se nemaže. Zapíše i záznam do
+   * PRM_AbraSync. Při chybě hodí srozumitelnou výjimku; část řádků už může být zapsána (opakovaný import je bezpečný).
+   */
+  importRows(rows: JournalRow[], actor: CurrentUser): Promise<{ added: number; updated: number }>;
 }
 
 /**
