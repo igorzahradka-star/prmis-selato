@@ -10,7 +10,7 @@ vstup pro Claude Code, který povede další vývoj v SELATO. Historie konverzac
 - **Přenáší se jen funkcionalita, číselníky a vazby. Žádná data** (projekty, partneři, objednávky, faktury,
   doklady z Abry, uživatelé, soubory, nic z `integrations/abra-sync/vystupy`).
 - **Souběžný provoz:** kopie PRMIS a REV CRM poběží v SELATO i dál v Revoltum. Revoltum se vyvíjí dál ve svých repozitářích.
-- **Postup A (zvolen):** samostatná kopie (fork) obou aplikací + tento balíček. Kód z Revoltum se do kopie přenáší ručně, vybranými změnami.
+- **Postup A (zvolen):** samostatná kopie (fork) obou aplikací + tento balíček. **Přenos z Revoltum proběhne jednou.** Potom jede SELATO jako samostatná instance, bez průběžného přebírání oprav. Revoltum zůstává beze změny a Igor se sem může jen občas vrátit s dotazem na detail.
 - Další vývoj v SELATO převezme Claude Code zřízený v SELATO. Cílový systém spravuje SELATO.
 
 ## 2. Kde co leží
@@ -77,20 +77,22 @@ a vyhraný případ předává do PRMIS (předávací obálka, `BudgetDoc`). Pro
 3. **Číselníky:** přehled a úprava podle kap. 5.
 4. **Čistý start dat:** ověřit, že kód neobsahuje žádná data Revoltum (klony je neobsahují: `vystupy`, `docs/import` nejsou v gitu). Mock data nahradit vymyšlenými.
 5. **Sestavení balíčků** pro SELATO a instalace průvodcem (`npm run test`, `npm run package`; nasazení do katalogu aplikací dělá admin SELATO; v dialogu o Teams stačí „Deploy“).
-6. **Napojení na Abru, jen pokud ho SELATO chce:** vlastní účet jen pro čtení, vlastní prostředník a heslo mimo kód. Jinak funkci Abry vypnout nebo skrýt.
-7. **Předání a údržba:** postup přenosu oprav z Revoltum (viz kap. 8).
+6. **Účetnictví:** SELATO používá **POHODU**, ne Abru. Napojení na Abru (`integrations/abra-sync`, seznamy `PRM_Abra*`, záložka „Data z účetnictví“) se v SELATO nepoužije: vypnout nebo skrýt. Napojení na Pohodu je nová věc, nejdřív zadání s Igorem (co a jak se má přenášet, jen čtení), nic se nehádá.
+7. **Předání:** přenos z Revoltum je jednorázový, dál samostatná instance (kap. 8).
 
-## 7. Otevřené otázky na Igora (zatím nezodpovězeno)
+## 7. Odpovědi Igora (17. 10. 2026)
 
-1. Název aplikací v SELATO (zůstane PRMIS a „RES CRM“, nebo vlastní, např. „PRM SELATO“ a „SELATO CRM“)?
-2. Adresa a názvy webů v tenantu SELATO (projektový web, web pro důvěrná finanční data, stránka REVCRM) a kdo je správce tenanta?
-3. Používá SELATO Abru (Flexi)? Pokud ne, funkce Abry se vypne.
-4. Které moduly SELATO chce: Servis ano/ne, stavební deník, harmonogram, cashflow firmy (vazba na `cf-selato`)?
-5. Číslování projektů a obchodních případů v SELATO (předpona, zkratka firmy).
-6. Zůstávají role a skupiny stejné (PM, asistent, vedení, finance, správce servisu, dispečer, čtenář, administrátor)?
-7. Jak často a kým se mají opravy z Revoltum přenášet do SELATO?
+1. **Název:** PRMIS zůstává. REV CRM se v SELATO přejmenuje na **SELCRM** (aplikace, řešení, texty; předponu seznamů a skupin `REV` řešit ve vlastním kroku, schéma jen přidávací).
+2. **Weby a tenant:** upřesní se podle tenantu `selatosro2025.sharepoint.com`. Správce tenanta SELATO existuje (stejný model jako u Revoltum).
+3. **Účetnictví:** SELATO používá **POHODU**. Abra se nepoužije (kap. 6, bod 6).
+4. **Číslování:** projektů a nabídek je v SELATO jiné, ale ne příliš. Přesný tvar upřesní Igor v navazující relaci.
+5. **Přesné hodnoty** (předpony, zkratky, adresy webů) doplní Igor až v navazující relaci, která je převezme a upraví.
+6. **Role a skupiny** zůstávají stejné jako v Revoltum.
+7. **Přenos:** jednorázově z Revoltum, potom samostatná instance. Průběžné přebírání oprav neplatí.
 
-## 8. Přenos změn mezi Revoltum a SELATO
+**Stále otevřené:** které moduly SELATO ponechá (Servis, stavební deník, harmonogram, cashflow firmy a vazba na `cf-selato`). Zatím se ponechávají všechny.
 
-Kopie se postupně rozejdou. Doporučení: v kopii držet všechny úpravy pro SELATO v malém počtu míst (kap. 6, bod 1), aby šly opravy z Revoltum přebírat
-přes `git cherry-pick` nebo ručně. Při přebírání číst `CHANGELOG.md` a `docs/DENIK.md` originálu. Zdroj pravdy o pravidlech zůstává `CLAUDE.md` v kopii (upravit až po schválení Igorem).
+## 8. Co dělá navazující relace (SELATO)
+
+Žádné sladění s Revoltum. Kopie je od teď vlastní: upravit parametry, značku a číselníky (kap. 5 a 6), přejmenovat REV CRM na SELCRM, odpojit Abru,
+vyřešit otevřené body s Igorem a teprve potom sestavit a nasadit balíček. Původní repozitáře jen číst, když je třeba něco dohledat.
