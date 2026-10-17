@@ -1,10 +1,10 @@
 {
   "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/package-solution.schema.json",
   "solution": {
-    "name": "PRM Revoltum",
-    "id": "5af5efa5-3d7c-447d-b4e7-571588e46cb1",
+    "name": "PRMIS SELATO",
+    "id": "6a319ce9-2302-4329-bea1-d04dbd01db98",
     "version": "0.66.0.0",
-    "iconPath": "assets/prm-ikona-96.png",
+    "iconPath": "assets/prmis-ikona-96.png",
     "includeClientSideAssets": true,
     "webApiPermissionRequests": [
       {
@@ -15,7 +15,7 @@
     "skipFeatureDeployment": true,
     "isDomainIsolated": false,
     "developer": {
-      "name": "Revoltum Engineering & Services",
+      "name": "SELATO s.r.o.",
       "websiteUrl": "",
       "privacyUrl": "",
       "termsOfUseUrl": "",
@@ -23,10 +23,10 @@
     },
     "metadata": {
       "shortDescription": {
-        "default": "Řízení projektů Revoltum Engineering & Services"
+        "default": "Řízení projektů SELATO s.r.o."
       },
       "longDescription": {
-        "default": "PRM Revoltum – evidence projektů, struktura složek projektů, nákupní objednávky se schvalováním, podklady pro fakturaci, realizační rozpočet, cashflow a harmonogram."
+        "default": "PRMIS SELATO – evidence projektů, struktura složek projektů, nákupní objednávky se schvalováním, podklady pro fakturaci, realizační rozpočet, cashflow a harmonogram."
       },
       "screenshotPaths": [],
       "videoUrl": "",
@@ -34,14 +34,14 @@
     },
     "features": [
       {
-        "title": "PRM Revoltum",
-        "description": "Aktivuje web part PRM Revoltum na webu.",
-        "id": "aaf74d1b-37d9-4c7f-be9d-3cb2057f2abd",
+        "title": "PRMIS SELATO",
+        "description": "Aktivuje web part PRMIS SELATO na webu.",
+        "id": "f5df5598-feb1-40d3-9a9a-bcf7487a07cc",
         "version": "0.1.0.0"
       }
     ]
   },
   "paths": {
-    "zippedPackage": "solution/prm-revoltum.sppkg"
+    "zippedPackage": "solution/prmis-selato.sppkg"
   }
 }

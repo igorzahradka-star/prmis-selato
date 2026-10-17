@@ -1,49 +1,53 @@
 /**
- * Fluent UI theme v barvách RES.
+ * Fluent UI theme v barvách značky (SELATO, viz `config/entity.ts` a `brand/selato/`).
  *
  * Všechny komponenty berou barvy odtud — nikde v aplikaci se nepíše HEX natvrdo.
- * Zdroj barev: brand/BARVY.md (odvozeno z firemního motivu Office).
+ * Zdroj barev: Corporate Visual Style Guide SELATO a motiv Office (brand/BARVY.md).
  */
 
 import { createTheme, ITheme, IPalette } from '@fluentui/react/lib/Styling';
+import { ENTITY } from '../config/entity';
 
-/** Barvy značky RES — jediné místo, kde jsou HEX hodnoty. */
+/**
+ * Barvy značky — jediné místo, kde jsou HEX hodnoty. Název `RES` zůstal z původní aplikace (je na něj navázáno
+ * stovky míst); hodnoty jsou SELATO.
+ */
 export const RES = {
-  /** Text a hlavní tmavá — logo „REVOLTUM". */
-  text: '#030422',
-  /** Navy tmavá — hlavička aplikace. */
-  navyDark: '#0E2841',
-  /** Navy. */
-  navy: '#153D64',
-  /** Modrá — primární akce, tlačítka, odkazy. */
-  blue: '#0268A6',
-  /** Modrá střední — hover. */
+  /** Text a hlavní tmavá (motiv Office „dk2“). */
+  text: '#262626',
+  /** Tmavě modrá — hlavička aplikace. */
+  navyDark: ENTITY.brand.blue,
+  /** Tmavší modrá — přechody, hover v záhlaví. */
+  navy: '#00227a',
+  /** Modrá SELATO — primární akce, tlačítka, odkazy. */
+  blue: ENTITY.brand.blue,
+  /** Modrá střední — hover (motiv Office „accent4“). */
   blueMid: '#215E99',
   /** Modrá světlá. */
-  blueLight: '#45B0E1',
-  /** Azurová. */
-  cyan: '#0F9ED5',
+  blueLight: '#5F7FD6',
+  /** Azurová (grafy). */
+  cyan: '#215E99',
   /** Světle modrá — podbarvení. */
-  bluePale: '#C1E4F5',
+  bluePale: '#DCE4F7',
   /** Šedomodrá — oddělovače. */
-  grayBlue: '#C7D4DD',
-  /** Zelená RES — akcent značky. */
-  green: '#00C667',
-  /** Zelená tmavší — semafor, grafy. */
-  greenDark: '#00A857',
+  grayBlue: '#D4D8E2',
+  /** Zelená SELATO — akcent značky. */
+  green: ENTITY.brand.green,
+  /** Zelená tmavší — semafor, grafy (text na světlém podkladu). */
+  greenDark: '#008a00',
   /** Šedá — popisky. */
-  gray: '#9AA3AD',
+  gray: ENTITY.brand.gray,
   /** Semafor žlutá. */
   amber: '#E8A200',
   /** Semafor červená. */
   red: '#C4314B',
   white: '#FFFFFF',
   /** Podklad aplikace. */
-  background: '#FAFBFC'
+  background: '#FAFAFA'
 } as const;
 
-/** Písmo podle grafického manuálu. Aptos je standardní písmo Microsoft 365. */
-export const RES_FONT_FAMILY = "'Aptos', 'Segoe UI', system-ui, -apple-system, sans-serif";
+/** Písmo: Poppins (grafika), záloha Aptos (písmo Microsoft 365 podle manuálu značky). */
+export const RES_FONT_FAMILY = `'${ENTITY.brand.font}', '${ENTITY.brand.officeFont}', 'Segoe UI', system-ui, -apple-system, sans-serif`;
 
 /**
  * Barvy semaforu rozpočtu.
@@ -61,31 +65,31 @@ export const SEMAFOR = {
 
 const palette: Partial<IPalette> = {
   themePrimary: RES.blue,
-  themeLighterAlt: '#F2F8FC',
-  themeLighter: '#CFE6F3',
-  themeLight: '#A9D2E9',
-  themeTertiary: '#5EA8D1',
-  themeSecondary: '#1C78B2',
-  themeDarkAlt: '#025E95',
-  themeDark: '#024F7E',
-  themeDarker: '#013A5D',
+  themeLighterAlt: '#F3F6FD',
+  themeLighter: '#D2DDF7',
+  themeLight: '#AABDEE',
+  themeTertiary: '#5F7FD6',
+  themeSecondary: '#1E4BBE',
+  themeDarkAlt: '#002A99',
+  themeDark: '#002380',
+  themeDarker: '#001A5F',
 
   neutralDark: RES.text,
   neutralPrimary: RES.text,
-  neutralPrimaryAlt: '#2B2D42',
-  neutralSecondary: '#5A6472',
+  neutralPrimaryAlt: '#3B3B3B',
+  neutralSecondary: '#5F5F5F',
   neutralTertiary: RES.gray,
   neutralTertiaryAlt: RES.grayBlue,
-  neutralQuaternary: '#DDE4EA',
-  neutralQuaternaryAlt: '#E7ECF0',
-  neutralLight: '#EDF1F4',
-  neutralLighter: '#F4F6F8',
-  neutralLighterAlt: '#FAFBFC',
+  neutralQuaternary: '#E2E2E2',
+  neutralQuaternaryAlt: '#EAEAEA',
+  neutralLight: '#EFEFEF',
+  neutralLighter: '#F5F5F5',
+  neutralLighterAlt: '#FAFAFA',
 
   black: RES.text,
   white: RES.white,
 
-  // Zelená RES je akcentová barva značky — používá se na potvrzovací akce.
+  // Zelená značky je akcentová barva značky — používá se na potvrzovací akce.
   accent: RES.green
 };
 

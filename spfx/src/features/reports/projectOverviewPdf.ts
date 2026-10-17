@@ -18,9 +18,9 @@ import { GRAY, LINE, NAVY, renderPdfDefinition } from '../orders/pdfCommon';
 import { PAGE_H, PAGE_W, REPORT_BOLT, ReportAssets } from './projectReportPdf';
 
 const MX = 66;
-const DARK = '#030422';
-const PALE = '#C1E4F5';
-const GREEN_BRAND = '#00C667';
+const DARK = '#262626';
+const PALE = '#DCE4F7';
+const GREEN_BRAND = '#00a600';
 
 /** Podklad pro PDF: vše, co přehled ukazuje, už načtené. */
 export interface OverviewModel {
@@ -92,7 +92,7 @@ export function buildOverviewDocument(m: OverviewModel, assets: ReportAssets = {
     content.push({ image: assets.streak, width: 915, absolutePosition: { x: -50, y: 314 } } as Content);
   }
   if (assets.logoDark) {
-    content.push({ image: assets.logoDark, width: 240, absolutePosition: { x: 60, y: 44 } } as Content);
+    content.push({ image: assets.logoDark, width: 80, absolutePosition: { x: 60, y: 44 } } as Content);
   }
   content.push({ text: L.kicker, fontSize: 14, bold: true, color: GREEN_BRAND, characterSpacing: 2, margin: [MX, 140, PAGE_W - MX - textWidth, 0] } as Content);
   content.push({ text: subject, fontSize: subject.length > 40 ? 32 : 40, bold: true, color: 'white', lineHeight: 0.95, margin: [MX, 8, PAGE_W - MX - textWidth, 0] } as Content);
@@ -176,7 +176,7 @@ export function buildOverviewDocument(m: OverviewModel, assets: ReportAssets = {
   } as Content);
   content.push({ text: m.company, fontSize: 14, color: PALE, absolutePosition: { x: backPhotos.length > 0 ? MX : MX + 40, y: backPhotos.length > 0 ? 474 : 280 } } as Content);
   if (assets.logoDark) {
-    content.push({ image: assets.logoDark, width: backPhotos.length > 0 ? 200 : 190, absolutePosition: backPhotos.length > 0 ? { x: MX, y: 420 } : { x: 750, y: 24 } } as Content);
+    content.push({ image: assets.logoDark, width: backPhotos.length > 0 ? 67 : 64, absolutePosition: backPhotos.length > 0 ? { x: MX, y: 420 } : { x: 876, y: 24 } } as Content);
   }
 
   return {
@@ -184,7 +184,7 @@ export function buildOverviewDocument(m: OverviewModel, assets: ReportAssets = {
     pageMargins: [0, 0, 0, 30],
     defaultStyle: { font: 'Roboto', fontSize: 10, color: DARK },
     info: { title: `Project overview ${p.projectNumber}`, author: m.company, subject: subject },
-    background: (currentPage: number) => (currentPage === 1 ? null : ({ image: PDF_LOGO_DATA_URL, width: 180, absolutePosition: { x: 754, y: 21 } } as Content)),
+    background: (currentPage: number) => (currentPage === 1 ? null : ({ image: PDF_LOGO_DATA_URL, width: 60, absolutePosition: { x: 874, y: 21 } } as Content)),
     footer: (currentPage: number, pageCount: number) =>
       currentPage === 1 || currentPage === pageCount ? null : ({ text: `${m.company} · ${subject}${p.location ? ` · ${p.location}` : ''}`, fontSize: 8, color: GRAY, margin: [MX, 6, 0, 0] } as Content),
     content

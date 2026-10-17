@@ -26,10 +26,10 @@ import { buildCalendar, buildYear, CalendarData, CalendarEntry, CalendarWeek, mo
 type View = 'tyden' | 'mesic' | 'rok';
 
 const DAY_NAMES = ['Po', 'Út', 'St', 'Čt', 'Pá', 'So', 'Ne'];
-const PRIORITY_COLOR: Record<string, string> = { Havárie: '#C4314B', Vysoká: '#D9822B', Běžná: '#0268A6', Nízká: '#9AA3AD' };
+const PRIORITY_COLOR: Record<string, string> = { Havárie: '#C4314B', Vysoká: '#D9822B', Běžná: '#0030ac', Nízká: '#9AA3AD' };
 const GREEN = '#2E9E5B';
 const ORANGE = '#D9822B';
-const BLUE = '#0268A6';
+const BLUE = '#0030ac';
 
 const openRequest = (number: string): void => navigate(RouteName.Service, `detail-${number}`);
 const sameDay = (a: Date, b: Date): boolean => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();

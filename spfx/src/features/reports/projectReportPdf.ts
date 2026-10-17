@@ -10,6 +10,7 @@
 
 import type { Content, TDocumentDefinitions } from 'pdfmake/interfaces';
 
+import { ENTITY } from '../../config/entity';
 import { formatDate, formatMoney, formatDateTime } from '../../core/format';
 import { ProjectReportModel, REPORT_LIMITS, reportHighlights } from '../../core/projectReport';
 import { STATUS_STYLE } from '../../core/geo';
@@ -21,11 +22,11 @@ import { GRAY, LINE, NAVY, renderPdfDefinition, td, th } from '../orders/pdfComm
 export const PAGE_W = 960;
 export const PAGE_H = 540;
 const MX = 66;
-const DARK = '#030422';
-const BLUE = '#0268A6';
-const PALE = '#C1E4F5';
-const GREEN_BRAND = '#00C667';
-const GREEN = '#00A857';
+const DARK = '#262626';
+const BLUE = '#0030ac';
+const PALE = '#DCE4F7';
+const GREEN_BRAND = '#00a600';
+const GREEN = '#008a00';
 const RED = '#C4314B';
 const AMBER = '#E8A200';
 
@@ -453,7 +454,7 @@ export function buildProjectReportDocument(m: ProjectReportModel, assets: Report
   // --- úvodní strana (jako úvodní snímek šablony: logo vlevo nahoře, nadpis vpravo, výboje)
   content.push(full(assets.gradient), ...streaks());
   if (assets.logoDark) {
-    content.push({ image: assets.logoDark, width: 270, absolutePosition: { x: 60, y: 48 } } as Content);
+    content.push({ image: assets.logoDark, width: 90, absolutePosition: { x: 60, y: 48 } } as Content);
   }
   content.push({ text: 'REPORT PROJEKTU', fontSize: 16, bold: true, color: GREEN_BRAND, margin: [450, 150, 60, 0], characterSpacing: 2 } as Content);
   content.push({ text: m.project.title, fontSize: m.project.title.length > 38 ? 30 : 40, bold: true, color: 'white', margin: [450, 8, 60, 0], lineHeight: 0.95 } as Content);
@@ -490,10 +491,10 @@ export function buildProjectReportDocument(m: ProjectReportModel, assets: Report
   content.push({ text: '', pageBreak: 'before' } as Content);
   content.push(full(assets.gradient), ...streaks());
   if (assets.logoDark) {
-    content.push({ image: assets.logoDark, width: 190, absolutePosition: { x: 750, y: 24 } } as Content);
+    content.push({ image: assets.logoDark, width: 64, absolutePosition: { x: 876, y: 24 } } as Content);
   }
-  content.push({ text: 'Revoltujte s námi', fontSize: 48, bold: true, color: 'white', margin: [MX + 40, 120, 60, 0] } as Content);
-  content.push({ text: 'za moderní decentralizovanou energetiku', fontSize: 48, bold: true, color: 'white', margin: [MX + 40, 4, 60, 0], lineHeight: 0.95 } as Content);
+  content.push({ text: ENTITY.company.slogan.cs[0], fontSize: 48, bold: true, color: 'white', margin: [MX + 40, 120, 60, 0] } as Content);
+  content.push({ text: ENTITY.company.slogan.cs[1], fontSize: 48, bold: true, color: 'white', margin: [MX + 40, 4, 60, 0], lineHeight: 0.95 } as Content);
   content.push({ text: `${m.companyName}`, fontSize: 14, color: PALE, margin: [MX + 40, 30, 60, 0] } as Content);
 
   return {
@@ -502,7 +503,7 @@ export function buildProjectReportDocument(m: ProjectReportModel, assets: Report
     defaultStyle: { font: 'Roboto', fontSize: 10, color: DARK },
     info: { title: `Report projektu ${m.project.number}`, author: m.companyName, subject: `Stav projektu ${m.project.number} k ${formatDate(m.generatedAt)}` },
     // Logo vpravo nahoře na obsahových stranách (jako v šabloně); úvodní a závěrečná strana mají vlastní plochu přes celou stránku.
-    background: (currentPage: number) => (currentPage === 1 ? null : ({ image: PDF_LOGO_DATA_URL, width: 180, absolutePosition: { x: 754, y: 21 } } as Content)),
+    background: (currentPage: number) => (currentPage === 1 ? null : ({ image: PDF_LOGO_DATA_URL, width: 60, absolutePosition: { x: 874, y: 21 } } as Content)),
     footer: (currentPage: number, pageCount: number) =>
       currentPage === 1 || currentPage === pageCount
         ? null

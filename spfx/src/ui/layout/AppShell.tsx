@@ -21,7 +21,7 @@ import { canActAs, canOpenAdmin, canOpenBenchmark, canOpenFinance, isReaderOnly 
 import { crmLinkUrl, isWebViewMode, siteHomeUrl, toggleWebViewUrl } from '../fullscreen';
 import { NavEntry, NavGroup, NavItem, activeItemRoute, buildNavigation, flattenNavigation, groupKeyOf } from './navigation';
 
-import logoUrl from '../../webparts/prm/assets/res-logo-header.svg';
+import logoUrl from '../../webparts/prm/assets/selato-logo-header.svg';
 
 export interface AppShellProps {
   route: Route;
@@ -261,9 +261,9 @@ const Header: React.FC<{ onToggleNav: () => void }> = ({ onToggleNav }) => {
         <Icon iconName="GlobalNavButton" />
       </button>
 
-      <img src={logoUrl} alt="Revoltum Engineering & Services" style={{ height: 32 }} />
+      <img src={logoUrl} alt={ENTITY.companyName} style={{ height: 44 }} />
 
-      <span style={{ fontSize: 17, fontWeight: 600, letterSpacing: 0.2 }}>PRM Revoltum</span>
+      <span style={{ fontSize: 17, fontWeight: 600, letterSpacing: 0.2 }}>{ENTITY.appName}</span>
 
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 18 }}>
         <ActAsPicker />

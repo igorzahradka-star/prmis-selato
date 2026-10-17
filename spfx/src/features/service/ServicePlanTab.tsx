@@ -38,7 +38,7 @@ import { snapshotItems } from '../../core/serviceContractRender';
 import { PlanItemInput } from '../../data/repositories';
 import { DATE_INPUT, TD, TH, dateToInput, inputToDate } from './serviceUi';
 
-const STATE_COLOR: Record<PlanItemState, string> = { hotovo: '#2E9E5B', 'po-terminu': '#C4314B', 'tento-mesic': '#0268A6', budouci: '#9AA3AD' };
+const STATE_COLOR: Record<PlanItemState, string> = { hotovo: '#2E9E5B', 'po-terminu': '#C4314B', 'tento-mesic': '#0030ac', budouci: '#9AA3AD' };
 const STATE_LABEL: Record<PlanItemState, string> = { hotovo: 'požadavek vytvořen', 'po-terminu': 'po termínu', 'tento-mesic': 'aktuální', budouci: 'naplánováno' };
 
 const kindText = (k: string): string => (k === 'Plánovaná' ? 'Plánovaná — v paušálu' : 'Nahodilá — mimo paušál');

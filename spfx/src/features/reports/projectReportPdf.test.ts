@@ -1,3 +1,4 @@
+import { ENTITY } from '../../config/entity';
 import { buildProjectReportDocument } from './projectReportPdf';
 import { ALL_REPORT_SECTIONS, ProjectReportModel } from '../../core/projectReport';
 
@@ -73,8 +74,8 @@ describe('PDF reportu projektu', () => {
     expect(text).toContain('REPORT PROJEKTU');
     expect(text).toContain('MASTIROVICE 1 GENERALNI OPRAVA');
     expect(text).toContain('Projekt 26001');
-    expect(text).toContain('Revoltujte s námi');
-    expect(text).toContain('za moderní decentralizovanou energetiku');
+    expect(text).toContain(ENTITY.company.slogan.cs[0]);
+    expect(text).toContain(ENTITY.company.slogan.cs[1]);
   });
 
   it('obsahuje přehled, objednávky, fakturaci, termíny, deník i fotky', () => {

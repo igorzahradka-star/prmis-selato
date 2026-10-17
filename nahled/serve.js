@@ -55,6 +55,6 @@ http
     });
   })
   .listen(PORT, () => {
-    console.log(`Náhled PRM Revoltum běží na http://localhost:${PORT}`);
+    console.log(`Náhled PRMIS SELATO běží na http://localhost:${PORT}`);
     console.log('Ukončíš ho klávesami Ctrl+C.');
   });

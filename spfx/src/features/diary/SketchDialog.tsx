@@ -35,7 +35,7 @@ const TOOLS: { key: Tool; label: string; icon: string }[] = [
   { key: 'guma', label: 'Guma', icon: 'EraseTool' }
 ];
 
-const COLORS = ['#D32F2F', '#0268A6', '#111111', '#2E7D32', '#F9A825', '#FFFFFF'];
+const COLORS = ['#D32F2F', '#0030ac', '#111111', '#2E7D32', '#F9A825', '#FFFFFF'];
 const WIDTHS = [
   { label: 'Tenká', value: 3 },
   { label: 'Střední', value: 6 },

@@ -1,4 +1,5 @@
 import { buildOverviewDocument, OverviewModel } from './projectOverviewPdf';
+import { ENTITY } from '../../config/entity';
 import { defaultOverview } from '../../core/projectOverview';
 import { BudgetStatus, Project, ProjectStatus } from '../../core/types';
 
@@ -63,7 +64,7 @@ describe('PDF Project overview', () => {
 
   it('zadní strana: bez fotek jen slogan; s fotkami se objeví obě (druhá překrývá první); fotogalerie už není', () => {
     const one = textOf(model({ photos: [{ dataUrl: 'data:image/jpeg;base64,COVER' }] }));
-    expect(one).toContain('Revoltujte s námi');
+    expect(one).toContain(ENTITY.company.slogan.cs[0]);
     expect(one).toContain('COVER');
     const two = textOf(model({ photos: [{ dataUrl: 'data:image/jpeg;base64,COVER' }, { dataUrl: 'data:image/jpeg;base64,ZADNI1' }, { dataUrl: 'data:image/jpeg;base64,ZADNI2' }] }));
     expect(two).toContain('ZADNI1');

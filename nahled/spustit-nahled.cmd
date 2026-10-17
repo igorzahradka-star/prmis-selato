@@ -1,7 +1,7 @@
 @echo off
-rem Spusti lokalni nahled PRM Revoltum a otevre ho v prohlizeci.
+rem Spusti lokalni nahled PRMIS SELATO a otevre ho v prohlizeci.
 rem Okno nechte otevrene - dokud bezi, bezi i nahled. Zavrenim se nahled ukonci.
-title PRM Revoltum - nahled (toto okno nezavirejte)
+title PRMIS SELATO - nahled (toto okno nezavirejte)
 cd /d "%~dp0"
 
 where node >nul 2>&1

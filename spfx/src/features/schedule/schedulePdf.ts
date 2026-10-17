@@ -15,7 +15,7 @@ import { BLUE, GRAY, NAVY, documentFooter, renderPdfDefinition } from '../orders
 
 const RED = '#C8102E';
 const AMBER = '#F2A900';
-const GREEN = '#00A857';
+const GREEN = '#008a00';
 const PALE = '#CFE3F2';
 const PALE_CRIT = '#F4C9D1';
 
@@ -97,7 +97,7 @@ export function buildSchedulePdfDocument(args: {
     } as TableCell));
     const body: TableCell[][] = [head];
     pageRows.forEach((r, i) => {
-      const fill = i % 2 ? '#FAFBFC' : '#FFFFFF';
+      const fill = i % 2 ? '#FAFAFA' : '#FFFFFF';
       const color = r.critical ? RED : '#1F2933';
       body.push([
         cellText(r.wbs, { color: GRAY, fillColor: fill }),
@@ -115,7 +115,7 @@ export function buildSchedulePdfDocument(args: {
 
     // --- diagram vpravo (canvas pod hlavičkou)
     const canvas: object[] = [];
-    pageRows.forEach((_, i) => canvas.push({ type: 'rect', x: 0, y: i * ROW_H, w: CHART_W, h: ROW_H, color: i % 2 ? '#FAFBFC' : '#FFFFFF' }));
+    pageRows.forEach((_, i) => canvas.push({ type: 'rect', x: 0, y: i * ROW_H, w: CHART_W, h: ROW_H, color: i % 2 ? '#FAFAFA' : '#FFFFFF' }));
     layout.offDays.forEach((o) => canvas.push({ type: 'rect', x: o.x * kx, y: 0, w: o.width * kx, h: height, color: '#E8EDF2', fillOpacity: 0.8 }));
     if (layout.todayX !== undefined) {
       canvas.push({ type: 'line', x1: layout.todayX * kx, y1: 0, x2: layout.todayX * kx, y2: height, lineWidth: 1.2, lineColor: GREEN, dash: { length: 3, space: 2 } });

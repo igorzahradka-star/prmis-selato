@@ -14,7 +14,7 @@ import { toDataUrl } from '../diary/imageUtils';
 import { loadBatches, batchFolderOf } from '../photos/photoBatches';
 import { ReportAssets } from './projectReportPdf';
 
-/** Diagonální přechod jako v šabloně RES: tmavá → navy → modrá, z levého horního do pravého dolního rohu. */
+/** Diagonální přechod ve značce SELATO: tmavě modrá → modrá, z levého horního do pravého dolního rohu. */
 function makeGradient(): string | undefined {
   try {
     const canvas = document.createElement('canvas');
@@ -25,9 +25,9 @@ function makeGradient(): string | undefined {
       return undefined;
     }
     const g = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-    g.addColorStop(0, '#030422');
-    g.addColorStop(0.5, '#0E2841');
-    g.addColorStop(1, '#0268A6');
+    g.addColorStop(0, '#001a5f');
+    g.addColorStop(0.5, '#00227a');
+    g.addColorStop(1, '#0030ac');
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     return canvas.toDataURL('image/jpeg', 0.92);

@@ -12,11 +12,11 @@ import { SignatureMark } from '../../core/signatures';
 import { formatDateTime } from '../../core/format';
 
 /** Barvy značky RES (brand/BARVY.md). */
-export const NAVY = '#0E2841';
-export const BLUE = '#0268A6';
+export const NAVY = '#00227a';
+export const BLUE = '#0030ac';
 export const GRAY = '#5A6472';
-export const LINE = '#C7D4DD';
-export const GREEN = '#00A857';
+export const LINE = '#D4D8E2';
+export const GREEN = '#008a00';
 
 export const th = (text: string, alignment: 'left' | 'right' | 'center' = 'left'): TableCell => ({
   text,
@@ -61,7 +61,7 @@ export function documentHeader(company: CompanySettings): Content[] {
   return [
     {
       columns: [
-        { image: PDF_LOGO_DATA_URL, width: 150, height: Math.round(150 / PDF_LOGO_RATIO) },
+        { image: PDF_LOGO_DATA_URL, width: 56, height: Math.round(56 / PDF_LOGO_RATIO) },
         { stack: companyLinesOf(company).map((l, i) => ({ text: l, fontSize: 9, bold: i === 0, alignment: 'right' as const })), width: '*' }
       ],
       margin: [0, 0, 0, 14]

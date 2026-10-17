@@ -35,7 +35,7 @@ import { ReportCurrency, useReportCurrency } from '../../ui/useReportCurrency';
 import { CurrencySwitch } from '../../ui/components/CurrencySwitch';
 import { StickyHScroll } from '../../ui/components/StickyHScroll';
 import { canCreateProject, canEditProject } from '../../core/roles';
-import streakUrl from '../../webparts/prm/assets/res-kpi-streak.png';
+import streakUrl from '../../webparts/prm/assets/kpi-streak.png';
 
 /** Stejný diagonální přechod (tmavá → navy → modrá) jako v grafickém manuálu RES. */
 const HERO_GRADIENT = `linear-gradient(135deg, ${RES.text} 0%, ${RES.navyDark} 55%, ${RES.blue} 100%)`;

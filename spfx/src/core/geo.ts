@@ -355,7 +355,7 @@ export function clusterListHtml(items: PinInfo[], links: boolean, hrefOf: (proje
   const rows = items.slice(0, max).map((info) => {
     const label = `${escapeHtml(info.projectNumber)} · ${escapeHtml(info.name)}`;
     const name = links
-      ? `<a href="${escapeHtml(hrefOf(info.projectNumber))}" style="font-weight:600;color:#0268A6">${label}</a>`
+      ? `<a href="${escapeHtml(hrefOf(info.projectNumber))}" style="font-weight:600;color:#0030ac">${label}</a>`
       : `<span style="font-weight:600">${label}</span>`;
     return (
       `<div style="margin-top:4px"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${info.statusStyle.fill};` +

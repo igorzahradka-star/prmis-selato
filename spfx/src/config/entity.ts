@@ -7,8 +7,9 @@
  * Hodnota `TODO_SELATO` = Igor ji zatím nedodal; před nasazením se musí nahradit (hlídá to test `entity.test.ts`
  * jen jako přehled, nasazení nebrání).
  *
- * Co tu zatím NENÍ (řeší se v dalších etapách, viz docs/PREDANI_SELATO.md kap. 6): barvy, logo a písmo (`ui/theme.ts`),
- * název a id řešení (`config/package-solution.json`), číselné řady, struktura složek projektu a číselníky.
+ * Co tu zatím NENÍ (řeší se v dalších etapách, viz docs/PREDANI_SELATO.md kap. 6): název a id řešení
+ * (`config/package-solution.json`, manifesty web partů — JSON nejde importovat z kódu), číselné řady,
+ * struktura složek projektu a číselníky.
  */
 
 /** Zástupná hodnota pro údaj, který zadavatel ještě nedodal. */
@@ -29,6 +30,33 @@ export const ENTITY = {
   /** Stránka s PRMIS a stránka sesterské aplikace v `SitePages` (jen název souboru). */
   appPageFile: 'PRM.aspx',
   crmPageFile: 'SELCRM.aspx',
+
+  /** Značka podle Corporate Visual Style Guide SELATO (modrá `#0030ac`, zelená `#00a600`, šedé `#EFEFEF` a `#A0A1A2`). */
+  brand: {
+    blue: '#0030ac',
+    green: '#00a600',
+    grayLight: '#EFEFEF',
+    gray: '#A0A1A2',
+    /** Grafické výstupy Poppins; v aplikaci se použije, jen když je v počítači, jinak Aptos (kancelářské aplikace podle manuálu). */
+    font: 'Poppins',
+    officeFont: 'Aptos'
+  },
+
+  /** Fakturační a kontaktní údaje (výchozí hodnoty Nastavení → Údaje firmy), z manuálu značky. */
+  company: {
+    street: 'Lučice 260',
+    city: 'Lučice',
+    zip: '582 35',
+    ico: '03647862',
+    dic: 'CZ03647862',
+    email: 'info@selato.cz',
+    claim: 'SERVIS | ELEKTRO | AUTOMATIZACE',
+    /** Dvouřádkový závěrečný nápis reportů (česky, anglicky). */
+    slogan: {
+      cs: ['Servis | Elektro', 'Automatizace'],
+      en: ['Service | Electrical', 'Automation']
+    }
+  },
 
   /** Výchozí umístění složek projektů (jde přepsat v Nastavení → Složky). Nerozhodnuto — Igor upřesní. */
   folders: {

@@ -144,7 +144,7 @@ const EXTRA_CSS = `
 .prm-pin svg { display: block; filter: drop-shadow(0 1px 2px rgba(0,0,0,.35)); }
 .prm-cluster { background: none; border: none; }
 .prm-cluster div { width: 42px; height: 42px; border-radius: 50%; background: #0B3A6B; color: #fff; border: 3px solid rgba(255,255,255,.95); box-shadow: 0 1px 6px rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 15px; cursor: pointer; }
-.prm-cluster:hover div { background: #0268A6; }
+.prm-cluster:hover div { background: #0030ac; }
 .leaflet-container { font-family: inherit; }
 .prm-tiles-gray { filter: grayscale(1) contrast(0.88) brightness(1.1); }
 .leaflet-control-layers-expanded { font-size: 12px; }

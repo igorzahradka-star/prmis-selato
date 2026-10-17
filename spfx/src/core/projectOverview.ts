@@ -7,6 +7,7 @@
  * bez něj obecné označení (např. „průmyslová společnost“).
  */
 
+import { ENTITY } from '../config/entity';
 import { Project } from './types';
 
 export type OverviewLang = 'cs' | 'en';
@@ -304,8 +305,8 @@ export const OVERVIEW_LABELS: Record<OverviewLang, Record<string, string>> = {
     about: 'O projektu',
     gallery: 'Fotodokumentace',
     map: 'Umístění',
-    contact: 'Revoltujte s námi',
-    contact2: 'za moderní decentralizovanou energetiku'
+    contact: ENTITY.company.slogan.cs[0],
+    contact2: ENTITY.company.slogan.cs[1]
   },
   en: {
     kicker: 'CASE STUDY',
@@ -319,7 +320,7 @@ export const OVERVIEW_LABELS: Record<OverviewLang, Record<string, string>> = {
     about: 'About the project',
     gallery: 'Photo documentation',
     map: 'Location',
-    contact: 'Join the energy revolution',
-    contact2: 'for modern decentralised energy'
+    contact: ENTITY.company.slogan.en[0],
+    contact2: ENTITY.company.slogan.en[1]
   }
 };

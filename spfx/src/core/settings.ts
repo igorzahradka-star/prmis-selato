@@ -151,7 +151,7 @@ export interface ApprovalSettings {
   };
 }
 
-/** Fakturační a kontaktní údaje RES pro hlavičky a patičky PDF. */
+/** Fakturační a kontaktní údaje firmy pro hlavičky a patičky PDF. */
 export interface CompanySettings {
   name: string;
   street: string;
@@ -308,14 +308,14 @@ export const DEFAULT_SETTINGS: AppSettings = {
   },
   roles: DEFAULT_ROLE_GROUPS,
   company: {
-    name: 'Revoltum Engineering & Services',
-    street: 'Havířská 1021',
-    city: 'Havlíčkův Brod',
-    zip: '580 01',
-    ico: '',
-    dic: '',
+    name: ENTITY.companyName,
+    street: ENTITY.company.street,
+    city: ENTITY.company.city,
+    zip: ENTITY.company.zip,
+    ico: ENTITY.company.ico,
+    dic: ENTITY.company.dic,
     accountingEmail: '',
-    claim: 'Revoltujte s námi za moderní decentralizovanou energetiku'
+    claim: ENTITY.company.claim
   },
   webList: DEFAULT_WEB_LIST,
   links: DEFAULT_HEADER_LINKS,

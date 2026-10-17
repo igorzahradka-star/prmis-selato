@@ -344,7 +344,7 @@ export const GanttChart: React.FC<GanttChartProps> = (props) => {
                   gap: 4,
                   fontSize: 13,
                   borderBottom: `1px solid ${RES.background}`,
-                  background: isFrom ? '#DCE9F5' : i % 2 ? '#FAFBFC' : RES.white,
+                  background: isFrom ? '#DCE4F7' : i % 2 ? '#FAFAFA' : RES.white,
                   overflow: 'hidden',
                   whiteSpace: 'nowrap',
                   boxShadow: dropLine ? `inset 0 ${rowDrag && rowDrag.to < rowDrag.from ? 3 : -3}px 0 ${RES.blue}` : undefined
@@ -426,7 +426,7 @@ export const GanttChart: React.FC<GanttChartProps> = (props) => {
 
               {/* zebra řádky */}
               {items.map((it, i) => (
-                <rect key={`z${it.key}`} x={0} y={HEADER_HEIGHT + i * ROW_HEIGHT} width={layout.width} height={ROW_HEIGHT} fill={i % 2 ? '#FAFBFC' : '#FFFFFF'} />
+                <rect key={`z${it.key}`} x={0} y={HEADER_HEIGHT + i * ROW_HEIGHT} width={layout.width} height={ROW_HEIGHT} fill={i % 2 ? '#FAFAFA' : '#FFFFFF'} />
               ))}
               {editable && <rect x={0} y={HEADER_HEIGHT + items.length * ROW_HEIGHT} width={layout.width} height={ROW_HEIGHT} fill="#F5F9FC" />}
               {/* víkendy a svátky */}
@@ -519,7 +519,7 @@ export const GanttChart: React.FC<GanttChartProps> = (props) => {
                       {b.milestone ? (
                         <path
                           d={`M${b.x},${b.y - 1} l9,${BAR_HEIGHT / 2 + 1} l-9,${BAR_HEIGHT / 2 + 1} l-9,-${BAR_HEIGHT / 2 + 1} z`}
-                          fill={b.late ? RES.red : '#153D64'}
+                          fill={b.late ? RES.red : '#00227a'}
                           stroke={color}
                           strokeWidth={1.5}
                           style={{ cursor: editable ? 'grab' : 'default' }}

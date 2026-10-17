@@ -1,6 +1,6 @@
 {
   "$schema": "https://developer.microsoft.com/json-schemas/spfx/client-side-web-part-manifest.schema.json",
-  "id": "f81eb6e5-4e13-4f45-886d-d9572c7f973d",
+  "id": "cf98466f-08e8-4697-a3a8-c8d3b88e5d8d",
   "alias": "ProjectsWebPart",
   "componentType": "WebPart",
 
@@ -20,7 +20,7 @@
     "officeFabricIconFontName": "ViewList",
     "properties": {
       "dataSource": "sharepoint",
-      "title": "Běžící projekty Revoltum Engineering & Services",
+      "title": "Běžící projekty SELATO s.r.o.",
       "dataSiteUrl": "",
       "appPageUrl": ""
     }

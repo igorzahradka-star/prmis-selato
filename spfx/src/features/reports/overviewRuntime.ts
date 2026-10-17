@@ -50,7 +50,7 @@ export async function renderMapImage(latitude: number, longitude: number): Promi
     // Značka projektu: modrý kruh s bílým okrajem.
     ctx.beginPath();
     ctx.arc(view.marker.x, view.marker.y, 11, 0, Math.PI * 2);
-    ctx.fillStyle = '#0268A6';
+    ctx.fillStyle = '#0030ac';
     ctx.fill();
     ctx.lineWidth = 3;
     ctx.strokeStyle = '#FFFFFF';

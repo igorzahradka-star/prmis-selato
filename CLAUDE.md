@@ -173,20 +173,16 @@ Při **jakékoli** změně schématu: zvýšit `SCHEMA_VERSION` a doplnit migra�
 
 ---
 
-## 7. Značka RES
+## 7. Značka SELATO
 
-Zdroje: `brand/loga/` (SVG + PNG), `brand/sablony/` (Word/PowerPoint šablony),
-paleta odvozená z firemního motivu Office — viz [`brand/BARVY.md`](brand/BARVY.md).
+Zdroje: `brand/selato/` (loga SVG + PNG, ikony), pravidla a barvy v [`brand/BARVY.md`](brand/BARVY.md), parametry v `spfx/src/config/entity.ts`.
+Hlavní barvy: modrá `#0030ac`, zelená `#00a600`, šedé `#EFEFEF` / `#A0A1A2`, text `#262626`.
 
-Hlavní barvy: text `#030422`, navy `#153D64` / `#0E2841`, zelená `#00C667`,
-modrá `#0268A6`, světle modrá `#C1E4F5`.
-
-- Písmo: **Aptos** (M365), záloha `'Segoe UI', system-ui, sans-serif`.
-- Hlavička aplikace: logo RES + název „PRM Revoltum".
-  Claim „Revoltujte s námi za moderní decentralizovanou energetiku" jen v patičce a PDF.
+- Písmo: **Poppins** (grafika), záloha **Aptos**, pak `'Segoe UI', system-ui, sans-serif`.
+- Hlavička aplikace: bílé logo SELATO na modré + název „PRMIS“. Claim „SERVIS | ELEKTRO | AUTOMATIZACE“ v patičce a PDF.
 - Semafor (zelená/žlutá/červená) **vždy doplněný textem nebo ikonou** — přístupnost.
 - Jazyk UI čeština, formáty `cs-CZ` (1 234 567 Kč, 11. 9. 2026).
-- Fluent UI theme je v `spfx/src/ui/theme.ts` — všechny komponenty berou barvy odtud.
+- Fluent UI theme je v `spfx/src/ui/theme.ts` (konstanta `RES` zůstala z původní aplikace, hodnoty jsou SELATO).
 
 ---
 
