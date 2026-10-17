@@ -1,9 +1,10 @@
+import { ENTITY } from '../config/entity';
 import { withDefaults, validateSettings, DEFAULT_SETTINGS, AppSettings } from './settings';
 
 describe('withDefaults', () => {
   it('z prázdného nastavení udělá kompletní výchozí', () => {
     const s = withDefaults(undefined);
-    expect(s.folders.libraryTitle).toBe('Dokumenty');
+    expect(s.folders.libraryTitle).toBe(ENTITY.folders.libraryTitle);
     expect(s.projects.projectTypes.length).toBeGreaterThan(0);
   });
 

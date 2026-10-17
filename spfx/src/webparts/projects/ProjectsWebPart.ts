@@ -11,6 +11,7 @@ import { Version } from '@microsoft/sp-core-library';
 import { type IPropertyPaneConfiguration, PropertyPaneChoiceGroup, PropertyPaneTextField } from '@microsoft/sp-property-pane';
 import { BaseClientSideWebPart } from '@microsoft/sp-webpart-base';
 
+import { ENTITY, entitySiteUrl } from '../../config/entity';
 import { ProjectsList } from './components/ProjectsList';
 import { IWebProjectsRepository } from '../../data/repositories';
 import { createMockRepositories } from '../../data/mock/mockRepositories';
@@ -80,8 +81,8 @@ export default class ProjectsWebPart extends BaseClientSideWebPart<IProjectsWebP
                 }),
                 PropertyPaneTextField('dataSiteUrl', {
                   label: 'Adresa webu s PRMIS (jen u kopie na jiném webu)',
-                  description: 'Na webu RES nechte prázdné.',
-                  placeholder: 'https://revoltum.sharepoint.com/sites/RevoltumEngineeringServices'
+                  description: `Na webu ${ENTITY.companyName} nechte prázdné.`,
+                  placeholder: entitySiteUrl()
                 }),
                 PropertyPaneTextField('appPageUrl', {
                   label: 'Adresa stránky s PRMIS (nepovinné)',

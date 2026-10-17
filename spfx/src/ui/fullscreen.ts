@@ -9,6 +9,8 @@
  * Bez SharePointu a Reactu, aby šlo otestovat.
  */
 
+import { ENTITY } from '../config/entity';
+
 const PARAM = 'env';
 const VALUE = 'WebView';
 
@@ -41,11 +43,11 @@ export function toggleWebViewUrl(href: string): string {
 }
 
 /**
- * Adresa tlačítka „RES CRM“: vlastní (z Nastavení), jinak výchozí `<web>/SitePages/REVCRM.aspx` na webu, kde běží aplikace.
+ * Adresa tlačítka sesterské aplikace („SELCRM“): vlastní (z Nastavení), jinak výchozí `<web>/SitePages/<crmPageFile>` na webu, kde běží aplikace.
  * Běží-li aplikace přes celé okno (`env=WebView`), přenese se to i na cílovou stránku, ať člověk zůstane v „celém okně“.
  */
 export function crmLinkUrl(customUrl: string, currentHref: string): string {
-  const target = customUrl.trim() !== '' ? customUrl.trim() : `${siteHomeUrl(currentHref)}SitePages/REVCRM.aspx`;
+  const target = customUrl.trim() !== '' ? customUrl.trim() : `${siteHomeUrl(currentHref)}SitePages/${ENTITY.crmPageFile}`;
   if (!isWebViewMode(currentHref)) {
     return target;
   }

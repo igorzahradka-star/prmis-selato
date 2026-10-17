@@ -21,6 +21,7 @@ import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
 
 import { useApp } from '../../ui/AppContext';
 import { RES } from '../../ui/theme';
+import { ENTITY, entityCrmPageUrl, entitySiteUrl } from '../../config/entity';
 import { PageHeading } from '../../ui/components/PageHeading';
 import { canOpenAdmin } from '../../core/roles';
 import { ROLE_LABELS, Role, Project } from '../../core/types';
@@ -148,7 +149,7 @@ export const SettingsPage: React.FC = () => {
             <TextField
               label="Adresa webu s knihovnou"
               description="Nechte prázdné, pokud je knihovna na stejném webu jako aplikace."
-              placeholder="https://revoltum.sharepoint.com/sites/RevoltumEngineeringServices"
+              placeholder={entitySiteUrl()}
               value={draft.folders.siteUrl}
               onChange={(_, v) => patch('folders', { siteUrl: v || '' })}
             />
@@ -558,14 +559,14 @@ export const SettingsPage: React.FC = () => {
         <PivotItem headerText="Odkazy v záhlaví" itemIcon="Link">
           <Panel>
             <Hint>
-              Tlačítko <strong>RES CRM</strong> v záhlaví aplikace vede na sesterskou aplikaci RES CRM (nabídky a obchodní případy). Běží-li PRMIS přes celé okno,
-              přenese se to i do RES CRM.
+              Tlačítko <strong>{ENTITY.crmName}</strong> v záhlaví aplikace vede na sesterskou aplikaci {ENTITY.crmName} (nabídky a obchodní případy). Běží-li PRMIS přes celé okno,
+              přenese se to i do {ENTITY.crmName}.
             </Hint>
-            <Toggle label="Zobrazit tlačítko RES CRM" checked={draft.links.showCrm} onChange={(_, checked) => patch('links', { showCrm: !!checked })} onText="Ano" offText="Ne" />
+            <Toggle label={`Zobrazit tlačítko ${ENTITY.crmName}`} checked={draft.links.showCrm} onChange={(_, checked) => patch('links', { showCrm: !!checked })} onText="Ano" offText="Ne" />
             <TextField
-              label="Adresa stránky RES CRM"
-              description="Prázdné = výchozí adresa na stejném webu: …/SitePages/REVCRM.aspx"
-              placeholder="https://revoltum.sharepoint.com/sites/RevoltumEngineeringServices/SitePages/REVCRM.aspx"
+              label={`Adresa stránky ${ENTITY.crmName}`}
+              description={`Prázdné = výchozí adresa na stejném webu: …/SitePages/${ENTITY.crmPageFile}`}
+              placeholder={entityCrmPageUrl()}
               value={draft.links.crmUrl}
               onChange={(_, v) => patch('links', { crmUrl: v || '' })}
             />

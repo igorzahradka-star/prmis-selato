@@ -6,6 +6,7 @@
  */
 
 import { canManageSites, canViewService } from '../../core/service';
+import { ENTITY } from '../../config/entity';
 import { APP_VERSION } from '../../core/version';
 import * as React from 'react';
 import { Icon } from '@fluentui/react/lib/Icon';
@@ -340,10 +341,10 @@ const ActAsBar: React.FC = () => {
 
 /** Tlačítko „RES CRM“: odkaz na sesterskou aplikaci (adresa a zobrazení jsou v Nastavení → Odkazy v záhlaví). */
 const CrmButton: React.FC<{ url: string }> = ({ url }) => (
-  <TooltipHost content="Otevřít RES CRM (nabídky a obchodní případy)">
+  <TooltipHost content={`Otevřít ${ENTITY.crmName} (nabídky a obchodní případy)`}>
     <a
       href={crmLinkUrl(url, window.location.href)}
-      aria-label="RES CRM"
+      aria-label={ENTITY.crmName}
       style={{
         display: 'inline-flex',
         alignItems: 'center',
@@ -359,7 +360,7 @@ const CrmButton: React.FC<{ url: string }> = ({ url }) => (
       }}
     >
       <Icon iconName="ContactList" />
-      RES CRM
+      {ENTITY.crmName}
     </a>
   </TooltipHost>
 );

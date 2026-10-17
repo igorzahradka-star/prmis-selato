@@ -10,6 +10,17 @@
 
 ---
 
+## 0. SELATO — stav (17. 10. 2026)
+
+Tato kopie je samostatný PRMIS pro SELATO (viz `docs/PREDANI_SELATO.md`). Níže uvedený zbytek souboru je historie z Revoltum.
+
+- **Etapa 1 hotová:** parametry jsou v `spfx/src/config/entity.ts` (`ENTITY`): firma, název aplikace, SELCRM, tenant, cesta webu, stránka CRM, výchozí umístění složek. Napojeno: `core/settings.ts`, `ui/fullscreen.ts`, `SettingsPage.tsx`, `ProjectsWebPart.ts`, `AppShell.tsx`. 1491 testů prochází.
+- **`TODO_SELATO` čeká na Igora:** cesta webu PRMIS, název knihovny dokumentů, kořenová složka projektů (`entityTodos()` je vypíše).
+- **Další:** etapa 2 (barvy, logo, písmo, id řešení v `package-solution.json`), pak číselníky a struktura složek (`core/folders.ts`, `DEFAULT_FOLDER_TEMPLATE`), číslování, odpojení Abry, přejmenování REV CRM na SELCRM.
+- Spojení s původní relací Revoltum jde přes Igora (dotazy na detaily původního kódu).
+
+---
+
 ## 1. Čím začít novou relaci (zkopíruj do Claudea)
 
 ```

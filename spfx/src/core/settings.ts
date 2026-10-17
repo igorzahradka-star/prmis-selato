@@ -7,6 +7,7 @@
  * Vrstva `core` — žádná závislost na SharePointu.
  */
 
+import { ENTITY } from '../config/entity';
 import { CURRENCY_CODES, CurrencyCode } from './currency';
 import { DEFAULT_ROLE_GROUPS, RoleGroupMapping } from './roles';
 import { DEFAULT_SERVICE_SETTINGS, ServiceSettings, serviceSettingsWithDefaults, validateSlaRules } from './serviceSla';
@@ -193,7 +194,7 @@ export const DEFAULT_PHOTO_SETTINGS: PhotoSettings = { maxSide: 2000, quality: 8
 
 /**
  * Odkazy v záhlaví: tlačítko **RES CRM** vede na stránku RES CRM (sesterská aplikace). Prázdná adresa = výchozí
- * `<web>/SitePages/REVCRM.aspx` na stejném webu jako PRMIS.
+ * `<web>/SitePages/<crmPageFile>` (viz `config/entity.ts`) na stejném webu jako PRMIS.
  */
 export interface HeaderLinksSettings {
   showCrm: boolean;
@@ -236,9 +237,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
     // Rozhodnuto 23. 9. 2026: aplikace poběží na vlastním webu /sites/PRM,
     // ale složky projektů zůstanou tam, kde jsou dnes — na firemním webu,
     // aby lidem dál fungovala synchronizace přes OneDrive a nemuseli nic hledat jinde.
-    siteUrl: 'https://revoltum.sharepoint.com/sites/RevoltumEngineeringServices',
-    libraryTitle: 'Dokumenty',
-    rootFolder: 'General/01_PROJEKTY',
+    siteUrl: ENTITY.folders.siteUrl,
+    libraryTitle: ENTITY.folders.libraryTitle,
+    rootFolder: ENTITY.folders.rootFolder,
     // Projekty leží v 01_PROJEKTY přímo, bez mezipatra podle roku.
     // Ověřeno na skutečné složce 23. 9. 2026.
     subfolderByYear: false,
