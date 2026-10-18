@@ -7,6 +7,7 @@
  * Práva: Servis vidí a obsluhuje jen Správce servisu, Dispečer a administrátor (vedení jen čte).
  */
 
+import { ENTITY } from '../config/entity';
 import { Role } from './types';
 import { hasAnyRole } from './roles';
 import { sanitizeFolderName } from './numbering';
@@ -181,7 +182,7 @@ export function serviceFolderPath(serviceRoot: string, site: { number: string; n
 }
 
 /** Kořenová složka Servisu v knihovně dokumentů (nastavuje se v Nastavení → Servis). */
-export const DEFAULT_SERVICE_FOLDER_ROOT = 'General/02_SERVIS';
+export const DEFAULT_SERVICE_FOLDER_ROOT = ENTITY.folders.serviceRoot;
 
 /** Podsložky lokality: smlouva a podmínky, požadavky, objednávky a faktury, dokumentace, společné zásahy (CCTV, EZS, sečení trávy…). */
 export const SERVICE_SITE_SUBFOLDERS = ['01-Smlouva a podmínky', '02-Servisní požadavky', '03-Objednávky a faktury', '04-Dokumentace lokality', '05-Společné zásahy lokality'];

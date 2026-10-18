@@ -7,6 +7,7 @@
  * - Čas se počítá v běžných hodinách (celý den), ne v pracovní době.
  */
 
+import { ENTITY } from '../config/entity';
 import { JobStatus, RequestStatus, ServiceJob, ServiceRequest } from './serviceJobs';
 import { PlanTemplate, planTemplatesWithDefaults } from './servicePlan';
 import { ContractSettings, contractSettingsWithDefaults } from './serviceContractSettings';
@@ -34,7 +35,7 @@ export interface ServiceSettings {
 
 /** Výchozí lhůty — návrh, upřesní zadavatel v Nastavení → Servis. */
 export const DEFAULT_SERVICE_SETTINGS: ServiceSettings = {
-  folderRoot: 'General/02_SERVIS',
+  folderRoot: ENTITY.folders.serviceRoot,
   planTemplates: planTemplatesWithDefaults(undefined),
   contract: contractSettingsWithDefaults(undefined),
   slaRules: [

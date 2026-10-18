@@ -58,12 +58,20 @@ export const ENTITY = {
     }
   },
 
-  /** Výchozí umístění složek projektů (jde přepsat v Nastavení → Složky). Nerozhodnuto — Igor upřesní. */
+  /**
+   * Umístění složek v knihovně (jde přepsat v Nastavení → Složky a Servis). Rozhodl Igor 18. 10. 2026:
+   * složka `General` patří kanálu Teams a nechává se být, vlastní struktura je v `OPERATIONS`.
+   */
   folders: {
     /** Adresa webu s knihovnou; prázdné = stejný web jako aplikace. */
     siteUrl: '',
-    libraryTitle: TODO,
-    rootFolder: TODO
+    libraryTitle: 'Dokumenty',
+    /** Složky projektů (PRMIS). Členění podle roku zatím nerozhodnuto (výchozí: bez roku). */
+    rootFolder: 'OPERATIONS/01_PROJEKTY',
+    /** Servis (lokality a soubory). */
+    serviceRoot: 'OPERATIONS/02_SERVIS',
+    /** Obchodní příležitosti (SELCRM, jen informativně — PRMIS sem nezapisuje). */
+    opportunitiesRoot: 'OPERATIONS/00_OBCHODNI PRILEZITOSTI'
   }
 } as const;
 

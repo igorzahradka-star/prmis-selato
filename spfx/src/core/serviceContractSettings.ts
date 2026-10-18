@@ -4,6 +4,7 @@
  * už podepsané smlouvy nemění. Hodnoty z ukázkového vstupu smlouvy (ceny sazebníku, kontakty) jsou jen ilustrativní, proto je výchozí nastavení nenaplňuje.
  */
 
+import { ENTITY } from '../config/entity';
 import { ContractContact, ContractEscalation, ContractOemAuthorization, ContractParameters, ContractParty, ContractRate } from './serviceContract';
 
 export interface AssetManagerInfo {
@@ -56,7 +57,7 @@ export const DEFAULT_CONTRACT_SETTINGS: ContractSettings = {
   zhotovitel: { nazev: 'Revoltum Engineering & Services s.r.o.', sidlo: 'Havířská 1021, 58001 Havlíčkův Brod', ico: '29713536' },
   assetManager: { nazev: 'Revoltum a.s.', ico: '', sidlo: '' },
   mistoPodpisu: 'Havlíčkově Brodě',
-  templateFolder: 'General/02_SERVIS/00_SERVIS - PODKLADY/RES Smlouvy VZORY',
+  templateFolder: `${ENTITY.folders.serviceRoot}/00_SERVIS - PODKLADY/Smlouvy VZORY`,
   frameworkTemplate: 'RES_OM_Ramcova_smlouva_SABLONA_v01.docx',
   annexTemplate: 'RES_OM_Priloha_lokality_SABLONA_v01.docx',
   assetAnnexTemplate: 'RES_OM_Priloha_souboru_SABLONA_v01.docx',

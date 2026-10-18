@@ -135,7 +135,7 @@ describe('složky Servisu', () => {
 
   it('bez souboru jen lokalita; prázdný kořen = výchozí; nepovolené znaky v názvu se očistí', () => {
     const plan = serviceFolderPlan('', { number: '10510', name: 'Boršov: FVE/BESS' });
-    expect(plan.rootSegments).toEqual(['General', '02_SERVIS']);
+    expect(plan.rootSegments).toEqual(['OPERATIONS', '02_SERVIS']);
     expect(plan.deviceFolder).toBeUndefined();
     expect(plan.deviceSubfolders).toEqual([]);
     expect(plan.siteFolder).not.toMatch(/[:/]/);

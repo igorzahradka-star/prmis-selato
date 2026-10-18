@@ -18,7 +18,8 @@ Tato kopie je samostatný PRMIS pro SELATO (viz `docs/PREDANI_SELATO.md`). Níž
 - **Etapa 2 (značka) hotová, kromě textů:** barvy a písmo (`ui/theme.ts`, `ENTITY.brand`), loga a ikony v `brand/selato/` (SVG z dodaného PDF, hex podle manuálu), hlavička, PDF loga a pruhy, ikona řešení, názvy a nová GUID (řešení, feature, 2 web party) v `package-solution.json` a manifestech, balíček `prmis-selato.sppkg`, údaje firmy z manuálu (Lučice 260, IČ 03647862), claim. Poppins se použije jen když je v počítači, jinak Aptos (webové písmo nestahujeme). Revoltum loga a ikony smazána; `brand/sablony/` (Word/PowerPoint Revoltum) zůstává, čeká na šablony SELATO.
 - **Zbývá z Revoltum:** texty v ~180 souborech (ukázková data, komentáře, „Přehled projektů Revoltum…“), struktura složek, číselníky. `npm run package` zatím nezkoušen.
 - **Nasazovaný balíček** je v `nasazeni/prmis-selato.sppkg` (jediný soubor, přepisuje se, commitovat jen nasazované verze; viz `nasazeni/README.md`).
-- **`TODO_SELATO` čeká na Igora:** cesta webu PRMIS, název knihovny dokumentů, kořenová složka projektů (`entityTodos()` je vypíše).
+- **Složky rozhodnuty (18. 10. 2026):** knihovna `Dokumenty`, složka `General` zůstává (patří kanálu Teams), vlastní struktura je v `OPERATIONS`: `00_OBCHODNI PRILEZITOSTI` (SELCRM), `01_PROJEKTY` (PRMIS, kořen `OPERATIONS/01_PROJEKTY`, bez členění podle roku), `02_SERVIS` (Servis). Hodnoty jsou v `ENTITY.folders`. Složky na webu zakládá Igor ručně. Podsložky uvnitř projektu a členění podle roku čekají na Igora.
+- **`TODO_SELATO` čeká na Igora:** cesta webu PRMIS (`entityTodos()` ji vypíše).
 - **Další:** etapa 2 (barvy, logo, písmo, id řešení v `package-solution.json`), pak číselníky a struktura složek (`core/folders.ts`, `DEFAULT_FOLDER_TEMPLATE`), číslování, odpojení Abry, přejmenování REV CRM na SELCRM.
 - Spojení s původní relací Revoltum jde přes Igora (dotazy na detaily původního kódu).
 

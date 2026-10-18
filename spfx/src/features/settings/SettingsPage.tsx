@@ -161,7 +161,7 @@ export const SettingsPage: React.FC = () => {
             />
             <TextField
               label="Kořenová složka v knihovně"
-              description="Například „General/01_PROJEKTY“. Prázdné = složky vznikají přímo v kořeni knihovny."
+              description="Například „OPERATIONS/01_PROJEKTY“. Prázdné = složky vznikají přímo v kořeni knihovny."
               value={draft.folders.rootFolder}
               onChange={(_, v) => patch('folders', { rootFolder: v || '' })}
             />

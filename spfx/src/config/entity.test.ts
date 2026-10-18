@@ -11,6 +11,6 @@ describe('ENTITY', () => {
   });
 
   it('vypíše, co ještě chybí dodat', () => {
-    expect(entityTodos()).toEqual(['siteServerRelativeUrl', 'folders.libraryTitle', 'folders.rootFolder']);
+    expect(entityTodos()).toEqual(['siteServerRelativeUrl']);
   });
 });
