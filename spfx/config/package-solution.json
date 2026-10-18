@@ -3,7 +3,7 @@
   "solution": {
     "name": "PRMIS SELATO",
     "id": "6a319ce9-2302-4329-bea1-d04dbd01db98",
-    "version": "0.66.0.0",
+    "version": "0.67.0.0",
     "iconPath": "assets/prmis-ikona-96.png",
     "includeClientSideAssets": true,
     "webApiPermissionRequests": [

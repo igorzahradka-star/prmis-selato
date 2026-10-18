@@ -7,6 +7,6 @@ Pravidla (aby repozitář zbytečně nenarůstal, každá verze balíčku je asi
 - Commitují se jen verze, které se opravdu nasazují. Testovací buildy se sem nedávají.
 - Verze v balíčku: `spfx/config/package-solution.json` (`version`).
 
-Aktuální soubor: verze 0.66.0.0 (první balíček, 18. 10. 2026; zástupné `TODO_SELATO` u knihovny a složek).
+Aktuální soubor: verze 0.67.0.0 (18. 10. 2026; složky OPERATIONS/01_PROJEKTY a OPERATIONS/02_SERVIS v knihovně Dokumenty; cesta webu PRMIS ještě `TODO_SELATO`).
 
 Stažení do lokálního klonu: `git remote add origin https://github.com/igorzahradka-star/prmis-selato`, potom `git pull origin selato`.
