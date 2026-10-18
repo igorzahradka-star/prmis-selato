@@ -6,6 +6,7 @@
  * (prodej) a stav. Náklady ani marže se do web partu nikdy nenačítají.
  */
 
+import { ENTITY } from '../config/entity';
 import { Project, ProjectStatus } from './types';
 
 /** Nastavení web partu „Běžící projekty“ (Nastavení → Projekty na webu). */
@@ -94,5 +95,5 @@ export function projectDetailUrl(appPageUrl: string, projectNumber: string): str
 
 /** Výchozí adresa stránky s aplikací PRMIS na zadaném webu. */
 export function defaultAppPageUrl(webUrl: string): string {
-  return `${webUrl.replace(/\/+$/, '')}/SitePages/PRM.aspx`;
+  return `${webUrl.replace(/\/+$/, '')}/SitePages/${ENTITY.appPageFile}`;
 }

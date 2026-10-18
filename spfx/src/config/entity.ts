@@ -25,10 +25,10 @@ export const ENTITY = {
 
   /** Adresa tenanta Microsoft 365. */
   tenantUrl: 'https://selatosro2025.sharepoint.com',
-  /** Cesta webu, na kterém PRMIS běží (např. `/sites/…`). Zatím nerozhodnuto. */
-  siteServerRelativeUrl: `/sites/${TODO}`,
+  /** Cesta webu, na kterém PRMIS běží (hlavní web SELATO, ověřeno 18. 10. 2026). */
+  siteServerRelativeUrl: '/sites/SELATOs.r.o',
   /** Stránka s PRMIS a stránka sesterské aplikace v `SitePages` (jen název souboru). */
-  appPageFile: 'PRM.aspx',
+  appPageFile: 'Project-Control&Management.aspx',
   crmPageFile: 'SELCRM.aspx',
 
   /** Značka podle Corporate Visual Style Guide SELATO (modrá `#0030ac`, zelená `#00a600`, šedé `#EFEFEF` a `#A0A1A2`). */

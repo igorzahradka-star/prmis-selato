@@ -1,3 +1,4 @@
+import { ENTITY } from '../config/entity';
 import {
   DEFAULT_WEB_LIST,
   defaultAppPageUrl,
@@ -53,7 +54,7 @@ describe('seznam projektů na webu', () => {
   });
 
   it('odkazy: detail projektu a výchozí stránka aplikace', () => {
-    expect(defaultAppPageUrl('https://x.sharepoint.com/sites/RES/')).toBe('https://x.sharepoint.com/sites/RES/SitePages/PRM.aspx');
+    expect(defaultAppPageUrl('https://x.sharepoint.com/sites/RES/')).toBe(`https://x.sharepoint.com/sites/RES/SitePages/${ENTITY.appPageFile}`);
     expect(projectDetailUrl('https://x/SitePages/PRM.aspx#/projekty', '26001')).toBe('https://x/SitePages/PRM.aspx#/projekt/26001');
   });
 

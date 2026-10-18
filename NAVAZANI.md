@@ -19,7 +19,7 @@ Tato kopie je samostatný PRMIS pro SELATO (viz `docs/PREDANI_SELATO.md`). Níž
 - **Zbývá z Revoltum:** texty v ~180 souborech (ukázková data, komentáře, „Přehled projektů Revoltum…“), struktura složek, číselníky. `npm run package` zatím nezkoušen.
 - **Nasazovaný balíček** je v `nasazeni/prmis-selato.sppkg` (jediný soubor, přepisuje se, commitovat jen nasazované verze; viz `nasazeni/README.md`).
 - **Složky rozhodnuty (18. 10. 2026):** knihovna `Dokumenty`, složka `General` zůstává (patří kanálu Teams), vlastní struktura je v `OPERATIONS`: `00_OBCHODNI PRILEZITOSTI` (SELCRM), `01_PROJEKTY` (PRMIS, kořen `OPERATIONS/01_PROJEKTY`, bez členění podle roku), `02_SERVIS` (Servis). Hodnoty jsou v `ENTITY.folders`. Složky na webu zakládá Igor ručně. Podsložky uvnitř projektu a členění podle roku čekají na Igora.
-- **`TODO_SELATO` čeká na Igora:** cesta webu PRMIS (`entityTodos()` ji vypíše).
+- **Web a stránka aplikace (18. 10. 2026):** web `https://selatosro2025.sharepoint.com/sites/SELATOs.r.o`, stránka PRMIS `SitePages/Project-Control&Management.aspx` (ne PRM.aspx; v `ENTITY.appPageFile`). Stránka SELCRM bude `SELCRM.aspx`, dokud Igor neřekne jinak. Žádné `TODO_SELATO` u adres už nezbývá, zbývá číslování, předpony a členění složek.
 - **Další:** etapa 2 (barvy, logo, písmo, id řešení v `package-solution.json`), pak číselníky a struktura složek (`core/folders.ts`, `DEFAULT_FOLDER_TEMPLATE`), číslování, odpojení Abry, přejmenování REV CRM na SELCRM.
 - Spojení s původní relací Revoltum jde přes Igora (dotazy na detaily původního kódu).
 

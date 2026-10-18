@@ -24,7 +24,7 @@ export interface IProjectsWebPartProps {
   title: string;
   /** Adresa webu, kde běží PRMIS. Prázdné = tento web. Vyplní se u kopie na jiném webu (např. Revoltum). */
   dataSiteUrl: string;
-  /** Adresa stránky s aplikací PRMIS. Prázdné = `<web s PRMIS>/SitePages/PRM.aspx`. */
+  /** Adresa stránky s aplikací PRMIS. Prázdné = `<web s PRMIS>/SitePages/<appPageFile>` (viz `config/entity.ts`). */
   appPageUrl: string;
 }
 
@@ -86,7 +86,7 @@ export default class ProjectsWebPart extends BaseClientSideWebPart<IProjectsWebP
                 }),
                 PropertyPaneTextField('appPageUrl', {
                   label: 'Adresa stránky s PRMIS (nepovinné)',
-                  description: 'Kam vedou odkazy na projekty. Prázdné = stránka SitePages/PRM.aspx webu s PRMIS.'
+                  description: 'Kam vedou odkazy na projekty. Prázdné = stránka SitePages/' + ENTITY.appPageFile + ' webu s PRMIS.'
                 })
               ]
             }
