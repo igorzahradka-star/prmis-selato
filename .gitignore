@@ -11,6 +11,8 @@ temp/
 release/
 solution/
 *.sppkg
+# Výjimka: jediný nasazovaný balíček (jen schválené verze, viz nasazeni/README.md)
+!nasazeni/prmis-selato.sppkg
 .heft/build-cache/
 .heft/temp/
 .heft/*.log
