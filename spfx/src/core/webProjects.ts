@@ -95,5 +95,5 @@ export function projectDetailUrl(appPageUrl: string, projectNumber: string): str
 
 /** Výchozí adresa stránky s aplikací PRMIS na zadaném webu. */
 export function defaultAppPageUrl(webUrl: string): string {
-  return `${webUrl.replace(/\/+$/, '')}/SitePages/${ENTITY.appPageFile}`;
+  return `${webUrl.replace(/\/+$/, '')}/SitePages/${encodeURIComponent(ENTITY.appPageFile)}`;
 }
