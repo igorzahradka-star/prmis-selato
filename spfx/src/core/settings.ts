@@ -208,16 +208,44 @@ export const DEFAULT_HEADER_LINKS: HeaderLinksSettings = { showCrm: true, crmUrl
  * Konvence: dvojčíslí, pomlčka, název (`04-Zápisy`). Je editovatelná v Nastavení.
  */
 export const DEFAULT_FOLDER_TEMPLATE: FolderTemplateNode[] = [
-  { name: '01-Nabídky' },
-  { name: '02-Harmonogram' },
-  { name: '03-Nákup', children: [{ name: 'Objednávky' }] },
-  { name: '03-Rozpočet projektu', children: [{ name: 'Fakturace' }] },
-  { name: '04-Zápisy' },
-  { name: '05-Smlouvy' },
-  { name: '06-Dodavatelé' },
-  { name: '07-Dokumentace a podklady' },
-  { name: '09-Projektová dokumentace' },
-  { name: '10-Servis' }
+  {
+    name: 'A_Projektový management',
+    children: [
+      { name: '_Administrativa' },
+      { name: '_Komunikace' },
+      { name: '_Fakturace' },
+      { name: '_Objednávky dodavatelům' },
+      { name: '_Předávací dokumenty' },
+      { name: '_Realizační rozpočet' },
+      { name: '_Reporty' },
+      {
+        name: '_Smluvní dokumenty',
+        children: [{ name: '_Nabídka' }, { name: '_Objednávka' }, { name: '_Smlouva' }]
+      },
+      { name: '_Zápisy' },
+      { name: '_Zápisy z porad' }
+    ]
+  },
+  { name: 'B_Podklady', children: [{ name: '_Projekční podklady' }, { name: '_Zadávací dokumentace' }] },
+  { name: 'C_Foto' },
+  {
+    name: 'D_Projektová dokumentace',
+    children: [
+      { name: 'A01_Obvodová schémata - elektrická' },
+      { name: 'A02_Obvodová schémata - pneumatická' },
+      { name: 'A03_Seznam částí (kusovník materiálu)' },
+      { name: 'A04_Seznam materiálů (kabely, hadice)' },
+      { name: 'A05_Seznam signálů' },
+      { name: 'B00_Návod' },
+      { name: 'B01_Posouzení rizik' },
+      { name: 'B02_Výchozí revize dle ČSN 60204-1' },
+      { name: 'B03_Posouzení shody' },
+      { name: 'B04_Prohlášení o shodě' },
+      { name: 'B05_Výrobní štítek' }
+    ]
+  },
+  { name: 'E_Dodavatelská dokumentace' },
+  { name: 'F_SW' }
 ];
 
 /** Výchozí struktura složek Režie (návrh — upraví zadavatel v Nastavení). Jiná než u běžného projektu. */
@@ -244,12 +272,12 @@ export const DEFAULT_SETTINGS: AppSettings = {
     // Ověřeno na skutečné složce 23. 9. 2026.
     subfolderByYear: false,
     template: DEFAULT_FOLDER_TEMPLATE,
-    // Rozhodnuto 1. 10. 2026 podle zadavatele a skutečné struktury projektů (jedna konvence: dvojčíslí-pomlčka-název).
-    diaryFolder: '04-Zápisy',
-    photoFolder: '07-Dokumentace a podklady/FOTO',
-    orderFolder: '03-Nákup/Objednávky',
-    invoiceFolder: '03-Rozpočet projektu/Fakturace',
-    reportFolder: '07-Dokumentace a podklady/Reporty',
+    // SELATO (9. 11. 2026): struktura podle vzorové zakázky na disku O:\\20_Zakázky (A_Projektový management … F_SW). Jen návrh, upraví se v Nastavení.
+    diaryFolder: 'A_Projektový management/_Zápisy',
+    photoFolder: 'C_Foto',
+    orderFolder: 'A_Projektový management/_Objednávky dodavatelům',
+    invoiceFolder: 'A_Projektový management/_Fakturace',
+    reportFolder: 'A_Projektový management/_Reporty',
     overheadTemplate: DEFAULT_OVERHEAD_TEMPLATE,
     overheadOrderFolder: '01-Objednávky'
   },

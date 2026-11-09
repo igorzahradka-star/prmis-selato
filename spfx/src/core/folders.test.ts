@@ -40,16 +40,18 @@ describe('buildProjectFolderPlan', () => {
     expect(plan[1]).toBe('Projekty/26-014 Firma X  Y');
   });
 
-  it('výchozí šablona je skutečná struktura projektů RES (dvojčíslí-pomlčka) a zakládá i vnořené podsložky', () => {
+  it('výchozí šablona je struktura zakázek SELATO (A_Projektový management … F_SW) a zakládá i vnořené podsložky', () => {
     const plan = buildProjectFolderPlan(
       { rootFolder: 'Projekty', subfolderByYear: false, template: DEFAULT_FOLDER_TEMPLATE },
-      '26-014 X'
+      '26ZA00005_EKOL'
     );
-    expect(plan).toContain('Projekty/26-014 X/04-Zápisy');
-    expect(plan).toContain('Projekty/26-014 X/03-Nákup/Objednávky');
-    expect(plan).toContain('Projekty/26-014 X/03-Rozpočet projektu/Fakturace');
-    expect(plan).toContain('Projekty/26-014 X/07-Dokumentace a podklady');
-    expect(plan.filter((p) => p.indexOf('_') !== -1 && p.indexOf('Projekty/26-014 X/') === 0)).toEqual([]);
+    const root = 'Projekty/26ZA00005_EKOL/';
+    expect(plan).toContain(root + 'A_Projektový management');
+    expect(plan).toContain(root + 'A_Projektový management/_Zápisy');
+    expect(plan).toContain(root + 'A_Projektový management/_Smluvní dokumenty/_Objednávka');
+    expect(plan).toContain(root + 'C_Foto');
+    expect(plan).toContain(root + 'D_Projektová dokumentace/B01_Posouzení rizik');
+    expect(plan).toContain(root + 'F_SW');
   });
 });
 
