@@ -45,6 +45,13 @@ export interface ImportPlan {
 }
 
 /**
+ * Číslo projektu na začátku názvu složky: nově `26ZA00005` (rok, typ ZA, pětimístné pořadí),
+ * dříve `26001` (pět a více číslic). Za číslem musí být oddělovač (`_`, `-` nebo mezera).
+ */
+const NUMBERED_FOLDER = /^(\d{2}ZA\d{5}|\d{5,})\s*[-–—_ ]\s*(.*)$/;
+const NUMBER_PARTS = /^(\d{2})(?:ZA)?(\d{3,})$/;
+
+/**
  * Rozbor jednoho názvu složky.
  *
  * Uznávaný tvar je `{ČÍSLO}-{NÁZEV}` nebo `{ČÍSLO} {NÁZEV}`, kde číslo je
@@ -58,7 +65,7 @@ export function parseFolderName(folderName: string): ImportCandidate {
     return { folderName, action: 'skip', reason: 'Prázdný název složky.', isOverhead: false };
   }
 
-  const match = /^(\d{5,})\s*[-–—_ ]\s*(.*)$/.exec(name);
+  const match = NUMBERED_FOLDER.exec(name);
   if (!match) {
     return {
       folderName: name,
@@ -69,7 +76,8 @@ export function parseFolderName(folderName: string): ImportCandidate {
   }
 
   const projectNumber = match[1];
-  const title = match[2].trim();
+  // Na disku SELATO je název `26ZA00005_ZÁKAZNÍK_Popis` — podtržítka mezi částmi se v názvu projektu změní na ` – `.
+  const title = match[2].trim().replace(/\s*_\s*/g, ' – ');
 
   if (projectNumber === OVERHEAD_FOLDER_NUMBER) {
     return {
@@ -77,6 +85,16 @@ export function parseFolderName(folderName: string): ImportCandidate {
       projectNumber,
       action: 'skip',
       reason: 'Společná složka Režie — Režii zakládá a spravuje aplikace, neimportuje se.',
+      isOverhead: false
+    };
+  }
+
+  if (sequenceFromNumber(projectNumber) === 0 && /ZA/.test(projectNumber)) {
+    return {
+      folderName: name,
+      projectNumber,
+      action: 'skip',
+      reason: 'Pořadí 00000 je vzorová složka (šablona), ne projekt.',
       isOverhead: false
     };
   }
@@ -174,13 +192,13 @@ export function counterTargets(candidates: ImportCandidate[]): { year: number; l
 
 /** Rok z čísla `26001` → 2026. Dvojčíslí bereme jako tenhle věk. */
 export function yearFromNumber(projectNumber: string): number | undefined {
-  const match = /^(\d{2})(\d{3,})$/.exec(projectNumber.trim());
+  const match = NUMBER_PARTS.exec(projectNumber.trim());
   return match ? 2000 + parseInt(match[1], 10) : undefined;
 }
 
 /** Pořadové číslo z čísla `26001` → 1. */
 export function sequenceFromNumber(projectNumber: string): number | undefined {
-  const match = /^(\d{2})(\d{3,})$/.exec(projectNumber.trim());
+  const match = NUMBER_PARTS.exec(projectNumber.trim());
   return match ? parseInt(match[2], 10) : undefined;
 }
 

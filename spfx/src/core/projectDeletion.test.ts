@@ -39,15 +39,16 @@ describe('složka ke smazání', () => {
 });
 
 describe('název složky projektu', () => {
-  it('číslo, pomlčka a název; číslo v názvu se nezdvojí', () => {
-    expect(projectFolderName('26007', '26007 Revoltum a.s. – TESTOVACI PROJEKT')).toBe('26007-Revoltum a.s. – TESTOVACI PROJEKT');
-    expect(projectFolderName('26001', 'MASTIROVICE 1 GENERALNI OPRAVA')).toBe('26001-MASTIROVICE 1 GENERALNI OPRAVA');
-    expect(projectFolderName('26001', '26001-MASTIROVICE')).toBe('26001-MASTIROVICE');
+  it('číslo, podtržítko a zbytek názvu; části oddělené pomlčkou se spojí podtržítkem; číslo se nezdvojí', () => {
+    expect(projectFolderName('26ZA00007', '26ZA00007 EKOL – UL BM kotel Trmice')).toBe('26ZA00007_EKOL_UL BM kotel Trmice');
+    expect(projectFolderName('26ZA00001', 'MASTIROVICE 1 GENERALNI OPRAVA')).toBe('26ZA00001_MASTIROVICE 1 GENERALNI OPRAVA');
+    expect(projectFolderName('26ZA00001', '26ZA00001_MASTIROVICE')).toBe('26ZA00001_MASTIROVICE');
+    expect(projectFolderName('26ZA00005', '26ZA00005 CWS – Rozvaděč RM2 – FVE')).toBe('26ZA00005_CWS_Rozvaděč RM2_FVE');
   });
 
   it('nepovolené znaky pryč, délka omezená, prázdný název dá jen číslo', () => {
-    expect(projectFolderName('26002', 'FVE: Brno/Sever?')).toBe('26002-FVE BrnoSever');
-    expect(projectFolderName('26003', 'x'.repeat(300)).length).toBeLessThanOrEqual(100);
-    expect(projectFolderName('26004', '')).toBe('26004');
+    expect(projectFolderName('26ZA00002', 'FVE: Brno/Sever?')).toBe('26ZA00002_FVE BrnoSever');
+    expect(projectFolderName('26ZA00003', 'x'.repeat(300)).length).toBeLessThanOrEqual(100);
+    expect(projectFolderName('26ZA00004', '')).toBe('26ZA00004');
   });
 });

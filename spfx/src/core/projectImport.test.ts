@@ -173,3 +173,33 @@ describe('yearFromNumber a sequenceFromNumber', () => {
     expect(sequenceFromNumber('26')).toBeUndefined();
   });
 });
+
+describe('složky SELATO (26ZA00005_ZÁKAZNÍK_Popis)', () => {
+  it('rozebere číslo, rok a název; podtržítka v názvu změní na pomlčku', () => {
+    const c = parseFolderName('26ZA00005_EKOL_UL BM kotel 32 MWt Trmice');
+    expect(c.action).toBe('import');
+    expect(c.projectNumber).toBe('26ZA00005');
+    expect(c.title).toBe('EKOL – UL BM kotel 32 MWt Trmice');
+    expect(c.year).toBe(2026);
+    expect(c.isOverhead).toBe(false);
+  });
+
+  it('čítač naváže na nejvyšší pořadí v roce', () => {
+    const plan = buildImportPlan(['26ZA00003_A_x', '26ZA00031_B_y', '25ZA00048_C_z']);
+    expect(plan.counterByYear).toEqual([
+      { year: 2025, lastValue: 48 },
+      { year: 2026, lastValue: 31 }
+    ]);
+  });
+
+  it('číslo bez zákazníka a popisu přeskočí', () => {
+    expect(parseFolderName('26ZA00009_').action).toBe('skip');
+  });
+});
+
+describe('vzorové složky SELATO', () => {
+  it('pořadí 00000 je šablona a neimportuje se', () => {
+    expect(parseFolderName('26ZA00000_ZAKAZNÍK_Zakázka vzor').action).toBe('skip');
+    expect(parseFolderName('25ZA00000_ZAKAZNÍK_Zakázka vzor - kopie').action).toBe('skip');
+  });
+});

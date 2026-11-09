@@ -140,17 +140,23 @@ export function findMatchingFolder(existing: string[], wanted: string): string |
 }
 
 /**
- * Název složky projektu: `26007-Název` (číslo, pomlčka, název) — stejně jako ve stávajících projektech (`26001-MASTIROVICE 1 GENERALNI OPRAVA`)
- * a jak to čte import projektů. Číslo na začátku názvu projektu se nezdvojí, název se zkrátí na rozumnou délku.
+ * Název složky projektu: `26ZA00005_ZÁKAZNÍK_Popis` (číslo, podtržítko, zbytek názvu; části názvu oddělené ` – ` také podtržítkem)
+ * — stejně jako na disku SELATO. Číslo na začátku názvu projektu se nezdvojí, název se zkrátí na rozumnou délku.
  */
 export const PROJECT_FOLDER_NAME_MAX = 100;
 
 export function projectFolderName(projectNumber: string, title: string): string {
   const number = (projectNumber || '').trim();
-  const withoutNumber = (title || '')
-    .trim()
-    .replace(/^\d{5,}\s*[-–—_ ]?\s*/, '')
+  let rest = (title || '').trim();
+  if (number && rest.indexOf(number) === 0) {
+    rest = rest.slice(number.length);
+  } else {
+    rest = rest.replace(/^(\d{2}ZA\d{5}|\d{5,})/, '');
+  }
+  const withoutNumber = rest
+    .replace(/^[\s\-–—_]+/, '')
+    .replace(/\s*–\s*/g, '_')
     .trim();
-  const name = sanitizeFolderName(`${number}${withoutNumber ? '-' + withoutNumber : ''}`, PROJECT_FOLDER_NAME_MAX);
+  const name = sanitizeFolderName(`${number}${withoutNumber ? '_' + withoutNumber : ''}`, PROJECT_FOLDER_NAME_MAX);
   return name || sanitizeFolderName(number) || 'projekt';
 }

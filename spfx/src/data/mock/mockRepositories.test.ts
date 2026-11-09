@@ -16,7 +16,7 @@ describe('MockNumberingRepository', () => {
   it('přidělí číslo podle vzoru dané řady', async () => {
     const repo = new MockNumberingRepository();
     const cislo = await repo.allocateNumber('PRJ', { date: new Date(2026, 8, 21) });
-    expect(cislo).toBe('26001');
+    expect(cislo).toBe('26ZA00001');
   });
 
   it('další volání ve stejném roce pokračuje v řadě', async () => {
@@ -24,7 +24,7 @@ describe('MockNumberingRepository', () => {
     const datum = new Date(2026, 8, 21);
     await repo.allocateNumber('PRJ', { date: datum });
     const druhe = await repo.allocateNumber('PRJ', { date: datum });
-    expect(druhe).toBe('26002');
+    expect(druhe).toBe('26ZA00002');
   });
 
   it('řada v rámci projektu (PP) počítá zvlášť pro každý projekt', async () => {
@@ -55,7 +55,7 @@ describe('MockNumberingRepository', () => {
     expect(unikatni.size).toBe(POCET);
     const ocekavana = Array.from({ length: POCET }, (_, i) => {
       const cislo = String(i + 1);
-      return `26${'0'.repeat(Math.max(0, 3 - cislo.length))}${cislo}`;
+      return `26ZA${'0'.repeat(Math.max(0, 5 - cislo.length))}${cislo}`;
     });
     expect(vysledky.slice().sort()).toEqual(ocekavana.sort());
   });
@@ -338,7 +338,7 @@ describe('Režie a číselná řada projektů', () => {
   it('po Režii pokračuje řada normálně', async () => {
     const repos = createMockRepositories();
     const dalsi = await repos.numbering.previewNextNumber('PRJ');
-    expect(/^\d{2}0\d{2}$/.test(dalsi)).toBe(true);
+    expect(/^\d{2}ZA000\d{2}$/.test(dalsi)).toBe(true);
     expect(dalsi.slice(-3)).not.toBe('999');
   });
 

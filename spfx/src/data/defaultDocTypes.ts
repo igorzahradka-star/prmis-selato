@@ -11,12 +11,12 @@ import { DocTypeConfig } from './repositories';
 
 export const DEFAULT_DOC_TYPES: DocTypeConfig[] = [
   {
-    // Formát bez pomlčky — navazuje na čísla, která RES používá od roku 2026
-    // ve složkách projektů (25001, 25002…). Viz docs/ROZHODNUTI.md, 23. 9. 2026.
+    // SELATO (9. 11. 2026): číslo zakázky `26ZA00005` = rok + typ ZA + pětimístné pořadí, počítané zvlášť pro každý rok
+    // (shodně se složkami na disku O:\\20_Zakázky). Nabídky (NA) vede SELCRM, servis (ZS) zatím stojí.
     code: 'PRJ',
     name: 'Číslo projektu',
-    pattern: '{YY}{N}',
-    padding: 3,
+    pattern: '{YY}ZA{N}',
+    padding: 5,
     resetPeriod: 'Ročně',
     scope: 'Globální',
     startValue: 1,
