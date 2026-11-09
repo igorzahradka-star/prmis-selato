@@ -22,6 +22,7 @@ import {
   canManageProjectAccess
 } from '../../core/projectAccess';
 import { buildProjectFolderPlan, projectFolderName, projectFolderRoot } from '../../core/folders';
+import { yearFromNumber } from '../../core/projectImport';
 import { ProjectOverview, overviewFromJson, overviewToJson } from '../../core/projectOverview';
 import { FolderMap, analyzeFolderLink, defaultFolderMap, folderMapFromJson, folderMapToJson } from '../../core/projectFolders';
 import { ProjectRemovalPreview, ProjectRemovalResult, RemovalCount, projectFolderRemovalTarget } from '../../core/projectDeletion';
@@ -1136,13 +1137,15 @@ export class SpProjectRepository implements IProjectRepository {
     const overheadYear = project.isOverhead ? yearFromProjectNumber(project.projectNumber) : undefined;
     const folderName = projectFolderName(project.projectNumber, project.title);
     // Režie má vlastní šablonu složek (jiná než u běžného projektu).
+    // Rok složky = rok v čísle projektu (`26ZA00005` → 2026), takže zakázka z roku 2025 založená dodatečně spadne do složky 2025.
+    const folderDate = new Date(yearFromProjectNumber(project.projectNumber), 0, 1);
     const plan = buildProjectFolderPlan(
       { ...folders, template: project.isOverhead ? folders.overheadTemplate : folders.template },
       folderName,
-      new Date(),
+      folderDate,
       overheadYear
     );
-    const rootRelative = projectFolderRoot(folders, folderName, new Date(), overheadYear);
+    const rootRelative = projectFolderRoot(folders, folderName, folderDate, overheadYear);
     const rootCount = rootRelative.split('/').length;
 
     // Kořenová složka projektu (a složky nad ní) se zakládá přesně. Podsložky šablony se **hledají tolerantně** (číslo na začátku,
@@ -1399,8 +1402,7 @@ export function mapStatus(value: string | undefined): ProjectStatus {
 
 /** Rok ze zaimportovaného čísla `26001` → 2026. Když se nedá přečíst, dnešek. */
 function yearFromProjectNumber(projectNumber: string): number {
-  const match = /^(\d{2})\d{3,}$/.exec(projectNumber.trim());
-  return match ? 2000 + parseInt(match[1], 10) : new Date().getFullYear();
+  return yearFromNumber(projectNumber) ?? new Date().getFullYear();
 }
 
 /** Prázdná mapa znamená „projekt ji nemá“ (platí výchozí cesty z Nastavení). */

@@ -17,6 +17,8 @@ import { PrimaryButton, DefaultButton } from '@fluentui/react/lib/Button';
 import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
 import { Dropdown, IDropdownOption } from '@fluentui/react/lib/Dropdown';
+import { TextField } from '@fluentui/react/lib/TextField';
+import { ChoiceGroup, IChoiceGroupOption } from '@fluentui/react/lib/ChoiceGroup';
 
 import { useApp } from '../../ui/AppContext';
 import { RES } from '../../ui/theme';
@@ -42,6 +44,12 @@ export const ImportProjectsPanel: React.FC<ImportProjectsPanelProps> = ({
   const [importing, setImporting] = React.useState(false);
   const [pm, setPm] = React.useState(user.displayName);
   const [pmOptions, setPmOptions] = React.useState<string[]>([user.displayName]);
+  // Zdroj: vložený seznam názvů (SELATO — zakázky leží na disku, ne v knihovně) nebo složky v knihovně.
+  const [mode, setMode] = React.useState<'seznam' | 'knihovna'>('seznam');
+  const [listText, setListText] = React.useState('');
+  const [existingNumbers, setExistingNumbers] = React.useState<string[]>([]);
+  const [progress, setProgress] = React.useState<string | undefined>(undefined);
+  const [folderFailures, setFolderFailures] = React.useState<{ projectNumber: string; message: string }[]>([]);
 
   React.useEffect(() => {
     if (!isOpen) {
@@ -52,14 +60,19 @@ export const ImportProjectsPanel: React.FC<ImportProjectsPanelProps> = ({
     setError(undefined);
     setResult(undefined);
     setPm(user.displayName);
+    setProgress(undefined);
+    setFolderFailures([]);
 
     // Plán se staví proti tomu, co v aplikaci už je — aby opakovaný import
     // nezaložil projekty podruhé.
-    Promise.all([repos.documents.listProjectFolderNames(), repos.projects.list({ includeOverhead: true })])
+    const folderNamesPromise: Promise<string[]> =
+      mode === 'knihovna' ? repos.documents.listProjectFolderNames() : Promise.resolve([]);
+    Promise.all([folderNamesPromise, repos.projects.list({ includeOverhead: true })])
       .then(([folderNames, existing]) => {
         if (cancelled) {
           return;
         }
+        setExistingNumbers(existing.map((p) => p.projectNumber));
         setPlan(buildImportPlan(folderNames, existing.map((p) => p.projectNumber)));
         const names = Array.from(
           new Set(existing.map((p) => p.projectManagerName).filter((n): n is string => !!n))
@@ -79,7 +92,16 @@ export const ImportProjectsPanel: React.FC<ImportProjectsPanelProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [isOpen, repos, user.displayName]);
+  }, [isOpen, repos, user.displayName, mode]);
+
+  // Seznam vložený ručně: plán se přepočítá při každé změně textu.
+  React.useEffect(() => {
+    if (mode !== 'seznam') {
+      return;
+    }
+    const lines = listText.split(/\r?\n/).map((l) => l.trim()).filter((l) => l !== '');
+    setPlan((old) => (old === undefined && lines.length === 0 ? old : buildImportPlan(lines, existingNumbers)));
+  }, [mode, listText, existingNumbers]);
 
   const importuj = (): void => {
     if (!plan) {
@@ -94,12 +116,31 @@ export const ImportProjectsPanel: React.FC<ImportProjectsPanelProps> = ({
         projectNumber: c.projectNumber as string,
         title: c.title as string,
         isOverhead: c.isOverhead,
-        folderName: c.folderName
+        // Ze seznamu složka ještě neexistuje — odkaz na ni vznikne až po jejím založení.
+        folderName: mode === 'knihovna' ? c.folderName : undefined
       }));
+
+    // Ze seznamu: složky v knihovně ještě nejsou, proto se po založení záznamu založí podle šablony z Nastavení.
+    const createFolders = async (numbers: string[]): Promise<void> => {
+      const failures: { projectNumber: string; message: string }[] = [];
+      for (let i = 0; i < numbers.length; i++) {
+        setProgress(`Zakládám složky ${i + 1} / ${numbers.length}: ${numbers[i]}`);
+        try {
+          await repos.projects.retryCreateFolders(numbers[i]);
+        } catch (e) {
+          failures.push({ projectNumber: numbers[i], message: e instanceof Error ? e.message : String(e) });
+        }
+      }
+      setFolderFailures(failures);
+      setProgress(undefined);
+    };
 
     repos.projects
       .importProjects(inputs, plan.counterByYear, pm)
-      .then((r) => {
+      .then(async (r) => {
+        if (mode === 'seznam') {
+          await createFolders(r.imported);
+        }
         setImporting(false);
         setResult(r);
         onImported?.();
@@ -166,11 +207,53 @@ export const ImportProjectsPanel: React.FC<ImportProjectsPanelProps> = ({
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
         <MessageBar messageBarType={MessageBarType.info} isMultiline>
-          Načte složky z <code>{settings.folders.rootFolder || 'kořene knihovny'}</code> a k těm, které
-          vypadají jako projekt, založí záznam v aplikaci. <strong>Složky se nepřejmenovávají ani
-          nepřesouvají</strong> — zůstanou přesně tak, jak jsou. Import se dá pustit opakovaně,
-          co už je naimportované, se přeskočí.
+          {mode === 'seznam' ? (
+            <>
+              Ze vloženého seznamu založí záznam každého projektu a pod <code>{settings.folders.rootFolder || 'kořenem knihovny'}</code>{' '}
+              podle šablony z Nastavení i složky (členěné podle roku v čísle). Existující složky se nepřepisují.
+              Import se dá pustit opakovaně, co už v aplikaci je, se přeskočí.
+            </>
+          ) : (
+            <>
+              Načte složky z <code>{settings.folders.rootFolder || 'kořene knihovny'}</code> a k těm, které
+              vypadají jako projekt, založí záznam v aplikaci. <strong>Složky se nepřejmenovávají ani
+              nepřesouvají</strong> — zůstanou přesně tak, jak jsou. Import se dá pustit opakovaně,
+              co už je naimportované, se přeskočí.
+            </>
+          )}
         </MessageBar>
+
+        {!result && (
+          <ChoiceGroup
+            label="Odkud projekty vzít"
+            selectedKey={mode}
+            options={[
+              { key: 'seznam', text: 'Ze seznamu názvů (složky se založí podle šablony)' },
+              { key: 'knihovna', text: 'Ze složek, které už v knihovně jsou' }
+            ] as IChoiceGroupOption[]}
+            onChange={(_, o) => o && setMode(o.key as 'seznam' | 'knihovna')}
+            disabled={importing}
+          />
+        )}
+
+        {mode === 'seznam' && !result && (
+          <TextField
+            label="Seznam názvů složek (jeden na řádek)"
+            description="Např. 26ZA00005_EKOL_UL BM kotel 32 MWt Trmice. Vzorové složky s pořadím 00000 a řádky bez čísla se přeskočí."
+            multiline
+            rows={8}
+            value={listText}
+            onChange={(_, v) => setListText(v || '')}
+            disabled={importing}
+            styles={{ field: { fontFamily: 'Consolas, monospace', fontSize: 12 } }}
+          />
+        )}
+
+        {progress && (
+          <MessageBar messageBarType={MessageBarType.info}>
+            {progress}
+          </MessageBar>
+        )}
 
         {error && (
           <MessageBar messageBarType={MessageBarType.error} isMultiline>
@@ -184,6 +267,18 @@ export const ImportProjectsPanel: React.FC<ImportProjectsPanelProps> = ({
             isMultiline
           >
             Naimportováno {result.imported.length} projektů.
+            {folderFailures.length > 0 && (
+              <div style={{ marginTop: 6 }}>
+                U {folderFailures.length} projektů se nepodařilo založit složky (v detailu projektu je tlačítko „Zkusit znovu založit složky“):
+                <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>
+                  {folderFailures.map((f) => (
+                    <li key={f.projectNumber}>
+                      <strong>{f.projectNumber}</strong>: {f.message}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             {result.failed.length > 0 && (
               <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>
                 {result.failed.map((f) => (
@@ -196,7 +291,7 @@ export const ImportProjectsPanel: React.FC<ImportProjectsPanelProps> = ({
           </MessageBar>
         )}
 
-        {!plan && !error && <Spinner size={SpinnerSize.large} label="Čtu složky…" />}
+        {!plan && !error && mode === 'knihovna' && <Spinner size={SpinnerSize.large} label="Čtu složky…" />}
 
         {plan && !result && (
           <>
@@ -259,10 +354,10 @@ const ActionBadge: React.FC<{ candidate: ImportCandidate }> = ({ candidate }) =>
   );
 };
 
-/** Jak bude vypadat číslo dalšího projektu po importu — `26006`. */
+/** Jak bude vypadat číslo dalšího projektu po importu — `26ZA00060`. */
 function dalsiCislo(year: number, lastValue: number): string {
   const yy = year % 100;
   const sequence = String(lastValue + 1);
-  const padded = `${'0'.repeat(Math.max(0, 3 - sequence.length))}${sequence}`;
-  return `${yy < 10 ? '0' : ''}${yy}${padded}`;
+  const padded = `${'0'.repeat(Math.max(0, 5 - sequence.length))}${sequence}`;
+  return `${yy < 10 ? '0' : ''}${yy}ZA${padded}`;
 }

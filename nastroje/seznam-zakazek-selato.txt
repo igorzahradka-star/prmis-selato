@@ -1,0 +1,90 @@
+_Vzor
+původní
+SMLOUVA O DÍLO
+25ZA00000_ZAKAZNÍK_Zakázka vzor
+25ZA00000_ZAKAZNÍK_Zakázka vzor - kopie
+25ZA00008_BTECH_JHV
+25ZA00021_BPOWER_vzdálená správa
+25ZA00022_HEIRU_operátorský panel
+25ZA00023_VŠEKOV_kalibrace vážícího dopravníku
+25ZA00024_JIHOSTROJ_servis
+25ZA00025_EBERHARD_Balička SEWS (SM962)
+25ZA00026_SUDEX_Repase svářecího stroje
+25ZA00027_BVD_servis Backer Hlinsko
+25ZA00028_PUESCHEL_Tadiran 09_2025
+25ZA00029_TECHNOCON_Zásuvky na hale
+25ZA00030_JIHOSTROJ_Úprava linky
+25ZA00031_GLS_Náhradí OS
+25ZA00032_GLS_Náhradní díly ŘS
+25ZA00033_GLS_Servisní práce technika
+25ZA00034_TECHNOCON_Polohovadlo
+25ZA00035_MOSER_Doplnění snímače
+25ZA00036_TECHNOCON_Tamponový tisk robotem
+25ZA00037_FUTABA_servis CNC
+25ZA00039_EBERHARD_Balička SEWS (SM963)
+25ZA00040_BVD_Hanwha Frýdek-Místek (25026)
+25ZA00041_CWS_Distribuční rozvaděč
+25ZA00042_Savencia_Snímače hladiny pod krémárnou
+25ZA00043_TECHNOCON_CWS_Střihací stroj
+25ZA00044_HTECHNOLOGIES_Inomotics_Lis5_manipulace rotorových a statorových plechů
+25ZA00045_NEOTIC_Rozvaděč R15
+25ZA00047_FUTABA_Vřeteno
+25ZA00048_HTECHNOLOGIES_Inomotics_Lis1_skutečný stav
+26ZA00000_ZAKAZNÍK_Zakázka vzor
+26ZA00001_REVOLTUM_PRM-BESS Roudnice nad Labem
+26ZA00002_CWS_servisní výměna servodriveru
+26ZA00003_KOPOS_Repase ŘS a FM
+26ZA00004_HEIRU_Měření průměru
+26ZA00005_EKOL_UL BM kotel 32 MWt Trmice
+26ZA00006_CWS_Rozvaděč RM2
+26ZA00007_PUSCHEL_Keune & Lauber 29510
+26ZA00008_MOSER_výměna operátorského panelu
+26ZA00009_TECHNOCON_ACO Ukrajina_Laserové svařování
+26ZA00010_JHV_Servisní výjezd RUMUNSKO
+26ZA00011_TAKENAKA_Doplnění čidel Philips Morris
+26ZA00012_EBERHARD_Balička SEWS (SM969)
+26ZA00013_BVD_Pilana Hulín (25024)
+26ZA00014_KOPOS_Doplnění optických závor
+26ZA00015_TECHNOCON_ECOS Choceň_Combine 1.2-3.0M – 2R
+26ZA00016_FUTABA_Vřeteno II
+26ZA00017_MANAG_Projekční práce Irák Baiji
+26ZA00018_TrafinOil_Montáže Dekantér
+26ZA00020_APIO_Montáže Golčův Jeníkov
+26ZA00021_EXXEN_Výměna KGJ Božíčany
+26ZA00022_EBERHARD_Maroco
+26ZA00023_Teplárna Otrokovice_Zakládání štěpky
+26ZA00024_EBERHARD_TE Woerth
+26ZA00025_TECHNOCON_Tamponový tisk robotem II
+26ZA00026_PUSCHEL_TI Automotive 29602
+26ZA00027_CWS_Rozvaděč pro FM
+26ZA00028_ROHLIK_VIE1_switchboards
+26ZA00029_FUTABA_Výměna měniče vřetena
+26ZA00030_FLAMELOGY_Rozvaděč Hořáku I
+26ZA00031_FLAMELOGY_Projekční práce kotelna Liberec
+26ZA00033_APIO_Měření a Regulace Administrativní budova Golčův Jeníkov
+26ZA00034_ROHLIK_BER1_switchboards
+26ZA00035_CWS_Rekonstrukce řízení odtahu
+26ZA00036_EGE_Zabíhadlo - výroba rozvaděčů
+26ZA00037_PUSCHEL_TI Automotive 18350 (VA12)
+26ZA00038_FLAMELOGY_ Rozvaděče kotelna Liberec
+26ZA00039_GLS_DEPO České Budějovice
+26ZA00040_APIO_Lakovací boxy_rozvaděč
+26ZA00041_EBERHARD_ZOEWIE 1_Kartomat (stará linka)
+26ZA00042_MoTeC_Uzel vratného kondenzátu
+26ZA00043_CWS_Skříň pojistkového odpojovače
+26ZA00044_ROHLIK_FRA1_Electrical technician on-site service
+26ZA00045_SEDMÍK_Drůbežárna_Netin
+26ZA00046_ROHLIK_BER1_Air blades machine
+26ZA00047_ROHLIK_BER1_EMS Proof of Concept
+26ZA00048_ROHLIK_VIE1_Power line Trafo room to Ambient
+26ZA00049_ROHLIK_BUD2_AS robot charger sockets
+26ZA00050_ASAP_Výdej tuků
+26ZA00051_Revoltum_Střídače
+26ZA00052_ROHLIK_VIE1_AS robot charger sockets
+26ZA00053_ROHLIK_BER1_Bakery power supply
+26ZA00054_AGROSTROJ_Rozvaděč RM12
+26ZA00055_EBERHARD_ZOEWIE 2
+26ZA00056_EBERHARD_APTIV Mexico
+26ZA00057_TSSGRADE_Kolejový posun
+26ZA00058_TECHNOCON_KOMPAN Brno_Combine - 2R, lite
+26ZA00059_REVOLTUM_Rozvaděč EAC01

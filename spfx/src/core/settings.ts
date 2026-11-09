@@ -268,9 +268,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
     siteUrl: ENTITY.folders.siteUrl,
     libraryTitle: ENTITY.folders.libraryTitle,
     rootFolder: ENTITY.folders.rootFolder,
-    // Projekty leží v 01_PROJEKTY přímo, bez mezipatra podle roku.
-    // Ověřeno na skutečné složce 23. 9. 2026.
-    subfolderByYear: false,
+    // SELATO: zakázky na disku O:\\20_Zakázky jsou členěné podle roku (2025, 2026), SharePoint je zrcadlí.
+    subfolderByYear: true,
     template: DEFAULT_FOLDER_TEMPLATE,
     // SELATO (9. 11. 2026): struktura podle vzorové zakázky na disku O:\\20_Zakázky (A_Projektový management … F_SW). Jen návrh, upraví se v Nastavení.
     diaryFolder: 'A_Projektový management/_Zápisy',
