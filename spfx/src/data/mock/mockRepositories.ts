@@ -79,6 +79,8 @@ import {
   InstallProgress,
   RepositorySet, BudgetCacheInput } from '../repositories';
 import { LISTS, ListDef, SCHEMA_VERSION, creationOrder } from '../schema';
+import { ENTITY } from '../../config/entity';
+import { withEnabledModules } from '../../core/modules';
 import { MockOrderRepository } from './mockOrderRepository';
 import { MockInvoiceRepository } from './mockInvoiceRepository';
 import { MockDiaryRepository } from './mockDiaryRepository';
@@ -98,6 +100,11 @@ import {
 
 /** Začátek odkazu na „složku“ v ukázkovém režimu; za ním je zakódovaná cesta složky projektu. */
 const MOCK_FOLDER_PREFIX = '#/ukazkovy-rezim/slozka/';
+
+/** Seznamy, které instalátor řeší — bez seznamů vypnutých modulů (stejně jako ostrá implementace). */
+function plannedLists(): ListDef[] {
+  return withEnabledModules(LISTS, ENTITY.modules);
+}
 
 /** Umělé zdržení, aby bylo v UI vidět načítání stejně jako na ostro. */
 function delay<T>(value: T, ms: number = 180): Promise<T> {
@@ -977,7 +984,7 @@ class MockInstallRepository implements IInstallRepository {
   }
 
   public async install(onProgress?: (p: InstallProgress) => void): Promise<DiagnosticReport> {
-    const lists = creationOrder(LISTS);
+    const lists = creationOrder(plannedLists());
     for (let i = 0; i < lists.length; i++) {
       if (onProgress) {
         onProgress({ step: `Zakládám seznam „${lists[i].title}"`, done: i, total: lists.length });
@@ -988,7 +995,7 @@ class MockInstallRepository implements IInstallRepository {
   }
 
   public getPlannedLists(): ListDef[] {
-    return creationOrder(LISTS);
+    return creationOrder(plannedLists());
   }
 
   private report(): DiagnosticReport {
@@ -996,7 +1003,7 @@ class MockInstallRepository implements IInstallRepository {
       codeSchemaVersion: SCHEMA_VERSION,
       installedSchemaVersion: SCHEMA_VERSION,
       canManageWeb: true,
-      items: LISTS.map((l) => ({
+      items: plannedLists().map((l) => ({
         key: l.name,
         label: `${l.kind === 'library' ? 'Knihovna' : 'Seznam'} ${l.title}`,
         state: 'ok' as const,

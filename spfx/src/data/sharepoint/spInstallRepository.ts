@@ -19,6 +19,8 @@ import {
   InstallProgress
 } from '../repositories';
 import { LISTS, ListDef, SCHEMA_VERSION, creationOrder, listsForSite } from '../schema';
+import { ENTITY } from '../../config/entity';
+import { withEnabledModules } from '../../core/modules';
 import { buildFieldXml, ADD_FIELD_INTERNAL_NAME_HINT } from './fieldXml';
 import { mergedChoices, missingChoices } from './choiceSync';
 import { getSp, getSpForSite, describeSpError } from './spContext';
@@ -57,7 +59,8 @@ export class SpInstallRepository implements IInstallRepository {
   ) {}
 
   public getPlannedLists(): ListDef[] {
-    return creationOrder(LISTS);
+    // Seznamy vypnutých modulů (ENTITY.modules) se nezakládají ani nekontrolují; existující zůstávají beze změny.
+    return creationOrder(withEnabledModules(LISTS, ENTITY.modules));
   }
 
   public async diagnose(): Promise<DiagnosticReport> {
@@ -204,7 +207,7 @@ export class SpInstallRepository implements IInstallRepository {
     siteUrl: string | undefined,
     items: DiagnosticItem[]
   ): Promise<void> {
-    const wanted = listsForSite(site);
+    const wanted = listsForSite(site, ENTITY.modules);
     let existing: Map<string, ExistingList>;
 
     try {
@@ -314,11 +317,11 @@ export class SpInstallRepository implements IInstallRepository {
 
   /** Plán: co založit a na kterém webu, ve správném pořadí kvůli lookupům. */
   private buildPlan(): { list: ListDef; siteUrl?: string }[] {
-    const plan: { list: ListDef; siteUrl?: string }[] = creationOrder(listsForSite('PRM')).map(
+    const plan: { list: ListDef; siteUrl?: string }[] = creationOrder(listsForSite('PRM', ENTITY.modules)).map(
       (list) => ({ list, siteUrl: undefined })
     );
     if (this.financeSiteUrl) {
-      creationOrder(listsForSite('PRM-Finance')).forEach((list) =>
+      creationOrder(listsForSite('PRM-Finance', ENTITY.modules)).forEach((list) =>
         plan.push({ list, siteUrl: this.financeSiteUrl })
       );
     }

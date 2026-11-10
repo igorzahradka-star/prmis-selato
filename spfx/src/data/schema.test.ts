@@ -148,3 +148,35 @@ describe('creationOrder', () => {
     expect(order.length).toBe(2);
   });
 });
+
+describe('instalátor a vypnuté moduly', () => {
+  const off = { abra: false, service: false };
+
+  test('bez Abry a Servisu se seznamy PRM_Abra* a PRM_Service* nezakládají', () => {
+    const names = listsForSite('PRM', off).map((l) => l.name);
+    expect(names.filter((n) => n.indexOf('PRM_Abra') === 0)).toEqual([]);
+    expect(names.filter((n) => n.indexOf('PRM_Service') === 0)).toEqual([]);
+    expect(names).toContain('PRM_Projects');
+    expect(names).toContain('PRM_PurchaseOrders');
+  });
+
+  test('všechny seznamy Abry a Servisu jsou označené modulem (žádný nezůstane bez přepínače)', () => {
+    LISTS.filter((l) => /^PRM_(Abra|Service)/.test(l.name)).forEach((l) => {
+      expect(l.module).toBe(l.name.indexOf('PRM_Abra') === 0 ? 'abra' : 'service');
+    });
+    expect(LISTS.filter((l) => l.module === 'abra').length).toBe(3);
+    expect(LISTS.filter((l) => l.module === 'service').length).toBe(7);
+  });
+
+  test('zbylé seznamy na vypnuté moduly neodkazují (lookup do prázdna nevznikne)', () => {
+    const kept = listsForSite('PRM', off);
+    const keptNames = kept.map((l) => l.name);
+    kept.forEach((l) =>
+      l.fields.forEach((f) => {
+        if (f.lookupList) {
+          expect(keptNames).toContain(f.lookupList);
+        }
+      })
+    );
+  });
+});

@@ -30,6 +30,7 @@ import { applyNotificationPrefs, mutedText } from '../notify/notificationPrefs';
 import { RouteName, buildHash } from '../../ui/router';
 import { AbraDoc } from '../../core/abraDocs';
 import { DocsTarget, TargetDocsDialog } from './TargetDocsDialog';
+import { ENTITY } from '../../config/entity';
 import { asCurrencyCode } from '../../core/currency';
 import { canIssueOrder, toActor, toWorkflowProject } from '../../core/orderWorkflow';
 import {
@@ -136,14 +137,19 @@ export const BudgetTab: React.FC<{ project: Project; /** Stav projektu se při s
   }, [repos, project.projectNumber, ordersKey]);
 
   // Doklady z účetnictví (ABRA Flexi): načtou se k rozpočtu; přiřazení k položkám se ukládá v rozpočtu.
+  // Bez modulu Abra (ENTITY.modules.abra) se nenačítají a odkazy „doklady“ u položek a výnosů se neukazují.
+  const abraOn = ENTITY.modules.abra;
   const [abraDocs, setAbraDocs] = React.useState<AbraDoc[]>([]);
   const [docsTarget, setDocsTarget] = React.useState<DocsTarget | undefined>(undefined);
   const loadAbra = React.useCallback((): void => {
+    if (!abraOn) {
+      return;
+    }
     repos.abraDocs
       .list(project.projectNumber)
       .then(setAbraDocs)
       .catch(() => setAbraDocs([]));
-  }, [repos, project.projectNumber]);
+  }, [repos, project.projectNumber, abraOn]);
   React.useEffect(loadAbra, [loadAbra]);
 
   const [approvers, setApprovers] = React.useState<RoleMembership[]>([]);
@@ -649,7 +655,7 @@ export const BudgetTab: React.FC<{ project: Project; /** Stav projektu se při s
 
           {ratesOpen && <RatesTable doc={doc} onChange={setDoc} editable={editable && !busy && !planLocked} />}
 
-          <RevenueTable doc={doc} onChange={setDoc} editable={editable && !busy} report={report} defaultCurrency={asCurrencyCode(project.currency)} onImport={() => setRevImportOpen(true)} onOpenDocs={(id) => { const l = (doc.revenues || []).filter((x) => x.id === id)[0]; if (l) { setDocsTarget({ kind: 'revenue', id, label: l.description || 'Výnos', currency: l.currency }); } }} />
+          <RevenueTable doc={doc} onChange={setDoc} editable={editable && !busy} report={report} defaultCurrency={asCurrencyCode(project.currency)} onImport={() => setRevImportOpen(true)} onOpenDocs={!abraOn ? undefined : (id) => { const l = (doc.revenues || []).filter((x) => x.id === id)[0]; if (l) { setDocsTarget({ kind: 'revenue', id, label: l.description || 'Výnos', currency: l.currency }); } }} />
 
           {!overhead && (
             <>
@@ -666,7 +672,7 @@ export const BudgetTab: React.FC<{ project: Project; /** Stav projektu se při s
             orders={orders}
             onOrder={canIssueOrder(wf, actor) ? (item) => setOrderFrom(item) : undefined}
             onCreatePartner={(name, itemId) => setNewPartner({ name, itemId })}
-            onOpenDocs={(id) => {
+            onOpenDocs={!abraOn ? undefined : (id) => {
               const i = doc.items.filter((x) => x.id === id)[0];
               if (i) {
                 setDocsTarget({ kind: 'item', id, label: i.description || 'Položka', currency: i.currency });

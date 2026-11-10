@@ -39,6 +39,7 @@ import { ProjectDiaryTab } from '../diary/ProjectDiaryTab';
 import { ProjectHandoverTab } from '../diary/ProjectHandoverTab';
 import { BudgetTab } from '../budget/BudgetTab';
 import { AccountingDataTab } from '../accounting/AccountingDataTab';
+import { ENTITY } from '../../config/entity';
 import { CashflowTab } from '../cashflow/CashflowTab';
 import { ProjectPhotos } from '../photos/ProjectPhotos';
 
@@ -335,7 +336,8 @@ export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projec
         {!reader && <PivotItem itemKey="rozpocet" headerText="Realizační rozpočet" itemIcon="Table">
           <BudgetTab project={project} onProjectChanged={(p) => setProject(p)} />
         </PivotItem>}
-        {!reader && <PivotItem itemKey="ucetnictvi" headerText="Data z účetnictví" itemIcon="Financial">
+        {/* Doklady z Abry jen se zapnutým modulem (ENTITY.modules.abra). */}
+        {!reader && ENTITY.modules.abra && <PivotItem itemKey="ucetnictvi" headerText="Data z účetnictví" itemIcon="Financial">
           <AccountingDataTab project={project} />
         </PivotItem>}
         {!reader && <PivotItem itemKey="cashflow" headerText="Cashflow" itemIcon="Money">

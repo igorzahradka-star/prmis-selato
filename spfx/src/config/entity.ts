@@ -12,10 +12,22 @@
  * struktura složek projektu a číselníky.
  */
 
+import { AppModules } from '../core/modules';
+
 /** Zástupná hodnota pro údaj, který zadavatel ještě nedodal. */
 export const TODO = 'TODO_SELATO';
 
 export const ENTITY = {
+  /**
+   * Zapnuté moduly (rozhodl Igor 10. 11. 2026: v SELATO zatím bez Abry a bez Servisu). Vypnutý modul se jen **skryje**:
+   * zmizí z nabídky, záložek a odkazů, jeho adresa vede na přehled projektů a Instalace a diagnostika jeho seznamy
+   * nezakládá ani nekontroluje. Kód, schéma ani data se nemažou — modul jde kdykoli vrátit přepnutím na `true`
+   * a novým balíčkem (u prvního zapnutí pak spustit Instalaci a diagnostiku, ať se seznamy doplní).
+   *  - `abra`: doklady z účetnictví ABRA Flexi (záložka Data z účetnictví, Kontroly projektů, doklady u rozpočtu; seznamy `PRM_Abra*`).
+   *  - `service`: modul Servis (nabídka Servis, karta Servis v Nastavení; seznamy `PRM_Service*`).
+   */
+  modules: { abra: false, service: false } as AppModules,
+
   /** Firma (do textů, PDF a e-mailů). */
   companyName: 'SELATO s.r.o.',
   /** Název této aplikace. */

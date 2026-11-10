@@ -29,7 +29,8 @@ import { CurrentUser, Role } from '../../../core/types';
 import { actingUser, canSeeOverhead, isReaderOnly } from '../../../core/roles';
 import { withRoleGuards } from '../../../data/roleGuards';
 import { setPhotoDefaults } from '../../../features/diary/imageUtils';
-import { isRouteAllowed } from '../../../ui/layout/navigation';
+import { isRouteAllowed, isRouteEnabled } from '../../../ui/layout/navigation';
+import { ENTITY } from '../../../config/entity';
 
 import { DashboardPage } from '../../../features/projects/DashboardPage';
 import { ProjectDetailPage } from '../../../features/projects/ProjectDetailPage';
@@ -141,7 +142,7 @@ export const PrmApp: React.FC<IPrmAppProps> = ({ repos, dataSource, financeSiteU
   return (
     <ThemeProvider theme={resTheme}>
       <AppContext.Provider value={value}>
-        <AppShell route={route}>{renderRoute(isRouteAllowed(route.name, reader) ? route : { name: RouteName.Dashboard })}</AppShell>
+        <AppShell route={route}>{renderRoute(isRouteAllowed(route.name, reader) && isRouteEnabled(route.name, ENTITY.modules) ? route : { name: RouteName.Dashboard })}</AppShell>
       </AppContext.Provider>
     </ThemeProvider>
   );

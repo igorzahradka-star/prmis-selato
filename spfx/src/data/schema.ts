@@ -14,6 +14,8 @@
  *     (v SharePointu už můžou být data a přejmenování rozbije pohledy).
  */
 
+import { ALL_MODULES, AppModule, AppModules, withEnabledModules } from '../core/modules';
+
 /**
  * Verze schématu. Ukládá se do PRM_Settings pod klíčem `schemaVersion`.
  * Průvodce porovná uloženou verzi s touto a nabídne doplnění rozdílu.
@@ -77,6 +79,8 @@ export interface ListDef {
   /** Zapnout historii verzí — kvůli auditu (kdo, kdy, co změnil). */
   versioning: boolean;
   fields: FieldDef[];
+  /** Volitelný modul, ke kterému seznam patří; když je modul vypnutý (`ENTITY.modules`), instalátor seznam nezakládá ani nekontroluje. */
+  module?: AppModule;
 }
 
 // --- Číselníky používané ve více seznamech -------------------------------
@@ -658,6 +662,7 @@ const PRM_USER_PROFILES: ListDef = {
 
 const PRM_ABRA_DOCS: ListDef = {
   name: 'PRM_AbraDocs',
+  module: 'abra',
   title: 'PRM – Doklady z Abry',
   description: 'Faktury přijaté, vydané a zálohové z účetnictví ABRA Flexi podle zakázky (= číslo projektu). Zapisuje jen prostředník (denní stahování), aplikace je čte a PM je přiřazuje k položkám rozpočtu.',
   kind: 'list',
@@ -681,6 +686,7 @@ const PRM_ABRA_DOCS: ListDef = {
 
 const PRM_ABRA_CORRECTIONS: ListDef = {
   name: 'PRM_AbraCorrections',
+  module: 'abra',
   title: 'PRM – Opravy řádků z účetnictví',
   description: 'Řádky z Abry, které projektový manažer označil jako OPRAVU (nepatří do projektu) s popisem; po odeslání účtárně čekají na opravu v účetnictví. Zapisuje aplikace.',
   kind: 'list',
@@ -704,6 +710,7 @@ const PRM_ABRA_CORRECTIONS: ListDef = {
 
 const PRM_ABRA_SYNC: ListDef = {
   name: 'PRM_AbraSync',
+  module: 'abra',
   title: 'PRM – Stahování z Abry',
   description: 'Žádosti uživatelů o okamžitou aktualizaci (Kind = Žádost) a výsledky stahování (Kind = Stav). Žádosti zapisuje aplikace, výsledky prostředník.',
   kind: 'list',
@@ -721,6 +728,7 @@ const PRM_ABRA_SYNC: ListDef = {
 
 const PRM_SERVICE_SITES: ListDef = {
   name: 'PRM_ServiceSites',
+  module: 'service',
   title: 'PRM – Servis: lokality',
   description: 'Servisní lokality (místa zákazníka, číslo po desítkách: 10500, 10510…). Pod lokalitou jsou zařízení. Vidí a upravuje jen Servis.',
   kind: 'list',
@@ -750,6 +758,7 @@ const PRM_SERVICE_SITES: ListDef = {
 
 const PRM_SERVICE_DEVICES: ListDef = {
   name: 'PRM_ServiceDevices',
+  module: 'service',
   title: 'PRM – Servis: zařízení',
   description: 'Zařízení v lokalitě (FVE, BESS…). Číslo zařízení je číslo skrytého servisního projektu (10501…); má vlastní smlouvu, složku a fakturaci.',
   kind: 'list',
@@ -777,6 +786,7 @@ const PRM_SERVICE_DEVICES: ListDef = {
 
 const PRM_SERVICE_REQUESTS: ListDef = {
   name: 'PRM_ServiceRequests',
+  module: 'service',
   title: 'PRM – Servis: požadavky',
   description: 'Servisní požadavky (zapisuje správce nebo dispečer). Z požadavku vznikají servisní listy.',
   kind: 'list',
@@ -804,6 +814,7 @@ const PRM_SERVICE_REQUESTS: ListDef = {
 
 const PRM_SERVICE_JOBS: ListDef = {
   name: 'PRM_ServiceJobs',
+  module: 'service',
   title: 'PRM – Servis: servisní listy',
   description: 'Servisní listy: dodavatel, objednávka, provedení (zapisuje dodavatel přes externí web), kontrola správcem a fakturace.',
   kind: 'list',
@@ -845,6 +856,7 @@ const PRM_SERVICE_JOBS: ListDef = {
 
 const PRM_SERVICE_PLAN: ListDef = {
   name: 'PRM_ServicePlan',
+  module: 'service',
   title: 'PRM – Servis: roční plán',
   description: 'Roční plán servisu: plánované činnosti (revize, pravidelné kontroly) lokality nebo souboru na kalendářní rok. Z položky vzniká servisní požadavek.',
   kind: 'list',
@@ -866,6 +878,7 @@ const PRM_SERVICE_PLAN: ListDef = {
 
 const PRM_SERVICE_CONTRACTS: ListDef = {
   name: 'PRM_ServiceContracts',
+  module: 'service',
   title: 'PRM – Servis: smlouvy',
   description: 'Servisní smlouvy se zákazníky: jedna smlouva patří jedné lokalitě (číslo 10500-01). Obsah je ve verzích (PRM_ServiceContractVersions).',
   kind: 'list',
@@ -882,6 +895,7 @@ const PRM_SERVICE_CONTRACTS: ListDef = {
 
 const PRM_SERVICE_CONTRACT_VERSIONS: ListDef = {
   name: 'PRM_ServiceContractVersions',
+  module: 'service',
   title: 'PRM – Servis: verze smluv',
   description: 'Verze servisních smluv (smlouva, dodatky). Každá verze nese snapshot všech dat smlouvy; podepsaná verze se nemění.',
   kind: 'list',
@@ -942,9 +956,9 @@ export const LISTS: ListDef[] = [
   FIN_CF_SUBMISSIONS
 ];
 
-/** Seznamy pro jeden web. */
-export function listsForSite(site: 'PRM' | 'PRM-Finance'): ListDef[] {
-  return LISTS.filter((l) => l.site === site);
+/** Seznamy pro jeden web; seznamy vypnutých modulů (`modules`) se vynechají. */
+export function listsForSite(site: 'PRM' | 'PRM-Finance', modules: AppModules = ALL_MODULES): ListDef[] {
+  return withEnabledModules(LISTS, modules).filter((l) => l.site === site);
 }
 
 /**

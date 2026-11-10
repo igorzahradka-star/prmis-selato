@@ -5,6 +5,11 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.69.0 — 10. 11. 2026 — Abra a Servis vypnuté (SELATO)
+
+- Moduly **Abra** (doklady z účetnictví) a **Servis** jsou v SELATO vypnuté přepínačem v `spfx/src/config/entity.ts` (`modules`). Z aplikace zmizely: záložka **Data z účetnictví** v projektu, **Kontroly projektů** v nabídce, odkazy na doklady z účetnictví v rozpočtu, celá skupina **Servis** v nabídce a karta **Servis** v Nastavení. Přímá adresa takové obrazovky otevře přehled projektů.
+- **Instalace a diagnostika** seznamy Abry a Servisu nezakládá ani nekontroluje. Nic se nemaže: kód, schéma i data zůstávají a modul jde kdykoli zapnout zpět (přepínač na `true`, nový balíček, Instalace a diagnostika). Beze změny schématu.
+
 ## 0.68.3 — 10. 11. 2026 — Průběh importu projektů
 
 - Import stávajících projektů ukazuje nahoře velký nápis **„Probíhá import, nezavírejte okno ani záložku“** a ukazatel průběhu (u zakládání složek „hotovo x z y“). Během importu panel nejde zavřít a prohlížeč varuje při zavírání záložky.

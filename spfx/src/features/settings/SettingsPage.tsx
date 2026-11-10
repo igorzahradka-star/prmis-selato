@@ -513,7 +513,8 @@ export const SettingsPage: React.FC = () => {
           </Panel>
         </PivotItem>
 
-        <PivotItem headerText="Servis" itemIcon="Repair">
+        {/* Nastavení Servisu jen se zapnutým modulem (ENTITY.modules.service); uložené hodnoty zůstávají. */}
+        {ENTITY.modules.service && <PivotItem headerText="Servis" itemIcon="Repair">
           <Panel>
             <Hint>
               <strong>Lhůty SLA servisních požadavků.</strong> Aplikace měří čas od přijetí požadavku do <strong>první reakce</strong> (založení servisního listu) a do
@@ -532,7 +533,7 @@ export const SettingsPage: React.FC = () => {
               <strong>Šablony ročních plánů servisu</strong> se upravují v nabídce <strong>Servis → Servisní plány → Šablony</strong>.
             </Hint>
           </Panel>
-        </PivotItem>
+        </PivotItem>}
 
         <PivotItem headerText="Údaje firmy" itemIcon="ContactCard">
           <Panel>

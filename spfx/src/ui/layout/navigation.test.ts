@@ -1,4 +1,4 @@
-import { activeItemRoute, buildNavigation, flattenNavigation, groupKeyOf, isRouteAllowed } from './navigation';
+import { activeItemRoute, buildNavigation, flattenNavigation, groupKeyOf, isRouteAllowed, isRouteEnabled, routeModule } from './navigation';
 import { RouteName } from '../router';
 
 const nic = { benchmark: false, finance: false, admin: false };
@@ -90,5 +90,50 @@ describe('nabídka čtenáře', () => {
     expect([RouteName.Orders, RouteName.Invoicing, RouteName.Settings, RouteName.Diary].map((r) => isRouteAllowed(r, true))).toEqual([false, false, false, false]);
     expect([RouteName.Dashboard, RouteName.ProjectDetail, RouteName.Photos, RouteName.Service].map((r) => isRouteAllowed(r, true))).toEqual([true, true, true, true]);
     expect(isRouteAllowed(RouteName.Orders, false)).toBe(true);
+  });
+});
+
+describe('vypnuté moduly (ENTITY.modules)', () => {
+  const off = { abra: false, service: false };
+  const routes = (flags: Parameters<typeof buildNavigation>[0]): RouteName[] =>
+    flattenNavigation(buildNavigation(flags)).map((i) => i.route);
+  const vse = { benchmark: true, finance: true, admin: true, service: true, contracts: true };
+
+  it('bez Abry chybí Kontroly projektů, zbytek skupiny Projekty zůstává', () => {
+    const r = routes({ ...vse, modules: { abra: false, service: true } });
+    expect(r).not.toContain(RouteName.AccountingChecks);
+    expect(r).toContain(RouteName.Dashboard);
+    expect(r).toContain(RouteName.Invoicing);
+    expect(r).toContain(RouteName.Service);
+  });
+
+  it('bez Servisu chybí celá skupina Servis i pro správce servisu a administrátora', () => {
+    const entries = buildNavigation({ ...vse, modules: { abra: true, service: false } });
+    expect(entries.some((e) => e.kind === 'group' && e.group.key === 'servis')).toBe(false);
+    const r = flattenNavigation(entries).map((i) => i.route);
+    [RouteName.Service, RouteName.ServiceMap, RouteName.ServicePlans, RouteName.ServiceCalendar, RouteName.ServiceRequests, RouteName.ServiceSites, RouteName.ServiceContracts].forEach(
+      (s) => expect(r).not.toContain(s)
+    );
+    expect(r).toContain(RouteName.AccountingChecks);
+  });
+
+  it('obojí vypnuto: ani čtenář Servis nevidí', () => {
+    const r = routes({ benchmark: false, finance: false, admin: false, service: true, reader: true, modules: off });
+    expect(r).not.toContain(RouteName.Service);
+    expect(r).toContain(RouteName.Dashboard);
+  });
+
+  it('bez přepínačů je vše zapnuté (původní chování)', () => {
+    expect(routes(vse)).toContain(RouteName.AccountingChecks);
+    expect(routes(vse)).toContain(RouteName.Service);
+  });
+
+  it('isRouteEnabled: obrazovky vypnutého modulu nejdou otevřít, základ ano', () => {
+    expect(isRouteEnabled(RouteName.AccountingChecks, off)).toBe(false);
+    expect(isRouteEnabled(RouteName.ServiceContracts, off)).toBe(false);
+    expect(isRouteEnabled(RouteName.Service, { abra: false, service: true })).toBe(true);
+    expect(isRouteEnabled(RouteName.Dashboard, off)).toBe(true);
+    expect(isRouteEnabled(RouteName.ProjectDetail, off)).toBe(true);
+    expect(routeModule(RouteName.Invoicing)).toBeUndefined();
   });
 });

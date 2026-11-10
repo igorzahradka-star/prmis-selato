@@ -4,6 +4,7 @@
  */
 
 import { RouteName } from '../router';
+import { ALL_MODULES, AppModule, AppModules, isModuleEnabled } from '../../core/modules';
 
 export interface NavItem {
   route: RouteName;
@@ -33,6 +34,30 @@ export interface NavFlags {
   contracts?: boolean;
   /** Uživatel je jen čtenář: omezená nabídka (viz `READER_ROUTES`). */
   reader?: boolean;
+  /** Zapnuté volitelné moduly (`ENTITY.modules`); obrazovky vypnutých modulů v nabídce nejsou. Bez hodnoty = vše zapnuto. */
+  modules?: AppModules;
+}
+
+/** Obrazovky, které patří volitelnému modulu. Ostatní patří k základu aplikace. */
+const ROUTE_MODULES: Partial<Record<RouteName, AppModule>> = {
+  [RouteName.AccountingChecks]: 'abra',
+  [RouteName.Service]: 'service',
+  [RouteName.ServiceMap]: 'service',
+  [RouteName.ServicePlans]: 'service',
+  [RouteName.ServiceCalendar]: 'service',
+  [RouteName.ServiceRequests]: 'service',
+  [RouteName.ServiceSites]: 'service',
+  [RouteName.ServiceContracts]: 'service'
+};
+
+/** Modul, ke kterému obrazovka patří; `undefined` = základ aplikace. */
+export function routeModule(route: RouteName): AppModule | undefined {
+  return ROUTE_MODULES[route];
+}
+
+/** Je obrazovka zapnutá? Obrazovka vypnutého modulu se nesmí otevřít ani přímou adresou (vede na přehled projektů). */
+export function isRouteEnabled(route: RouteName, modules: AppModules): boolean {
+  return isModuleEnabled(routeModule(route), modules);
 }
 
 /** Obrazovky, které smí otevřít čtenář (role Čtenář bez dalších rolí). */
@@ -70,6 +95,7 @@ const item = (route: RouteName, label: string, icon: string, comingSoon?: boolea
  * Nastavení. Skupina Servis (složka 10-Servis) zatím obsahuje jen položku označenou jako připravovanou.
  */
 export function buildNavigation(flags: NavFlags): NavEntry[] {
+  const modules = flags.modules ?? ALL_MODULES;
   const entries: NavEntry[] = [
     {
       kind: 'group',
@@ -91,7 +117,7 @@ export function buildNavigation(flags: NavFlags): NavEntry[] {
     item(RouteName.Partners, 'Partneři', 'ContactCard')
   ];
   // Servis vidí jen role Servisu, vedení a administrátor — ostatním se v nabídce neukáže.
-  if (flags.service) {
+  if (flags.service && modules.service) {
     entries.push({
       kind: 'group',
       group: {
@@ -133,8 +159,18 @@ export function buildNavigation(flags: NavFlags): NavEntry[] {
     });
   }
   entries.push(item(RouteName.Help, 'Nápověda', 'Help'));
+  // Obrazovky vypnutých modulů pryč (např. Kontroly projektů bez Abry); skupina, ze které nic nezbude, zmizí celá.
+  const enabled = entries
+    .map((e): NavEntry | undefined => {
+      if (e.kind === 'item') {
+        return isRouteEnabled(e.item.route, modules) ? e : undefined;
+      }
+      const children = e.group.children.filter((c) => isRouteEnabled(c.route, modules));
+      return children.length > 0 ? { kind: 'group', group: { ...e.group, children } } : undefined;
+    })
+    .filter((e): e is NavEntry => !!e);
   if (flags.reader) {
-    return entries
+    return enabled
       .map((e): NavEntry | undefined => {
         if (e.kind === 'item') {
           return isRouteAllowed(e.item.route, true) ? e : undefined;
@@ -144,7 +180,7 @@ export function buildNavigation(flags: NavFlags): NavEntry[] {
       })
       .filter((e): e is NavEntry => !!e);
   }
-  return entries;
+  return enabled;
 }
 
 /**

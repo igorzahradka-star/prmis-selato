@@ -122,7 +122,8 @@ function useNavEntries(): NavEntry[] {
     admin: canOpenAdmin(user.roles),
     service: canViewService(user.roles),
     contracts: canManageSites(user.roles),
-    reader: isReaderOnly(user.roles)
+    reader: isReaderOnly(user.roles),
+    modules: ENTITY.modules
   });
 }
 
