@@ -175,8 +175,8 @@ describe('podpisová pole a značka elektronického podpisu', () => {
   });
 
   it('přihlašovací jméno schvalovatele jde do dat (kvůli dohledání podpisu)', () => {
-    const d = orderPdfData({ ...objednavka, approvalChain: [{ level: 'pm', approved: true, byName: 'Petr Manažer', byLogin: 'petr@revoltum.cz' }] }, 'X', dodavatel, firma);
-    expect(d.approvals[0].login).toBe('petr@revoltum.cz');
+    const d = orderPdfData({ ...objednavka, approvalChain: [{ level: 'pm', approved: true, byName: 'Petr Manažer', byLogin: 'petr@selato.cz' }] }, 'X', dodavatel, firma);
+    expect(d.approvals[0].login).toBe('petr@selato.cz');
     expect(d.issuer?.login).toBe('anna');
   });
 });

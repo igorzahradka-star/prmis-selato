@@ -48,7 +48,7 @@ function example(): ContractInput {
   return {
     smlouva: { cislo: 'RES-OM-2026-001' },
     objednatel: { nazev: 'Sunset Terrace s.r.o.', sidlo: 'Praha', ico: '12345678', zastoupen: 'Jan Novák, jednatel', podpis_jmeno: 'Jan Novák' },
-    zhotovitel: { nazev: 'Revoltum Engineering & Services, s.r.o.', sidlo: 'Havlířská 1021, 568 01 Havlíčkův Brod', ico: '29713536', zastoupen: 'Karel Dvořák, jednatel', dispecink_tel: '+420 111 222 333' },
+    zhotovitel: { nazev: 'SELATO s.r.o.', sidlo: 'Havlířská 1021, 568 01 Havlíčkův Brod', ico: '03647862', zastoupen: 'Karel Dvořák, jednatel', dispecink_tel: '+420 111 222 333' },
     asset_manager: { nazev: 'Revoltum a.s.', ico: '11111111', sidlo: 'Praha' },
     banka: { nazev: 'Banka', ico: '22222222' },
     volby: { skupina_revoltum: true, penale: false, bankovni_ujednani: true },
@@ -253,8 +253,8 @@ describe('nová smlouva z lokality', () => {
     const c = build();
     expect(c.smlouva.cislo).toBe('10500-01');
     expect(c.objednatel).toMatchObject({ nazev: 'Sunset Terrace s.r.o.', ico: '12345678', sidlo: 'Praha 1', dic: 'CZ12345678' });
-    expect(c.zhotovitel.ico).toBe('29713536');
-    expect(c.asset_manager).toMatchObject({ nazev: 'Revoltum a.s.' });
+    expect(c.zhotovitel.ico).toBe('03647862');
+    expect(c.asset_manager).toBeNull(); // SELATO nemá výchozího asset manažera (dřív Revoltum a.s.)
     expect(c.parametry.doba_let).toBe(10);
     const l = c.lokality[0];
     expect(l).toMatchObject({ kod: '10500', nazev: 'Mastířovice', katastr: 'Mastířovice', lv: '445', gps: '50.492927, 14.311544', verze: '1.0' });

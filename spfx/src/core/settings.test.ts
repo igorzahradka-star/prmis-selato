@@ -65,3 +65,16 @@ describe('validateSettings', () => {
     expect(validateSettings(s).length).toBeGreaterThanOrEqual(2);
   });
 });
+
+describe('přejmenované typy projektů (SELATO)', () => {
+  it('výchozí typy nemají FVE ani BESS', () => {
+    expect(DEFAULT_SETTINGS.projects.projectTypes.slice(0, 2)).toEqual(['Výrobní automatizace', 'Procesní automatizace']);
+    expect(DEFAULT_SETTINGS.projects.projectTypes).not.toContain('FVE');
+    expect(DEFAULT_SETTINGS.projects.projectTypes).not.toContain('BESS');
+  });
+  it('uložené nastavení se starými názvy se při načtení převede, bez opakování a se zachováním pořadí', () => {
+    const s = withDefaults({ projects: { titlePattern: '{CISLO}', projectTypes: ['FVE', 'Jiné', 'BESS', 'Výrobní automatizace'], overheadProjectNumber: '' } });
+    expect(s.projects.projectTypes).toEqual(['Výrobní automatizace', 'Jiné', 'Procesní automatizace']);
+    expect(s.projects.titlePattern).toBe('{CISLO}');
+  });
+});

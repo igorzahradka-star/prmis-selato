@@ -13,7 +13,7 @@ import { GraphErrorInfo, attachmentsFit, describeGraphError, tokenScopes } from 
 
 const PERMISSION_HINT =
   'Odeslání e-mailem zatím nemá oprávnění. Správce musí v SharePoint admin centru (Zabezpečení → Přístup k rozhraní API) ' +
-  'schválit požadavek „Microsoft Graph – Mail.Send“ pro PRM Revoltum. Do té doby použijte „Jen uložit PDF a označit jako odesláno“ ' +
+  'schválit požadavek „Microsoft Graph – Mail.Send“ pro PRMIS. Do té doby použijte „Jen uložit PDF a označit jako odesláno“ ' +
   'a e-mail pošlete sami.';
 
 function blobToBase64(blob: Blob): Promise<string> {

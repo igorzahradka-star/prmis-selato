@@ -347,7 +347,7 @@ export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projec
           <ScheduleTab project={project} />
         </PivotItem>}
         {!project.isOverhead && !reader && (
-          <PivotItem itemKey="report" headerText="Report projektu" itemIcon="PDF" headerButtonProps={{ title: 'PDF se stavem projektu ve stylu RES prezentace' }} />
+          <PivotItem itemKey="report" headerText="Report projektu" itemIcon="PDF" headerButtonProps={{ title: 'PDF se stavem projektu ve stylu prezentace SELATO' }} />
         )}
         {project.folderUrl && (
           <PivotItem itemKey="slozka" headerText="Složka projektu" itemIcon="FolderHorizontal" headerButtonProps={{ title: 'Otevřít složku projektu v knihovně dokumentů (nová karta)' }} />

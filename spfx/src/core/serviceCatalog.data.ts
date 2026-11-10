@@ -7,7 +7,7 @@ export const SERVICE_CATALOG: ServiceCatalog = {
   "nazev": "Katalog O&M činností RES",
   "verze": "0.1",
   "datum": "2026-10-15",
-  "vlastnik": "Revoltum Engineering & Services, s.r.o.",
+  "vlastnik": "SELATO s.r.o.",
   "pravidla_aktivace": "Činnost je aktivní, pokud (a) asset lokality odpovídá poli 'asset' (LOK a BOP platí pro každou lokalitu), (b) jsou splněny všechny položky pole 'aktivace' (položka 'a|b' = alespoň jeden z příznaků), (c) je aktivní 'modul' a (d) uživatel činnost ručně nevypnul. 'vychozi_zapnuto' = výchozí stav přepínače.",
   "stav": "NÁVRH k odborné a právní revizi"
  },

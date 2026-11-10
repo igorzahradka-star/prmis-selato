@@ -23,7 +23,7 @@ function login(jmeno: string): string {
     .replace(/[̀-ͯ]/g, '')
     .toLowerCase()
     .replace(/\s+/g, '.');
-  return `i:0#.f|membership|${bezDiakritiky}@revoltum.cz`;
+  return `i:0#.f|membership|${bezDiakritiky}@selato.cz`;
 }
 
 function osoba(id: number, jmeno: string, loginName?: string): Person {
@@ -40,15 +40,15 @@ function clenstvi(role: Role, members: Person[], groupExists: boolean = true): R
 
 describe('normalizeLoginKey', () => {
   it('odstraní předponu SharePointu', () => {
-    expect(normalizeLoginKey('i:0#.f|membership|jan.novak@revoltum.cz')).toBe('jan.novak@revoltum.cz');
+    expect(normalizeLoginKey('i:0#.f|membership|jan.novak@selato.cz')).toBe('jan.novak@selato.cz');
   });
 
   it('nevadí mu velikost písmen ani mezery', () => {
-    expect(normalizeLoginKey('  JAN.Novak@Revoltum.cz ')).toBe('jan.novak@revoltum.cz');
+    expect(normalizeLoginKey('  JAN.Novak@Selato.cz ')).toBe('jan.novak@selato.cz');
   });
 
   it('jméno bez předpony nechá být', () => {
-    expect(normalizeLoginKey('jan.novak@revoltum.cz')).toBe('jan.novak@revoltum.cz');
+    expect(normalizeLoginKey('jan.novak@selato.cz')).toBe('jan.novak@selato.cz');
   });
 
   it('prázdnou hodnotu zvládne', () => {
@@ -73,7 +73,7 @@ describe('peopleWithRoles', () => {
   });
 
   it('pozná stejného člověka i při jiném tvaru přihlašovacího jména', () => {
-    const jinak = osoba(9, 'Jan Novák', 'JAN.NOVAK@revoltum.cz');
+    const jinak = osoba(9, 'Jan Novák', 'JAN.NOVAK@selato.cz');
     const result = peopleWithRoles([
       clenstvi(Role.ProjektovyManazer, [JAN]),
       clenstvi(Role.Vedeni, [jinak])
@@ -198,7 +198,7 @@ describe('isMember', () => {
   });
 
   it('pozná člena i v jiném tvaru jména', () => {
-    expect(isMember(m, 'JAN.NOVAK@revoltum.cz')).toBe(true);
+    expect(isMember(m, 'JAN.NOVAK@selato.cz')).toBe(true);
   });
 
   it('cizího člověka za člena nepovažuje', () => {
@@ -253,7 +253,7 @@ describe('ROLE_PERMISSION_LEVEL', () => {
 describe('projectManagerCandidates', () => {
   const clovek = (id: number, displayName: string): Person => ({
     id,
-    loginName: `i:0#.f|membership|${id}@revoltum.cz`,
+    loginName: `i:0#.f|membership|${id}@selato.cz`,
     displayName
   });
   const skupina = (role: Role, members: Person[]): RoleMembership => ({

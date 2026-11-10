@@ -110,7 +110,7 @@ describe('defaultOrderMail', () => {
     projectNumber: '26001',
     companyName: 'Revoltum Engineering & Services',
     senderName: 'Anna Asistentka',
-    senderEmail: 'anna@revoltum.cz'
+    senderEmail: 'anna@selato.cz'
   };
 
   it('předmět obsahuje číslo objednávky a firmu', () => {
@@ -122,7 +122,7 @@ describe('defaultOrderMail', () => {
     expect(body).toContain('objednávku č. OBJ-2026-0005');
     expect(body).toContain('potvrzení');
     expect(body).toContain('Anna Asistentka');
-    expect(body).toContain('anna@revoltum.cz');
+    expect(body).toContain('anna@selato.cz');
   });
 
   it('termín a splatnost se uvedou jen když jsou', () => {

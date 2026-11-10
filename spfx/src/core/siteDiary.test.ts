@@ -41,12 +41,12 @@ import { Actor, WorkflowError, WorkflowProject } from './orderWorkflow';
 import { DEFAULT_SETTINGS } from './settings';
 import { Role } from './types';
 
-const PM = 'i:0#.f|membership|pm@revoltum.cz';
-const ASISTENT = 'i:0#.f|membership|asistent@revoltum.cz';
+const PM = 'i:0#.f|membership|pm@selato.cz';
+const ASISTENT = 'i:0#.f|membership|asistent@selato.cz';
 const pm: Actor = { login: PM, displayName: 'Petr Manažer', roles: [Role.ProjektovyManazer] };
 const asistent: Actor = { login: ASISTENT, displayName: 'Anna Asistentka', roles: [Role.AsistentPM] };
-const cizi: Actor = { login: 'i:0#.f|membership|cizi@revoltum.cz', displayName: 'Cizí', roles: [Role.ProjektovyManazer] };
-const admin: Actor = { login: 'i:0#.f|membership|admin@revoltum.cz', displayName: 'Adam Admin', roles: [Role.Administrator] };
+const cizi: Actor = { login: 'i:0#.f|membership|cizi@selato.cz', displayName: 'Cizí', roles: [Role.ProjektovyManazer] };
+const admin: Actor = { login: 'i:0#.f|membership|admin@selato.cz', displayName: 'Adam Admin', roles: [Role.Administrator] };
 const projekt: WorkflowProject = { projectNumber: '26001', projectManagerLogin: PM, projectManagerName: 'Petr Manažer', assistantLogins: [ASISTENT], isOverhead: false };
 const rezie: WorkflowProject = { projectNumber: '26999', isOverhead: true };
 const NOW = new Date(2026, 9, 1, 10, 0);

@@ -148,7 +148,7 @@ export function serviceRequestMail(input: ServiceRequestMailInput): { subject: s
     'Servis otevřete tady:',
     input.link,
     '',
-    'Tento e-mail odeslala aplikace PRM Revoltum. Upozornění si můžete vypnout v Můj profil.',
+    'Tento e-mail odeslala aplikace PRMIS. Upozornění si můžete vypnout v Můj profil.',
     input.companyName
   ];
   return { subject: `Nový servisní požadavek ${input.number}: ${input.title}`, body: lines.filter((l, i) => !(l === '' && lines[i - 1] === '')).join('\n') };
@@ -179,7 +179,7 @@ export function serviceJobToCheckMail(input: ServiceJobMailInput): { subject: st
     'Po kontrole odemknete fakturaci tady:',
     input.link,
     '',
-    'Tento e-mail odeslala aplikace PRM Revoltum. Upozornění si můžete vypnout v Můj profil.',
+    'Tento e-mail odeslala aplikace PRMIS. Upozornění si můžete vypnout v Můj profil.',
     input.companyName
   ];
   return { subject: `Ke kontrole: servisní list ${input.number} – ${input.title}`, body: lines.filter((l, i) => !(l === '' && lines[i - 1] === '')).join('\n') };
@@ -208,7 +208,7 @@ export function budgetApprovalMail(input: BudgetApprovalMailInput): { subject: s
     'Projekt otevřete (záložka Realizační rozpočet) a rozpočet schválíte nebo vrátíte k úpravě tady:',
     input.link,
     '',
-    'Tento e-mail odeslala aplikace PRM Revoltum jménem žadatele. Upozornění si můžete vypnout v Můj profil.',
+    'Tento e-mail odeslala aplikace PRMIS jménem žadatele. Upozornění si můžete vypnout v Můj profil.',
     input.companyName
   ];
   return { subject: `Ke schválení: rozpočet projektu ${input.projectNumber}${input.projectName ? ' – ' + input.projectName : ''}`, body: lines.join('\n') };

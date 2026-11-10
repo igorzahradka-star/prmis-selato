@@ -16,7 +16,7 @@ import { RoleGroupMapping } from './roles';
 export interface Person {
   /** ID uživatele v rámci webu. */
   id: number;
-  /** Přihlašovací jméno, např. `i:0#.f|membership|jan.novak@revoltum.cz`. */
+  /** Přihlašovací jméno, např. `i:0#.f|membership|jan.novak@selato.cz`. */
   loginName: string;
   displayName: string;
   email?: string;

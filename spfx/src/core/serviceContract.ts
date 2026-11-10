@@ -404,7 +404,7 @@ export function validateContract(catalog: ServiceCatalog, input: ContractInput):
     });
   });
   if (input.volby.skupina_revoltum && input.volby.penale) {
-    out.push({ code: 'PENALE_SKUPINA', severity: 'varování', message: 'Smlouva ve skupině Revoltum má aktivní penále.' });
+    out.push({ code: 'PENALE_SKUPINA', severity: 'varování', message: 'Smlouva ve skupině SELATO má aktivní penále.' });
   }
   return out.concat(missingData(input));
 }

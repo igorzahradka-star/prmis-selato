@@ -162,7 +162,7 @@ export const ContractEditor: React.FC<{
               <PartyEditor value={draft.objednatel} onChange={(objednatel) => patch({ objednatel })} disabled={dis} />
             </div>
             <div style={boxStyle}>
-              <div style={boxTitle}>Zhotovitel (Revoltum Engineering & Services)</div>
+              <div style={boxTitle}>Zhotovitel (SELATO)</div>
               <PartyEditor value={draft.zhotovitel} onChange={(zhotovitel) => patch({ zhotovitel })} disabled={dis} withDispatch hint="Údaje zhotovitele se do smlouvy zkopírovaly z Údajů smluv; tady je lze pro tuto smlouvu změnit (v Údajích smluv se změní jen pro nově zakládané smlouvy)." />
             </div>
             <div style={boxStyle}>
@@ -183,7 +183,7 @@ export const ContractEditor: React.FC<{
             </div>
             <div style={boxStyle}>
               <div style={boxTitle}>Volby smlouvy</div>
-              <Toggle label="Skupina Revoltum (prohlášení k převodním cenám)" inlineLabel checked={draft.volby.skupina_revoltum} disabled={dis} onChange={(_, v) => patch({ volby: { ...draft.volby, skupina_revoltum: !!v } })} />
+              <Toggle label="Skupina SELATO (prohlášení k převodním cenám)" inlineLabel checked={draft.volby.skupina_revoltum} disabled={dis} onChange={(_, v) => patch({ volby: { ...draft.volby, skupina_revoltum: !!v } })} />
               <Toggle label="Smluvní pokuty (penále)" inlineLabel checked={draft.volby.penale} disabled={dis} onChange={(_, v) => patch({ volby: { ...draft.volby, penale: !!v } })} />
               <Toggle label="Bankovní ujednání (čl. 16: zastavení, step-in, oznámení bance)" inlineLabel checked={draft.volby.bankovni_ujednani} disabled={dis} onChange={(_, v) => patch({ volby: { ...draft.volby, bankovni_ujednani: !!v } })} />
             </div>

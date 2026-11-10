@@ -89,7 +89,7 @@ export const ProjectReportDialog: React.FC<{ project: Project; onClose: () => vo
         dialogContentProps={{
           type: DialogType.normal,
           title: `Report projektu ${project.projectNumber}`,
-          subText: 'PDF se stavem projektu ve stylu RES prezentace: přehled, realizační rozpočet, objednávky, fakturace, termíny a úkoly, zápisy ze stavby a fotky. Tvoří se z dat aplikace (bez AI).'
+          subText: 'PDF se stavem projektu ve stylu prezentace SELATO: přehled, realizační rozpočet, objednávky, fakturace, termíny a úkoly, zápisy ze stavby a fotky. Tvoří se z dat aplikace (bez AI).'
         }}
         modalProps={{ isBlocking: true }}
         minWidth={520}

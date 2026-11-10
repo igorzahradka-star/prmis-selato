@@ -1,5 +1,5 @@
 /**
- * Web part „Běžící projekty“ — kompaktní seznam projektů pro úvodní stránku webu RES (a jeho kopii na webu Revoltum).
+ * Web part „Běžící projekty“ — kompaktní seznam projektů pro úvodní stránku webu SELATO (případně jeho kopii na jiném webu).
  *
  * Je samostatný a lehký (nenačítá celou aplikaci PRMIS). Data čte jen pro čtení, které projekty se ukazují, řídí
  * Nastavení → Projekty na webu v PRMIS. Kopie na jiném webu má v nastavení web partu uvedenou adresu webu s PRMIS.
@@ -22,15 +22,17 @@ import { defaultAppPageUrl } from '../../core/webProjects';
 export interface IProjectsWebPartProps {
   dataSource: 'sharepoint' | 'mock';
   title: string;
-  /** Adresa webu, kde běží PRMIS. Prázdné = tento web. Vyplní se u kopie na jiném webu (např. Revoltum). */
+  /** Adresa webu, kde běží PRMIS. Prázdné = tento web. Vyplní se u kopie na jiném webu. */
   dataSiteUrl: string;
   /** Adresa stránky s aplikací PRMIS. Prázdné = `<web s PRMIS>/SitePages/<appPageFile>` (viz `config/entity.ts`). */
   appPageUrl: string;
 }
 
 /** Výchozí nadpis. Web part vložený ještě s původním nadpisem „Běžící projekty“ dostane nový nadpis sám, bez úpravy stránky. */
-const DEFAULT_TITLE = 'Běžící projekty Revoltum Engineering & Services';
+const DEFAULT_TITLE = 'Běžící projekty SELATO';
 const OLD_DEFAULT_TITLE = 'Běžící projekty';
+/** Nadpis z doby, kdy aplikace patřila Revoltum — web part s ním dostane nový nadpis sám. */
+const REVOLTUM_DEFAULT_TITLE = 'Běžící projekty Revoltum Engineering & Services';
 
 export default class ProjectsWebPart extends BaseClientSideWebPart<IProjectsWebPartProps> {
   public render(): void {
@@ -45,7 +47,7 @@ export default class ProjectsWebPart extends BaseClientSideWebPart<IProjectsWebP
         : new SpWebProjectsRepository(this.context, siteUrl);
     const element = React.createElement(ProjectsList, {
       repo,
-      title: this.properties.title === undefined || this.properties.title === OLD_DEFAULT_TITLE ? DEFAULT_TITLE : this.properties.title,
+      title: this.properties.title === undefined || this.properties.title === OLD_DEFAULT_TITLE || this.properties.title === REVOLTUM_DEFAULT_TITLE ? DEFAULT_TITLE : this.properties.title,
       appPageUrl: (this.properties.appPageUrl || '').trim() || defaultAppPageUrl(webUrl)
     });
     ReactDom.render(element, this.domElement);

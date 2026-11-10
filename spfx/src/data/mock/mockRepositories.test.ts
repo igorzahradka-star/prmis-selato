@@ -393,7 +393,7 @@ describe('MockUserAdminRepository.ensureRoleGroups', () => {
 describe('MockProjectRepository.saveFolderMap', () => {
   const repo = (): MockProjectRepository => createMockRepositories().projects as MockProjectRepository;
   const admin: CurrentUser = { ...MOCK_USER, roles: [Role.Administrator] };
-  const ctenar: CurrentUser = { ...MOCK_USER, loginName: 'cizi@revoltum.cz', roles: [Role.Ctenar] };
+  const ctenar: CurrentUser = { ...MOCK_USER, loginName: 'cizi@selato.cz', roles: [Role.Ctenar] };
   const cislo = MOCK_PROJECTS[0].projectNumber;
 
   it('uloží mapu složek projektu a projekt si ji nese', async () => {

@@ -119,7 +119,7 @@ export const PrmApp: React.FC<IPrmAppProps> = ({ repos, dataSource, financeSiteU
     return (
       <ThemeProvider theme={resTheme}>
         <div style={{ padding: 40 }}>
-          <Spinner size={SpinnerSize.large} label="Spouštím PRM Revoltum…" />
+          <Spinner size={SpinnerSize.large} label="Spouštím PRMIS…" />
         </div>
       </ThemeProvider>
     );

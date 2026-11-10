@@ -45,8 +45,8 @@ function delay<T>(value: T, ms: number = 150): Promise<T> {
   return new Promise((resolve) => setTimeout(() => resolve(value), ms));
 }
 
-const JAN = { login: 'i:0#.f|membership|jan.novak@revoltum.cz', name: 'Jan Novák' };
-const MARTIN = { login: 'i:0#.f|membership|martin.svoboda@revoltum.cz', name: 'Martin Svoboda' };
+const JAN = { login: 'i:0#.f|membership|jan.novak@selato.cz', name: 'Jan Novák' };
+const MARTIN = { login: 'i:0#.f|membership|martin.svoboda@selato.cz', name: 'Martin Svoboda' };
 
 /** Ukázkové podklady — čísla FP26001 až FP26003, další nový naváže za nimi. */
 export const MOCK_INVOICES: InvoiceBasis[] = [
@@ -74,7 +74,7 @@ export const MOCK_INVOICES: InvoiceBasis[] = [
     id: 2,
     number: 'FP26002',
     projectNumber: '25002',
-    projectTitle: '25002 AgroFarma Lipnice – Lipnice nad Sázavou – FVE',
+    projectTitle: '25002 AgroFarma Lipnice – Lipnice nad Sázavou – Výrobní automatizace',
     customerName: 'AgroFarma Lipnice s.r.o.',
     lines: [
       { description: 'Dodávka FV panelů – 1. etapa', quantity: 1, unit: 'kpl', unitPriceNet: 780000 },
@@ -95,9 +95,9 @@ export const MOCK_INVOICES: InvoiceBasis[] = [
     id: 3,
     number: 'FP26003',
     projectNumber: '25003',
-    projectTitle: '25003 Teplárna Chotěboř – Chotěboř – BESS',
+    projectTitle: '25003 Teplárna Chotěboř – Chotěboř – Procesní automatizace',
     customerName: 'Teplárna Chotěboř a.s.',
-    lines: [{ description: 'Projektová dokumentace BESS – dílčí plnění', quantity: 1, unit: 'kpl', unitPriceNet: 150000 }],
+    lines: [{ description: 'Projektová dokumentace procesní automatizace – dílčí plnění', quantity: 1, unit: 'kpl', unitPriceNet: 150000 }],
     amountNet: 150000,
     vatRate: 21,
     currency: 'CZK',

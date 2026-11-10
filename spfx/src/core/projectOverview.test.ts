@@ -15,10 +15,10 @@ import { BudgetStatus, Project, ProjectStatus } from './types';
 const bess: Project = {
   id: 3,
   projectNumber: '25003',
-  title: '25003 Teplárna Chotěboř – Chotěboř – BESS',
+  title: '25003 Teplárna Chotěboř – Chotěboř – Procesní automatizace',
   customerName: 'Teplárna Chotěboř a.s.',
   status: ProjectStatus.Realizace,
-  projectType: 'BESS',
+  projectType: 'Procesní automatizace',
   location: 'Chotěboř',
   latitude: 49.72,
   longitude: 15.67,
@@ -33,12 +33,12 @@ const bess: Project = {
 describe('Project overview — výchozí hodnoty a uložení', () => {
   it('výchozí přehled podle typu projektu: předmět, rok, jednotka, mapa', () => {
     const o = defaultOverview(bess);
-    expect(o.subject).toEqual({ cs: 'Realizace bateriového úložiště', en: 'Battery energy storage system' });
+    expect(o.subject).toEqual({ cs: 'Realizace procesní automatizace', en: 'Process automation' });
     expect(o.year).toBe(2026);
     expect(o.powerUnit).toBe('kW');
     expect(o.showMap).toBe(true);
-    expect(defaultOverview({ ...bess, projectType: 'FVE', latitude: undefined }).powerUnit).toBe('kWp');
-    expect(defaultOverview({ ...bess, projectType: 'FVE', latitude: undefined }).showMap).toBe(false);
+    expect(defaultOverview({ ...bess, projectType: 'Výrobní automatizace', latitude: undefined }).powerUnit).toBe('kW');
+    expect(defaultOverview({ ...bess, projectType: 'Výrobní automatizace', latitude: undefined }).showMap).toBe(false);
     expect(defaultOverview({ ...bess, projectType: 'Jiné' }).subject.cs).toBe('Realizace energetického projektu');
   });
 
@@ -74,19 +74,19 @@ describe('Project overview — texty', () => {
   });
 
   it('návrh textu ze šablony česky i anglicky obsahuje fakta a žádnou cenu', () => {
-    const cs = templateText(o, bess, 'Revoltum Engineering & Services', 'cs');
-    expect(cs).toContain('Realizace bateriového úložiště v lokalitě Chotěboř.');
+    const cs = templateText(o, bess, 'SELATO s.r.o.', 'cs');
+    expect(cs).toContain('Realizace procesní automatizace v lokalitě Chotěboř.');
     expect(cs).toContain('v roce 2026');
     expect(cs).toContain('objednatelem je průmyslová společnost');
     expect(cs).toContain('4,4 MWh');
     expect(cs).not.toContain('28');
-    const en = templateText(o, bess, 'Revoltum Engineering & Services', 'en');
-    expect(en).toContain('Battery energy storage system in Chotěboř.');
+    const en = templateText(o, bess, 'SELATO s.r.o.', 'en');
+    expect(en).toContain('Process automation in Chotěboř.');
     expect(en).toContain('for an industrial company');
   });
 
   it('zadání pro AI: fakta, jazyk a pokyny; bez ceny a bez jména zákazníka bez souhlasu', () => {
-    const p = aiPrompt(o, bess, 'Revoltum Engineering & Services', 'en');
+    const p = aiPrompt(o, bess, 'SELATO s.r.o.', 'en');
     expect(p).toContain('anglicky');
     expect(p).toContain('- Instalovaný výkon: 2 000 kW');
     expect(p).toContain('neuváděj ceny');

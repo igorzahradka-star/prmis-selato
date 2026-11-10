@@ -127,7 +127,7 @@ describe('ukládání do SharePointu', () => {
     const at = new Date(2026, 9, 1, 10, 30);
     const zpet = chainFromJson(
       chainToJson([
-        { level: 'pm', approved: true, byName: 'Petr', byLogin: 'petr@revoltum.cz', at },
+        { level: 'pm', approved: true, byName: 'Petr', byLogin: 'petr@selato.cz', at },
         { level: 'vedeni', approved: false }
       ])
     );
@@ -214,9 +214,9 @@ describe('filterOrders / sortOrdersNewestFirst', () => {
 describe('přiřazený schvalovatel v uloženém řetězci', () => {
   it('přežije uložení do textu', () => {
     const zpet = chainFromJson(
-      chainToJson([{ level: 'vedeni', approved: false, assignedLogin: 'v@revoltum.cz', assignedName: 'Viktor Vedení' }])
+      chainToJson([{ level: 'vedeni', approved: false, assignedLogin: 'v@selato.cz', assignedName: 'Viktor Vedení' }])
     );
-    expect(zpet[0]).toMatchObject({ assignedLogin: 'v@revoltum.cz', assignedName: 'Viktor Vedení' });
+    expect(zpet[0]).toMatchObject({ assignedLogin: 'v@selato.cz', assignedName: 'Viktor Vedení' });
   });
 
   it('krok bez přiřazení zůstane bez přiřazení', () => {

@@ -1,5 +1,5 @@
 /**
- * Vstupní bod aplikace PRM Revoltum.
+ * Vstupní bod aplikace PRMIS.
  *
  * Jeden full-width web part na stránce typu „single part app page" na webu PRM.
  * Stejný web part jde přidat i jako záložku do Microsoft Teams.

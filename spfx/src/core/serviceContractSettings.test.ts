@@ -11,7 +11,7 @@ describe('nastavení smluv', () => {
 
   it('zhotovitel je podle rejstříku a ukázkové ceny se nepřebírají', () => {
     const d = DEFAULT_CONTRACT_SETTINGS;
-    expect(d.zhotovitel.ico).toBe('29713536');
+    expect(d.zhotovitel.ico).toBe('03647862');
     expect(d.zhotovitel.nazev).toContain('s.r.o.');
     expect(d.sazebnik).toEqual([]);
     expect(d.kontakty).toEqual([]);
@@ -23,7 +23,7 @@ describe('nastavení smluv', () => {
     expect(s.parametry.splatnost_dni).toBe(45);
     expect(s.parametry.doba_let).toBe(10);
     expect(s.zhotovitel.dispecink_tel).toBe('+420 1');
-    expect(s.zhotovitel.ico).toBe('29713536');
+    expect(s.zhotovitel.ico).toBe('03647862');
   });
 
   it('nastavení servisu obsahuje smlouvy i u starého uloženého nastavení bez nich', () => {

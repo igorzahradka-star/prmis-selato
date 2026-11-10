@@ -284,8 +284,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   projects: {
     titlePattern: '{CISLO} {ZAKAZNIK} – {LOKALITA} – {TYP}',
     projectTypes: [
-      'FVE',
-      'BESS',
+      'Výrobní automatizace',
+      'Procesní automatizace',
       'MVE',
       'Vítr',
       'Kogenerace',
@@ -362,7 +362,7 @@ export function withDefaults(stored: Partial<AppSettings> | undefined): AppSetti
   return {
     folders: { ...DEFAULT_SETTINGS.folders, ...(s.folders ?? {}) },
     numbering: { ...DEFAULT_SETTINGS.numbering, ...(s.numbering ?? {}) },
-    projects: { ...DEFAULT_SETTINGS.projects, ...(s.projects ?? {}) },
+    projects: projectsWithDefaults(s.projects),
     budget: { ...DEFAULT_SETTINGS.budget, ...(s.budget ?? {}) },
     approvals: { ...DEFAULT_SETTINGS.approvals, ...(s.approvals ?? {}) },
     roles: { ...DEFAULT_SETTINGS.roles, ...(s.roles ?? {}) },
@@ -372,6 +372,33 @@ export function withDefaults(stored: Partial<AppSettings> | undefined): AppSetti
     service: serviceSettingsWithDefaults(s.service),
     photos: { ...DEFAULT_PHOTO_SETTINGS, ...(s.photos ?? {}) }
   };
+}
+
+/**
+ * Typy projektů převzaté z Revoltum, které SELATO přejmenovalo (rozhodl Igor 10. 11. 2026). Uložené nastavení je může
+ * pořád obsahovat — při načtení se nahradí novým názvem (stejný typ dvakrát se nevypíše). Projekty, které už starý typ
+ * uložený mají, se nepřepisují.
+ */
+export const RENAMED_PROJECT_TYPES: Record<string, string> = {
+  FVE: 'Výrobní automatizace',
+  BESS: 'Procesní automatizace'
+};
+
+/** Typy projektů se starými názvy nahrazenými novými, bez opakování, v původním pořadí. */
+export function renameProjectTypes(types: string[]): string[] {
+  const out: string[] = [];
+  types.forEach((t) => {
+    const name = RENAMED_PROJECT_TYPES[t] || t;
+    if (out.indexOf(name) === -1) {
+      out.push(name);
+    }
+  });
+  return out;
+}
+
+function projectsWithDefaults(stored: Partial<AppSettings['projects']> | undefined): AppSettings['projects'] {
+  const merged = { ...DEFAULT_SETTINGS.projects, ...(stored ?? {}) };
+  return { ...merged, projectTypes: renameProjectTypes(merged.projectTypes || []) };
 }
 
 /**
@@ -387,7 +414,7 @@ export function validateSettings(settings: AppSettings): string[] {
     problems.push('Kvalita fotky (JPEG) musí být mezi 40 a 100 %.');
   }
   if (settings.links.crmUrl.trim() !== '' && !/^https?:\/\//i.test(settings.links.crmUrl.trim())) {
-    problems.push('Adresa tlačítka RES CRM musí začínat https:// (nebo ji nechte prázdnou pro výchozí adresu).');
+    problems.push(`Adresa tlačítka ${ENTITY.crmName} musí začínat https:// (nebo ji nechte prázdnou pro výchozí adresu).`);
   }
 
   if (!settings.folders.libraryTitle.trim()) {

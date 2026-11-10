@@ -6,10 +6,10 @@ import { BudgetStatus, Project, ProjectStatus } from '../../core/types';
 const project: Project = {
   id: 3,
   projectNumber: '25003',
-  title: '25003 Teplárna Chotěboř – Chotěboř – BESS',
+  title: '25003 Teplárna Chotěboř – Chotěboř – Procesní automatizace',
   customerName: 'Teplárna Chotěboř a.s.',
   status: ProjectStatus.Realizace,
-  projectType: 'BESS',
+  projectType: 'Procesní automatizace',
   location: 'Chotěboř',
   currency: 'CZK',
   isOverhead: false,
@@ -25,7 +25,7 @@ function model(over: Partial<OverviewModel> = {}): OverviewModel {
     lang: 'cs',
     project,
     overview: { ...defaultOverview(project), power: 2000, capacity: 4.4, capacityUnit: 'MWh' },
-    company: 'Revoltum Engineering & Services',
+    company: 'SELATO s.r.o.',
     text: 'Popis realizace.',
     photos: [],
     ...over
@@ -37,7 +37,7 @@ const textOf = (m: OverviewModel): string => JSON.stringify(buildOverviewDocumen
 describe('PDF Project overview', () => {
   it('ukáže předmět, lokalitu, rok, výkon a kapacitu; zákazníka jen obecně a nikdy ceny či náklady', () => {
     const t = textOf(model());
-    expect(t).toContain('Realizace bateriového úložiště');
+    expect(t).toContain('Realizace procesní automatizace');
     expect(t).toContain('Chotěboř');
     expect(t).toContain('2026');
     expect(t).toContain('2');
@@ -57,7 +57,7 @@ describe('PDF Project overview', () => {
   it('anglická verze má anglické popisky a anglický předmět', () => {
     const t = textOf(model({ lang: 'en' }));
     expect(t).toContain('CASE STUDY');
-    expect(t).toContain('Battery energy storage system');
+    expect(t).toContain('Process automation');
     expect(t).toContain('Installed power');
     expect(t).not.toContain('REFERENCE');
   });

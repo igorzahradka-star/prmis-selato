@@ -42,9 +42,9 @@ describe('parsePeoplePickerResults', () => {
     const lide = parsePeoplePickerResults(
       odpoved([
         {
-          Key: 'i:0#.f|membership|jan.novak@revoltum.cz',
+          Key: 'i:0#.f|membership|jan.novak@selato.cz',
           DisplayText: 'Jan Novák',
-          EntityData: { Email: 'jan.novak@revoltum.cz' }
+          EntityData: { Email: 'jan.novak@selato.cz' }
         }
       ])
     );
@@ -52,9 +52,9 @@ describe('parsePeoplePickerResults', () => {
     expect(lide).toEqual([
       {
         id: 0,
-        loginName: 'i:0#.f|membership|jan.novak@revoltum.cz',
+        loginName: 'i:0#.f|membership|jan.novak@selato.cz',
         displayName: 'Jan Novák',
-        email: 'jan.novak@revoltum.cz'
+        email: 'jan.novak@selato.cz'
       }
     ]);
   });
@@ -72,8 +72,8 @@ describe('parsePeoplePickerResults', () => {
   });
 
   it('bez zobrazovaného jména použije přihlašovací jméno', () => {
-    const lide = parsePeoplePickerResults(odpoved([{ Key: 'jan@revoltum.cz' }]));
-    expect(lide[0].displayName).toBe('jan@revoltum.cz');
+    const lide = parsePeoplePickerResults(odpoved([{ Key: 'jan@selato.cz' }]));
+    expect(lide[0].displayName).toBe('jan@selato.cz');
   });
 
   it('nečekaný tvar odpovědi vrátí prázdný seznam, ne pád', () => {

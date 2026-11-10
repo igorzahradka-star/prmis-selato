@@ -265,11 +265,11 @@ describe('uložení jako JSON', () => {
 });
 
 describe('žádost o schválení a schválení (rozpočet se nezamyká)', () => {
-  const PM = 'i:0#.f|membership|pm@revoltum.cz';
+  const PM = 'i:0#.f|membership|pm@selato.cz';
   const project: WorkflowProject = { projectNumber: '26001', projectManagerLogin: PM, assistantLogins: [], isOverhead: false };
   const pm: Actor = { login: PM, displayName: 'PM', roles: [Role.ProjektovyManazer] };
-  const vedeni: Actor = { login: 'i:0#.f|membership|v@revoltum.cz', displayName: 'V', roles: [Role.Vedeni] };
-  const cizi: Actor = { login: 'i:0#.f|membership|c@revoltum.cz', displayName: 'C', roles: [Role.ProjektovyManazer] };
+  const vedeni: Actor = { login: 'i:0#.f|membership|v@selato.cz', displayName: 'V', roles: [Role.Vedeni] };
+  const cizi: Actor = { login: 'i:0#.f|membership|c@selato.cz', displayName: 'C', roles: [Role.ProjektovyManazer] };
   const rec = (status: BudgetStatus, approvals: BudgetApproval[] = []): BudgetRecord => ({ id: 1, projectNumber: '26001', status, approvals });
   const ap: BudgetApproval = { no: 1, at: new Date(), byName: 'V', cost: 100, sale: 120, marginPercent: 16.67 };
 
@@ -286,8 +286,8 @@ describe('žádost o schválení a schválení (rozpočet se nezamyká)', () => 
     expect(availableBudgetActions(r, project, pm)).toEqual(['edit', 'withdraw']);
   });
   it('s vybraným schvalovatelem smí schválit jen on a administrátor; ostatní z vedení ne', () => {
-    const druhy: Actor = { login: 'i:0#.f|membership|d@revoltum.cz', displayName: 'D', roles: [Role.Vedeni] };
-    const admin: Actor = { login: 'i:0#.f|membership|a@revoltum.cz', displayName: 'A', roles: [Role.Administrator] };
+    const druhy: Actor = { login: 'i:0#.f|membership|d@selato.cz', displayName: 'D', roles: [Role.Vedeni] };
+    const admin: Actor = { login: 'i:0#.f|membership|a@selato.cz', displayName: 'A', roles: [Role.Administrator] };
     const r = { ...rec(BudgetStatus.KeSchvaleni), approverLogin: vedeni.login, approverName: 'V' };
     expect(canApproveBudget(vedeni, r)).toBe(true);
     expect(canApproveBudget(druhy, r)).toBe(false);

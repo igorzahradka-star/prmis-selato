@@ -174,7 +174,7 @@ export function isSelfApproval(approverLogin: string, createdByLogin: string): b
 
 /**
  * Sjednotí zápis přihlašovacího jména pro porovnání.
- * SharePoint vrací `i:0#.f|membership|jan.novak@revoltum.cz`, Graph jen e-mail.
+ * SharePoint vrací `i:0#.f|membership|jan.novak@selato.cz`, Graph jen e-mail.
  */
 export function normalizeLogin(login: string | undefined): string {
   if (!login) {

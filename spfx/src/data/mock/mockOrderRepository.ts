@@ -56,10 +56,10 @@ function delay<T>(value: T, ms: number = 150): Promise<T> {
   return new Promise((resolve) => setTimeout(() => resolve(value), ms));
 }
 
-const JAN = { login: 'i:0#.f|membership|jan.novak@revoltum.cz', name: 'Jan Novák' };
-const EVA = { login: 'i:0#.f|membership|eva.mala@revoltum.cz', name: 'Eva Malá' };
-const MARTIN = { login: 'i:0#.f|membership|martin.svoboda@revoltum.cz', name: 'Martin Svoboda' };
-const IGOR = { login: 'i:0#.f|membership|igor.zahradka@revoltum.cz', name: 'Igor Zahrádka' };
+const JAN = { login: 'i:0#.f|membership|jan.novak@selato.cz', name: 'Jan Novák' };
+const EVA = { login: 'i:0#.f|membership|eva.mala@selato.cz', name: 'Eva Malá' };
+const MARTIN = { login: 'i:0#.f|membership|martin.svoboda@selato.cz', name: 'Martin Svoboda' };
+const IGOR = { login: 'i:0#.f|membership|igor.zahradka@selato.cz', name: 'Igor Zahrádka' };
 
 /** Ukázkové objednávky — v každém stavu, ve kterém se objednávka dá potkat. */
 export const MOCK_ORDERS: PurchaseOrder[] = [
@@ -67,9 +67,9 @@ export const MOCK_ORDERS: PurchaseOrder[] = [
     id: 1,
     orderNumber: 'OBJ-2026-0001',
     projectNumber: '25002',
-    projectTitle: '25002 AgroFarma Lipnice – Lipnice nad Sázavou – FVE',
+    projectTitle: '25002 AgroFarma Lipnice – Lipnice nad Sázavou – Výrobní automatizace',
     supplierId: 5,
-    supplierName: 'FVE Komponenty s.r.o.',
+    supplierName: 'Komponenty pro automatizaci s.r.o.',
     subject: 'DC kabely a konektory',
     lines: [
       { description: 'Solární kabel 6 mm², cívka 500 m', quantity: 4, unit: 'ks', unitPriceNet: 18500 },
@@ -90,10 +90,10 @@ export const MOCK_ORDERS: PurchaseOrder[] = [
     id: 2,
     orderNumber: 'OBJ-2026-0002',
     projectNumber: '25003',
-    projectTitle: '25003 Teplárna Chotěboř – Chotěboř – BESS',
+    projectTitle: '25003 Teplárna Chotěboř – Chotěboř – Procesní automatizace',
     supplierId: 6,
     supplierName: 'ElektroMontáže Vysočina s.r.o.',
-    subject: 'Montáž rozvaděčů BESS',
+    subject: 'Montáž rozvaděčů procesní automatizace',
     lines: [{ description: 'Montáž a zapojení rozvaděčů', quantity: 1, unit: 'kpl', unitPriceNet: 350000 }],
     amountNet: 350000,
     vatRate: 21,
@@ -113,7 +113,7 @@ export const MOCK_ORDERS: PurchaseOrder[] = [
     projectNumber: '25001',
     projectTitle: '25001 ČEZ Distribuce – Havlíčkův Brod – Připojení DS',
     supplierId: 5,
-    supplierName: 'FVE Komponenty s.r.o.',
+    supplierName: 'Komponenty pro automatizaci s.r.o.',
     subject: 'Ochrany a jističe',
     lines: [{ description: 'Jistič 3P 63 A', quantity: 10, unit: 'ks', unitPriceNet: 4500 }],
     amountNet: 45000,
@@ -130,7 +130,7 @@ export const MOCK_ORDERS: PurchaseOrder[] = [
     id: 4,
     orderNumber: 'OBJ-2026-0004',
     projectNumber: '26999',
-    projectTitle: '26999 Režie RES 2026',
+    projectTitle: '26999 Režie SELATO 2026',
     isOverheadProject: true,
     supplierName: 'Microsoft Ireland Operations Ltd.',
     subject: 'Licence Microsoft 365',

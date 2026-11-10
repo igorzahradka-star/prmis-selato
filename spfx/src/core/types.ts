@@ -2,7 +2,7 @@ import type { Dependency } from './schedule';
 
 import type { FolderMap } from './projectFolders';
 /**
- * Doménové typy PRM Revoltum.
+ * Doménové typy PRMIS.
  *
  * Tento soubor je součástí vrstvy `core` — čistá doménová logika.
  * NESMÍ importovat SharePoint, PnPjs ani React.
@@ -47,7 +47,7 @@ export const ROLE_LABELS: Record<Role, string> = {
 export interface CurrentUser {
   /** ID uživatele v SharePointu (číslo položky v seznamu uživatelů webu). */
   id: number;
-  /** Přihlašovací jméno, např. i:0#.f|membership|jan.novak@revoltum.cz */
+  /** Přihlašovací jméno, např. i:0#.f|membership|jan.novak@selato.cz */
   loginName: string;
   /** Zobrazované jméno, např. Jan Novák. */
   displayName: string;

@@ -1,8 +1,8 @@
 /**
  * Ukázková data pro vývoj UI a předvedení aplikace bez SharePointu.
  *
- * Data jsou smyšlená, ale realistická — odpovídají typům zakázek RES
- * (FVE, BESS, připojení do distribuční soustavy, servis).
+ * Data jsou smyšlená, ale realistická — odpovídají typům zakázek SELATO
+ * (výrobní a procesní automatizace, připojení do distribuční soustavy, servis).
  * Slouží k ladění vzhledu, ne k testování logiky.
  */
 
@@ -20,9 +20,9 @@ function den(offset: number): Date {
 
 export const MOCK_USER = {
   id: 11,
-  loginName: 'i:0#.f|membership|igor.zahradka@revoltum.cz',
+  loginName: 'i:0#.f|membership|igor.zahradka@selato.cz',
   displayName: 'Igor Zahrádka',
-  email: 'igor.zahradka@revoltum.cz',
+  email: 'igor.zahradka@selato.cz',
   roles: [Role.Administrator, Role.Vedeni, Role.Finance, Role.ProjektovyManazer],
   isSiteAdmin: true,
   hasFinanceAccess: true
@@ -59,12 +59,12 @@ export const MOCK_PROJECTS: Project[] = [
   {
     id: 2,
     projectNumber: '25002',
-    title: '25002 AgroFarma Lipnice – Lipnice nad Sázavou – FVE',
-    shortName: 'FVE Lipnice',
+    title: '25002 AgroFarma Lipnice – Lipnice nad Sázavou – Výrobní automatizace',
+    shortName: 'Výrobní automatizace Lipnice',
     customerName: 'AgroFarma Lipnice s.r.o.',
     projectManagerName: 'Jan Novák',
     status: ProjectStatus.Realizace,
-    projectType: 'FVE',
+    projectType: 'Výrobní automatizace',
     location: 'Lipnice nad Sázavou',
     latitude: 49.6167,
     longitude: 15.4,
@@ -86,12 +86,12 @@ export const MOCK_PROJECTS: Project[] = [
   {
     id: 3,
     projectNumber: '25003',
-    title: '25003 Teplárna Chotěboř – Chotěboř – BESS',
-    shortName: 'BESS Chotěboř',
+    title: '25003 Teplárna Chotěboř – Chotěboř – Procesní automatizace',
+    shortName: 'Procesní automatizace Chotěboř',
     customerName: 'Teplárna Chotěboř a.s.',
     projectManagerName: 'Jan Novák',
     status: ProjectStatus.Realizace,
-    projectType: 'BESS',
+    projectType: 'Procesní automatizace',
     location: 'Chotěboř',
     latitude: 49.7208,
     longitude: 15.6717,
@@ -109,12 +109,12 @@ export const MOCK_PROJECTS: Project[] = [
   {
     id: 4,
     projectNumber: '25004',
-    title: '25004 Město Přibyslav – Přibyslav – FVE',
-    shortName: 'FVE Přibyslav',
+    title: '25004 Město Přibyslav – Přibyslav – Výrobní automatizace',
+    shortName: 'Výrobní automatizace Přibyslav',
     customerName: 'Město Přibyslav',
     projectManagerName: 'Eva Malá',
     status: ProjectStatus.Priprava,
-    projectType: 'FVE',
+    projectType: 'Výrobní automatizace',
     location: 'Habry',
     latitude: 49.6228,
     longitude: 15.4664,
@@ -151,12 +151,12 @@ export const MOCK_PROJECTS: Project[] = [
   {
     id: 6,
     projectNumber: '25018',
-    title: '25018 ZD Habry – Habry – FVE',
-    shortName: 'FVE Habry',
+    title: '25018 ZD Habry – Habry – Výrobní automatizace',
+    shortName: 'Výrobní automatizace Habry',
     customerName: 'ZD Habry',
     projectManagerName: 'Igor Zahrádka',
     status: ProjectStatus.Dokonceno,
-    projectType: 'FVE',
+    projectType: 'Výrobní automatizace',
     location: 'Habry',
     latitude: 49.6228,
     longitude: 15.4664,
@@ -196,7 +196,7 @@ export const MOCK_PROJECTS: Project[] = [
   {
     id: 99,
     projectNumber: '26999',
-    title: '26999 Režie RES 2026',
+    title: '26999 Režie SELATO 2026',
     shortName: 'Režie 2026',
     customerName: undefined,
     projectManagerName: 'Igor Zahrádka',
@@ -351,13 +351,13 @@ export const MOCK_FILES: Omit<ProjectFile, 'url' | 'modified'>[] = [
  * do role. Na ostro se hledá v Entra ID přes výběr osob SharePointu.
  */
 export const MOCK_DIRECTORY: Person[] = [
-  { id: 11, loginName: 'i:0#.f|membership|igor.zahradka@revoltum.cz', displayName: 'Igor Zahrádka', email: 'igor.zahradka@revoltum.cz' },
-  { id: 12, loginName: 'i:0#.f|membership|jan.novak@revoltum.cz', displayName: 'Jan Novák', email: 'jan.novak@revoltum.cz' },
-  { id: 13, loginName: 'i:0#.f|membership|eva.mala@revoltum.cz', displayName: 'Eva Malá', email: 'eva.mala@revoltum.cz' },
-  { id: 14, loginName: 'i:0#.f|membership|petr.dvorak@revoltum.cz', displayName: 'Petr Dvořák', email: 'petr.dvorak@revoltum.cz' },
-  { id: 15, loginName: 'i:0#.f|membership|lucie.horakova@revoltum.cz', displayName: 'Lucie Horáková', email: 'lucie.horakova@revoltum.cz' },
-  { id: 16, loginName: 'i:0#.f|membership|martin.svoboda@revoltum.cz', displayName: 'Martin Svoboda', email: 'martin.svoboda@revoltum.cz' },
-  { id: 17, loginName: 'i:0#.f|membership|tereza.benesova@revoltum.cz', displayName: 'Tereza Benešová', email: 'tereza.benesova@revoltum.cz' }
+  { id: 11, loginName: 'i:0#.f|membership|igor.zahradka@selato.cz', displayName: 'Igor Zahrádka', email: 'igor.zahradka@selato.cz' },
+  { id: 12, loginName: 'i:0#.f|membership|jan.novak@selato.cz', displayName: 'Jan Novák', email: 'jan.novak@selato.cz' },
+  { id: 13, loginName: 'i:0#.f|membership|eva.mala@selato.cz', displayName: 'Eva Malá', email: 'eva.mala@selato.cz' },
+  { id: 14, loginName: 'i:0#.f|membership|petr.dvorak@selato.cz', displayName: 'Petr Dvořák', email: 'petr.dvorak@selato.cz' },
+  { id: 15, loginName: 'i:0#.f|membership|lucie.horakova@selato.cz', displayName: 'Lucie Horáková', email: 'lucie.horakova@selato.cz' },
+  { id: 16, loginName: 'i:0#.f|membership|martin.svoboda@selato.cz', displayName: 'Martin Svoboda', email: 'martin.svoboda@selato.cz' },
+  { id: 17, loginName: 'i:0#.f|membership|tereza.benesova@selato.cz', displayName: 'Tereza Benešová', email: 'tereza.benesova@selato.cz' }
 ];
 
 /** Kdo je v ukázkovém režimu v které roli. */
@@ -383,7 +383,7 @@ export const MOCK_ROLE_MEMBERS: { role: Role; members: Person[] }[] = [
 export const MOCK_PROJECT_FOLDERS: string[] = [
   '00_Project tools',
   '26001-MASTIROVICE 1 GENERALNI OPRAVA',
-  '26002-MASTIROVICE 2 - BESS',
+  '26002-MASTIROVICE 2 - PROCESNI AUTOMATIZACE',
   '26003-BORSOV MORAVSKA TREBOVA',
   '26004-DOHLEDOVY SYSTEM',
   '26005-DOPLNENI STRIDACU MASTIROVICE 1'
@@ -441,7 +441,7 @@ export const MOCK_PARTNERS: Partner[] = [
   },
   {
     id: 5,
-    name: 'FVE Komponenty s.r.o.',
+    name: 'Komponenty pro automatizaci s.r.o.',
     partnerType: PartnerType.Dodavatel,
     ico: '06556677',
     dic: 'CZ06556677',

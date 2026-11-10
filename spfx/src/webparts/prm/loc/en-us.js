@@ -1,6 +1,6 @@
 define([], function() {
   return {
-    "PropertyPaneDescription": "Nastavení web partu PRM Revoltum. Tyto volby vidí jen editor stránky.",
+    "PropertyPaneDescription": "Nastavení web partu PRMIS. Tyto volby vidí jen editor stránky.",
     "DataGroupName": "Zdroj dat",
     "DataSourceFieldLabel": "Odkud brát data",
     "DataSourceSharePoint": "Ostrá data ze SharePointu",

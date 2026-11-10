@@ -1,6 +1,6 @@
 /**
  * Čtení projektů pro web part „Běžící projekty“ — jen údaje určené všem (název, PM, lokalita, prodejní cena, stav).
- * Náklady a marže se nenačítají. Funguje i z jiného webu (kopie web partu na webu Revoltum): data se čtou z webu s aplikací.
+ * Náklady a marže se nenačítají. Funguje i z jiného webu (kopie web partu na jiném webu): data se čtou z webu s aplikací.
  */
 
 import { WebPartContext } from '@microsoft/sp-webpart-base';

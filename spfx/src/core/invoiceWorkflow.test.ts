@@ -19,15 +19,15 @@ import { InvoiceBasis, InvoiceStatus } from './invoiceBases';
 import { Actor, WorkflowError, WorkflowProject } from './orderWorkflow';
 import { Role } from './types';
 
-const PM = 'i:0#.f|membership|pm@revoltum.cz';
-const ASISTENT = 'i:0#.f|membership|asistent@revoltum.cz';
+const PM = 'i:0#.f|membership|pm@selato.cz';
+const ASISTENT = 'i:0#.f|membership|asistent@selato.cz';
 
 const pm: Actor = { login: PM, displayName: 'Petr Manažer', roles: [Role.ProjektovyManazer] };
 const asistent: Actor = { login: ASISTENT, displayName: 'Anna Asistentka', roles: [Role.AsistentPM] };
-const vedeni: Actor = { login: 'i:0#.f|membership|vedeni@revoltum.cz', displayName: 'Viktor Vedení', roles: [Role.Vedeni] };
-const admin: Actor = { login: 'i:0#.f|membership|admin@revoltum.cz', displayName: 'Adam Admin', roles: [Role.Administrator] };
-const finance: Actor = { login: 'i:0#.f|membership|fin@revoltum.cz', displayName: 'Filip Finance', roles: [Role.Finance] };
-const cizi: Actor = { login: 'i:0#.f|membership|cizi@revoltum.cz', displayName: 'Cizí', roles: [Role.ProjektovyManazer] };
+const vedeni: Actor = { login: 'i:0#.f|membership|vedeni@selato.cz', displayName: 'Viktor Vedení', roles: [Role.Vedeni] };
+const admin: Actor = { login: 'i:0#.f|membership|admin@selato.cz', displayName: 'Adam Admin', roles: [Role.Administrator] };
+const finance: Actor = { login: 'i:0#.f|membership|fin@selato.cz', displayName: 'Filip Finance', roles: [Role.Finance] };
+const cizi: Actor = { login: 'i:0#.f|membership|cizi@selato.cz', displayName: 'Cizí', roles: [Role.ProjektovyManazer] };
 
 const projekt: WorkflowProject = {
   projectNumber: '26001',

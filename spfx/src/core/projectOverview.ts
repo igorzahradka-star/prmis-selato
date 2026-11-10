@@ -62,8 +62,8 @@ export const MAX_OVERVIEW_PHOTOS = 3;
 export const MAX_BACK_PHOTOS = 2;
 
 const SUBJECTS: Record<string, Bilingual> = {
-  FVE: { cs: 'Realizace fotovoltaické elektrárny', en: 'Photovoltaic power plant' },
-  BESS: { cs: 'Realizace bateriového úložiště', en: 'Battery energy storage system' },
+  'Výrobní automatizace': { cs: 'Realizace výrobní automatizace', en: 'Manufacturing automation' },
+  'Procesní automatizace': { cs: 'Realizace procesní automatizace', en: 'Process automation' },
   MVE: { cs: 'Realizace malé vodní elektrárny', en: 'Small hydropower plant' },
   'Vítr': { cs: 'Realizace větrné elektrárny', en: 'Wind power plant' },
   Kogenerace: { cs: 'Realizace kogenerační jednotky', en: 'Combined heat and power unit' },
@@ -74,9 +74,6 @@ const DEFAULT_SUBJECT: Bilingual = { cs: 'Realizace energetického projektu', en
 
 /** Výchozí jednotka výkonu podle typu projektu. */
 function defaultPowerUnit(type: string | undefined): PowerUnit {
-  if (type === 'FVE') {
-    return 'kWp';
-  }
   if (type === 'Kogenerace') {
     return 'kWe';
   }

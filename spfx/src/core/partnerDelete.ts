@@ -5,6 +5,7 @@
 
 import { Role } from './types';
 import { hasAnyRole } from './roles';
+import { ENTITY } from '../config/entity';
 
 /** Kolikrát je partner použit. */
 export interface PartnerUsage {
@@ -37,7 +38,7 @@ export function describeUsage(u: PartnerUsage): string {
     parts.push(`${u.invoices} ${u.invoices === 1 ? 'podklad pro fakturaci' : u.invoices < 5 ? 'podklady pro fakturaci' : 'podkladů pro fakturaci'}`);
   }
   if (u.cases > 0) {
-    parts.push(`${u.cases} ${u.cases === 1 ? 'obchodní případ' : u.cases < 5 ? 'obchodní případy' : 'obchodních případů'} v RES CRM`);
+    parts.push(`${u.cases} ${u.cases === 1 ? 'obchodní případ' : u.cases < 5 ? 'obchodní případy' : 'obchodních případů'} v ${ENTITY.crmName}`);
   }
   return parts.join(', ');
 }

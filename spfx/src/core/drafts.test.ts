@@ -16,7 +16,7 @@ function memory(): DraftStorage & { data: Record<string, string> } {
 
 describe('rozepsané formuláře (koncepty)', () => {
   it('klíč je pro uživatele, druh formuláře a záznam; podivné znaky se očistí', () => {
-    expect(draftKey('i:0#.f|membership|Igor@revoltum.cz', 'order', 12)).toBe('prm.draft.v1.i_0_.f_membership_igor@revoltum.cz.order.12');
+    expect(draftKey('i:0#.f|membership|Igor@selato.cz', 'order', 12)).toBe('prm.draft.v1.i_0_.f_membership_igor@selato.cz.order.12');
     expect(draftKey('', 'entry', 'new-26001-zapis')).toBe('prm.draft.v1.anonym.entry.new-26001-zapis');
   });
 

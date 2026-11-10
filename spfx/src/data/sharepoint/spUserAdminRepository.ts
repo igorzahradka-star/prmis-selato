@@ -171,7 +171,7 @@ export class SpUserAdminRepository implements IUserAdminRepository {
         try {
           const added: { Id: number } = await sp.web.siteGroups.add({
             Title: groupName,
-            Description: `Role PRM Revoltum — ${groupName}. Spravuje se přes stránku Uživatelé a role.`,
+            Description: `Role PRMIS — ${groupName}. Spravuje se přes stránku Uživatelé a role.`,
             AllowMembersEditMembership: false,
             OnlyAllowMembersViewMembership: false
           });

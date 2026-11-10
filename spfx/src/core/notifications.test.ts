@@ -5,9 +5,9 @@ import { RoleMembership } from './userAdmin';
 const clen = (email: string, displayName: string): { loginName: string; displayName: string; email: string } => ({ loginName: `i:0#.f|membership|${email}`, displayName, email });
 const M = (role: Role, ...members: ReturnType<typeof clen>[]): RoleMembership => ({ role, members } as unknown as RoleMembership);
 const memberships: RoleMembership[] = [
-  M(Role.Vedeni, clen('anna@revoltum.cz', 'Anna Vedení'), clen('igor@revoltum.cz', 'Igor Zahrádka')),
-  M(Role.Administrator, clen('igor@revoltum.cz', 'Igor Zahrádka'), clen('adam@revoltum.cz', 'Adam Admin')),
-  M(Role.ProjektovyManazer, clen('petr@revoltum.cz', 'Petr Manažer'))
+  M(Role.Vedeni, clen('anna@selato.cz', 'Anna Vedení'), clen('igor@selato.cz', 'Igor Zahrádka')),
+  M(Role.Administrator, clen('igor@selato.cz', 'Igor Zahrádka'), clen('adam@selato.cz', 'Adam Admin')),
+  M(Role.ProjektovyManazer, clen('petr@selato.cz', 'Petr Manažer'))
 ];
 
 describe('nastavení upozornění', () => {
@@ -23,11 +23,11 @@ describe('nastavení upozornění', () => {
   });
   it('e-mail dostane jen ten, kdo si danou skupinu nevypnul (podle e-mailu bez ohledu na velikost písmen)', () => {
     const r = [
-      { email: 'Anna@Revoltum.cz', name: 'Anna' },
-      { email: 'petr@revoltum.cz', name: 'Petr' },
-      { email: 'neznamy@revoltum.cz', name: 'Neznámý' }
+      { email: 'Anna@Selato.cz', name: 'Anna' },
+      { email: 'petr@selato.cz', name: 'Petr' },
+      { email: 'neznamy@selato.cz', name: 'Neznámý' }
     ];
-    const prefs = { 'anna@revoltum.cz': { approvals: false, results: true }, 'petr@revoltum.cz': { approvals: true, results: false } };
+    const prefs = { 'anna@selato.cz': { approvals: false, results: true }, 'petr@selato.cz': { approvals: true, results: false } };
     expect(splitByPrefs(r, prefs, 'approvals').send.map((x) => x.name)).toEqual(['Petr', 'Neznámý']);
     expect(splitByPrefs(r, prefs, 'approvals').muted.map((x) => x.name)).toEqual(['Anna']);
     expect(splitByPrefs(r, prefs, 'results').send.map((x) => x.name)).toEqual(['Anna', 'Neznámý']);
@@ -35,10 +35,10 @@ describe('nastavení upozornění', () => {
 });
 
 describe('upozornění v Servisu', () => {
-  const m: RoleMembership[] = [M(Role.SpravceServisu, clen('sara@revoltum.cz', 'Sára Správce'), clen('karel@revoltum.cz', 'Karel Správce')), M(Role.Dispecer, clen('david@revoltum.cz', 'David Dispečer'))];
+  const m: RoleMembership[] = [M(Role.SpravceServisu, clen('sara@selato.cz', 'Sára Správce'), clen('karel@selato.cz', 'Karel Správce')), M(Role.Dispecer, clen('david@selato.cz', 'David Dispečer'))];
   it('příjemci z role bez toho, kdo akci provedl', () => {
-    expect(roleRecipients(Role.SpravceServisu, m).map((x) => x.email)).toEqual(['sara@revoltum.cz', 'karel@revoltum.cz']);
-    expect(roleRecipients(Role.SpravceServisu, m, 'i:0#.f|membership|sara@revoltum.cz').map((x) => x.email)).toEqual(['karel@revoltum.cz']);
+    expect(roleRecipients(Role.SpravceServisu, m).map((x) => x.email)).toEqual(['sara@selato.cz', 'karel@selato.cz']);
+    expect(roleRecipients(Role.SpravceServisu, m, 'i:0#.f|membership|sara@selato.cz').map((x) => x.email)).toEqual(['karel@selato.cz']);
     expect(roleRecipients(Role.Dispecer, m).map((x) => x.name)).toEqual(['David Dispečer']);
   });
   it('texty e-mailů: nový požadavek a servisní list ke kontrole', () => {
@@ -54,18 +54,18 @@ describe('upozornění v Servisu', () => {
 
 describe('upozornění k rozpočtu', () => {
   it('bez vybraného schvalovatele dostane e-mail vedení i administrátoři, žadatel ne, bez opakování', () => {
-    const r = budgetApprovalRecipients(undefined, undefined, 'i:0#.f|membership|igor@revoltum.cz', memberships);
-    expect(r.map((x) => x.email).sort()).toEqual(['adam@revoltum.cz', 'anna@revoltum.cz']);
+    const r = budgetApprovalRecipients(undefined, undefined, 'i:0#.f|membership|igor@selato.cz', memberships);
+    expect(r.map((x) => x.email).sort()).toEqual(['adam@selato.cz', 'anna@selato.cz']);
   });
   it('s vybraným schvalovatelem dostane e-mail jen on', () => {
-    const r = budgetApprovalRecipients('i:0#.f|membership|anna@revoltum.cz', 'Anna Vedení', 'i:0#.f|membership|petr@revoltum.cz', memberships);
-    expect(r.map((x) => x.email)).toEqual(['anna@revoltum.cz']);
+    const r = budgetApprovalRecipients('i:0#.f|membership|anna@selato.cz', 'Anna Vedení', 'i:0#.f|membership|petr@selato.cz', memberships);
+    expect(r.map((x) => x.email)).toEqual(['anna@selato.cz']);
   });
   it('žadatele najde podle jména; jinak použije projektového manažera', () => {
     const byName = budgetRequesterRecipient('Petr Manažer', undefined, undefined, memberships);
-    expect(byName && byName.email).toBe('petr@revoltum.cz');
-    const byPm = budgetRequesterRecipient('Někdo cizí', 'i:0#.f|membership|petr@revoltum.cz', 'Petr Manažer', memberships);
-    expect(byPm && byPm.email).toBe('petr@revoltum.cz');
+    expect(byName && byName.email).toBe('petr@selato.cz');
+    const byPm = budgetRequesterRecipient('Někdo cizí', 'i:0#.f|membership|petr@selato.cz', 'Petr Manažer', memberships);
+    expect(byPm && byPm.email).toBe('petr@selato.cz');
     expect(budgetRequesterRecipient(undefined, undefined, undefined, memberships)).toBeUndefined();
   });
   it('texty e-mailů obsahují projekt, odkaz a zmínku o vypnutí', () => {

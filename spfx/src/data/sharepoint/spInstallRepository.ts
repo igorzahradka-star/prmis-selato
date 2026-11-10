@@ -94,7 +94,7 @@ export class SpInstallRepository implements IInstallRepository {
         state: 'manual',
         detail:
           'Není zadaná adresa webu pro důvěrná finanční data. Správce M365 musí web ' +
-          'založit (např. /sites/RES-PRM-Finance), nastavit mu vlastní, nezděděná oprávnění ' +
+          'založit (např. /sites/SELATO-PRM-Finance), nastavit mu vlastní, nezděděná oprávnění ' +
           'a adresu vyplnit ve vlastnostech web partu. Do té doby finanční moduly nefungují.'
       });
     } else {

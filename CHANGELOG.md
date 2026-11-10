@@ -5,6 +5,11 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.70.0 — 10. 11. 2026 — Texty SELATO a nové typy projektů (schéma 37)
+
+- Texty po Revoltum nahrazeny SELATO (přehled projektů, web part Běžící projekty, e-maily, Režie, odkazy na SELCRM, zhotovitel ve smlouvách Servisu, ukázková data).
+- Typy projektů **FVE → Výrobní automatizace**, **BESS → Procesní automatizace**. Uložené nastavení se starými názvy se převede samo. **Schéma 37:** sloupec Typ projektu dostane nové volby — po nasazení spusťte **Správa → Instalace a diagnostika**. Staré volby i projekty s nimi zůstávají beze změny.
+
 ## 0.69.2 — 10. 11. 2026 — Přehled projektů po stránkách
 
 - **Přehled projektů** ukazuje nejvýš **9 projektů** na stránku, pod seznamem jsou tlačítka **Předchozí / Další** a počet („Projekty 1–9 z 85“). Hledání, filtry a řazení platí pro všechny projekty; po jejich změně se seznam vrátí na první stránku. Beze změny schématu.

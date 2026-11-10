@@ -26,7 +26,7 @@ export const OVERHEAD_FOLDER_NAME = '99900-Režie';
 export const OVERHEAD_FOLDER_NUMBER = '99900';
 
 /** Název projektu Režie. Nesestavuje se ze vzoru — Režie nemá zákazníka ani lokalitu. */
-export const OVERHEAD_TITLE = 'Režie RES';
+export const OVERHEAD_TITLE = 'Režie SELATO';
 
 /** Typ projektu, pod kterým Režie vystupuje v číselníku typů. */
 export const OVERHEAD_PROJECT_TYPE = 'Režie';

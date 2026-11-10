@@ -6,7 +6,7 @@ import { MOCK_USER } from './mockData';
 // Při plné zátěži počítače (celý běh testů) trvá ukázkový repozitář déle než výchozích 5 s.
 jest.setTimeout(30000);
 
-const uzivatel = (login: string, roles: Role[]): CurrentUser => ({ ...MOCK_USER, id: 500, loginName: `i:0#.f|membership|${login}@revoltum.cz`, displayName: login, roles });
+const uzivatel = (login: string, roles: Role[]): CurrentUser => ({ ...MOCK_USER, id: 500, loginName: `i:0#.f|membership|${login}@selato.cz`, displayName: login, roles });
 const pm = uzivatel('pm', [Role.ProjektovyManazer]);
 const cizi = uzivatel('ctenar', [Role.Finance]);
 const igor = { ...MOCK_USER } as CurrentUser; // administrátor, vedení

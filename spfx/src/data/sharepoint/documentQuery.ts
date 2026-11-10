@@ -169,7 +169,7 @@ export function buildFolderUrl(
 
 /**
  * Opraví odkaz, který vznikl z názvu knihovny místo její adresy — např.
- * `…/RevoltumEngineeringServices/Dokumenty/General/…` místo `…/Shared Documents/General/…`.
+ * `…/NazevWebu/Dokumenty/General/…` místo `…/Shared Documents/General/…`.
  *
  * Vrací opravený odkaz, nebo `undefined`, když není co opravovat: odkaz je už správný,
  * nebo míří jinam, než kde knihovna leží (takový se nikdy nepřepisuje).

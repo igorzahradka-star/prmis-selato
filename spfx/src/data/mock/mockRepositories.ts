@@ -1156,7 +1156,7 @@ export function createMockRepositories(): RepositorySet {
     { projectNumber: '10511', title: '10511 Boršov – Boršov 1', shortName: 'Boršov 1' },
     { projectNumber: '10512', title: '10512 Boršov – Boršov 2 – BESS', shortName: 'Boršov 2 – BESS' }
   ].forEach((s) => {
-    projects.ensureServiceProject({ ...s, customerName: 'REVOLTUM Energy a.s.', projectManagerName: 'Igor Zahrádka' }).catch(() => undefined);
+    projects.ensureServiceProject({ ...s, customerName: 'SELATO s.r.o.', projectManagerName: 'Igor Zahrádka' }).catch(() => undefined);
   });
   return {
     users: new MockUserRepository(),

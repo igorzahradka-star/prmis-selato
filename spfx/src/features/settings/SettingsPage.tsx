@@ -255,7 +255,7 @@ export const SettingsPage: React.FC = () => {
         <PivotItem headerText="Projekty na webu" itemIcon="Globe">
           <Panel>
             <Hint>
-              Řídí web part <strong>Běžící projekty</strong> na úvodní stránce RES (a jeho kopii na webu Revoltum). Seznam se řídí{' '}
+              Řídí web part <strong>Běžící projekty</strong> na úvodní stránce webu SELATO (i jeho kopii na jiném webu). Seznam se řídí{' '}
               <strong>jen stavem projektu</strong>: ukáže projekty ve stavech zaškrtnutých níže, ostatní se filtrují. Projekt Režie se neukazuje nikdy.
               Na webu je vidět název, projektový manažer, lokalita, celková cena a stav — <strong>náklady a marže se na web nikdy nenačítají</strong>.
               Změna platí hned po obnovení stránky s web partem.
@@ -292,7 +292,7 @@ export const SettingsPage: React.FC = () => {
               offText="Ne"
             />
             <Hint>
-              Web part se na stránku přidá v úpravách stránky (+ → <strong>Běžící projekty (PRM)</strong>). U kopie na webu Revoltum se v nastavení web partu
+              Web part se na stránku přidá v úpravách stránky (+ → <strong>Běžící projekty (PRM)</strong>). U kopie na jiném webu se v nastavení web partu
               vyplní adresa webu s PRMIS. Čtení seznamu projektů musí mít na webu PRMIS povolené všichni, kdo seznam uvidí (SharePoint → oprávnění).
             </Hint>
           </Panel>

@@ -42,17 +42,17 @@ describe('zprůhlednění skenu podpisu', () => {
 
 describe('dohledání podpisu podle přihlašovacího jména', () => {
   const map: Record<string, UserSignature> = {};
-  map[signatureKey('i:0#.f|membership|igor.zahradka@revoltum.cz')] = { login: 'igor.zahradka@revoltum.cz', displayName: 'Igor', imageDataUrl: PNG };
-  map[signatureKey('jan@revoltum.cz')] = { login: 'jan@revoltum.cz', displayName: 'Jan', imageDataUrl: 'neplatny' };
+  map[signatureKey('i:0#.f|membership|igor.zahradka@selato.cz')] = { login: 'igor.zahradka@selato.cz', displayName: 'Igor', imageDataUrl: PNG };
+  map[signatureKey('jan@selato.cz')] = { login: 'jan@selato.cz', displayName: 'Jan', imageDataUrl: 'neplatny' };
 
   it('jedno přihlašovací jméno v různém tvaru dá stejný klíč', () => {
-    expect(signatureKey('i:0#.f|membership|Igor.Zahradka@revoltum.cz')).toBe(signatureKey('igor.zahradka@revoltum.cz'));
+    expect(signatureKey('i:0#.f|membership|Igor.Zahradka@selato.cz')).toBe(signatureKey('igor.zahradka@selato.cz'));
   });
 
   it('najde podpis i při jiném tvaru jména; neplatný nebo chybějící obrázek nevrátí', () => {
-    expect(signatureOf(map, 'igor.zahradka@revoltum.cz')).toBe(PNG);
-    expect(signatureOf(map, 'jan@revoltum.cz')).toBeUndefined();
-    expect(signatureOf(map, 'nikdo@revoltum.cz')).toBeUndefined();
+    expect(signatureOf(map, 'igor.zahradka@selato.cz')).toBe(PNG);
+    expect(signatureOf(map, 'jan@selato.cz')).toBeUndefined();
+    expect(signatureOf(map, 'nikdo@selato.cz')).toBeUndefined();
     expect(signatureOf(map, undefined)).toBeUndefined();
   });
 });

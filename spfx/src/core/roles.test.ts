@@ -106,40 +106,40 @@ describe('canDeleteProject', () => {
 
 describe('canEditProject', () => {
   const projekt = {
-    projectManagerLogin: 'i:0#.f|membership|jan.novak@revoltum.cz',
-    assistantLogins: ['i:0#.f|membership|eva.mala@revoltum.cz']
+    projectManagerLogin: 'i:0#.f|membership|jan.novak@selato.cz',
+    assistantLogins: ['i:0#.f|membership|eva.mala@selato.cz']
   };
 
   it('PM smí editovat svůj projekt', () => {
-    expect(canEditProject([Role.ProjektovyManazer], 'jan.novak@revoltum.cz', projekt)).toBe(true);
+    expect(canEditProject([Role.ProjektovyManazer], 'jan.novak@selato.cz', projekt)).toBe(true);
   });
 
   it('PM nesmí editovat cizí projekt', () => {
-    expect(canEditProject([Role.ProjektovyManazer], 'petr.cizi@revoltum.cz', projekt)).toBe(false);
+    expect(canEditProject([Role.ProjektovyManazer], 'petr.cizi@selato.cz', projekt)).toBe(false);
   });
 
   it('asistent přiřazený k projektu ho editovat smí', () => {
-    expect(canEditProject([Role.AsistentPM], 'eva.mala@revoltum.cz', projekt)).toBe(true);
+    expect(canEditProject([Role.AsistentPM], 'eva.mala@selato.cz', projekt)).toBe(true);
   });
 
   it('asistent nepřiřazený k projektu ho editovat nesmí', () => {
-    expect(canEditProject([Role.AsistentPM], 'jiny.asistent@revoltum.cz', projekt)).toBe(false);
+    expect(canEditProject([Role.AsistentPM], 'jiny.asistent@selato.cz', projekt)).toBe(false);
   });
 
   it('administrátor smí editovat jakýkoli projekt', () => {
-    expect(canEditProject([Role.Administrator], 'kdokoli@revoltum.cz', projekt)).toBe(true);
+    expect(canEditProject([Role.Administrator], 'kdokoli@selato.cz', projekt)).toBe(true);
   });
 
   it('vedení smí editovat jakýkoli projekt', () => {
-    expect(canEditProject([Role.Vedeni], 'kdokoli@revoltum.cz', projekt)).toBe(true);
+    expect(canEditProject([Role.Vedeni], 'kdokoli@selato.cz', projekt)).toBe(true);
   });
 
   it('čtenář needituje nic', () => {
-    expect(canEditProject([Role.Ctenar], 'jan.novak@revoltum.cz', projekt)).toBe(false);
+    expect(canEditProject([Role.Ctenar], 'jan.novak@selato.cz', projekt)).toBe(false);
   });
 
   it('projekt bez přiřazeného PM se needituje omylem', () => {
-    expect(canEditProject([Role.ProjektovyManazer], 'jan.novak@revoltum.cz', {})).toBe(false);
+    expect(canEditProject([Role.ProjektovyManazer], 'jan.novak@selato.cz', {})).toBe(false);
   });
 });
 
@@ -193,18 +193,18 @@ describe('canOpenAdmin a canOpenBenchmark', () => {
 describe('isSelfApproval', () => {
   it('pozná, že schvalovatel je zároveň vystavitel — i při jiném zápisu jména', () => {
     expect(
-      isSelfApproval('i:0#.f|membership|jan.novak@revoltum.cz', 'JAN.NOVAK@revoltum.cz')
+      isSelfApproval('i:0#.f|membership|jan.novak@selato.cz', 'JAN.NOVAK@selato.cz')
     ).toBe(true);
   });
 
   it('dva různé lidi nezamění', () => {
-    expect(isSelfApproval('jan.novak@revoltum.cz', 'eva.mala@revoltum.cz')).toBe(false);
+    expect(isSelfApproval('jan.novak@selato.cz', 'eva.mala@selato.cz')).toBe(false);
   });
 });
 
 describe('normalizeLogin', () => {
   it('odstraní předponu SharePointu', () => {
-    expect(normalizeLogin('i:0#.f|membership|jan.novak@revoltum.cz')).toBe('jan.novak@revoltum.cz');
+    expect(normalizeLogin('i:0#.f|membership|jan.novak@selato.cz')).toBe('jan.novak@selato.cz');
   });
 
   it('prázdnou hodnotu zvládne', () => {

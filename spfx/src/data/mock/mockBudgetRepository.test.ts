@@ -7,7 +7,7 @@ import { MOCK_USER } from './mockData';
 jest.setTimeout(30000);
 
 function uzivatel(login: string, name: string, roles: Role[]): CurrentUser {
-  return { ...MOCK_USER, id: Math.floor(Math.random() * 1000) + 100, loginName: `i:0#.f|membership|${login}@revoltum.cz`, displayName: name, roles };
+  return { ...MOCK_USER, id: Math.floor(Math.random() * 1000) + 100, loginName: `i:0#.f|membership|${login}@selato.cz`, displayName: name, roles };
 }
 
 const igor = { ...MOCK_USER } as CurrentUser; // administrátor, vedení

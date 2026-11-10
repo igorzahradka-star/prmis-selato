@@ -179,7 +179,7 @@ export const ContractSettingsEditor: React.FC<{ value: ContractSettings; onChang
   return (
     <div>
       <div style={boxStyle}>
-        <div style={boxTitle}>Zhotovitel (Revoltum Engineering & Services)</div>
+        <div style={boxTitle}>Zhotovitel (SELATO)</div>
         <PartyEditor value={value.zhotovitel} onChange={(zhotovitel) => patch({ zhotovitel })} disabled={disabled} withDispatch />
       </div>
 

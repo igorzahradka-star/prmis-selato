@@ -53,9 +53,9 @@ export const DEFAULT_CONTRACT_PARAMETERS: ContractParameters = {
 };
 
 export const DEFAULT_CONTRACT_SETTINGS: ContractSettings = {
-  // Název a sídlo podle obchodního rejstříku (ARES, IČO 29713536); zbytek doplní zadavatel (tlačítko „Načíst z ARES“ doplní rejstřík a jednatele).
-  zhotovitel: { nazev: 'Revoltum Engineering & Services s.r.o.', sidlo: 'Havířská 1021, 58001 Havlíčkův Brod', ico: '29713536' },
-  assetManager: { nazev: 'Revoltum a.s.', ico: '', sidlo: '' },
+  // Název a sídlo podle obchodního rejstříku (ARES, IČO 03647862); zbytek doplní zadavatel (tlačítko „Načíst z ARES“ doplní rejstřík a jednatele).
+  zhotovitel: { nazev: 'SELATO s.r.o.', sidlo: 'Lučice 260, 582 35 Lučice', ico: '03647862' },
+  assetManager: { nazev: '', ico: '', sidlo: '' },
   mistoPodpisu: 'Havlíčkově Brodě',
   templateFolder: `${ENTITY.folders.serviceRoot}/00_SERVIS - PODKLADY/Smlouvy VZORY`,
   frameworkTemplate: 'RES_OM_Ramcova_smlouva_SABLONA_v01.docx',
@@ -68,7 +68,7 @@ export const DEFAULT_CONTRACT_SETTINGS: ContractSettings = {
   eskalace: [
     { uroven: '1', spoustec: 'Překročení Doby příjezdu P1/P2', res: 'Vedoucí servisu', objednatel: 'Technický kontakt' },
     { uroven: '2', spoustec: 'Překročení Doby odstranění P1 nebo opakovaná porucha', res: 'Technický ředitel', objednatel: 'Asset manager' },
-    { uroven: '3', spoustec: 'Ohrožení garantované dostupnosti / spor', res: 'Jednatel RES', objednatel: 'Statutární orgán' }
+    { uroven: '3', spoustec: 'Ohrožení garantované dostupnosti / spor', res: 'Jednatel SELATO', objednatel: 'Statutární orgán' }
   ]
 };
 

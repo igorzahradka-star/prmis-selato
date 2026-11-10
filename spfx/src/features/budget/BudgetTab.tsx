@@ -683,7 +683,7 @@ export const BudgetTab: React.FC<{ project: Project; /** Stav projektu se při s
           {docsTarget && <TargetDocsDialog target={docsTarget} doc={doc} docs={abraDocs} rates={report.rates} editable={editable && !busy} onChange={setDoc} onClose={() => setDocsTarget(undefined)} />}
 
           <div style={{ fontSize: 12, color: RES.gray, marginTop: 8 }}>
-            Nákup: plán je celková částka položky (u práce se hodiny dopočtou z nákladové sazby profese, u rezervy je to částka nebo % z nákupu ostatních položek; počty kusů a ceny za jednotku se řeší v nabídkovém nástroji RES CRM). Prognóza je ruční odhad celkového nákupu položky; když ji nezadáte, platí plán (nikdy nejde pod objednáno a nakoupeno).
+            Nákup: plán je celková částka položky (u práce se hodiny dopočtou z nákladové sazby profese, u rezervy je to částka nebo % z nákupu ostatních položek; počty kusů a ceny za jednotku se řeší v nabídkovém nástroji {ENTITY.crmName}). Prognóza je ruční odhad celkového nákupu položky; když ji nezadáte, platí plán (nikdy nejde pod objednáno a nakoupeno).
             Do sloupce Nakoupeno zapisujte skutečnost; Zbývá nakoupit se dopočte; Prostavěnost = nakoupeno / plán nákupu. Marže projektu = (tržby − nákup) / tržby z prognóz — vychází ze sekce Výnosy. Částky se přepočítávají kurzem ČNB, takže marže s kurzem kolísá.
           </div>
 

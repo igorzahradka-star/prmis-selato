@@ -34,12 +34,12 @@ import { Role } from './types';
 // Limity z výchozího nastavení: PM 100 000, vedení 500 000, jednatel 1 000 000; samoschvalování PM vypnuté.
 const SETTINGS = { ...DEFAULT_SETTINGS.approvals };
 
-const PM = 'i:0#.f|membership|pm@revoltum.cz';
-const ASISTENT = 'i:0#.f|membership|asistent@revoltum.cz';
-const VEDENI = 'i:0#.f|membership|vedeni@revoltum.cz';
-const VEDENI2 = 'i:0#.f|membership|vedeni2@revoltum.cz';
-const JEDNATEL = 'i:0#.f|membership|jednatel@revoltum.cz';
-const ADMIN = 'i:0#.f|membership|admin@revoltum.cz';
+const PM = 'i:0#.f|membership|pm@selato.cz';
+const ASISTENT = 'i:0#.f|membership|asistent@selato.cz';
+const VEDENI = 'i:0#.f|membership|vedeni@selato.cz';
+const VEDENI2 = 'i:0#.f|membership|vedeni2@selato.cz';
+const JEDNATEL = 'i:0#.f|membership|jednatel@selato.cz';
+const ADMIN = 'i:0#.f|membership|admin@selato.cz';
 
 const pm: Actor = { login: PM, displayName: 'Petr Manažer', roles: [Role.ProjektovyManazer] };
 const asistent: Actor = { login: ASISTENT, displayName: 'Anna Asistentka', roles: [Role.AsistentPM] };
@@ -168,7 +168,7 @@ describe('submitOrder', () => {
   });
 
   it('cizí objednávku v konceptu nesmí odeslat nikdo nepříslušný', () => {
-    const cizi: Actor = { login: 'i:0#.f|membership|cizi@revoltum.cz', displayName: 'Cizí', roles: [Role.ProjektovyManazer] };
+    const cizi: Actor = { login: 'i:0#.f|membership|cizi@selato.cz', displayName: 'Cizí', roles: [Role.ProjektovyManazer] };
     expect(() => submitOrder(objednavka(), ctx(cizi))).toThrow(/spravovat/);
   });
 
@@ -228,7 +228,7 @@ describe('decideOrder', () => {
   });
 
   it('PM jiného projektu ani asistent schvalovat nesmí', () => {
-    const jinyPm: Actor = { login: 'i:0#.f|membership|jiny@revoltum.cz', displayName: 'Jiný PM', roles: [Role.ProjektovyManazer] };
+    const jinyPm: Actor = { login: 'i:0#.f|membership|jiny@selato.cz', displayName: 'Jiný PM', roles: [Role.ProjektovyManazer] };
     expect(() => decideOrder(kSchvaleni(), 'approve', '', ctx(jinyPm))).toThrow(WorkflowError);
     expect(() => decideOrder(kSchvaleni(), 'approve', '', ctx(asistent))).toThrow(WorkflowError);
   });
@@ -333,7 +333,7 @@ describe('po schválení', () => {
   });
 
   it('běžný nepříslušný uživatel odeslat nesmí', () => {
-    const cizi: Actor = { login: 'i:0#.f|membership|cizi@revoltum.cz', displayName: 'Cizí', roles: [Role.ProjektovyManazer] };
+    const cizi: Actor = { login: 'i:0#.f|membership|cizi@selato.cz', displayName: 'Cizí', roles: [Role.ProjektovyManazer] };
     expect(() => sendOrder(schvalena, ctx(cizi))).toThrow(/spravovat/);
   });
 
@@ -367,9 +367,9 @@ describe('cancelOrder', () => {
 
 describe('Servis: objednávky servisních projektů', () => {
   const servis: WorkflowProject = { projectNumber: '10501', isOverhead: false, isService: true };
-  const spravce: Actor = { login: 'i:0#.f|membership|spravce@revoltum.cz', displayName: 'Sára Správce', roles: [Role.SpravceServisu] };
-  const dispecer: Actor = { login: 'i:0#.f|membership|dispecer@revoltum.cz', displayName: 'David Dispečer', roles: [Role.Dispecer] };
-  const cizi: Actor = { login: 'i:0#.f|membership|cizipm@revoltum.cz', displayName: 'Běžný PM', roles: [Role.ProjektovyManazer] };
+  const spravce: Actor = { login: 'i:0#.f|membership|spravce@selato.cz', displayName: 'Sára Správce', roles: [Role.SpravceServisu] };
+  const dispecer: Actor = { login: 'i:0#.f|membership|dispecer@selato.cz', displayName: 'David Dispečer', roles: [Role.Dispecer] };
+  const cizi: Actor = { login: 'i:0#.f|membership|cizipm@selato.cz', displayName: 'Běžný PM', roles: [Role.ProjektovyManazer] };
   it('objednávat smí správce, dispečer a administrátor; běžný PM a asistent ne', () => {
     expect([spravce, dispecer, admin].map((a) => canIssueOrder(servis, a))).toEqual([true, true, true]);
     expect([cizi, asistent].map((a) => canIssueOrder(servis, a))).toEqual([false, false]);
@@ -399,14 +399,14 @@ describe('canIssueOrder', () => {
     expect(canIssueOrder(projekt, asistent)).toBe(true);
     expect(canIssueOrder(projekt, vedeni)).toBe(true);
     expect(canIssueOrder(projekt, admin)).toBe(true);
-    const cizi: Actor = { login: 'i:0#.f|membership|cizi@revoltum.cz', displayName: 'Cizí', roles: [Role.ProjektovyManazer] };
+    const cizi: Actor = { login: 'i:0#.f|membership|cizi@selato.cz', displayName: 'Cizí', roles: [Role.ProjektovyManazer] };
     expect(canIssueOrder(projekt, cizi)).toBe(false);
   });
 
   it('na Režii smí kdokoli s objednávající rolí (přístup k Režii hlídá SharePoint), čtenář ne', () => {
-    const cizi: Actor = { login: 'i:0#.f|membership|cizi@revoltum.cz', displayName: 'Cizí', roles: [Role.ProjektovyManazer] };
+    const cizi: Actor = { login: 'i:0#.f|membership|cizi@selato.cz', displayName: 'Cizí', roles: [Role.ProjektovyManazer] };
     expect(canIssueOrder(rezie, cizi)).toBe(true);
-    const ctenar: Actor = { login: 'i:0#.f|membership|ctenar@revoltum.cz', displayName: 'Čtenář', roles: [Role.Ctenar] };
+    const ctenar: Actor = { login: 'i:0#.f|membership|ctenar@selato.cz', displayName: 'Čtenář', roles: [Role.Ctenar] };
     expect(canIssueOrder(rezie, ctenar)).toBe(false);
   });
 });
@@ -443,7 +443,7 @@ describe('availableActions / isWaitingFor', () => {
   });
 
   it('nepříslušný uživatel nemá žádná tlačítka', () => {
-    const cizi: Actor = { login: 'i:0#.f|membership|cizi@revoltum.cz', displayName: 'Cizí', roles: [Role.Ctenar] };
+    const cizi: Actor = { login: 'i:0#.f|membership|cizi@selato.cz', displayName: 'Cizí', roles: [Role.Ctenar] };
     expect(availableActions(kSchvaleni, projekt, cizi)).toEqual([]);
   });
 
@@ -539,7 +539,7 @@ describe('přiřazený schvalovatel', () => {
   });
 
   it('žadatel může jako PM-schvalovatele určit i jiného člověka než PM projektu', () => {
-    const jinyPm: Actor = { login: 'i:0#.f|membership|jiny@revoltum.cz', displayName: 'Jiný PM', roles: [Role.ProjektovyManazer] };
+    const jinyPm: Actor = { login: 'i:0#.f|membership|jiny@selato.cz', displayName: 'Jiný PM', roles: [Role.ProjektovyManazer] };
     const z = submitOrder(objednavka(), ctx(asistent), { pm: { login: jinyPm.login, name: jinyPm.displayName } });
     const o = objednavka({ status: z.status, approvalChain: z.approvalChain, currentApprovalLevel: z.currentApprovalLevel });
     expect(() => decideOrder(o, 'approve', '', ctx(pm))).toThrow(/Jiný PM/);
@@ -643,7 +643,7 @@ describe('reassignApprover', () => {
   });
 
   it('změnit smí jen ten, kdo s objednávkou smí nakládat; u objednávky mimo schvalování to nejde', () => {
-    const cizi: Actor = { login: 'i:0#.f|membership|cizi@revoltum.cz', displayName: 'Cizí', roles: [Role.ProjektovyManazer] };
+    const cizi: Actor = { login: 'i:0#.f|membership|cizi@selato.cz', displayName: 'Cizí', roles: [Role.ProjektovyManazer] };
     expect(() => reassignApprover(kSchvaleni, 'vedeni', undefined, ctx(cizi))).toThrow(/spravovat/);
     expect(() => reassignApprover(objednavka(), 'pm', undefined, ctx(asistent))).toThrow(WorkflowError);
   });
@@ -664,7 +664,7 @@ describe('přílohy', () => {
   });
 
   it('cizí člověk přílohu nepřidá', () => {
-    const cizi: Actor = { login: 'i:0#.f|membership|cizi@revoltum.cz', displayName: 'Cizí', roles: [Role.ProjektovyManazer] };
+    const cizi: Actor = { login: 'i:0#.f|membership|cizi@selato.cz', displayName: 'Cizí', roles: [Role.ProjektovyManazer] };
     expect(canAddAttachment(objednavka(), projekt, cizi)).toBe(false);
   });
 
@@ -766,7 +766,7 @@ describe('opakované odeslání dodavateli a mazání', () => {
 
   it('neodeslanou ani cizí objednávku znovu odeslat nejde', () => {
     expect(() => resendOrder(objednavka({ status: OrderStatus.Schvaleno }), ctx(asistent))).toThrow(WorkflowError);
-    const cizi: Actor = { login: 'i:0#.f|membership|cizi@revoltum.cz', displayName: 'Cizí', roles: [Role.ProjektovyManazer] };
+    const cizi: Actor = { login: 'i:0#.f|membership|cizi@selato.cz', displayName: 'Cizí', roles: [Role.ProjektovyManazer] };
     expect(() => resendOrder(odeslana, ctx(cizi))).toThrow(/spravovat/);
   });
 

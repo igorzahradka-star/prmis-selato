@@ -11,10 +11,10 @@ import { WorkflowProject } from './orderWorkflow';
 import { Role } from './types';
 import { RoleMembership } from './userAdmin';
 
-const PM = 'i:0#.f|membership|pm@revoltum.cz';
-const ANNA = 'i:0#.f|membership|anna@revoltum.cz';
-const VIKTOR = 'i:0#.f|membership|viktor@revoltum.cz';
-const VERA = 'i:0#.f|membership|vera@revoltum.cz';
+const PM = 'i:0#.f|membership|pm@selato.cz';
+const ANNA = 'i:0#.f|membership|anna@selato.cz';
+const VIKTOR = 'i:0#.f|membership|viktor@selato.cz';
+const VERA = 'i:0#.f|membership|vera@selato.cz';
 
 const projekt: WorkflowProject = {
   projectNumber: '25003',
@@ -29,15 +29,15 @@ const cleny: RoleMembership[] = [
     groupName: 'PRM Vedení',
     groupExists: true,
     members: [
-      { id: 1, loginName: VIKTOR, displayName: 'Viktor Vedení', email: 'viktor@revoltum.cz' },
-      { id: 2, loginName: VERA, displayName: 'Vera Vedení', email: 'vera@revoltum.cz' }
+      { id: 1, loginName: VIKTOR, displayName: 'Viktor Vedení', email: 'viktor@selato.cz' },
+      { id: 2, loginName: VERA, displayName: 'Vera Vedení', email: 'vera@selato.cz' }
     ]
   },
   {
     role: Role.Jednatel,
     groupName: 'PRM Jednatelé',
     groupExists: true,
-    members: [{ id: 3, loginName: 'i:0#.f|membership|jednatel@revoltum.cz', displayName: 'Jan Jednatel' }]
+    members: [{ id: 3, loginName: 'i:0#.f|membership|jednatel@selato.cz', displayName: 'Jan Jednatel' }]
   }
 ];
 
@@ -62,7 +62,7 @@ function objednavka(extra: Partial<PurchaseOrder> = {}): PurchaseOrder {
 
 describe('emailFromLogin', () => {
   it('vytáhne e-mail z přihlašovacího jména Microsoftu 365', () => {
-    expect(emailFromLogin(PM)).toBe('pm@revoltum.cz');
+    expect(emailFromLogin(PM)).toBe('pm@selato.cz');
   });
   it('u skupin a hostů vrátí undefined', () => {
     expect(emailFromLogin('c:0t.c|tenant|abc-def')).toBeUndefined();
@@ -74,23 +74,23 @@ describe('emailFromLogin', () => {
 describe('approvalRecipients', () => {
   it('bez přiřazeného schvalovatele dostanou upozornění všichni z role vedení', () => {
     const r = approvalRecipients(objednavka(), projekt, cleny);
-    expect(r.map((x) => x.email)).toEqual(['viktor@revoltum.cz', 'vera@revoltum.cz']);
+    expect(r.map((x) => x.email)).toEqual(['viktor@selato.cz', 'vera@selato.cz']);
   });
 
   it('s přiřazeným schvalovatelem dostane upozornění jen on', () => {
     const o = objednavka({ approvalChain: [{ level: 'vedeni', approved: false, assignedLogin: VERA, assignedName: 'Vera Vedení' }] });
-    expect(approvalRecipients(o, projekt, cleny).map((x) => x.email)).toEqual(['vera@revoltum.cz']);
+    expect(approvalRecipients(o, projekt, cleny).map((x) => x.email)).toEqual(['vera@selato.cz']);
   });
 
   it('krok PM jde projektovému manažerovi (e-mail z přihlašovacího jména)', () => {
     const o = objednavka({ approvalChain: [{ level: 'pm', approved: false }], currentApprovalLevel: 'pm' });
     const r = approvalRecipients(o, projekt, cleny);
-    expect(r).toEqual([{ email: 'pm@revoltum.cz', name: 'Petr Manažer' }]);
+    expect(r).toEqual([{ email: 'pm@selato.cz', name: 'Petr Manažer' }]);
   });
 
   it('u jednatele použije e-mail z přihlašovacího jména, když ho skupina nezná', () => {
     const o = objednavka({ approvalChain: [{ level: 'jednatel', approved: false }], currentApprovalLevel: 'jednatel' });
-    expect(approvalRecipients(o, projekt, cleny).map((x) => x.email)).toEqual(['jednatel@revoltum.cz']);
+    expect(approvalRecipients(o, projekt, cleny).map((x) => x.email)).toEqual(['jednatel@selato.cz']);
   });
 
   it('bere první nevyřízený krok, ne už schválený', () => {
@@ -100,12 +100,12 @@ describe('approvalRecipients', () => {
         { level: 'vedeni', approved: false, assignedLogin: VIKTOR, assignedName: 'Viktor Vedení' }
       ]
     });
-    expect(approvalRecipients(o, projekt, cleny).map((x) => x.email)).toEqual(['viktor@revoltum.cz']);
+    expect(approvalRecipients(o, projekt, cleny).map((x) => x.email)).toEqual(['viktor@selato.cz']);
   });
 
   it('vystavitele neupozorňuje na jeho vlastní objednávku', () => {
     const o = objednavka({ requestedByLogin: VIKTOR });
-    expect(approvalRecipients(o, projekt, cleny).map((x) => x.email)).toEqual(['vera@revoltum.cz']);
+    expect(approvalRecipients(o, projekt, cleny).map((x) => x.email)).toEqual(['vera@selato.cz']);
   });
 
   it('mimo stav Ke schválení nikomu nic neposílá', () => {
@@ -115,7 +115,7 @@ describe('approvalRecipients', () => {
 
 describe('requesterRecipient, orderLink a texty', () => {
   it('vystavitel dostane zprávu na e-mail z přihlašovacího jména', () => {
-    expect(requesterRecipient(objednavka(), cleny)).toEqual({ email: 'anna@revoltum.cz', name: 'Anna Asistentka' });
+    expect(requesterRecipient(objednavka(), cleny)).toEqual({ email: 'anna@selato.cz', name: 'Anna Asistentka' });
   });
 
   it('odkaz míří přímo na objednávku a nahradí starý hash', () => {

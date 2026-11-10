@@ -40,8 +40,8 @@ function delay<T>(value: T, ms: number = 150): Promise<T> {
   return new Promise((resolve) => setTimeout(() => resolve(value), ms));
 }
 
-const MARTIN = { login: 'i:0#.f|membership|martin.svoboda@revoltum.cz', name: 'Martin Svoboda' };
-const JAN = { login: 'i:0#.f|membership|jan.novak@revoltum.cz', name: 'Jan Novák' };
+const MARTIN = { login: 'i:0#.f|membership|martin.svoboda@selato.cz', name: 'Martin Svoboda' };
+const JAN = { login: 'i:0#.f|membership|jan.novak@selato.cz', name: 'Jan Novák' };
 
 export const MOCK_DIARIES: SiteDiary[] = [
   { id: 1, projectNumber: '25002', title: 'Hlavní deník', isActive: true, created: new Date(2026, 7, 10) },
@@ -67,10 +67,10 @@ export function mockEntries(settings: AppSettings): DiaryEntry[] {
       entryNo: 1,
       date: new Date(2026, 8, 3),
       folderPath: entryFolderPath(settings.folders.diaryFolder, 'Hlavní deník', 1),
-      header: header('FVE AgroFarma Lipnice', 'Lipnice nad Sázavou', 'Jan Novák', 'FVE Komponenty s.r.o.'),
+      header: header('Výrobní automatizace AgroFarma Lipnice', 'Lipnice nad Sázavou', 'Jan Novák', 'Komponenty pro automatizaci s.r.o.'),
       participants: [
-        { name: 'Jan Novák', organization: 'Revoltum Engineering & Services', role: 'projektový manažer', present: true },
-        { name: 'Karel Dvořák', organization: 'FVE Komponenty s.r.o.', role: 'stavbyvedoucí dodavatele', present: true }
+        { name: 'Jan Novák', organization: 'SELATO s.r.o.', role: 'projektový manažer', present: true },
+        { name: 'Karel Dvořák', organization: 'Komponenty pro automatizaci s.r.o.', role: 'stavbyvedoucí dodavatele', present: true }
       ],
       points: [
         { title: 'Převzetí staveniště', text: 'Staveniště převzato bez závad. Přístup po stávající komunikaci, oplocení doplní dodavatel do 10. 9.', files: [] },
@@ -98,8 +98,8 @@ export function mockEntries(settings: AppSettings): DiaryEntry[] {
       entryNo: 2,
       date: new Date(2026, 8, 24),
       folderPath: entryFolderPath(settings.folders.diaryFolder, 'Hlavní deník', 2),
-      header: header('FVE AgroFarma Lipnice', 'Lipnice nad Sázavou', 'Jan Novák', 'FVE Komponenty s.r.o.'),
-      participants: [{ name: 'Karel Dvořák', organization: 'FVE Komponenty s.r.o.', present: true }],
+      header: header('Výrobní automatizace AgroFarma Lipnice', 'Lipnice nad Sázavou', 'Jan Novák', 'Komponenty pro automatizaci s.r.o.'),
+      participants: [{ name: 'Karel Dvořák', organization: 'Komponenty pro automatizaci s.r.o.', present: true }],
       points: [{ title: 'Kontrola základů', text: 'Základy pod konstrukce dokončeny, provedena kontrola rozměrů.', files: [] }],
       tasks: [],
       status: EntryStatus.Uzavreno,
@@ -118,7 +118,7 @@ export function mockEntries(settings: AppSettings): DiaryEntry[] {
       entryNo: 1,
       date: new Date(2026, 8, 29),
       folderPath: entryFolderPath(settings.folders.diaryFolder, 'Hlavní deník', 1),
-      header: header('BESS Teplárna Chotěboř', 'Chotěboř', 'Jan Novák'),
+      header: header('Procesní automatizace Teplárna Chotěboř', 'Chotěboř', 'Jan Novák'),
       participants: [],
       points: [{ title: '', text: '', files: [] }],
       tasks: [],

@@ -13,6 +13,6 @@ describe('mazání partnerů', () => {
     expect(describeUsage(NO_USAGE)).toBe('');
     const u = { projects: 1, orders: 3, invoices: 5, cases: 2 };
     expect(usageTotal(u)).toBe(11);
-    expect(describeUsage(u)).toBe('1 projekt (jako zákazník), 3 objednávky (jako dodavatel), 5 podkladů pro fakturaci, 2 obchodní případy v RES CRM');
+    expect(describeUsage(u)).toBe('1 projekt (jako zákazník), 3 objednávky (jako dodavatel), 5 podkladů pro fakturaci, 2 obchodní případy v SELCRM');
   });
 });

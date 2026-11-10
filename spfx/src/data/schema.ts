@@ -1,5 +1,5 @@
 /**
- * Popis datové struktury PRM Revoltum.
+ * Popis datové struktury PRMIS.
  *
  * Tento soubor je JEDINÝ zdroj pravdy o tom, jak vypadají SharePoint seznamy.
  * Instalační průvodce (Správa → Instalace a diagnostika) podle něj:
@@ -20,7 +20,7 @@ import { ALL_MODULES, AppModule, AppModules, withEnabledModules } from '../core/
  * Verze schématu. Ukládá se do PRM_Settings pod klíčem `schemaVersion`.
  * Průvodce porovná uloženou verzi s touto a nabídne doplnění rozdílu.
  */
-export const SCHEMA_VERSION = 36;
+export const SCHEMA_VERSION = 37;
 
 /** Typ sloupce v SharePointu. */
 export type FieldType =
@@ -208,7 +208,7 @@ const PRM_PROJECTS: ListDef = {
     { name: 'ProjectManager', title: 'Projektový manažer', type: 'User', indexed: true },
     { name: 'Assistants', title: 'Asistenti', type: 'UserMulti' },
     { name: 'ProjectStatus', title: 'Stav', type: 'Choice', choices: PROJECT_STATUS_CHOICES, defaultValue: 'Nabídka', indexed: true },
-    { name: 'ProjectType', title: 'Typ projektu', type: 'Choice', choices: ['FVE', 'BESS', 'MVE', 'Vítr', 'Kogenerace', 'Připojení DS', 'Servis', 'Režie', 'Jiné'], indexed: true },
+    { name: 'ProjectType', title: 'Typ projektu', type: 'Choice', choices: ['Výrobní automatizace', 'Procesní automatizace', 'MVE', 'Vítr', 'Kogenerace', 'Připojení DS', 'Servis', 'Režie', 'Jiné'], indexed: true },
     { name: 'ProjectYear', title: 'Rok', type: 'Number', decimals: 0, indexed: true, description: 'Rok projektu – pro filtrování dashboardu.' },
     { name: 'Location', title: 'Lokalita', type: 'Text' },
     { name: 'Latitude', title: 'Zeměpisná šířka', type: 'Number', decimals: 6, description: 'Poloha projektu na mapě. Nastavuje se v úpravě projektu výběrem místa na mapě.' },

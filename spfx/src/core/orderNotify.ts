@@ -19,7 +19,7 @@ export interface Recipient {
 }
 
 /**
- * Z přihlašovacího jména SharePointu (`i:0#.f|membership|jan.novak@revoltum.cz`) vytáhne e-mail.
+ * Z přihlašovacího jména SharePointu (`i:0#.f|membership|jan.novak@selato.cz`) vytáhne e-mail.
  * Funguje u běžných účtů Microsoftu 365; jinde (skupiny, externí hosté s `#ext#`) vrátí `undefined`.
  */
 export function emailFromLogin(login: string | undefined): string | undefined {
@@ -148,7 +148,7 @@ export function approvalRequestMail(input: ApprovalMailInput): { subject: string
     'Objednávku otevřete a schválíte (nebo vrátíte) tady:',
     input.link,
     '',
-    'Tento e-mail odeslala aplikace PRM Revoltum jménem vystavitele.',
+    'Tento e-mail odeslala aplikace PRMIS jménem vystavitele.',
     input.companyName
   ];
   return { subject: `Ke schválení: objednávka ${input.orderNumber} – ${input.subject || input.projectNumber}`, body: lines.join('\n') };
@@ -232,7 +232,7 @@ export function invoiceCheckMail(input: InvoiceMailInput): { subject: string; bo
     'Podklad otevřete, zkontrolujete a předáte účtárně (nebo vrátíte) tady:',
     input.link,
     '',
-    'Tento e-mail odeslala aplikace PRM Revoltum jménem vystavitele.',
+    'Tento e-mail odeslala aplikace PRMIS jménem vystavitele.',
     input.companyName
   ];
   return { subject: `Ke kontrole: podklad pro fakturaci ${input.number} – ${input.customerName || input.projectNumber}`, body: lines.join('\n') };
