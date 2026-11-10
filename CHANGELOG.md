@@ -5,6 +5,10 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.69.2 — 10. 11. 2026 — Přehled projektů po stránkách
+
+- **Přehled projektů** ukazuje nejvýš **9 projektů** na stránku, pod seznamem jsou tlačítka **Předchozí / Další** a počet („Projekty 1–9 z 85“). Hledání, filtry a řazení platí pro všechny projekty; po jejich změně se seznam vrátí na první stránku. Beze změny schématu.
+
 ## 0.69.1 — 10. 11. 2026 — Import partnerů z Excelu
 
 - **Nastavení → Jednorázové akce → Import partnerů:** zákazníky a dodavatele jde založit ze sešitu Excelu (.xlsx, list „Import“) nebo ze zkopírovaných buněk. Okno nejdřív ukáže náhled: které řádky se založí, které se přeskočí jako duplicita (stejné IČO ve stejné zemi) a které mají chybu (např. špatná kontrolní číslice českého IČO). Zakládá až po potvrzení, s ukazatelem průběhu; import jde opakovat, už založení partneři se přeskočí. Existující partnery nemění. Beze změny schématu.

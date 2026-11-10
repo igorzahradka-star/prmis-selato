@@ -9,13 +9,14 @@ import * as React from 'react';
 import { DetailsList, DetailsListLayoutMode, IColumn, SelectionMode } from '@fluentui/react/lib/DetailsList';
 import { SearchBox } from '@fluentui/react/lib/SearchBox';
 import { Dropdown, IDropdownOption } from '@fluentui/react/lib/Dropdown';
-import { PrimaryButton } from '@fluentui/react/lib/Button';
+import { DefaultButton, PrimaryButton } from '@fluentui/react/lib/Button';
 import { Spinner, SpinnerSize } from '@fluentui/react/lib/Spinner';
 import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
 import { Link } from '@fluentui/react/lib/Link';
 import { useApp } from '../../ui/AppContext';
 import { loadProjectManagerNames } from './projectManagers';
 import { DEFAULT_SORT, ProjectSortKey, sortProjects } from '../../core/projectSort';
+import { pageSlice } from '../../core/paging';
 import { projectFigures } from '../../core/projectFigures';
 import { isHiddenByDefault, quickStatusChange } from '../../core/projectStatus';
 import { Toggle } from '@fluentui/react/lib/Toggle';
@@ -36,6 +37,9 @@ import { CurrencySwitch } from '../../ui/components/CurrencySwitch';
 import { StickyHScroll } from '../../ui/components/StickyHScroll';
 import { canCreateProject, canEditProject } from '../../core/roles';
 import streakUrl from '../../webparts/prm/assets/kpi-streak.png';
+
+/** Kolik projektů je v přehledu na jedné stránce (aby se seznam nemusel dlouze rolovat). */
+export const PROJECTS_PER_PAGE = 9;
 
 /** Stejný diagonální přechod (tmavá → navy → modrá) jako v grafickém manuálu RES. */
 const HERO_GRADIENT = `linear-gradient(135deg, ${RES.text} 0%, ${RES.navyDark} 55%, ${RES.blue} 100%)`;
@@ -102,6 +106,7 @@ export const DashboardPage: React.FC = () => {
   );
   const [columnOrder, setColumnOrder] = React.useState<string[] | undefined>(() => loadColumnOrder(user.loginName));
   const [busyNumber, setBusyNumber] = React.useState<string | undefined>(undefined);
+  const [page, setPage] = React.useState(0);
   const [statusError, setStatusError] = React.useState<string | undefined>(undefined);
   const [statusNote, setStatusNote] = React.useState<string | undefined>(undefined);
   const report = useReportCurrency();
@@ -161,6 +166,13 @@ export const DashboardPage: React.FC = () => {
   }, [repos]);
 
   React.useEffect(() => saveView({ search, statuses, pms, sort }), [search, statuses.join(','), pms.join(','), sort.key, sort.descending]);
+
+  // Po změně filtru nebo řazení začít zase od první stránky.
+  React.useEffect(() => setPage(0), [search, statuses.join(','), pms.join(','), sort.key, sort.descending, hideFinished]);
+
+  const shown = projects
+    ? pageSlice(sortProjects(projects, sort.key, sort.descending, (p) => figuresOf(p, report, spent).price), page, PROJECTS_PER_PAGE)
+    : undefined;
 
   /** Změna stavu přímo ze seznamu — zapíše jen stav, ostatní údaje projektu zůstanou. */
   const changeStatus = (p: Project, status: ProjectStatus): void => {
@@ -344,7 +356,7 @@ export const DashboardPage: React.FC = () => {
       {projects && projects.length > 0 && (
         <StickyHScroll scrollSelector=".ms-DetailsList">
           <DetailsList
-            items={sortProjects(projects, sort.key, sort.descending, (p) => figuresOf(p, report, spent).price)}
+            items={shown ? shown.items : []}
             columns={displayedColumns}
             columnReorderOptions={{
               // Přetažením záhlaví si každý uloží pořadí sloupců po svém.
@@ -365,6 +377,26 @@ export const DashboardPage: React.FC = () => {
             ariaLabelForGrid="Seznam projektů"
           />
         </StickyHScroll>
+      )}
+
+      {shown && shown.pageCount > 1 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 10, fontSize: 13 }}>
+          <DefaultButton
+            iconProps={{ iconName: 'ChevronLeft' }}
+            text="Předchozí"
+            disabled={shown.page === 0}
+            onClick={() => setPage(shown.page - 1)}
+          />
+          <span aria-live="polite">
+            Projekty <strong>{shown.from}–{shown.to}</strong> z {shown.total} · stránka {shown.page + 1} z {shown.pageCount}
+          </span>
+          <DefaultButton
+            iconProps={{ iconName: 'ChevronRight' }}
+            text="Další"
+            disabled={shown.page >= shown.pageCount - 1}
+            onClick={() => setPage(shown.page + 1)}
+          />
+        </div>
       )}
     </>
   );
