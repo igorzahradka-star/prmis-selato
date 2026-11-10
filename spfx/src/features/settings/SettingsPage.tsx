@@ -39,6 +39,7 @@ import { folderSettingsWarnings } from '../../core/projectFolders';
 import { overheadProjectNumber } from '../../core/overhead';
 import { OVERHEAD_ACCESS_ROLES, accessGroupsForRoles } from '../../core/projectAccess';
 import { parseListText, sameList } from '../../core/listText';
+import { templateToText, textToTemplate } from '../../core/folderTemplateText';
 import { buildHash, RouteName } from '../../ui/router';
 import { ImportProjectsPanel } from '../admin/ImportProjectsPanel';
 import { RatesTab } from './RatesTab';
@@ -208,7 +209,7 @@ export const SettingsPage: React.FC = () => {
             />
             <FolderTemplateEditor
               label="Šablona složek projektu Režie"
-              description="Režie má jinou strukturu než běžný projekt. Složka Režie je 99900-Režie/rok; tato šablona se zakládá uvnitř roku. Jedna složka na řádek, podsložku odsaďte dvěma mezerami."
+              description={`Režie má jinou strukturu než běžný projekt. Složka Režie je 99900-Režie/rok; tato šablona se zakládá uvnitř roku. ${FOLDER_TEMPLATE_HINT}`}
               rows={6}
               template={draft.folders.overheadTemplate}
               onChange={(overheadTemplate) => patch('folders', { overheadTemplate })}
@@ -914,8 +915,12 @@ const ListEditor: React.FC<{
   );
 };
 
+/** Nápověda pod editorem šablony složek. */
+const FOLDER_TEMPLATE_HINT =
+  'Jedna složka na řádek. Podsložku odsaďte dvěma mezerami, další úroveň čtyřmi atd. (např. A_Projektový management → _Smluvní dokumenty → _Nabídka). Hloubka není omezená.';
+
 /**
- * Editor stromu složek. Odsazení dvěma mezerami = podsložka.
+ * Editor stromu složek. Každé odsazení o dvě mezery = o úroveň hlubší podsložka (libovolná hloubka).
  *
  * Proč textové pole a ne přetahovací strom: struktura má 8–12 položek
  * a mění se výjimečně. Text se dá zkopírovat, poslat kolegovi a vrátit zpět —
@@ -941,7 +946,7 @@ const FolderTemplateEditor: React.FC<{
   return (
     <TextField
       label={label || 'Šablona složek projektu'}
-      description={description || 'Jedna složka na řádek. Podsložku odsaďte dvěma mezerami.'}
+      description={description || FOLDER_TEMPLATE_HINT}
       multiline
       rows={rows || 12}
       value={text}
@@ -954,39 +959,3 @@ const FolderTemplateEditor: React.FC<{
   );
 };
 
-/** Strom složek → text. */
-export function templateToText(nodes: FolderTemplateNode[], level: number = 0): string {
-  return nodes
-    .map((n) => {
-      const line = `${'  '.repeat(level)}${n.name}`;
-      const children = n.children && n.children.length > 0
-        ? `\n${templateToText(n.children, level + 1)}`
-        : '';
-      return line + children;
-    })
-    .join('\n');
-}
-
-/**
- * Text → strom složek.
- * Podporuje dvě úrovně; hlubší odsazení se připojí k nejbližší nadřazené složce.
- */
-export function textToTemplate(text: string): FolderTemplateNode[] {
-  const result: FolderTemplateNode[] = [];
-  text.split('\n').forEach((rawLine) => {
-    const line = rawLine.replace(/\t/g, '  ');
-    const name = line.trim();
-    if (!name) {
-      return;
-    }
-    const indent = line.length - line.replace(/^ +/, '').length;
-    if (indent === 0 || result.length === 0) {
-      result.push({ name });
-    } else {
-      const parent = result[result.length - 1];
-      parent.children = parent.children || [];
-      parent.children.push({ name });
-    }
-  });
-  return result;
-}

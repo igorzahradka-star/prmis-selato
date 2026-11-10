@@ -5,6 +5,11 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.68.1 — 10. 11. 2026 — Šablona složek s libovolnou hloubkou (SELATO)
+
+- **Nastavení → Složky:** editor šablony složek projektu (i Režie) teď čte **libovolnou hloubku** podsložek: každé další odsazení o dvě mezery = o úroveň hlubší (např. `A_Projektový management` → `_Smluvní dokumenty` → `_Nabídka`). Dřív se třetí úroveň připojila o patro výš a při uložení se struktura rozbila. Popisek pod polem to vysvětluje.
+- Převod text ↔ strom je v `core/folderTemplateText.ts` s testy. Beze změny schématu (stačí nahrát balíček).
+
 ## 0.66.0 — 17. 10. 2026 — Import účetního deníku z XML
 
 - Nová záložka **Projekty → Kontroly projektů → Import z Abry (XML)** (administrátor, vedení, jednatel, finance): nahrajete ruční XML export evidence **Účetní deník** (všechny projekty), aplikace ukáže **náhled** (nové / změněné / beze změny řádky, součty nákladů a výnosů po zakázkách, přeskočené zápisy, přesunuté řádky) a teprve po potvrzení zapíše do seznamu dokladů z Abry.
