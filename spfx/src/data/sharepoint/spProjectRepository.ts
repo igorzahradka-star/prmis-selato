@@ -21,7 +21,7 @@ import {
   accessGroupsForRoles,
   canManageProjectAccess
 } from '../../core/projectAccess';
-import { buildProjectFolderPlan, projectFolderName, projectFolderRoot } from '../../core/folders';
+import { buildProjectFolderPlan, folderLinkMismatch, folderLinkMismatchMessage, projectFolderName, projectFolderRoot } from '../../core/folders';
 import { yearFromNumber } from '../../core/projectImport';
 import { ProjectOverview, overviewFromJson, overviewToJson } from '../../core/projectOverview';
 import { FolderMap, analyzeFolderLink, defaultFolderMap, folderMapFromJson, folderMapToJson } from '../../core/projectFolders';
@@ -1083,13 +1083,15 @@ export class SpProjectRepository implements IProjectRepository {
     return result;
   }
 
-  public async retryCreateFolders(projectNumber: string): Promise<void> {
+  public async retryCreateFolders(projectNumber: string, options?: { keepExistingLink?: boolean }): Promise<void> {
     const project = await this.getByNumber(projectNumber);
     if (!project) {
       throw new Error(`Projekt ${projectNumber} nebyl nalezen.`);
     }
+    const keepExistingLink = options?.keepExistingLink === true;
+    let folderUrl: string | undefined;
     try {
-      const folderUrl = await this.createProjectFolders(project);
+      folderUrl = await this.createProjectFolders(project, keepExistingLink);
       if (folderUrl) {
         const sp = getSp(this.context);
         await sp.web.lists
@@ -1098,7 +1100,14 @@ export class SpProjectRepository implements IProjectRepository {
           .update({ FolderUrl: { Url: folderUrl, Description: project.title } });
       }
     } catch (error) {
+      if ((error as FolderLinkMismatch).folderLinkMismatch) {
+        throw error;
+      }
       throw new Error(describeSpError(error, 'Založení složek se znovu nepodařilo'));
+    }
+    if (!folderUrl && keepExistingLink) {
+      // createProjectFolders nic nezaložila, protože v Nastavení chybí knihovna — nehlásit uživateli úspěch.
+      throw new Error('Složky se nezaložily: v Nastavení → Složky není vyplněná knihovna dokumentů.');
     }
   }
 
@@ -1122,7 +1131,7 @@ export class SpProjectRepository implements IProjectRepository {
    * kořenovou složku projektu. `undefined`, pokud v Nastavení není
    * vyplněná knihovna (nedá se tedy nic založit).
    */
-  private async createProjectFolders(project: Project): Promise<string | undefined> {
+  private async createProjectFolders(project: Project, keepExistingLink: boolean = false): Promise<string | undefined> {
     const settings = await this.settings.get();
     const folders = settings.folders;
     if (!folders.libraryTitle.trim()) {
@@ -1147,6 +1156,13 @@ export class SpProjectRepository implements IProjectRepository {
     );
     const rootRelative = projectFolderRoot(folders, folderName, folderDate, overheadYear);
     const rootCount = rootRelative.split('/').length;
+
+    // Pojistka „Doplnit chybějící složky“: odkaz vede jinam (jiný název nebo kořen) → nic nezakládat, jinak by vznikla druhá složka projektu.
+    if (keepExistingLink && folderLinkMismatch(project.folderUrl, `${libraryRoot}/${rootRelative}`)) {
+      const mismatch = new Error(folderLinkMismatchMessage(project.folderUrl as string, `${libraryRoot}/${rootRelative}`));
+      (mismatch as FolderLinkMismatch).folderLinkMismatch = true;
+      throw mismatch;
+    }
 
     // Kořenová složka projektu (a složky nad ní) se zakládá přesně. Podsložky šablony se **hledají tolerantně** (číslo na začátku,
     // pomlčka/podtržítko, diakritika) a zakládají se jen ty, které opravdu chybí — opakované zakládání tak nevyrobí duplicity.
@@ -1398,6 +1414,11 @@ export function mapStatus(value: string | undefined): ProjectStatus {
     return ProjectStatus.Dokonceno;
   }
   return (value as ProjectStatus) ?? ProjectStatus.Nabidka;
+}
+
+/** Chyba „odkaz na složku vede jinam“ — propouští se k uživateli beze změny textu (ne přes `describeSpError`). */
+interface FolderLinkMismatch {
+  folderLinkMismatch?: boolean;
 }
 
 /** Rok ze zaimportovaného čísla `26001` → 2026. Když se nedá přečíst, dnešek. */

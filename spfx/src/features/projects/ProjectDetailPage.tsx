@@ -52,7 +52,7 @@ export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projec
   const [tab, setTab] = React.useState('prehled');
   const [overviewOpen, setOverviewOpen] = React.useState(false);
   const [foldersDialog, setFoldersDialog] = React.useState(false);
-  const [overheadBusy, setOverheadBusy] = React.useState(false);
+  const [foldersBusy, setFoldersBusy] = React.useState(false);
   const [foldersMessage, setFoldersMessage] = React.useState<{ ok: boolean; text: string } | undefined>(undefined);
 
   React.useEffect(() => {
@@ -106,7 +106,7 @@ export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projec
 
   /** Režie: založí složku `99900-Režie/<rok>` se šablonou Režie a nastaví odkaz na ni. Hledá tolerantně, zakládá jen to, co chybí. */
   const createOverheadFolders = (): void => {
-    setOverheadBusy(true);
+    setFoldersBusy(true);
     setFoldersMessage(undefined);
     repos.projects
       .retryCreateFolders(project.projectNumber)
@@ -115,11 +115,34 @@ export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projec
         if (p) {
           setProject(p);
         }
-        setOverheadBusy(false);
+        setFoldersBusy(false);
         setFoldersMessage({ ok: true, text: 'Složky Režie jsou založené a odkaz „Otevřít složku projektu“ míří na složku Režie.' });
       })
       .catch((e: Error) => {
-        setOverheadBusy(false);
+        setFoldersBusy(false);
+        setFoldersMessage({ ok: false, text: e.message });
+      });
+  };
+
+  /**
+   * Běžný projekt: doplní do složky projektu podsložky, které podle šablony chybějí. Nic nemaže ani nepřejmenovává.
+   * Když odkaz na složku vede jinam (např. po změně názvu projektu), nic nezaloží — datová vrstva vrátí vysvětlení.
+   */
+  const fillMissingFolders = (): void => {
+    setFoldersBusy(true);
+    setFoldersMessage(undefined);
+    repos.projects
+      .retryCreateFolders(project.projectNumber, { keepExistingLink: true })
+      .then(() => repos.projects.getByNumber(project.projectNumber))
+      .then((p) => {
+        if (p) {
+          setProject(p);
+        }
+        setFoldersBusy(false);
+        setFoldersMessage({ ok: true, text: 'Složky jsou doplněné podle šablony' });
+      })
+      .catch((e: Error) => {
+        setFoldersBusy(false);
         setFoldersMessage({ ok: false, text: e.message });
       });
   };
@@ -134,14 +157,24 @@ export const ProjectDetailPage: React.FC<{ projectNumber?: string }> = ({ projec
       iconProps: { iconName: 'FabricFolderConfirm' },
       onClick: () => setFoldersDialog(true)
     });
+    if (!project.isOverhead) {
+      settingsItems.push({
+        key: 'fillFolders',
+        text: foldersBusy ? 'Doplňuji složky…' : 'Doplnit chybějící složky podle šablony',
+        title: 'Založí ve složce projektu podsložky, které podle šablony z Nastavení chybějí. Nic nemaže ani nepřejmenovává.',
+        iconProps: { iconName: 'NewFolder' },
+        disabled: foldersBusy,
+        onClick: fillMissingFolders
+      });
+    }
   }
   if (project.isOverhead && canManageProjectAccess(user.roles)) {
     settingsItems.push({
       key: 'overheadFolders',
-      text: overheadBusy ? 'Zakládám složky Režie…' : 'Založit složky Režie',
+      text: foldersBusy ? 'Zakládám složky Režie…' : 'Založit složky Režie',
       title: 'Založí složku Režie (99900-Režie/rok) podle šablony Režie z Nastavení a nastaví odkaz na ni. Nic nemaže.',
       iconProps: { iconName: 'NewFolder' },
-      disabled: overheadBusy,
+      disabled: foldersBusy,
       onClick: createOverheadFolders
     });
   }

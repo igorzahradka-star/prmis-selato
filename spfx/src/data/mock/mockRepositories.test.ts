@@ -416,3 +416,49 @@ describe('MockProjectRepository.saveFolderMap', () => {
     await expect(r.saveFolderMap('99999', {}, admin)).rejects.toThrow(/nebyl nalezen/);
   });
 });
+
+describe('MockProjectRepository.retryCreateFolders — Doplnit chybějící složky podle šablony', () => {
+  const repo = (): MockProjectRepository => createMockRepositories().projects as MockProjectRepository;
+  const novy = { title: 'EKOL – Kotel Trmice', projectManagerName: 'Igor Zahrádka', currency: 'CZK' as const };
+
+  it('u nového projektu odkaz ponechá (složka se jmenuje podle šablony) a nic neohlásí', async () => {
+    const r = repo();
+    const { project } = await r.create(novy);
+    const odkaz = (await r.getByNumber(project.projectNumber))?.folderUrl;
+    expect(decodeURIComponent(odkaz || '')).toContain('EKOL_Kotel Trmice');
+    await expect(r.retryCreateFolders(project.projectNumber, { keepExistingLink: true })).resolves.toBeUndefined();
+    expect((await r.getByNumber(project.projectNumber))?.folderUrl).toBe(odkaz);
+  });
+
+  it('po změně názvu projektu nic nezaloží, odkaz nezmění a vysvětlí proč', async () => {
+    const r = repo();
+    const { project } = await r.create(novy);
+    const puvodniOdkaz = (await r.getByNumber(project.projectNumber))?.folderUrl;
+    await r.update(project.projectNumber, { title: 'EKOL – Jiný název', projectManagerName: 'Igor Zahrádka', status: ProjectStatus.Realizace, currency: 'CZK' });
+
+    await expect(r.retryCreateFolders(project.projectNumber, { keepExistingLink: true })).rejects.toThrow('nic se nezaložilo');
+    expect((await r.getByNumber(project.projectNumber))?.folderUrl).toBe(puvodniOdkaz);
+  });
+
+  it('bez pojistky (opakované založení po chybě) se odkaz nastaví podle šablony jako dřív', async () => {
+    const r = repo();
+    const { project } = await r.create(novy);
+    await r.update(project.projectNumber, { title: 'EKOL – Jiný název', projectManagerName: 'Igor Zahrádka', status: ProjectStatus.Realizace, currency: 'CZK' });
+    await r.retryCreateFolders(project.projectNumber);
+    expect(decodeURIComponent((await r.getByNumber(project.projectNumber))?.folderUrl || '')).toContain('Jiný název');
+  });
+
+  it('ukázkový projekt se zjednodušeným odkazem si odkaz ponechá', async () => {
+    const r = repo();
+    const seed = MOCK_PROJECTS.filter((p) => !p.isOverhead)[0];
+    await r.retryCreateFolders(seed.projectNumber, { keepExistingLink: true });
+    expect((await r.getByNumber(seed.projectNumber))?.folderUrl).toBe(seed.folderUrl);
+  });
+
+  it('rok složky se bere z čísla projektu, ne z dneška', async () => {
+    const r = repo();
+    const seed = MOCK_PROJECTS.filter((p) => !p.isOverhead && p.projectNumber.indexOf('25') === 0)[0];
+    await r.retryCreateFolders(seed.projectNumber);
+    expect(decodeURIComponent((await r.getByNumber(seed.projectNumber))?.folderUrl || '')).toContain('/2025/');
+  });
+});

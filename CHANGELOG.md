@@ -5,6 +5,12 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.68.2 — 10. 11. 2026 — Doplnit chybějící složky podle šablony
+
+- V detailu běžného projektu, v nabídce **ozubeného kolečka**, nová položka **Doplnit chybějící složky podle šablony** (vidí ji jen ten, kdo smí projekt upravovat). Založí ve složce projektu podsložky, které podle šablony z Nastavení chybějí — hodí se po změně šablony nebo u importovaných zakázek. **Nic nemaže ani nepřejmenovává.**
+- Pojistka: když odkaz „Otevřít složku projektu“ vede jinam, než kam by se podle šablony zakládalo (typicky po změně názvu projektu), nic se nezaloží a aplikace vypíše obě cesty — aby nevznikla druhá složka projektu.
+- Balíček je menší (2,6 MB): už neobsahuje nepoužívané vývojové kopie souborů. Beze změny schématu.
+
 ## 0.68.1 — 10. 11. 2026 — Šablona složek s libovolnou hloubkou (SELATO)
 
 - **Nastavení → Složky:** editor šablony složek projektu (i Režie) teď čte **libovolnou hloubku** podsložek: každé další odsazení o dvě mezery = o úroveň hlubší (např. `A_Projektový management` → `_Smluvní dokumenty` → `_Nabídka`). Dřív se třetí úroveň připojila o patro výš a při uložení se struktura rozbila. Popisek pod polem to vysvětluje.

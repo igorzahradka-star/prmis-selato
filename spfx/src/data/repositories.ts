@@ -277,8 +277,13 @@ export interface IProjectRepository {
    * žádné složky nezakládá, nemaže ani nepřesouvá. Smí PM, asistent a administrátor.
    */
   repairFolderLink(projectNumber: string, actor: CurrentUser): Promise<Project>;
-  /** Znovu založí složky u už uloženého projektu — pro tlačítko „Zkusit znovu založit složky". */
-  retryCreateFolders(projectNumber: string): Promise<void>;
+  /**
+   * Znovu založí složky u už uloženého projektu — pro tlačítko „Zkusit znovu založit složky" a „Doplnit chybějící složky podle šablony".
+   * Zakládá jen chybějící složky (hledá tolerantně), nic nemaže ani nepřejmenovává; nastaví odkaz na složku projektu.
+   * `keepExistingLink`: když projekt už má odkaz na složku a ten vede jinam, než kam by se podle šablony zakládalo
+   * (např. po změně názvu projektu), nic nezaloží a skončí chybou — jinak by vznikla druhá složka projektu a odkaz by se přesměroval.
+   */
+  retryCreateFolders(projectNumber: string, options?: { keepExistingLink?: boolean }): Promise<void>;
   /**
    * Změní **jen stav** projektu (a případně skutečné ukončení) — pro přepínač stavu
    * přímo v seznamu. Ostatní údaje projektu se nedotknou, proto je to samostatná operace

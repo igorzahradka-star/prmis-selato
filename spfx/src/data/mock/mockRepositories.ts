@@ -40,7 +40,8 @@ import {
   normalizeLoginKey
 } from '../../core/userAdmin';
 import { renderDocumentNumber, nextSequence, counterScopeKey, CounterState } from '../../core/numbering';
-import { projectFolderName, projectFolderRoot } from '../../core/folders';
+import { folderLinkMismatch, folderLinkMismatchMessage, projectFolderName, projectFolderRoot } from '../../core/folders';
+import { yearFromNumber } from '../../core/projectImport';
 import { ProjectRemovalPreview, ProjectRemovalResult } from '../../core/projectDeletion';
 import {
   overheadProjectNumber,
@@ -94,6 +95,9 @@ import {
   MOCK_TASKS,
   MOCK_USER
 } from './mockData';
+
+/** Začátek odkazu na „složku“ v ukázkovém režimu; za ním je zakódovaná cesta složky projektu. */
+const MOCK_FOLDER_PREFIX = '#/ukazkovy-rezim/slozka/';
 
 /** Umělé zdržení, aby bylo v UI vidět načítání stejně jako na ostro. */
 function delay<T>(value: T, ms: number = 180): Promise<T> {
@@ -606,24 +610,35 @@ export class MockProjectRepository implements IProjectRepository {
     return delay({ fixed: [], unchanged: this.projects.length, failed: [] });
   }
 
-  public async retryCreateFolders(projectNumber: string): Promise<void> {
+  public async retryCreateFolders(projectNumber: string, options?: { keepExistingLink?: boolean }): Promise<void> {
     const project = this.projects.filter((p) => p.projectNumber === projectNumber)[0];
     if (!project) {
       throw new Error(`Projekt ${projectNumber} nebyl nalezen.`);
     }
-    const error = await this.tryCreateFolders(project);
+    const error = await this.tryCreateFolders(project, options?.keepExistingLink === true);
     if (error) {
       throw new Error(error);
     }
   }
 
-  /** V ukázkovém režimu se nic nezakládá — jen se simuluje výsledek a nastaví se odkaz. */
-  private async tryCreateFolders(project: Project): Promise<string | undefined> {
+  /**
+   * V ukázkovém režimu se nic nezakládá — jen se simuluje výsledek a nastaví se odkaz. Chová se jako ostrá implementace:
+   * rok složky z čísla projektu (`26ZA00005` → 2026) a s `keepExistingLink` pojistka proti druhé složce projektu, když odkaz vede jinam.
+   * Ukázková data mají zjednodušené odkazy (`#/ukazkovy-rezim/slozka/2025/25001`); ty se berou jako správné.
+   */
+  private async tryCreateFolders(project: Project, keepExistingLink: boolean = false): Promise<string | undefined> {
     const settings = await this.settings.get();
-    // Rok podsložky = rok založení (dnešek), ne plánované zahájení projektu —
-    // odpovídá tak roku v přiděleném čísle, i při pozdějším opakovaném pokusu.
-    const root = projectFolderRoot(settings.folders, projectFolderName(project.projectNumber, project.title), new Date(), project.isOverhead ? new Date().getFullYear() : undefined);
-    const folderUrl = `#/ukazkovy-rezim/slozka/${encodeURIComponent(root || project.title)}`;
+    const year = yearFromNumber(project.projectNumber) ?? new Date().getFullYear();
+    const root = projectFolderRoot(settings.folders, projectFolderName(project.projectNumber, project.title), new Date(year, 0, 1), project.isOverhead ? year : undefined);
+    const folderUrl = `${MOCK_FOLDER_PREFIX}${encodeURIComponent(root || project.title)}`;
+    const seedLink = !!project.folderUrl && /^#\/ukazkovy-rezim\/slozka\/\d{4}\/[^/]+$/.test(project.folderUrl);
+    if (keepExistingLink && project.folderUrl && !seedLink && folderLinkMismatch(project.folderUrl.slice(MOCK_FOLDER_PREFIX.length), root)) {
+      return folderLinkMismatchMessage(project.folderUrl.slice(MOCK_FOLDER_PREFIX.length), root);
+    }
+    if (seedLink && keepExistingLink) {
+      // Ukázkový projekt si odkaz ponechá (simulace doplnění podsložek v jeho složce).
+      return undefined;
+    }
     this.projects = this.projects.map((p) => (p.id === project.id ? { ...p, folderUrl } : p));
     return undefined;
   }

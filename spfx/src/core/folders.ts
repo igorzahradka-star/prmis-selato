@@ -160,3 +160,45 @@ export function projectFolderName(projectNumber: string, title: string): string 
   const name = sanitizeFolderName(`${number}${withoutNumber ? '_' + withoutNumber : ''}`, PROJECT_FOLDER_NAME_MAX);
   return name || sanitizeFolderName(number) || 'projekt';
 }
+
+/**
+ * Cesta složky ve srovnávací podobě: bez adresy serveru (`https://firma.sharepoint.com`), dekódovaná (`%20` → mezera),
+ * bez koncového lomítka, malými písmeny. Funguje pro plnou adresu i pro cestu od kořene serveru (`/sites/…`).
+ */
+export function comparableFolderPath(urlOrPath: string): string {
+  return readableFolderPath(urlOrPath).toLowerCase();
+}
+
+/** Cesta složky k zobrazení: bez adresy serveru, dekódovaná, bez koncového lomítka (velikost písmen zůstane). */
+function readableFolderPath(urlOrPath: string): string {
+  let path = (urlOrPath || '').trim().replace(/^https?:\/\/[^/]+/i, '');
+  try {
+    path = decodeURIComponent(path);
+  } catch {
+    // Neplatné %xx — použije se tak, jak je.
+  }
+  return path.replace(/\/+$/, '');
+}
+
+/**
+ * Vede uložený odkaz na složku projektu **jinam**, než kam by se složky podle šablony zakládaly?
+ * Typicky po změně názvu projektu (název složky se skládá z čísla a názvu) nebo po změně kořenové složky v Nastavení.
+ * Doplňování složek se pak nesmí spustit — založilo by druhou, prázdnou složku projektu a odkaz by přesměrovalo na ni.
+ * Projekt bez odkazu se nepovažuje za rozpor (složky ještě nemá).
+ */
+export function folderLinkMismatch(folderUrl: string | undefined, expectedRootUrlOrPath: string): boolean {
+  if (!folderUrl || !folderUrl.trim()) {
+    return false;
+  }
+  return comparableFolderPath(folderUrl) !== comparableFolderPath(expectedRootUrlOrPath);
+}
+
+/** Text chyby pro `folderLinkMismatch` — stejný v ostrém i ukázkovém režimu. */
+export function folderLinkMismatchMessage(currentLink: string, expectedPath: string): string {
+  return (
+    'Odkaz „Otevřít složku projektu“ vede jinam, než kam by se složky podle šablony zakládaly ' +
+    `(odkaz: ${readableFolderPath(currentLink)}; podle šablony: ${readableFolderPath(expectedPath)}). ` +
+    'Obvykle je to po změně názvu projektu. Aby nevznikla druhá složka projektu, nic se nezaložilo. ' +
+    'Zkontrolujte odkaz v Nastavení projektu → Složky projektu.'
+  );
+}

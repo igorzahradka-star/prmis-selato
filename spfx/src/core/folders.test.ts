@@ -1,4 +1,4 @@
-import { buildProjectFolderPlan, findMatchingFolder, folderNameWithoutNumber, normalizeFolderName, projectFolderRoot } from './folders';
+import { buildProjectFolderPlan, comparableFolderPath, findMatchingFolder, folderLinkMismatch, folderLinkMismatchMessage, folderNameWithoutNumber, normalizeFolderName, projectFolderRoot } from './folders';
 import { DEFAULT_FOLDER_TEMPLATE, FolderSettings } from './settings';
 
 const BASE_SETTINGS: Pick<FolderSettings, 'rootFolder' | 'subfolderByYear' | 'template'> = {
@@ -126,5 +126,42 @@ describe('normalizeFolderName a findMatchingFolder', () => {
     expect(folderNameWithoutNumber('04-Zápisy')).toBe('zapisy');
     expect(folderNameWithoutNumber('2026-10-01_KD')).toBe('2026 10 01 kd');
     expect(folderNameWithoutNumber('12')).toBe('12');
+  });
+});
+
+describe('folderLinkMismatch', () => {
+  const root = '/sites/SELATOs.r.o/Shared Documents/OPERATIONS/01_PROJEKTY/2026/26ZA00005_EKOL_UL BM kotel';
+
+  test('stejná složka jako plná adresa s %20 a koncovým lomítkem = bez rozporu', () => {
+    const link = 'https://selatosro2025.sharepoint.com/sites/SELATOs.r.o/Shared%20Documents/OPERATIONS/01_PROJEKTY/2026/26ZA00005_EKOL_UL%20BM%20kotel/';
+    expect(folderLinkMismatch(link, root)).toBe(false);
+  });
+
+  test('velikost písmen nevadí', () => {
+    expect(folderLinkMismatch(root.toUpperCase(), root)).toBe(false);
+  });
+
+  test('po změně názvu projektu vede odkaz jinam = rozpor', () => {
+    const link = 'https://selatosro2025.sharepoint.com/sites/SELATOs.r.o/Shared%20Documents/OPERATIONS/01_PROJEKTY/2026/26ZA00005_EKOL_Původní název';
+    expect(folderLinkMismatch(link, root)).toBe(true);
+  });
+
+  test('odkaz bez roku (jiná kořenová cesta) = rozpor', () => {
+    expect(folderLinkMismatch('/sites/SELATOs.r.o/Shared Documents/OPERATIONS/01_PROJEKTY/26ZA00005_EKOL_UL BM kotel', root)).toBe(true);
+  });
+
+  test('projekt bez odkazu = bez rozporu (složky ještě nemá)', () => {
+    expect(folderLinkMismatch(undefined, root)).toBe(false);
+    expect(folderLinkMismatch('  ', root)).toBe(false);
+  });
+
+  test('zpráva ukáže obě cesty čitelně', () => {
+    const msg = folderLinkMismatchMessage('https://x.sharepoint.com/a/B%20c/', '/a/D');
+    expect(msg).toContain('odkaz: /a/B c;');
+    expect(msg).toContain('podle šablony: /a/D)');
+  });
+
+  test('comparableFolderPath snese neplatné %', () => {
+    expect(comparableFolderPath('/a/100%')).toBe('/a/100%');
   });
 });
