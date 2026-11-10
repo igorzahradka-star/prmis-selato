@@ -19,11 +19,13 @@ import { MessageBar, MessageBarType } from '@fluentui/react/lib/MessageBar';
 import { Dropdown, IDropdownOption } from '@fluentui/react/lib/Dropdown';
 import { TextField } from '@fluentui/react/lib/TextField';
 import { ChoiceGroup, IChoiceGroupOption } from '@fluentui/react/lib/ChoiceGroup';
+import { ProgressIndicator } from '@fluentui/react/lib/ProgressIndicator';
 
 import { useApp } from '../../ui/AppContext';
 import { RES } from '../../ui/theme';
 import { buildImportPlan, ImportCandidate, ImportPlan } from '../../core/projectImport';
 import { ImportResult } from '../../data/repositories';
+import { ImportProgress, importOutcome, importProgressFraction, importProgressLabel } from '../../core/importProgress';
 
 export interface ImportProjectsPanelProps {
   isOpen: boolean;
@@ -48,8 +50,33 @@ export const ImportProjectsPanel: React.FC<ImportProjectsPanelProps> = ({
   const [mode, setMode] = React.useState<'seznam' | 'knihovna'>('seznam');
   const [listText, setListText] = React.useState('');
   const [existingNumbers, setExistingNumbers] = React.useState<string[]>([]);
-  const [progress, setProgress] = React.useState<string | undefined>(undefined);
+  const [progress, setProgress] = React.useState<ImportProgress | undefined>(undefined);
   const [folderFailures, setFolderFailures] = React.useState<{ projectNumber: string; message: string }[]>([]);
+  // Režim, ve kterém doběhl poslední import (u importu z knihovny se složky nezakládají, výsledek je nepočítá).
+  const [resultMode, setResultMode] = React.useState<'seznam' | 'knihovna'>('seznam');
+  const topRef = React.useRef<HTMLDivElement>(null);
+
+  // Během importu: varování prohlížeče při zavírání nebo obnovení záložky (import by se přerušil uprostřed).
+  React.useEffect(() => {
+    if (!importing) {
+      return undefined;
+    }
+    const warn = (e: BeforeUnloadEvent): string => {
+      e.preventDefault();
+      e.returnValue = '';
+      return '';
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [importing]);
+
+  // Při spuštění importu (průběh) a po dokončení nebo chybě (výsledek) posunout panel nahoru — tlačítko je dole
+  // a u dlouhého seznamu by průběh i výsledek zůstaly mimo dohled.
+  React.useEffect(() => {
+    if ((importing || result || error) && topRef.current && topRef.current.scrollIntoView) {
+      topRef.current.scrollIntoView({ block: 'start' });
+    }
+  }, [importing, result, error]);
 
   React.useEffect(() => {
     if (!isOpen) {
@@ -109,6 +136,7 @@ export const ImportProjectsPanel: React.FC<ImportProjectsPanelProps> = ({
     }
     setImporting(true);
     setError(undefined);
+    setResultMode(mode);
 
     const inputs = plan.candidates
       .filter((c) => c.action === 'import' && c.projectNumber && c.title)
@@ -124,17 +152,18 @@ export const ImportProjectsPanel: React.FC<ImportProjectsPanelProps> = ({
     const createFolders = async (numbers: string[]): Promise<void> => {
       const failures: { projectNumber: string; message: string }[] = [];
       for (let i = 0; i < numbers.length; i++) {
-        setProgress(`Zakládám složky ${i + 1} / ${numbers.length}: ${numbers[i]}`);
+        setProgress({ phase: 'folders', done: i, total: numbers.length, current: numbers[i] });
         try {
           await repos.projects.retryCreateFolders(numbers[i]);
         } catch (e) {
           failures.push({ projectNumber: numbers[i], message: e instanceof Error ? e.message : String(e) });
         }
       }
+      setProgress({ phase: 'folders', done: numbers.length, total: numbers.length });
       setFolderFailures(failures);
-      setProgress(undefined);
     };
 
+    setProgress({ phase: 'records', done: 0, total: inputs.length });
     repos.projects
       .importProjects(inputs, plan.counterByYear, pm)
       .then(async (r) => {
@@ -142,14 +171,20 @@ export const ImportProjectsPanel: React.FC<ImportProjectsPanelProps> = ({
           await createFolders(r.imported);
         }
         setImporting(false);
+        setProgress(undefined);
         setResult(r);
         onImported?.();
       })
       .catch((e: Error) => {
         setImporting(false);
+        setProgress(undefined);
         setError(e.message);
       });
   };
+
+  const outcome = result
+    ? importOutcome(result.imported.length, result.failed.length, folderFailures.length, resultMode === 'seznam')
+    : undefined;
 
   const columns: IColumn[] = [
     {
@@ -187,7 +222,14 @@ export const ImportProjectsPanel: React.FC<ImportProjectsPanelProps> = ({
   return (
     <Panel
       isOpen={isOpen}
-      onDismiss={onDismiss}
+      // Během importu panel nejde zavřít (křížek je skrytý, Esc ani kliknutí vedle nic neudělá) — přerušený import by nechal projekty bez složek.
+      onDismiss={() => {
+        if (!importing) {
+          onDismiss();
+        }
+      }}
+      hasCloseButton={!importing}
+      isBlocking
       type={PanelType.large}
       headerText="Import stávajících projektů"
       closeButtonAriaLabel="Zavřít"
@@ -205,7 +247,65 @@ export const ImportProjectsPanel: React.FC<ImportProjectsPanelProps> = ({
         </div>
       )}
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
+      <div ref={topRef} style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
+        {importing && progress && (
+          <div
+            role="status"
+            aria-live="polite"
+            style={{ border: `2px solid ${RES.blue}`, borderRadius: 4, padding: '14px 16px', background: RES.bluePale }}
+          >
+            <div style={{ fontSize: 20, fontWeight: 700, color: RES.blue, marginBottom: 6 }}>
+              Probíhá import, nezavírejte okno ani záložku
+            </div>
+            <ProgressIndicator
+              percentComplete={importProgressFraction(progress)}
+              description={importProgressLabel(progress)}
+              barHeight={6}
+            />
+          </div>
+        )}
+
+        {error && (
+          <MessageBar messageBarType={MessageBarType.error} isMultiline>
+            <strong>Import se nepodařil:</strong> {error}
+          </MessageBar>
+        )}
+
+        {result && outcome && (
+          <MessageBar
+            messageBarType={
+              outcome.kind === 'success' ? MessageBarType.success : outcome.kind === 'warning' ? MessageBarType.warning : MessageBarType.error
+            }
+            isMultiline
+          >
+            <div style={{ fontSize: 16, fontWeight: 700 }}>{outcome.headline}</div>
+            {folderFailures.length > 0 && (
+              <div style={{ marginTop: 6 }}>
+                U {folderFailures.length} projektů se nepodařilo založit složky (v detailu projektu je v ozubeném kolečku „Doplnit chybějící složky podle šablony“):
+                <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>
+                  {folderFailures.map((f) => (
+                    <li key={f.projectNumber}>
+                      <strong>{f.projectNumber}</strong>: {f.message}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {result.failed.length > 0 && (
+              <div style={{ marginTop: 6 }}>
+                Nenaimportováno:
+                <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>
+                  {result.failed.map((f) => (
+                    <li key={f.projectNumber}>
+                      <strong>{f.projectNumber}</strong>: {f.message}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </MessageBar>
+        )}
+
         <MessageBar messageBarType={MessageBarType.info} isMultiline>
           {mode === 'seznam' ? (
             <>
@@ -247,48 +347,6 @@ export const ImportProjectsPanel: React.FC<ImportProjectsPanelProps> = ({
             disabled={importing}
             styles={{ field: { fontFamily: 'Consolas, monospace', fontSize: 12 } }}
           />
-        )}
-
-        {progress && (
-          <MessageBar messageBarType={MessageBarType.info}>
-            {progress}
-          </MessageBar>
-        )}
-
-        {error && (
-          <MessageBar messageBarType={MessageBarType.error} isMultiline>
-            {error}
-          </MessageBar>
-        )}
-
-        {result && (
-          <MessageBar
-            messageBarType={result.failed.length === 0 ? MessageBarType.success : MessageBarType.warning}
-            isMultiline
-          >
-            Naimportováno {result.imported.length} projektů.
-            {folderFailures.length > 0 && (
-              <div style={{ marginTop: 6 }}>
-                U {folderFailures.length} projektů se nepodařilo založit složky (v detailu projektu je tlačítko „Zkusit znovu založit složky“):
-                <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>
-                  {folderFailures.map((f) => (
-                    <li key={f.projectNumber}>
-                      <strong>{f.projectNumber}</strong>: {f.message}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {result.failed.length > 0 && (
-              <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>
-                {result.failed.map((f) => (
-                  <li key={f.projectNumber}>
-                    <strong>{f.projectNumber}</strong>: {f.message}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </MessageBar>
         )}
 
         {!plan && !error && mode === 'knihovna' && <Spinner size={SpinnerSize.large} label="Čtu složky…" />}

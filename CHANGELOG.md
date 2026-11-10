@@ -5,6 +5,11 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.68.3 — 10. 11. 2026 — Průběh importu projektů
+
+- Import stávajících projektů ukazuje nahoře velký nápis **„Probíhá import, nezavírejte okno ani záložku“** a ukazatel průběhu (u zakládání složek „hotovo x z y“). Během importu panel nejde zavřít a prohlížeč varuje při zavírání záložky.
+- Po dokončení je výsledek (úspěch, nebo co selhalo) nahoře v panelu. Beze změny schématu.
+
 ## 0.68.2 — 10. 11. 2026 — Doplnit chybějící složky podle šablony
 
 - V detailu běžného projektu, v nabídce **ozubeného kolečka**, nová položka **Doplnit chybějící složky podle šablony** (vidí ji jen ten, kdo smí projekt upravovat). Založí ve složce projektu podsložky, které podle šablony z Nastavení chybějí — hodí se po změně šablony nebo u importovaných zakázek. **Nic nemaže ani nepřejmenovává.**
