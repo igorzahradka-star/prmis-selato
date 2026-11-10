@@ -5,6 +5,10 @@ Datum ve tvaru den. měsíc. rok.
 
 ---
 
+## 0.69.1 — 10. 11. 2026 — Import partnerů z Excelu
+
+- **Nastavení → Jednorázové akce → Import partnerů:** zákazníky a dodavatele jde založit ze sešitu Excelu (.xlsx, list „Import“) nebo ze zkopírovaných buněk. Okno nejdřív ukáže náhled: které řádky se založí, které se přeskočí jako duplicita (stejné IČO ve stejné zemi) a které mají chybu (např. špatná kontrolní číslice českého IČO). Zakládá až po potvrzení, s ukazatelem průběhu; import jde opakovat, už založení partneři se přeskočí. Existující partnery nemění. Beze změny schématu.
+
 ## 0.69.0 — 10. 11. 2026 — Abra a Servis vypnuté (SELATO)
 
 - Moduly **Abra** (doklady z účetnictví) a **Servis** jsou v SELATO vypnuté přepínačem v `spfx/src/config/entity.ts` (`modules`). Z aplikace zmizely: záložka **Data z účetnictví** v projektu, **Kontroly projektů** v nabídce, odkazy na doklady z účetnictví v rozpočtu, celá skupina **Servis** v nabídce a karta **Servis** v Nastavení. Přímá adresa takové obrazovky otevře přehled projektů.

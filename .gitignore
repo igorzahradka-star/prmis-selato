@@ -50,3 +50,7 @@ sharepoint/solution/
 
 # Sestavený lokální náhled
 nahled/dist/
+
+# Podklady k importu s daty partnerů a zákazníků — necommitovat
+nastroje/Partneri_PRMIS_k_importu.xlsx
+nastroje/*.xlsx

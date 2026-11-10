@@ -46,6 +46,7 @@ import { RatesTab } from './RatesTab';
 import { SlaRulesEditor } from './SlaRulesEditor';
 import { DefaultApproversEditor } from './DefaultApproversEditor';
 import { DeleteOrderCard } from './DeleteOrderCard';
+import { ImportPartnersPanel } from './ImportPartnersPanel';
 
 export const SettingsPage: React.FC = () => {
   const { settings, repos, user, reloadSettings } = useApp();
@@ -597,6 +598,7 @@ const OneOffActions: React.FC = () => {
   const [creating, setCreating] = React.useState(false);
   const [error, setError] = React.useState<string | undefined>(undefined);
   const [importOpen, setImportOpen] = React.useState(false);
+  const [partnersOpen, setPartnersOpen] = React.useState(false);
   const [reloadKey, setReloadKey] = React.useState(0);
   const [repairing, setRepairing] = React.useState(false);
   const [repairMessage, setRepairMessage] = React.useState<{ text: string; type: MessageBarType } | undefined>(
@@ -728,6 +730,14 @@ const OneOffActions: React.FC = () => {
       />
 
       <ActionCard
+        title="Import partnerů"
+        description="Založí zákazníky a dodavatele ze sešitu Excelu (.xlsx, list „Import“) nebo ze zkopírovaných buněk. Nejdřív ukáže náhled — co se založí, co se přeskočí jako duplicita podle IČO a země a které řádky mají chybu — a zakládá až po potvrzení. Existující partnery nemění."
+        state="spustí se ručně, dá se opakovat"
+        done={false}
+        action={<PrimaryButton text="Importovat partnery" onClick={() => setPartnersOpen(true)} />}
+      />
+
+      <ActionCard
         title="Opravit odkazy na složky projektů"
         description="Když tlačítko „Otevřít složku projektu“ skončí chybou „404 NOT FOUND“, je v projektu uložený odkaz na složku se špatnou adresou knihovny. Tohle tlačítko takové odkazy opraví. Přepisuje jen odkazy poznatelně špatného tvaru, správné a jinam mířící nechá být."
         state="dá se pustit opakovaně"
@@ -747,6 +757,8 @@ const OneOffActions: React.FC = () => {
         aplikace neví, na jakém čísle skončila dosavadní řada, a nový projekt by dostal číslo,
         které už některá složka má.
       </MessageBar>
+
+      <ImportPartnersPanel isOpen={partnersOpen} onDismiss={() => setPartnersOpen(false)} />
 
       <ImportProjectsPanel
         isOpen={importOpen}
